@@ -1,0 +1,22 @@
+{
+  "note": "Gate 28 — safe identifier only. No secret, no file content, no config value beyond commit hashes/branch/timestamps is recorded here.",
+  "repository": "portal-financiamento-brabus-secure",
+  "branch": "main",
+
+  "localCloneHead": "53d7197cc922155d484a355b1040410e2c90bf28",
+  "localCloneHeadCommitTimestamp": "2026-08-22T19:26:44-03:00",
+  "localCloneHeadNote": "This is what `git -C portal-financiamento-brabus-secure rev-parse HEAD` returns on this machine's checkout as of this phase — same value PORTAL-NEXT-01 and PORTAL-NEXT-01.1 both audited against. It has NOT been updated locally (no fetch/pull performed by this or any prior phase).",
+
+  "realRemoteMainHead": "2f17eb2341c5cc14aa8710aa044103002ca572a9",
+  "realRemoteMainHeadDiscoveredVia": "git -C portal-financiamento-brabus-secure ls-remote origin refs/heads/main (read-only, does not fetch objects or touch the local clone) + gh api repos/.../commits/main + gh api repos/.../actions/workflows/pages.yml/runs (all read-only)",
+  "realRemoteMainHeadNote": "GATE 29 FINDING (this phase, not carried over from PORTAL-NEXT-01/01.1): the REAL current tip of origin/main is NOT the same commit this Foundation's local clone and PORTAL-NEXT-01/01.1's audits were based on. It is confirmed, via GitHub Actions run history, to be the exact commit PORTAL-NEXT-01.1 identified as the unmerged AI kill-switch fix (previously only in the ia-prod-1-local worktree) -- and that workflow run completed successfully (2026-08-28T15:10:26Z). At least 4 other commits also landed and deployed successfully on main between this fingerprint's prior audit point and now. See docs/SAFETY.md 'Rebaseline Review' section and REPORT.md's PORTAL-NEXT-02 entry for the full disclosure -- this was NOT fixed, pulled, merged, or acted on by this phase; it was only discovered and reported.",
+
+  "recordedAt": "2026-08-30T00:00:00-03:00",
+  "recordedDuring": "PORTAL-NEXT-02",
+  "productionHosting": {
+    "provider": "GitHub Pages",
+    "domain": "brabus.blistiq.com.br",
+    "pagesStatus": "built",
+    "buildType": "workflow"
+  }
+}
