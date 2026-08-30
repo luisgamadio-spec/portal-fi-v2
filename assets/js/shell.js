@@ -74,6 +74,13 @@
           window.NX_SCORE_PAGE.render(outlet).then(function () {
             if (hasRenderedOnce) outlet.focus();
           });
+        } else if (routeId === 'coparticipado' && window.NX_COPARTICIPADO_PAGE) {
+          // PORTAL-NEXT-05 Gate 28: real Coparticipado route, same
+          // outlet-only rendering contract as Score.
+          var cpOutlet = document.getElementById('nxContentOutlet');
+          window.NX_COPARTICIPADO_PAGE.render(cpOutlet).then(function () {
+            if (hasRenderedOnce) cpOutlet.focus();
+          });
         } else {
           renderPlaceholder(entry, routeId, hasRenderedOnce);
         }

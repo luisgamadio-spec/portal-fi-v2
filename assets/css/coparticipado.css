@@ -1,0 +1,197 @@
+/* PORTAL-NEXT V2 — Coparticipado module CSS.
+   Visual authority: design-system-2.1/references/data-table.md
+   (APPROVED data-table pattern — same one Score uses) — no dedicated
+   Approved Reference exists for Coparticipado itself, so NORMATIVE
+   COMPLIANCE is reported, not VISUAL PARITY (Gate 43). Every value is
+   a var() from tokens.css. Table stays table (no cards on mobile:
+   sticky first column + horizontal scroll). Sortable-column visual
+   indicator is UNRESOLVED per data-table.md — not invented, and
+   production's own Coparticipados/Subsidiados tables aren't
+   interactively sortable either (same precedent as Score). */
+
+.cpPage { max-width: 1280px; }
+
+.cpHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-5);
+}
+.cpHeader h1 {
+  font-family: var(--font-ui);
+  font-weight: 300;
+  font-size: clamp(22px, 2.6vw, 30px);
+  letter-spacing: -.01em;
+  margin: 0;
+}
+.cpHeader p {
+  color: var(--color-text-secondary);
+  margin: var(--space-1) 0 0;
+  font-size: 13px;
+}
+
+/* ---------- dev fixture context (same convention as score.css) ---------- */
+.cpFixtureBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-4);
+  border: 1px dashed var(--color-hairline-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+.cpFixtureBar .cpFixtureLabel {
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-warning);
+}
+.cpFixtureBar select {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.cpFixtureBar select:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+/* ---------- filters (Loja / Departamento / período — real production filter set) ---------- */
+.cpFilters {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-hairline);
+}
+.cpField { display: flex; flex-direction: column; gap: var(--space-1); min-width: 160px; }
+.cpField label {
+  color: var(--color-text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.cpField select,
+.cpField input[type="date"] {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.cpField select:focus-visible,
+.cpField input:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+/* ---------- view switcher ("Visão Coparticipados" / "Visão Subsidiados") ---------- */
+.cpViewSwitcher {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.cpTab {
+  background: none;
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-secondary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.cpTab:hover:not(.cpTabActive) { color: var(--color-text-primary); }
+.cpTab:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+.cpTabActive {
+  color: var(--color-canvas);
+  background: var(--color-text-primary);
+  border-color: var(--color-text-primary);
+}
+
+.cpPanel h2 {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 18px;
+  margin: 0 0 var(--space-1);
+}
+.cpMuted { color: var(--color-text-muted); font-size: 12.5px; margin: 0 0 var(--space-4); }
+.cpMuted b { color: var(--color-text-secondary); }
+
+/* ---------- summary (Subsidiados view — real production 3-stat block) ---------- */
+.cpSummary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.cpSummaryItem {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+.cpK {
+  color: var(--color-text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.cpV {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 500;
+  margin-top: var(--space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- table (HIGH density — data-table.md pattern, identical
+   discipline to score.css: dense, hairline-separated, right-aligned
+   tabular numerics, no cell fills, no pill-per-cell, sticky first
+   column + horizontal scroll on narrow viewports instead of
+   cardifying rows) ---------- */
+.cpTableWrap { overflow-x: auto; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); }
+.cpTable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.cpTable thead th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-hairline-strong);
+  white-space: nowrap;
+}
+.cpTable td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-hairline);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.cpTable tbody tr:last-child td { border-bottom: none; }
+.cpTable tbody tr:hover td { background: rgba(255,255,255,.028); }
+.cpTable .cpNumCol { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.cpTable thead th:first-child,
+.cpTable td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--color-surface-1);
+}
+.cpTable thead th:first-child { background: var(--color-surface-2); z-index: 1; }
+
+.cpWarn { color: var(--color-warning); }
+
+@media (max-width: 768px) {
+  .cpField { min-width: 130px; }
+}

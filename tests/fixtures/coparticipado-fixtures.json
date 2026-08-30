@@ -1,0 +1,2380 @@
+{
+  "note": "Gate 15 -- synthetic/sample inputs, no real customer PII. All names/CPFs/chassis are invented placeholders. Column shapes match production's real Base01/Base02/Base03 row contracts (docs/COPARTICIPADO-ENGINE-AUDIT.md). EXCLUDED_SELLERS entries are real (extracted verbatim from production, since they're already public in git history), used deliberately in the vendor_excluido fixture to test the real exclusion rule.",
+  "cases": [
+    {
+      "id": "coparticipado_valido",
+      "description": "TC Devolvida contém COPARTICIPADO + situação PAGA -> classificação COPARTICIPADO, com taxa encontrada.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000001",
+          "Chassi Resumido": "S0000001",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "CARLOS EDUARDO SILVA",
+          "Nome Cliente": "CLIENTE UM",
+          "Cód. Cliente": "9S0000001",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 150000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0001",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 150000,
+          "Retorno Bruto": 12000,
+          "Chassi Completo": "CHS0000001",
+          "Chassi Resumido": "S0000001",
+          "Cliente": "CLIENTE UM",
+          "CPF": "9S0000001",
+          "Nome completo vendedor": "CARLOS EDUARDO SILVA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE UM",
+          "Cli - CPF/CNPJ": "911111111",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 150000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0001"
+    },
+    {
+      "id": "nao_coparticipado",
+      "description": "Sem match Base03 relevante e sem indício de plano especial -> LINEAR (fallback default).",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000002",
+          "Chassi Resumido": "S0000002",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "MARIANA ALVES COSTA",
+          "Nome Cliente": "CLIENTE DOIS",
+          "Cód. Cliente": "9S0000002",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 180000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0002",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 180000,
+          "Retorno Bruto": 14000,
+          "Chassi Completo": "CHS0000002",
+          "Chassi Resumido": "S0000002",
+          "Cliente": "CLIENTE DOIS",
+          "CPF": "9S0000002",
+          "Nome completo vendedor": "MARIANA ALVES COSTA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE DOIS",
+          "Cli - CPF/CNPJ": "912222222",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 180000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0002"
+    },
+    {
+      "id": "subsidiado",
+      "description": "Tabela - Código IF = 999 -> SUBSIDIADO (maior prioridade da classificação).",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000003",
+          "Chassi Resumido": "S0000003",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "JULIANA PEREIRA LIMA",
+          "Nome Cliente": "CLIENTE TRES",
+          "Cód. Cliente": "9S0000003",
+          "Modelo": "TRITON",
+          "Valor Venda": 200000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0003",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 200000,
+          "Retorno Bruto": 15000,
+          "Chassi Completo": "CHS0000003",
+          "Chassi Resumido": "S0000003",
+          "Cliente": "CLIENTE TRES",
+          "CPF": "9S0000003",
+          "Nome completo vendedor": "JULIANA PEREIRA LIMA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE TRES",
+          "Cli - CPF/CNPJ": "913333333",
+          "Tabela - Código IF": 999,
+          "Tabela - TC Devolvida": "",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 200000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0003"
+    },
+    {
+      "id": "reversao",
+      "description": "Tabela - Código IF = 777 -> REVERSÃO.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000004",
+          "Chassi Resumido": "S0000004",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "CARLOS EDUARDO SILVA",
+          "Nome Cliente": "CLIENTE QUATRO",
+          "Cód. Cliente": "9S0000004",
+          "Modelo": "TRITON",
+          "Valor Venda": 210000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0004",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 210000,
+          "Retorno Bruto": 16000,
+          "Chassi Completo": "CHS0000004",
+          "Chassi Resumido": "S0000004",
+          "Cliente": "CLIENTE QUATRO",
+          "CPF": "9S0000004",
+          "Nome completo vendedor": "CARLOS EDUARDO SILVA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE QUATRO",
+          "Cli - CPF/CNPJ": "914444444",
+          "Tabela - Código IF": 777,
+          "Tabela - TC Devolvida": "",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 210000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0004"
+    },
+    {
+      "id": "balao",
+      "description": "Op Fin - Balão PMT (R$) > 0, sem IF especial nem TC coparticipado -> BALÃO.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000005",
+          "Chassi Resumido": "S0000005",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "MARIANA ALVES COSTA",
+          "Nome Cliente": "CLIENTE CINCO",
+          "Cód. Cliente": "9S0000005",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 190000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0005",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 190000,
+          "Retorno Bruto": 13000,
+          "Chassi Completo": "CHS0000005",
+          "Chassi Resumido": "S0000005",
+          "Cliente": "CLIENTE CINCO",
+          "CPF": "9S0000005",
+          "Nome completo vendedor": "MARIANA ALVES COSTA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE CINCO",
+          "Cli - CPF/CNPJ": "915555555",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 25000,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 190000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0005"
+    },
+    {
+      "id": "linear_sem_b3",
+      "description": "Nenhum registro Base 03 corresponde -> matchB3 retorna null -> classifyPlan(null) = LINEAR.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000006",
+          "Chassi Resumido": "S0000006",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "JULIANA PEREIRA LIMA",
+          "Nome Cliente": "CLIENTE SEIS",
+          "Cód. Cliente": "9S0000006",
+          "Modelo": "TRITON",
+          "Valor Venda": 175000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0006",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 175000,
+          "Retorno Bruto": 11000,
+          "Chassi Completo": "CHS0000006",
+          "Chassi Resumido": "S0000006",
+          "Cliente": "CLIENTE SEIS",
+          "CPF": "9S0000006",
+          "Nome completo vendedor": "JULIANA PEREIRA LIMA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [],
+      "focusProposta": "P0006"
+    },
+    {
+      "id": "priority_collision",
+      "description": "Mesmo registro B3 satisfaz SUBSIDIADO (IF=999) E teria balão>0 E TC=COPARTICIPADO -> deve vencer SUBSIDIADO (prioridade mais alta), não BALÃO nem COPARTICIPADO.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000007",
+          "Chassi Resumido": "S0000007",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "CARLOS EDUARDO SILVA",
+          "Nome Cliente": "CLIENTE SETE",
+          "Cód. Cliente": "9S0000007",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 160000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0007",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 160000,
+          "Retorno Bruto": 12500,
+          "Chassi Completo": "CHS0000007",
+          "Chassi Resumido": "S0000007",
+          "Cliente": "CLIENTE SETE",
+          "CPF": "9S0000007",
+          "Nome completo vendedor": "CARLOS EDUARDO SILVA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE SETE",
+          "Cli - CPF/CNPJ": "917777777",
+          "Tabela - Código IF": 999,
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 30000,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 160000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0007"
+    },
+    {
+      "id": "missing_base03_multi",
+      "description": "Dois financiamentos; um tem match Base03 (COPARTICIPADO), o outro não tem nenhum candidato -> parity deve mostrar um COPARTICIPADO e um LINEAR.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000008",
+          "Chassi Resumido": "S0000008",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "MARIANA ALVES COSTA",
+          "Nome Cliente": "CLIENTE OITO",
+          "Cód. Cliente": "9S0000008",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 155000
+        },
+        {
+          "Chassi Completo": "CHS0000009",
+          "Chassi Resumido": "S0000009",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "MARIANA ALVES COSTA",
+          "Nome Cliente": "CLIENTE NOVE",
+          "Cód. Cliente": "9S0000009",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 165000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0008",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 155000,
+          "Retorno Bruto": 12000,
+          "Chassi Completo": "CHS0000008",
+          "Chassi Resumido": "S0000008",
+          "Cliente": "CLIENTE OITO",
+          "CPF": "9S0000008",
+          "Nome completo vendedor": "MARIANA ALVES COSTA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        },
+        {
+          "Cód. Proposta": "P0009",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 165000,
+          "Retorno Bruto": 12500,
+          "Chassi Completo": "CHS0000009",
+          "Chassi Resumido": "S0000009",
+          "Cliente": "CLIENTE NOVE",
+          "CPF": "9S0000009",
+          "Nome completo vendedor": "MARIANA ALVES COSTA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE OITO",
+          "Cli - CPF/CNPJ": "918888888",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 155000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0008"
+    },
+    {
+      "id": "missing_base02",
+      "description": "Venda sem nenhum financiamento correspondente na Base 02 -> não produz registro em fins[] (não é um bug, é o comportamento real: processFins itera sobre Base 02, não sobre Base 01).",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000010",
+          "Chassi Resumido": "S0000010",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "JULIANA PEREIRA LIMA",
+          "Nome Cliente": "CLIENTE DEZ",
+          "Cód. Cliente": "9S0000010",
+          "Modelo": "TRITON",
+          "Valor Venda": 145000
+        }
+      ],
+      "b2Rows": [],
+      "b3Rows": [],
+      "focusProposta": null
+    },
+    {
+      "id": "duplicate_b3",
+      "description": "Dois registros B3 candidatos para o mesmo cliente/CPF, um PAGA (score alto) e um CANCELADO (score penalizado) -> deve escolher o PAGA.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000011",
+          "Chassi Resumido": "S0000011",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "CARLOS EDUARDO SILVA",
+          "Nome Cliente": "CLIENTE ONZE",
+          "Cód. Cliente": "9S0000011",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 158000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0011",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 158000,
+          "Retorno Bruto": 12300,
+          "Chassi Completo": "CHS0000011",
+          "Chassi Resumido": "S0000011",
+          "Cliente": "CLIENTE ONZE",
+          "CPF": "9S0000011",
+          "Nome completo vendedor": "CARLOS EDUARDO SILVA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE ONZE",
+          "Cli - CPF/CNPJ": "911111011",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "CANCELADO",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 158000,
+          "Op - Data Contrato": "01/01/2026"
+        },
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE ONZE",
+          "Cli - CPF/CNPJ": "911111011",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 158000,
+          "Op - Data Contrato": "15/02/2026"
+        }
+      ],
+      "focusProposta": "P0011"
+    },
+    {
+      "id": "situacao_invalida",
+      "description": "Situação B3 desconhecida ('EM ANALISE', fora do dicionário de scoring) -> não é PAGA/FATURADA -> isCoparticipadoValido=false mesmo com TC=COPARTICIPADO -> cai para BALÃO ou LINEAR conforme o restante dos campos.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000012",
+          "Chassi Resumido": "S0000012",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "MARIANA ALVES COSTA",
+          "Nome Cliente": "CLIENTE DOZE",
+          "Cód. Cliente": "9S0000012",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 172000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0012",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 172000,
+          "Retorno Bruto": 13200,
+          "Chassi Completo": "CHS0000012",
+          "Chassi Resumido": "S0000012",
+          "Cliente": "CLIENTE DOZE",
+          "CPF": "9S0000012",
+          "Nome completo vendedor": "MARIANA ALVES COSTA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE DOZE",
+          "Cli - CPF/CNPJ": "911111012",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "EM ANALISE",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 172000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0012"
+    },
+    {
+      "id": "situacao_paga",
+      "description": "Situação = PAGA explicitamente (uma das duas situações válidas para COPARTICIPADO).",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000013",
+          "Chassi Resumido": "S0000013",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "JULIANA PEREIRA LIMA",
+          "Nome Cliente": "CLIENTE TREZE",
+          "Cód. Cliente": "9S0000013",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 149000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0013",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 149000,
+          "Retorno Bruto": 11800,
+          "Chassi Completo": "CHS0000013",
+          "Chassi Resumido": "S0000013",
+          "Cliente": "CLIENTE TREZE",
+          "CPF": "9S0000013",
+          "Nome completo vendedor": "JULIANA PEREIRA LIMA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE TREZE",
+          "Cli - CPF/CNPJ": "911111013",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 149000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0013"
+    },
+    {
+      "id": "situacao_faturada",
+      "description": "Situação = FATURADA explicitamente (a outra situação válida para COPARTICIPADO).",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000014",
+          "Chassi Resumido": "S0000014",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "CARLOS EDUARDO SILVA",
+          "Nome Cliente": "CLIENTE QUATORZE",
+          "Cód. Cliente": "9S0000014",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 168000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0014",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 168000,
+          "Retorno Bruto": 12900,
+          "Chassi Completo": "CHS0000014",
+          "Chassi Resumido": "S0000014",
+          "Cliente": "CLIENTE QUATORZE",
+          "CPF": "9S0000014",
+          "Nome completo vendedor": "CARLOS EDUARDO SILVA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE QUATORZE",
+          "Cli - CPF/CNPJ": "911111014",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "FATURADA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 168000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0014"
+    },
+    {
+      "id": "vendedor_excluido",
+      "description": "Vendedor RICARDO SILVA COSTA está em EXCLUDED_SELLERS -> a linha inteira é descartada por rowHasExcluded, mesmo com dados de plano válidos.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000015",
+          "Chassi Resumido": "S0000015",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "RICARDO SILVA COSTA",
+          "Nome Cliente": "CLIENTE QUINZE",
+          "Cód. Cliente": "9S0000015",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 151000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0015",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 151000,
+          "Retorno Bruto": 12100,
+          "Chassi Completo": "CHS0000015",
+          "Chassi Resumido": "S0000015",
+          "Cliente": "CLIENTE QUINZE",
+          "CPF": "9S0000015",
+          "Nome completo vendedor": "RICARDO SILVA COSTA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE QUINZE",
+          "Cli - CPF/CNPJ": "911111015",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 151000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0015"
+    },
+    {
+      "id": "multiplas_lojas",
+      "description": "Vendedores de 3 lojas diferentes no mesmo lote -> loja deve vir do cadastro do vendedor (via sale), não inventada.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000016",
+          "Chassi Resumido": "S0000016",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "CARLOS EDUARDO SILVA",
+          "Nome Cliente": "CLIENTE DEZESSEIS",
+          "Cód. Cliente": "9S0000016",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 160000
+        },
+        {
+          "Chassi Completo": "CHS0000017",
+          "Chassi Resumido": "S0000017",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "MARIANA ALVES COSTA",
+          "Nome Cliente": "CLIENTE DEZESSETE",
+          "Cód. Cliente": "9S0000017",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 170000
+        },
+        {
+          "Chassi Completo": "CHS0000018",
+          "Chassi Resumido": "S0000018",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "JULIANA PEREIRA LIMA",
+          "Nome Cliente": "CLIENTE DEZOITO",
+          "Cód. Cliente": "9S0000018",
+          "Modelo": "TRITON",
+          "Valor Venda": 180000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0016",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 160000,
+          "Retorno Bruto": 12000,
+          "Chassi Completo": "CHS0000016",
+          "Chassi Resumido": "S0000016",
+          "Cliente": "CLIENTE DEZESSEIS",
+          "CPF": "9S0000016",
+          "Nome completo vendedor": "CARLOS EDUARDO SILVA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        },
+        {
+          "Cód. Proposta": "P0017",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 170000,
+          "Retorno Bruto": 13000,
+          "Chassi Completo": "CHS0000017",
+          "Chassi Resumido": "S0000017",
+          "Cliente": "CLIENTE DEZESSETE",
+          "CPF": "9S0000017",
+          "Nome completo vendedor": "MARIANA ALVES COSTA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        },
+        {
+          "Cód. Proposta": "P0018",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 180000,
+          "Retorno Bruto": 14000,
+          "Chassi Completo": "CHS0000018",
+          "Chassi Resumido": "S0000018",
+          "Cliente": "CLIENTE DEZOITO",
+          "CPF": "9S0000018",
+          "Nome completo vendedor": "JULIANA PEREIRA LIMA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE DEZESSEIS",
+          "Cli - CPF/CNPJ": "911111016",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 160000,
+          "Op - Data Contrato": "01/03/2026"
+        },
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE DEZESSETE",
+          "Cli - CPF/CNPJ": "911111017",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 170000,
+          "Op - Data Contrato": "01/03/2026"
+        },
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE DEZOITO",
+          "Cli - CPF/CNPJ": "911111018",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 180000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": null
+    },
+    {
+      "id": "departamento_novos",
+      "description": "Novo/Usado = N -> departamento Novos.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000019",
+          "Chassi Resumido": "S0000019",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "CARLOS EDUARDO SILVA",
+          "Nome Cliente": "CLIENTE DEZENOVE",
+          "Cód. Cliente": "9S0000019",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 162000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0019",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 162000,
+          "Retorno Bruto": 12400,
+          "Chassi Completo": "CHS0000019",
+          "Chassi Resumido": "S0000019",
+          "Cliente": "CLIENTE DEZENOVE",
+          "CPF": "9S0000019",
+          "Nome completo vendedor": "CARLOS EDUARDO SILVA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE DEZENOVE",
+          "Cli - CPF/CNPJ": "911111019",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 162000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0019"
+    },
+    {
+      "id": "departamento_seminovos",
+      "description": "Novo/Usado = U (usado) -> departamento Seminovos.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000020",
+          "Chassi Resumido": "S0000020",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "U",
+          "Nome Vendedor Completo": "MARIANA ALVES COSTA",
+          "Nome Cliente": "CLIENTE VINTE",
+          "Cód. Cliente": "9S0000020",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 145000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0020",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 145000,
+          "Retorno Bruto": 11000,
+          "Chassi Completo": "CHS0000020",
+          "Chassi Resumido": "S0000020",
+          "Cliente": "CLIENTE VINTE",
+          "CPF": "9S0000020",
+          "Nome completo vendedor": "MARIANA ALVES COSTA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE VINTE",
+          "Cli - CPF/CNPJ": "911111020",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 145000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0020"
+    },
+    {
+      "id": "date_boundary_tiebreak",
+      "description": "Dois candidatos B3 com score total IDÊNTICO (mesmo cliente, mesma situação/plano/proximidade de valor) mas datas de contrato diferentes -> deve vencer o mais recente.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000021",
+          "Chassi Resumido": "S0000021",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "JULIANA PEREIRA LIMA",
+          "Nome Cliente": "CLIENTE VINTEUM",
+          "Cód. Cliente": "9S0000021",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 150000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0021",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 150000,
+          "Retorno Bruto": 11500,
+          "Chassi Completo": "CHS0000021",
+          "Chassi Resumido": "S0000021",
+          "Cliente": "CLIENTE VINTEUM",
+          "CPF": "9S0000021",
+          "Nome completo vendedor": "JULIANA PEREIRA LIMA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE VINTEUM",
+          "Cli - CPF/CNPJ": "911111021",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 150000,
+          "Op - Data Contrato": "10/01/2026"
+        },
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE VINTEUM",
+          "Cli - CPF/CNPJ": "911111021",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 150000,
+          "Op - Data Contrato": "28/02/2026"
+        }
+      ],
+      "focusProposta": "P0021"
+    },
+    {
+      "id": "valores_zero",
+      "description": "Valor Serviço = 0 e Retorno Bruto = 0 -> processFins descarta a linha (filtro exige >0 em um dos dois) -> fins vazio para esse registro.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000022",
+          "Chassi Resumido": "S0000022",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "CARLOS EDUARDO SILVA",
+          "Nome Cliente": "CLIENTE VINTEDOIS",
+          "Cód. Cliente": "9S0000022",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 0
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0022",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 0,
+          "Retorno Bruto": 0,
+          "Chassi Completo": "CHS0000022",
+          "Chassi Resumido": "S0000022",
+          "Cliente": "CLIENTE VINTEDOIS",
+          "CPF": "9S0000022",
+          "Nome completo vendedor": "CARLOS EDUARDO SILVA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE VINTEDOIS",
+          "Cli - CPF/CNPJ": "911111022",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 0,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0022"
+    },
+    {
+      "id": "valores_grandes",
+      "description": "Valor Serviço muito grande (R$ 9.999.999,99) -> não deve quebrar cálculo de coparticipação nem formatação.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000023",
+          "Chassi Resumido": "S0000023",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "MARIANA ALVES COSTA",
+          "Nome Cliente": "CLIENTE VINTETRES",
+          "Cód. Cliente": "9S0000023",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 9999999.99
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0023",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 9999999.99,
+          "Retorno Bruto": 800000,
+          "Chassi Completo": "CHS0000023",
+          "Chassi Resumido": "S0000023",
+          "Cliente": "CLIENTE VINTETRES",
+          "CPF": "9S0000023",
+          "Nome completo vendedor": "MARIANA ALVES COSTA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE VINTETRES",
+          "Cli - CPF/CNPJ": "911111023",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 9999999.99,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0023"
+    },
+    {
+      "id": "modelo_sem_taxa",
+      "description": "Classificado como COPARTICIPADO mas o modelo do veículo (TRITON) não existe na tabela de taxa fornecida -> calcCoparticipacaoDetalhe deve retornar ok:false, sem inventar taxa.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000024",
+          "Chassi Resumido": "S0000024",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "JULIANA PEREIRA LIMA",
+          "Nome Cliente": "CLIENTE VINTEQUATRO",
+          "Cód. Cliente": "9S0000024",
+          "Modelo": "TRITON",
+          "Valor Venda": 175000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0024",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 175000,
+          "Retorno Bruto": 13500,
+          "Chassi Completo": "CHS0000024",
+          "Chassi Resumido": "S0000024",
+          "Cliente": "CLIENTE VINTEQUATRO",
+          "CPF": "9S0000024",
+          "Nome completo vendedor": "JULIANA PEREIRA LIMA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE VINTEQUATRO",
+          "Cli - CPF/CNPJ": "911111024",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 175000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0024"
+    },
+    {
+      "id": "nome_longo",
+      "description": "Vendedor com nome de 49 caracteres -> stress de truncamento/sticky column.",
+      "vendorRows": [
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "11111111111"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "Loja Sul",
+          "Status": "SEMINOVOS",
+          "CPF": "22222222222"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V003",
+          "Nome": "RICARDO SILVA COSTA",
+          "Loja": "Loja Norte",
+          "Status": "NOVOS",
+          "CPF": "33333333333"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V004",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "Loja Leste",
+          "Status": "NOVOS",
+          "CPF": "44444444444"
+        },
+        {
+          "TIPO": "VENDEDOR",
+          "NBS": "V005",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "Loja Oeste",
+          "Status": "NOVOS",
+          "CPF": "55555555555"
+        }
+      ],
+      "taxasCopart": {
+        "ECLIPSE CROSS": {
+          "modeloTabela": "ECLIPSE CROSS",
+          "rebateTotal": 0.05,
+          "parteBrabus": 0.5
+        },
+        "OUTLANDER": {
+          "modeloTabela": "OUTLANDER",
+          "rebateTotal": 0.04,
+          "parteBrabus": 0.6
+        }
+      },
+      "b1Rows": [
+        {
+          "Chassi Completo": "CHS0000025",
+          "Chassi Resumido": "S0000025",
+          "Veic. Tipo": "NOVO",
+          "Data venda": "01/03/2026",
+          "Novo/Usado": "N",
+          "Nome Vendedor Completo": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Nome Cliente": "CLIENTE VINTECINCO",
+          "Cód. Cliente": "9S0000025",
+          "Modelo": "ECLIPSE CROSS",
+          "Valor Venda": 155000
+        }
+      ],
+      "b2Rows": [
+        {
+          "Cód. Proposta": "P0025",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 155000,
+          "Retorno Bruto": 12000,
+          "Chassi Completo": "CHS0000025",
+          "Chassi Resumido": "S0000025",
+          "Cliente": "CLIENTE VINTECINCO",
+          "CPF": "9S0000025",
+          "Nome completo vendedor": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Data Venda": "01/03/2026",
+          "Qtde Parcelas": 48,
+          "Novo/Usado": "N"
+        }
+      ],
+      "b3Rows": [
+        {
+          "Op - Modalidade": "FANDI",
+          "Cli - Nome": "CLIENTE VINTECINCO",
+          "Cli - CPF/CNPJ": "911111025",
+          "Tabela - Código IF": "",
+          "Tabela - TC Devolvida": "COPARTICIPADO",
+          "Op - Situação": "PAGA",
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 155000,
+          "Op - Data Contrato": "01/03/2026"
+        }
+      ],
+      "focusProposta": "P0025"
+    }
+  ]
+}

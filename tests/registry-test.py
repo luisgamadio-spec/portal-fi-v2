@@ -23,12 +23,14 @@ def main():
     print(f"[PASS] {len(modules)} modules found in registry" if modules else "[FAIL] 0 modules found")
     if not modules:
         errors.append("registry has 0 modules")
-    # Expected status per module as of PORTAL-NEXT-04 (Gate 29/65: only
-    # Landing and Score may have moved past NOT_MIGRATED; Score must
-    # stop at UAT_PENDING, never auto-promoted to HUMAN_APPROVED).
+    # Expected status per module as of PORTAL-NEXT-05 (Gate 29/65/61-63:
+    # only Landing, Score and now Coparticipado may have moved past
+    # NOT_MIGRATED; Score/Coparticipado must stop at UAT_PENDING, never
+    # auto-promoted to HUMAN_APPROVED without an explicit human decision).
     EXPECTED_STATUS = {
         "landing": {"HUMAN_APPROVED"},
         "score": {"UAT_PENDING", "VISUAL_PARITY_PENDING"},
+        "coparticipado": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS"},
     }
 
     for m in modules:
@@ -41,7 +43,7 @@ def main():
             if status not in EXPECTED_STATUS[mid]:
                 errors.append(f"module '{mid}' has migrationStatus={status!r}, expected one of {EXPECTED_STATUS[mid]}")
         elif status != "NOT_MIGRATED":
-            errors.append(f"module '{mid}' has migrationStatus={status!r}, expected NOT_MIGRATED — only Landing/Score may have changed status so far (Gate 29/65)")
+            errors.append(f"module '{mid}' has migrationStatus={status!r}, expected NOT_MIGRATED — only Landing/Score/Coparticipado may have changed status so far (Gate 29/65)")
         if status not in enum:
             errors.append(f"module '{mid}' migrationStatus not in enum")
 
@@ -50,7 +52,7 @@ def main():
     if dupes:
         errors.append(f"duplicate module ids: {dupes}")
 
-    print(f"[{'PASS' if not errors else 'FAIL'}] all modules have required contract fields and correct status discipline (landing=HUMAN_APPROVED, score=UAT_PENDING/VISUAL_PARITY_PENDING, all others=NOT_MIGRATED)")
+    print(f"[{'PASS' if not errors else 'FAIL'}] all modules have required contract fields and correct status discipline (landing=HUMAN_APPROVED, score/coparticipado=UAT_PENDING/VISUAL_PARITY_PENDING, all others=NOT_MIGRATED)")
     if errors:
         for e in errors:
             print("  -", e)
