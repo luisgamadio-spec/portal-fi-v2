@@ -19,8 +19,9 @@
       "referenceAuthorityStatus": "HUMAN_APPROVED (unchanged — design-system-2.1's own field, not altered by V2)",
       "migrationWave": 1,
       "risk": "LOW",
-      "migrationStatus": "UAT_PENDING",
-      "notes": "PORTAL-NEXT-03: transplanted (Gate 8 method) from the Approved Reference — same class names, same DOM nesting, same interaction model, same Parametric Reactive config, same Context Beam behavior. Structural/visual comparison PASSED (20/20 checks, tests/landing-composition-regression.py) — this is a TECHNICAL pass only. migrationStatus is UAT_PENDING, not HUMAN_APPROVED, until a human actually reviews it (Gate 47) — see docs/HUMAN-UAT-LANDING.md."
+      "migrationStatus": "HUMAN_APPROVED",
+      "humanApprovalNote": "PORTAL-NEXT-04, Gate 1: human decision recorded (\"Landing V2: HUMAN APPROVED\") — metadata-only update, per this Wave's explicit instruction. Landing implementation files (landing.js/landing.css/landing-groups.json/index.html/brabus-logo.png) are byte-identical before and after this update — see REPORT.md's PORTAL-NEXT-04 entry for the hash re-verification. FROZEN as of this status: any future change requires a Design System Change Proposal + new human approval (Skill's Human Approved Freeze rule).",
+      "notes": "PORTAL-NEXT-03: transplanted (Gate 8 method) from the Approved Reference — same class names, same DOM nesting, same interaction model, same Parametric Reactive config, same Context Beam behavior. Structural/visual comparison PASSED (20/20 checks, tests/landing-composition-regression.py)."
     },
     {
       "id": "shell-admin",
@@ -46,19 +47,23 @@
       "name": "Score (Análise de Score Vendedores)",
       "route": "/score",
       "title": "Análise de Score Vendedores",
-      "density": "MEDIUM",
-      "authRequirement": "session + role scope",
-      "designPattern": "score (Approved Component/Pattern)",
-      "entryPoint": "NOT YET CREATED in V2",
-      "businessSource": "modules/score.html — calcScores() (pure function, not ported this phase)",
-      "functionalSource": "modules/score.html:calcScores (portal-financiamento-brabus-secure)",
+      "density": "HIGH (ranking table) / MEDIUM (summary+detail) — see docs/SCORE-VISUAL-AUTHORITY.md",
+      "authRequirement": "session + role scope (NOT implemented this Wave — 0 backend, local fixtures only, see Gate 8/30)",
+      "designPattern": "score (Approved normative pattern — NO executable Approved Reference exists; NORMATIVE COMPLIANCE reported, not VISUAL PARITY, per Gate 43)",
+      "entryPoint": "assets/js/score.js + assets/css/score.css + assets/js/adapters/score.adapter.js (PORTAL-NEXT-04)",
+      "businessSource": "modules/score.html — calcScores() — EXTRACTED this phase, byte-identical, from origin/main (NOT the local clone, proved divergent — see docs/SCORE-ENGINE-AUDIT.md)",
+      "functionalSource": "origin/main:modules/score.html:calcScores (portal-financiamento-brabus-secure) == live production (PROVED, PORTAL-NEXT-03.1 + re-verified this Wave)",
       "approvedReference": "score",
       "migrationWave": 2,
       "risk": "MEDIUM",
-      "migrationStatus": "NOT_MIGRATED",
+      "migrationStatus": "UAT_PENDING",
       "landingTitle": "Análise de Score Vendedores",
       "landingDesc": "Ranking de performance F&I por vendedor, com score, detalhes e auditoria.",
-      "notes": "calcScores() is already a pure function in V1 — good early extraction candidate when Wave 2 actually starts. Not extracted this phase."
+      "functionalParity": "PASS — 12/12 golden fixtures, exact match (tests/score-parity-test.py)",
+      "normativeCompliance": "FAIL on exactly one point (band ALTO/BOM/BAIXO does not exist in production, not invented — see docs/SCORE-ENGINE-AUDIT.md \"Conflict with Design System 2.1\", requires a future Design System Change Proposal). PASS on every other MUST (confidence, breakdown, explanation, no-color-only-status, no gauge/speedometer).",
+      "visualParity": "NOT APPLICABLE — no executable Approved Reference exists for Score (Gate 43)",
+      "notMigratedThisWave": "isScoreSellerEligible() (needs backend vendor registry) and openSellerDetails() (per-transaction drill-down modal, overlaps Balão/Parcela simulator-domain rendering, explicitly out of scope — Gate 34). See docs/SCORE-EXTRACTION-TRACE.md.",
+      "notes": "calcScores() changed substantially between what PORTAL-NEXT-01 originally audited (local clone) and real production (new confidence-dampening mechanism, redistributed weights, changed plan-mix methodology) — re-audited from the correct source this Wave, see docs/SCORE-ENGINE-AUDIT.md."
     },
     {
       "id": "coparticipado",

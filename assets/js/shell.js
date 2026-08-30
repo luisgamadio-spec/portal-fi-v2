@@ -66,7 +66,17 @@
     var entry = window.NX_REGISTRY.byId(routeId);
     window.NX_LANDING.renderRoute(routeId, entry).then(function () {
       if (!window.NX_LANDING.isLandingRoute(routeId)) {
-        renderPlaceholder(entry, routeId, hasRenderedOnce);
+        if (routeId === 'score' && window.NX_SCORE_PAGE) {
+          // Gate 26/27: real Score route, shell/outlet unchanged —
+          // NX_SCORE_PAGE only renders INTO the same #nxContentOutlet
+          // every other route already uses.
+          var outlet = document.getElementById('nxContentOutlet');
+          window.NX_SCORE_PAGE.render(outlet).then(function () {
+            if (hasRenderedOnce) outlet.focus();
+          });
+        } else {
+          renderPlaceholder(entry, routeId, hasRenderedOnce);
+        }
       }
       window.NX_DESIGN_TRACE.render(entry, routeId);
       hasRenderedOnce = true;

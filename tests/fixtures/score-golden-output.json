@@ -1,0 +1,1553 @@
+{
+  "low": [
+    {
+      "vendedor": "RRR REF ALTO",
+      "loja": "Loja 11",
+      "dept": "Novos",
+      "vendas": 6,
+      "fin": 0,
+      "producao": 0,
+      "retorno": 0,
+      "spf": 0,
+      "spfQtd": 0,
+      "familias": {},
+      "plans": {},
+      "planCounts": {},
+      "score": 380,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "6 venda(s) · referência 6",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 0,
+          "max": 230,
+          "pct": 0,
+          "detail": "0 financiado(s) / 6 venda(s) (0,0%)",
+          "amostra": "6/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 130,
+          "max": 130,
+          "pct": 1,
+          "detail": "3 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 0,
+          "max": 130,
+          "pct": 0,
+          "detail": "0 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 0,
+          "max": 100,
+          "pct": 0,
+          "detail": "0 SPF / 0 financiamento(s)",
+          "amostra": "0/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 0,
+          "max": 160,
+          "pct": 0,
+          "detail": "0,0%",
+          "amostra": "0/2 financiamentos"
+        }
+      ],
+      "share": 0,
+      "retornoMed": 0,
+      "planoMais": "—"
+    },
+    {
+      "vendedor": "QQQ BAIXO2 PERF",
+      "loja": "Loja 11",
+      "dept": "Novos",
+      "vendas": 3,
+      "fin": 1,
+      "producao": 15000,
+      "retorno": 900,
+      "spf": 0,
+      "spfQtd": 0,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1
+      },
+      "score": 357,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 125,
+          "max": 250,
+          "pct": 0.5,
+          "detail": "3 venda(s) · referência 6",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 96,
+          "max": 230,
+          "pct": 0.4166666666666667,
+          "detail": "1 financiado(s) / 3 venda(s) (33,3%)",
+          "amostra": "3/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 43,
+          "max": 130,
+          "pct": 0.3333333333333333,
+          "detail": "1 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 33,
+          "max": 130,
+          "pct": 0.25,
+          "detail": "1 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 0,
+          "max": 100,
+          "pct": 0,
+          "detail": "0 SPF / 1 financiamento(s)",
+          "amostra": "1/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 60,
+          "max": 160,
+          "pct": 0.375,
+          "detail": "6,0%",
+          "amostra": "1/2 financiamentos"
+        }
+      ],
+      "share": 0.3333333333333333,
+      "retornoMed": 0.06,
+      "planoMais": "LINEAR"
+    }
+  ],
+  "high": [
+    {
+      "vendedor": "SSS ALTO2 PERF",
+      "loja": "Loja 12",
+      "dept": "Novos",
+      "vendas": 4,
+      "fin": 3,
+      "producao": 135000,
+      "retorno": 11700,
+      "spf": 900,
+      "spfQtd": 9,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 2,
+        "BALÃO": 1
+      },
+      "score": 892,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "4 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 230,
+          "max": 230,
+          "pct": 1,
+          "detail": "3 financiado(s) / 4 venda(s) (75,0%)",
+          "amostra": "4/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 87,
+          "max": 130,
+          "pct": 0.6666666666666666,
+          "detail": "2 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 65,
+          "max": 130,
+          "pct": 0.5,
+          "detail": "2 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 100,
+          "max": 100,
+          "pct": 1,
+          "detail": "9 SPF / 3 financiamento(s)",
+          "amostra": "3/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 160,
+          "max": 160,
+          "pct": 1,
+          "detail": "8,7%",
+          "amostra": "3/2 financiamentos"
+        }
+      ],
+      "share": 0.75,
+      "retornoMed": 0.08666666666666667,
+      "planoMais": "LINEAR"
+    },
+    {
+      "vendedor": "TTT REF PERF",
+      "loja": "Loja 12",
+      "dept": "Novos",
+      "vendas": 4,
+      "fin": 0,
+      "producao": 0,
+      "retorno": 0,
+      "spf": 0,
+      "spfQtd": 0,
+      "familias": {},
+      "plans": {},
+      "planCounts": {},
+      "score": 380,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "4 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 0,
+          "max": 230,
+          "pct": 0,
+          "detail": "0 financiado(s) / 4 venda(s) (0,0%)",
+          "amostra": "4/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 130,
+          "max": 130,
+          "pct": 1,
+          "detail": "3 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 0,
+          "max": 130,
+          "pct": 0,
+          "detail": "0 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 0,
+          "max": 100,
+          "pct": 0,
+          "detail": "0 SPF / 0 financiamento(s)",
+          "amostra": "0/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 0,
+          "max": 160,
+          "pct": 0,
+          "detail": "0,0%",
+          "amostra": "0/2 financiamentos"
+        }
+      ],
+      "share": 0,
+      "retornoMed": 0,
+      "planoMais": "—"
+    }
+  ],
+  "very_low": [
+    {
+      "vendedor": "BBB TOPO PERF",
+      "loja": "Loja 1",
+      "dept": "Novos",
+      "vendas": 9,
+      "fin": 7,
+      "producao": 350000,
+      "retorno": 30100,
+      "spf": 2100,
+      "spfQtd": 21,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 4,
+        "BALÃO": 1,
+        "COPARTICIPADO": 1,
+        "SUBSIDIADO": 1
+      },
+      "score": 1000,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "9 venda(s) · referência 9",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 230,
+          "max": 230,
+          "pct": 1,
+          "detail": "7 financiado(s) / 9 venda(s) (77,8%)",
+          "amostra": "9/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 130,
+          "max": 130,
+          "pct": 1,
+          "detail": "3 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 130,
+          "max": 130,
+          "pct": 1,
+          "detail": "4 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 100,
+          "max": 100,
+          "pct": 1,
+          "detail": "21 SPF / 7 financiamento(s)",
+          "amostra": "7/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 160,
+          "max": 160,
+          "pct": 1,
+          "detail": "8,6%",
+          "amostra": "7/2 financiamentos"
+        }
+      ],
+      "share": 0.7777777777777778,
+      "retornoMed": 0.086,
+      "planoMais": "LINEAR"
+    },
+    {
+      "vendedor": "AAA BAIXO PERF",
+      "loja": "Loja 1",
+      "dept": "Novos",
+      "vendas": 1,
+      "fin": 0,
+      "producao": 0,
+      "retorno": 0,
+      "spf": 0,
+      "spfQtd": 0,
+      "familias": {},
+      "plans": {},
+      "planCounts": {},
+      "score": 71,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 28,
+          "max": 250,
+          "pct": 0.1111111111111111,
+          "detail": "1 venda(s) · referência 9",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 0,
+          "max": 230,
+          "pct": 0,
+          "detail": "0 financiado(s) / 1 venda(s) (0,0%)",
+          "amostra": "1/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 43,
+          "max": 130,
+          "pct": 0.3333333333333333,
+          "detail": "1 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 0,
+          "max": 130,
+          "pct": 0,
+          "detail": "0 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 0,
+          "max": 100,
+          "pct": 0,
+          "detail": "0 SPF / 0 financiamento(s)",
+          "amostra": "0/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 0,
+          "max": 160,
+          "pct": 0,
+          "detail": "0,0%",
+          "amostra": "0/2 financiamentos"
+        }
+      ],
+      "share": 0,
+      "retornoMed": 0,
+      "planoMais": "—"
+    }
+  ],
+  "middle": [
+    {
+      "vendedor": "CCC MEDIO PERF",
+      "loja": "Loja 2",
+      "dept": "Novos",
+      "vendas": 5,
+      "fin": 2,
+      "producao": 80000,
+      "retorno": 5900,
+      "spf": 300,
+      "spfQtd": 2,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1,
+        "BALÃO": 1
+      },
+      "score": 803,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "5 venda(s) · referência 5",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 153,
+          "max": 230,
+          "pct": 0.6666666666666667,
+          "detail": "2 financiado(s) / 5 venda(s) (40,0%)",
+          "amostra": "5/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 87,
+          "max": 130,
+          "pct": 0.6666666666666666,
+          "detail": "2 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 65,
+          "max": 130,
+          "pct": 0.5,
+          "detail": "2 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 100,
+          "max": 100,
+          "pct": 1,
+          "detail": "2 SPF / 2 financiamento(s)",
+          "amostra": "2/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 147,
+          "max": 160,
+          "pct": 0.9218749999999998,
+          "detail": "7,4%",
+          "amostra": "2/2 financiamentos"
+        }
+      ],
+      "share": 0.4,
+      "retornoMed": 0.07375,
+      "planoMais": "LINEAR"
+    },
+    {
+      "vendedor": "DDD REF PERF",
+      "loja": "Loja 2",
+      "dept": "Novos",
+      "vendas": 5,
+      "fin": 0,
+      "producao": 0,
+      "retorno": 0,
+      "spf": 0,
+      "spfQtd": 0,
+      "familias": {},
+      "plans": {},
+      "planCounts": {},
+      "score": 380,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "5 venda(s) · referência 5",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 0,
+          "max": 230,
+          "pct": 0,
+          "detail": "0 financiado(s) / 5 venda(s) (0,0%)",
+          "amostra": "5/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 130,
+          "max": 130,
+          "pct": 1,
+          "detail": "3 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 0,
+          "max": 130,
+          "pct": 0,
+          "detail": "0 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 0,
+          "max": 100,
+          "pct": 0,
+          "detail": "0 SPF / 0 financiamento(s)",
+          "amostra": "0/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 0,
+          "max": 160,
+          "pct": 0,
+          "detail": "0,0%",
+          "amostra": "0/2 financiamentos"
+        }
+      ],
+      "share": 0,
+      "retornoMed": 0,
+      "planoMais": "—"
+    }
+  ],
+  "very_high": [
+    {
+      "vendedor": "EEE MELHOR PERF",
+      "loja": "Loja 3",
+      "dept": "Novos",
+      "vendas": 4,
+      "fin": 4,
+      "producao": 240000,
+      "retorno": 24400,
+      "spf": 2400,
+      "spfQtd": 16,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1,
+        "BALÃO": 1,
+        "COPARTICIPADO": 1,
+        "SUBSIDIADO": 1
+      },
+      "score": 1000,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "4 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 230,
+          "max": 230,
+          "pct": 1,
+          "detail": "4 financiado(s) / 4 venda(s) (100,0%)",
+          "amostra": "4/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 130,
+          "max": 130,
+          "pct": 1,
+          "detail": "3 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 130,
+          "max": 130,
+          "pct": 1,
+          "detail": "4 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 100,
+          "max": 100,
+          "pct": 1,
+          "detail": "16 SPF / 4 financiamento(s)",
+          "amostra": "4/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 160,
+          "max": 160,
+          "pct": 1,
+          "detail": "10,2%",
+          "amostra": "4/2 financiamentos"
+        }
+      ],
+      "share": 1,
+      "retornoMed": 0.10166666666666667,
+      "planoMais": "LINEAR"
+    },
+    {
+      "vendedor": "FFF BAIXO PERF",
+      "loja": "Loja 3",
+      "dept": "Novos",
+      "vendas": 1,
+      "fin": 0,
+      "producao": 0,
+      "retorno": 0,
+      "spf": 0,
+      "spfQtd": 0,
+      "familias": {},
+      "plans": {},
+      "planCounts": {},
+      "score": 106,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 63,
+          "max": 250,
+          "pct": 0.25,
+          "detail": "1 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 0,
+          "max": 230,
+          "pct": 0,
+          "detail": "0 financiado(s) / 1 venda(s) (0,0%)",
+          "amostra": "1/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 43,
+          "max": 130,
+          "pct": 0.3333333333333333,
+          "detail": "1 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 0,
+          "max": 130,
+          "pct": 0,
+          "detail": "0 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 0,
+          "max": 100,
+          "pct": 0,
+          "detail": "0 SPF / 0 financiamento(s)",
+          "amostra": "0/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 0,
+          "max": 160,
+          "pct": 0,
+          "detail": "0,0%",
+          "amostra": "0/2 financiamentos"
+        }
+      ],
+      "share": 0,
+      "retornoMed": 0,
+      "planoMais": "—"
+    }
+  ],
+  "confidence_boundary": [
+    {
+      "vendedor": "GGG QUATRO VENDAS",
+      "loja": "Loja 4",
+      "dept": "Seminovos",
+      "vendas": 4,
+      "fin": 2,
+      "producao": 40000,
+      "retorno": 3400,
+      "spf": 200,
+      "spfQtd": 2,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 2
+      },
+      "score": 955,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 300,
+          "max": 300,
+          "pct": 1,
+          "detail": "4 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 225,
+          "max": 270,
+          "pct": 0.8333333333333334,
+          "detail": "2 financiado(s) / 4 venda(s) (50,0%)",
+          "amostra": "4/4 vendas"
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 150,
+          "max": 150,
+          "pct": 1,
+          "detail": "2 SPF / 2 financiamento(s)",
+          "amostra": "2/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 280,
+          "max": 280,
+          "pct": 1,
+          "detail": "8,5%",
+          "amostra": "2/2 financiamentos"
+        }
+      ],
+      "share": 0.5,
+      "retornoMed": 0.085,
+      "planoMais": "LINEAR"
+    },
+    {
+      "vendedor": "HHH TRES VENDAS",
+      "loja": "Loja 4",
+      "dept": "Seminovos",
+      "vendas": 3,
+      "fin": 1,
+      "producao": 20000,
+      "retorno": 1700,
+      "spf": 100,
+      "spfQtd": 1,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1
+      },
+      "score": 553,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 225,
+          "max": 300,
+          "pct": 0.75,
+          "detail": "3 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 113,
+          "max": 270,
+          "pct": 0.4166666666666667,
+          "detail": "1 financiado(s) / 3 venda(s) (33,3%)",
+          "amostra": "3/4 vendas"
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 75,
+          "max": 150,
+          "pct": 0.5,
+          "detail": "1 SPF / 1 financiamento(s)",
+          "amostra": "1/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 140,
+          "max": 280,
+          "pct": 0.5,
+          "detail": "8,5%",
+          "amostra": "1/2 financiamentos"
+        }
+      ],
+      "share": 0.3333333333333333,
+      "retornoMed": 0.085,
+      "planoMais": "LINEAR"
+    }
+  ],
+  "zero_values": [
+    {
+      "vendedor": "III ZERO FIN",
+      "loja": "Loja 5",
+      "dept": "Novos",
+      "vendas": 2,
+      "fin": 0,
+      "producao": 0,
+      "retorno": 0,
+      "spf": 0,
+      "spfQtd": 0,
+      "familias": {},
+      "plans": {},
+      "planCounts": {},
+      "score": 337,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "2 venda(s) · referência 2",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 0,
+          "max": 230,
+          "pct": 0,
+          "detail": "0 financiado(s) / 2 venda(s) (0,0%)",
+          "amostra": "2/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 87,
+          "max": 130,
+          "pct": 0.6666666666666666,
+          "detail": "2 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 0,
+          "max": 130,
+          "pct": 0,
+          "detail": "0 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 0,
+          "max": 100,
+          "pct": 0,
+          "detail": "0 SPF / 0 financiamento(s)",
+          "amostra": "0/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 0,
+          "max": 160,
+          "pct": 0,
+          "detail": "0,0%",
+          "amostra": "0/2 financiamentos"
+        }
+      ],
+      "share": 0,
+      "retornoMed": 0,
+      "planoMais": "—"
+    }
+  ],
+  "missing_optional_data": [
+    {
+      "vendedor": "JJJ DADOS FALTANTES",
+      "loja": "Loja 6",
+      "dept": "Novos",
+      "vendas": 1,
+      "fin": 1,
+      "producao": 10000,
+      "retorno": NaN,
+      "spf": NaN,
+      "spfQtd": 0,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "undefined": 1
+      },
+      "score": NaN,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "1 venda(s) · referência 1",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 58,
+          "max": 230,
+          "pct": 0.25,
+          "detail": "1 financiado(s) / 1 venda(s) (100,0%)",
+          "amostra": "1/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 43,
+          "max": 130,
+          "pct": 0.3333333333333333,
+          "detail": "1 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 0,
+          "max": 130,
+          "pct": 0,
+          "detail": "0 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 0,
+          "max": 100,
+          "pct": 0,
+          "detail": "0 SPF / 1 financiamento(s)",
+          "amostra": "1/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": NaN,
+          "max": 160,
+          "pct": NaN,
+          "detail": "0,0%",
+          "amostra": "1/2 financiamentos"
+        }
+      ],
+      "share": 1,
+      "retornoMed": NaN,
+      "planoMais": "undefined"
+    }
+  ],
+  "large_values": [
+    {
+      "vendedor": "KKK VALORES GRANDES",
+      "loja": "Loja 7",
+      "dept": "Seminovos",
+      "vendas": 1,
+      "fin": 1,
+      "producao": 9999999.99,
+      "retorno": 850000,
+      "spf": 50000,
+      "spfQtd": 9,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1
+      },
+      "score": 583,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 300,
+          "max": 300,
+          "pct": 1,
+          "detail": "1 venda(s) · referência 1",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 68,
+          "max": 270,
+          "pct": 0.25,
+          "detail": "1 financiado(s) / 1 venda(s) (100,0%)",
+          "amostra": "1/4 vendas"
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 75,
+          "max": 150,
+          "pct": 0.5,
+          "detail": "9 SPF / 1 financiamento(s)",
+          "amostra": "1/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 140,
+          "max": 280,
+          "pct": 0.5,
+          "detail": "8,5%",
+          "amostra": "1/2 financiamentos"
+        }
+      ],
+      "share": 1,
+      "retornoMed": 0.085000000085,
+      "planoMais": "LINEAR"
+    }
+  ],
+  "long_name": [
+    {
+      "vendedor": "MARIA DA CONCEICAO SILVA NASCIMENTO OLIVEIRA SANTOS",
+      "loja": "Loja 8",
+      "dept": "Novos",
+      "vendas": 1,
+      "fin": 1,
+      "producao": 30000,
+      "retorno": 2400,
+      "spf": 200,
+      "spfQtd": 2,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "BALÃO": 1
+      },
+      "score": 513,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "1 venda(s) · referência 1",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 58,
+          "max": 230,
+          "pct": 0.25,
+          "detail": "1 financiado(s) / 1 venda(s) (100,0%)",
+          "amostra": "1/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 43,
+          "max": 130,
+          "pct": 0.3333333333333333,
+          "detail": "1 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 33,
+          "max": 130,
+          "pct": 0.25,
+          "detail": "1 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 50,
+          "max": 100,
+          "pct": 0.5,
+          "detail": "2 SPF / 1 financiamento(s)",
+          "amostra": "1/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 80,
+          "max": 160,
+          "pct": 0.5,
+          "detail": "8,0%",
+          "amostra": "1/2 financiamentos"
+        }
+      ],
+      "share": 1,
+      "retornoMed": 0.08,
+      "planoMais": "BALÃO"
+    }
+  ],
+  "tie_case": [
+    {
+      "vendedor": "NNN EMPATE UM",
+      "loja": "Loja 9",
+      "dept": "Seminovos",
+      "vendas": 2,
+      "fin": 1,
+      "producao": 15000,
+      "retorno": 1280,
+      "spf": 80,
+      "spfQtd": 1,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1
+      },
+      "score": 628,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 300,
+          "max": 300,
+          "pct": 1,
+          "detail": "2 venda(s) · referência 2",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 113,
+          "max": 270,
+          "pct": 0.4166666666666667,
+          "detail": "1 financiado(s) / 2 venda(s) (50,0%)",
+          "amostra": "2/4 vendas"
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 75,
+          "max": 150,
+          "pct": 0.5,
+          "detail": "1 SPF / 1 financiamento(s)",
+          "amostra": "1/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 140,
+          "max": 280,
+          "pct": 0.5,
+          "detail": "8,5%",
+          "amostra": "1/2 financiamentos"
+        }
+      ],
+      "share": 0.5,
+      "retornoMed": 0.08533333333333333,
+      "planoMais": "LINEAR"
+    },
+    {
+      "vendedor": "OOO EMPATE DOIS",
+      "loja": "Loja 9",
+      "dept": "Seminovos",
+      "vendas": 2,
+      "fin": 1,
+      "producao": 15000,
+      "retorno": 1280,
+      "spf": 80,
+      "spfQtd": 1,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1
+      },
+      "score": 628,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 300,
+          "max": 300,
+          "pct": 1,
+          "detail": "2 venda(s) · referência 2",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 113,
+          "max": 270,
+          "pct": 0.4166666666666667,
+          "detail": "1 financiado(s) / 2 venda(s) (50,0%)",
+          "amostra": "2/4 vendas"
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 75,
+          "max": 150,
+          "pct": 0.5,
+          "detail": "1 SPF / 1 financiamento(s)",
+          "amostra": "1/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 140,
+          "max": 280,
+          "pct": 0.5,
+          "detail": "8,5%",
+          "amostra": "1/2 financiamentos"
+        }
+      ],
+      "share": 0.5,
+      "retornoMed": 0.08533333333333333,
+      "planoMais": "LINEAR"
+    }
+  ],
+  "sorting_case": [
+    {
+      "vendedor": "P1 RANK PRIMEIRO",
+      "loja": "Loja 10",
+      "dept": "Novos",
+      "vendas": 4,
+      "fin": 3,
+      "producao": 150000,
+      "retorno": 13800,
+      "spf": 1200,
+      "spfQtd": 12,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1,
+        "BALÃO": 1,
+        "COPARTICIPADO": 1
+      },
+      "score": 968,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 250,
+          "max": 250,
+          "pct": 1,
+          "detail": "4 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 230,
+          "max": 230,
+          "pct": 1,
+          "detail": "3 financiado(s) / 4 venda(s) (75,0%)",
+          "amostra": "4/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 130,
+          "max": 130,
+          "pct": 1,
+          "detail": "3 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 98,
+          "max": 130,
+          "pct": 0.75,
+          "detail": "3 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 100,
+          "max": 100,
+          "pct": 1,
+          "detail": "12 SPF / 3 financiamento(s)",
+          "amostra": "3/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 160,
+          "max": 160,
+          "pct": 1,
+          "detail": "9,2%",
+          "amostra": "3/2 financiamentos"
+        }
+      ],
+      "share": 0.75,
+      "retornoMed": 0.092,
+      "planoMais": "LINEAR"
+    },
+    {
+      "vendedor": "P2 RANK SEGUNDO",
+      "loja": "Loja 10",
+      "dept": "Novos",
+      "vendas": 3,
+      "fin": 2,
+      "producao": 70000,
+      "retorno": 6000,
+      "spf": 400,
+      "spfQtd": 4,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1,
+        "BALÃO": 1
+      },
+      "score": 772,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 188,
+          "max": 250,
+          "pct": 0.75,
+          "detail": "3 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 173,
+          "max": 230,
+          "pct": 0.75,
+          "detail": "2 financiado(s) / 3 venda(s) (66,7%)",
+          "amostra": "3/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 87,
+          "max": 130,
+          "pct": 0.6666666666666666,
+          "detail": "2 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 65,
+          "max": 130,
+          "pct": 0.5,
+          "detail": "2 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 100,
+          "max": 100,
+          "pct": 1,
+          "detail": "4 SPF / 2 financiamento(s)",
+          "amostra": "2/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 160,
+          "max": 160,
+          "pct": 1,
+          "detail": "8,6%",
+          "amostra": "2/2 financiamentos"
+        }
+      ],
+      "share": 0.6666666666666666,
+      "retornoMed": 0.08571428571428572,
+      "planoMais": "LINEAR"
+    },
+    {
+      "vendedor": "P3 RANK TERCEIRO",
+      "loja": "Loja 10",
+      "dept": "Novos",
+      "vendas": 2,
+      "fin": 1,
+      "producao": 20000,
+      "retorno": 1600,
+      "spf": 100,
+      "spfQtd": 1,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1
+      },
+      "score": 470,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 125,
+          "max": 250,
+          "pct": 0.5,
+          "detail": "2 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 96,
+          "max": 230,
+          "pct": 0.4166666666666667,
+          "detail": "1 financiado(s) / 2 venda(s) (50,0%)",
+          "amostra": "2/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 87,
+          "max": 130,
+          "pct": 0.6666666666666666,
+          "detail": "2 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 33,
+          "max": 130,
+          "pct": 0.25,
+          "detail": "1 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 50,
+          "max": 100,
+          "pct": 0.5,
+          "detail": "1 SPF / 1 financiamento(s)",
+          "amostra": "1/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 80,
+          "max": 160,
+          "pct": 0.5,
+          "detail": "8,0%",
+          "amostra": "1/2 financiamentos"
+        }
+      ],
+      "share": 0.5,
+      "retornoMed": 0.08,
+      "planoMais": "LINEAR"
+    },
+    {
+      "vendedor": "P4 RANK QUARTO",
+      "loja": "Loja 10",
+      "dept": "Novos",
+      "vendas": 1,
+      "fin": 1,
+      "producao": 10000,
+      "retorno": 600,
+      "spf": 0,
+      "spfQtd": 0,
+      "familias": {},
+      "plans": {},
+      "planCounts": {
+        "LINEAR": 1
+      },
+      "score": 256,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 63,
+          "max": 250,
+          "pct": 0.25,
+          "detail": "1 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 58,
+          "max": 230,
+          "pct": 0.25,
+          "detail": "1 financiado(s) / 1 venda(s) (100,0%)",
+          "amostra": "1/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 43,
+          "max": 130,
+          "pct": 0.3333333333333333,
+          "detail": "1 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 33,
+          "max": 130,
+          "pct": 0.25,
+          "detail": "1 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 0,
+          "max": 100,
+          "pct": 0,
+          "detail": "0 SPF / 1 financiamento(s)",
+          "amostra": "1/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 60,
+          "max": 160,
+          "pct": 0.375,
+          "detail": "6,0%",
+          "amostra": "1/2 financiamentos"
+        }
+      ],
+      "share": 1,
+      "retornoMed": 0.06,
+      "planoMais": "LINEAR"
+    },
+    {
+      "vendedor": "P5 RANK QUINTO",
+      "loja": "Loja 10",
+      "dept": "Novos",
+      "vendas": 1,
+      "fin": 0,
+      "producao": 0,
+      "retorno": 0,
+      "spf": 0,
+      "spfQtd": 0,
+      "familias": {},
+      "plans": {},
+      "planCounts": {},
+      "score": 106,
+      "scoreBreakdown": [
+        {
+          "label": "Volume de vendas",
+          "points": 63,
+          "max": 250,
+          "pct": 0.25,
+          "detail": "1 venda(s) · referência 4",
+          "amostra": null
+        },
+        {
+          "label": "Penetração de financiamento",
+          "points": 0,
+          "max": 230,
+          "pct": 0,
+          "detail": "0 financiado(s) / 1 venda(s) (0,0%)",
+          "amostra": "1/4 vendas"
+        },
+        {
+          "label": "Mix de famílias vendidas",
+          "points": 43,
+          "max": 130,
+          "pct": 0.3333333333333333,
+          "detail": "1 de 3 famílias",
+          "amostra": null
+        },
+        {
+          "label": "Mix de planos (diversidade)",
+          "points": 0,
+          "max": 130,
+          "pct": 0,
+          "detail": "0 de 4 planos comerciais",
+          "amostra": null
+        },
+        {
+          "label": "SPF EXTRA",
+          "points": 0,
+          "max": 100,
+          "pct": 0,
+          "detail": "0 SPF / 0 financiamento(s)",
+          "amostra": "0/2 financiamentos"
+        },
+        {
+          "label": "Retorno médio",
+          "points": 0,
+          "max": 160,
+          "pct": 0,
+          "detail": "0,0%",
+          "amostra": "0/2 financiamentos"
+        }
+      ],
+      "share": 0,
+      "retornoMed": 0,
+      "planoMais": "—"
+    }
+  ]
+}

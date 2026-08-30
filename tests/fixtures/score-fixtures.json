@@ -1,0 +1,213 @@
+{
+  "note": "Gate 6 — synthetic/sample inputs, no real customer PII. Seller names are invented placeholders, not real employees. Structural shapes match production's real sales[]/fins[] record contracts (docs/SCORE-ENGINE-AUDIT.md).",
+  "cases": [
+    {
+      "id": "low",
+      "description": "Below-average but not the worst performer -- some financing, one family, one plan type, moderate confidence dampening.",
+      "sales": [
+        {"vendedor":"QQQ BAIXO2 PERF","loja":"Loja 11","dept":"Novos","familia":"F1"},
+        {"vendedor":"QQQ BAIXO2 PERF","loja":"Loja 11","dept":"Novos","familia":"F1"},
+        {"vendedor":"QQQ BAIXO2 PERF","loja":"Loja 11","dept":"Novos","familia":"F1"},
+        {"vendedor":"RRR REF ALTO","loja":"Loja 11","dept":"Novos","familia":"F1"},
+        {"vendedor":"RRR REF ALTO","loja":"Loja 11","dept":"Novos","familia":"F2"},
+        {"vendedor":"RRR REF ALTO","loja":"Loja 11","dept":"Novos","familia":"F3"},
+        {"vendedor":"RRR REF ALTO","loja":"Loja 11","dept":"Novos","familia":"F1"},
+        {"vendedor":"RRR REF ALTO","loja":"Loja 11","dept":"Novos","familia":"F2"},
+        {"vendedor":"RRR REF ALTO","loja":"Loja 11","dept":"Novos","familia":"F3"}
+      ],
+      "fins": [
+        {"vendedor":"QQQ BAIXO2 PERF","loja":"Loja 11","dept":"Novos","valorFinanciado":15000,"retorno":900,"receitaSPF":0,"spfQtd":0,"plano":"LINEAR"}
+      ],
+      "focusSeller": "QQQ BAIXO2 PERF|Loja 11|Novos"
+    },
+    {
+      "id": "high",
+      "description": "Above-average performer: good financing penetration, 2 of 3 families, 2 of 4 plan types, confidence-saturated.",
+      "sales": [
+        {"vendedor":"SSS ALTO2 PERF","loja":"Loja 12","dept":"Novos","familia":"F1"},
+        {"vendedor":"SSS ALTO2 PERF","loja":"Loja 12","dept":"Novos","familia":"F2"},
+        {"vendedor":"SSS ALTO2 PERF","loja":"Loja 12","dept":"Novos","familia":"F1"},
+        {"vendedor":"SSS ALTO2 PERF","loja":"Loja 12","dept":"Novos","familia":"F2"},
+        {"vendedor":"TTT REF PERF","loja":"Loja 12","dept":"Novos","familia":"F1"},
+        {"vendedor":"TTT REF PERF","loja":"Loja 12","dept":"Novos","familia":"F2"},
+        {"vendedor":"TTT REF PERF","loja":"Loja 12","dept":"Novos","familia":"F3"},
+        {"vendedor":"TTT REF PERF","loja":"Loja 12","dept":"Novos","familia":"F1"}
+      ],
+      "fins": [
+        {"vendedor":"SSS ALTO2 PERF","loja":"Loja 12","dept":"Novos","valorFinanciado":45000,"retorno":3600,"receitaSPF":300,"spfQtd":3,"plano":"LINEAR"},
+        {"vendedor":"SSS ALTO2 PERF","loja":"Loja 12","dept":"Novos","valorFinanciado":45000,"retorno":3600,"receitaSPF":300,"spfQtd":3,"plano":"BALÃO"},
+        {"vendedor":"SSS ALTO2 PERF","loja":"Loja 12","dept":"Novos","valorFinanciado":45000,"retorno":3600,"receitaSPF":300,"spfQtd":3,"plano":"LINEAR"}
+      ],
+      "focusSeller": "SSS ALTO2 PERF|Loja 12|Novos"
+    },
+    {
+      "id": "very_low",
+      "description": "One low performer among strong peers -> very low relative score, most criteria near-zero, confidence-dampened.",
+      "sales": [
+        {"vendedor":"AAA BAIXO PERF","loja":"Loja 1","dept":"Novos","familia":"F1"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","familia":"F1"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","familia":"F2"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","familia":"F3"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","familia":"F1"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","familia":"F2"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","familia":"F3"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","familia":"F1"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","familia":"F2"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","familia":"F3"}
+      ],
+      "fins": [
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","valorFinanciado":50000,"retorno":4000,"receitaSPF":300,"spfQtd":3,"plano":"LINEAR"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","valorFinanciado":50000,"retorno":4000,"receitaSPF":300,"spfQtd":3,"plano":"BALÃO"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","valorFinanciado":50000,"retorno":4000,"receitaSPF":300,"spfQtd":3,"plano":"COPARTICIPADO"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","valorFinanciado":50000,"retorno":4000,"receitaSPF":300,"spfQtd":3,"plano":"SUBSIDIADO"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","valorFinanciado":50000,"retorno":4000,"receitaSPF":300,"spfQtd":3,"plano":"LINEAR"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","valorFinanciado":50000,"retorno":4000,"receitaSPF":300,"spfQtd":3,"plano":"LINEAR"},
+        {"vendedor":"BBB TOPO PERF","loja":"Loja 1","dept":"Novos","valorFinanciado":50000,"retorno":4000,"receitaSPF":300,"spfQtd":3,"plano":"LINEAR"}
+      ],
+      "focusSeller": "AAA BAIXO PERF|Loja 1|Novos"
+    },
+    {
+      "id": "middle",
+      "description": "A mid-pack performer: some financing penetration, partial family/plan mix, confidence-saturated.",
+      "sales": [
+        {"vendedor":"CCC MEDIO PERF","loja":"Loja 2","dept":"Novos","familia":"F1"},
+        {"vendedor":"CCC MEDIO PERF","loja":"Loja 2","dept":"Novos","familia":"F1"},
+        {"vendedor":"CCC MEDIO PERF","loja":"Loja 2","dept":"Novos","familia":"F2"},
+        {"vendedor":"CCC MEDIO PERF","loja":"Loja 2","dept":"Novos","familia":"F1"},
+        {"vendedor":"CCC MEDIO PERF","loja":"Loja 2","dept":"Novos","familia":"F1"},
+        {"vendedor":"DDD REF PERF","loja":"Loja 2","dept":"Novos","familia":"F1"},
+        {"vendedor":"DDD REF PERF","loja":"Loja 2","dept":"Novos","familia":"F2"},
+        {"vendedor":"DDD REF PERF","loja":"Loja 2","dept":"Novos","familia":"F3"},
+        {"vendedor":"DDD REF PERF","loja":"Loja 2","dept":"Novos","familia":"F1"},
+        {"vendedor":"DDD REF PERF","loja":"Loja 2","dept":"Novos","familia":"F2"}
+      ],
+      "fins": [
+        {"vendedor":"CCC MEDIO PERF","loja":"Loja 2","dept":"Novos","valorFinanciado":40000,"retorno":2800,"receitaSPF":150,"spfQtd":1,"plano":"LINEAR"},
+        {"vendedor":"CCC MEDIO PERF","loja":"Loja 2","dept":"Novos","valorFinanciado":40000,"retorno":2800,"receitaSPF":150,"spfQtd":1,"plano":"BALÃO"}
+      ],
+      "focusSeller": "CCC MEDIO PERF|Loja 2|Novos"
+    },
+    {
+      "id": "very_high",
+      "description": "Top performer, full financing penetration, full family/plan mix, confidence-saturated -> near max score.",
+      "sales": [
+        {"vendedor":"EEE MELHOR PERF","loja":"Loja 3","dept":"Novos","familia":"F1"},
+        {"vendedor":"EEE MELHOR PERF","loja":"Loja 3","dept":"Novos","familia":"F2"},
+        {"vendedor":"EEE MELHOR PERF","loja":"Loja 3","dept":"Novos","familia":"F3"},
+        {"vendedor":"EEE MELHOR PERF","loja":"Loja 3","dept":"Novos","familia":"F1"},
+        {"vendedor":"FFF BAIXO PERF","loja":"Loja 3","dept":"Novos","familia":"F1"}
+      ],
+      "fins": [
+        {"vendedor":"EEE MELHOR PERF","loja":"Loja 3","dept":"Novos","valorFinanciado":60000,"retorno":5500,"receitaSPF":600,"spfQtd":4,"plano":"LINEAR"},
+        {"vendedor":"EEE MELHOR PERF","loja":"Loja 3","dept":"Novos","valorFinanciado":60000,"retorno":5500,"receitaSPF":600,"spfQtd":4,"plano":"BALÃO"},
+        {"vendedor":"EEE MELHOR PERF","loja":"Loja 3","dept":"Novos","valorFinanciado":60000,"retorno":5500,"receitaSPF":600,"spfQtd":4,"plano":"COPARTICIPADO"},
+        {"vendedor":"EEE MELHOR PERF","loja":"Loja 3","dept":"Novos","valorFinanciado":60000,"retorno":5500,"receitaSPF":600,"spfQtd":4,"plano":"SUBSIDIADO"}
+      ],
+      "focusSeller": "EEE MELHOR PERF|Loja 3|Novos"
+    },
+    {
+      "id": "confidence_boundary",
+      "description": "Two identical-rate sellers differing ONLY in raw sample size (4 vs 3 vendas; 2 vs 1 fin) -- isolates the confVendas/confFin dampening exactly at its threshold.",
+      "sales": [
+        {"vendedor":"GGG QUATRO VENDAS","loja":"Loja 4","dept":"Seminovos"},
+        {"vendedor":"GGG QUATRO VENDAS","loja":"Loja 4","dept":"Seminovos"},
+        {"vendedor":"GGG QUATRO VENDAS","loja":"Loja 4","dept":"Seminovos"},
+        {"vendedor":"GGG QUATRO VENDAS","loja":"Loja 4","dept":"Seminovos"},
+        {"vendedor":"HHH TRES VENDAS","loja":"Loja 4","dept":"Seminovos"},
+        {"vendedor":"HHH TRES VENDAS","loja":"Loja 4","dept":"Seminovos"},
+        {"vendedor":"HHH TRES VENDAS","loja":"Loja 4","dept":"Seminovos"}
+      ],
+      "fins": [
+        {"vendedor":"GGG QUATRO VENDAS","loja":"Loja 4","dept":"Seminovos","valorFinanciado":20000,"retorno":1600,"receitaSPF":100,"spfQtd":1,"plano":"LINEAR"},
+        {"vendedor":"GGG QUATRO VENDAS","loja":"Loja 4","dept":"Seminovos","valorFinanciado":20000,"retorno":1600,"receitaSPF":100,"spfQtd":1,"plano":"LINEAR"},
+        {"vendedor":"HHH TRES VENDAS","loja":"Loja 4","dept":"Seminovos","valorFinanciado":20000,"retorno":1600,"receitaSPF":100,"spfQtd":1,"plano":"LINEAR"}
+      ],
+      "focusSeller": "GGG QUATRO VENDAS|Loja 4|Seminovos"
+    },
+    {
+      "id": "zero_values",
+      "description": "A seller with sales but ZERO financing at all (fin=0) -- share=0, ret=0 (division-by-zero guards must hold), spfRate=0.",
+      "sales": [
+        {"vendedor":"III ZERO FIN","loja":"Loja 5","dept":"Novos","familia":"F1"},
+        {"vendedor":"III ZERO FIN","loja":"Loja 5","dept":"Novos","familia":"F2"}
+      ],
+      "fins": [],
+      "focusSeller": "III ZERO FIN|Loja 5|Novos"
+    },
+    {
+      "id": "missing_optional_data",
+      "description": "Financing record missing plano (undefined) and receitaSPF/spfQtd (absent keys) -- must not throw, must be treated as falsy/0.",
+      "sales": [
+        {"vendedor":"JJJ DADOS FALTANTES","loja":"Loja 6","dept":"Novos","familia":"F1"}
+      ],
+      "fins": [
+        {"vendedor":"JJJ DADOS FALTANTES","loja":"Loja 6","dept":"Novos","valorFinanciado":10000,"retorno":800}
+      ],
+      "focusSeller": "JJJ DADOS FALTANTES|Loja 6|Novos"
+    },
+    {
+      "id": "large_values",
+      "description": "Very large financial values -- must not overflow/misformat.",
+      "sales": [
+        {"vendedor":"KKK VALORES GRANDES","loja":"Loja 7","dept":"Seminovos"}
+      ],
+      "fins": [
+        {"vendedor":"KKK VALORES GRANDES","loja":"Loja 7","dept":"Seminovos","valorFinanciado":9999999.99,"retorno":800000,"receitaSPF":50000,"spfQtd":9,"plano":"LINEAR"}
+      ],
+      "focusSeller": "KKK VALORES GRANDES|Loja 7|Seminovos"
+    },
+    {
+      "id": "long_name",
+      "description": "Seller name at 48+ characters -- stress for display truncation/sticky-column tests (not for the math itself, which is name-agnostic).",
+      "sales": [
+        {"vendedor":"MARIA DA CONCEICAO SILVA NASCIMENTO OLIVEIRA SANTOS","loja":"Loja 8","dept":"Novos","familia":"F1"}
+      ],
+      "fins": [
+        {"vendedor":"MARIA DA CONCEICAO SILVA NASCIMENTO OLIVEIRA SANTOS","loja":"Loja 8","dept":"Novos","valorFinanciado":30000,"retorno":2200,"receitaSPF":200,"spfQtd":2,"plano":"BALÃO"}
+      ],
+      "focusSeller": "MARIA DA CONCEICAO SILVA NASCIMENTO OLIVEIRA SANTOS|Loja 8|Novos"
+    },
+    {
+      "id": "tie_case",
+      "description": "Two sellers with IDENTICAL sales/fins shape (same score AND same fin count) -- true tie, sort must be stable per production's own tiebreak rule (score desc, then fin desc) with no further tiebreak defined.",
+      "sales": [
+        {"vendedor":"NNN EMPATE UM","loja":"Loja 9","dept":"Seminovos"},
+        {"vendedor":"NNN EMPATE UM","loja":"Loja 9","dept":"Seminovos"},
+        {"vendedor":"OOO EMPATE DOIS","loja":"Loja 9","dept":"Seminovos"},
+        {"vendedor":"OOO EMPATE DOIS","loja":"Loja 9","dept":"Seminovos"}
+      ],
+      "fins": [
+        {"vendedor":"NNN EMPATE UM","loja":"Loja 9","dept":"Seminovos","valorFinanciado":15000,"retorno":1200,"receitaSPF":80,"spfQtd":1,"plano":"LINEAR"},
+        {"vendedor":"OOO EMPATE DOIS","loja":"Loja 9","dept":"Seminovos","valorFinanciado":15000,"retorno":1200,"receitaSPF":80,"spfQtd":1,"plano":"LINEAR"}
+      ],
+      "focusSeller": null
+    },
+    {
+      "id": "sorting_case",
+      "description": "5 distinct sellers with clearly different performance levels -- verifies overall descending sort order across the full result set.",
+      "sales": [
+        {"vendedor":"P1 RANK PRIMEIRO","loja":"Loja 10","dept":"Novos","familia":"F1"},
+        {"vendedor":"P1 RANK PRIMEIRO","loja":"Loja 10","dept":"Novos","familia":"F2"},
+        {"vendedor":"P1 RANK PRIMEIRO","loja":"Loja 10","dept":"Novos","familia":"F3"},
+        {"vendedor":"P1 RANK PRIMEIRO","loja":"Loja 10","dept":"Novos","familia":"F1"},
+        {"vendedor":"P2 RANK SEGUNDO","loja":"Loja 10","dept":"Novos","familia":"F1"},
+        {"vendedor":"P2 RANK SEGUNDO","loja":"Loja 10","dept":"Novos","familia":"F2"},
+        {"vendedor":"P2 RANK SEGUNDO","loja":"Loja 10","dept":"Novos","familia":"F1"},
+        {"vendedor":"P3 RANK TERCEIRO","loja":"Loja 10","dept":"Novos","familia":"F1"},
+        {"vendedor":"P3 RANK TERCEIRO","loja":"Loja 10","dept":"Novos","familia":"F2"},
+        {"vendedor":"P4 RANK QUARTO","loja":"Loja 10","dept":"Novos","familia":"F1"},
+        {"vendedor":"P5 RANK QUINTO","loja":"Loja 10","dept":"Novos","familia":"F1"}
+      ],
+      "fins": [
+        {"vendedor":"P1 RANK PRIMEIRO","loja":"Loja 10","dept":"Novos","valorFinanciado":50000,"retorno":4200,"receitaSPF":400,"spfQtd":4,"plano":"LINEAR"},
+        {"vendedor":"P1 RANK PRIMEIRO","loja":"Loja 10","dept":"Novos","valorFinanciado":50000,"retorno":4200,"receitaSPF":400,"spfQtd":4,"plano":"BALÃO"},
+        {"vendedor":"P1 RANK PRIMEIRO","loja":"Loja 10","dept":"Novos","valorFinanciado":50000,"retorno":4200,"receitaSPF":400,"spfQtd":4,"plano":"COPARTICIPADO"},
+        {"vendedor":"P2 RANK SEGUNDO","loja":"Loja 10","dept":"Novos","valorFinanciado":35000,"retorno":2800,"receitaSPF":200,"spfQtd":2,"plano":"LINEAR"},
+        {"vendedor":"P2 RANK SEGUNDO","loja":"Loja 10","dept":"Novos","valorFinanciado":35000,"retorno":2800,"receitaSPF":200,"spfQtd":2,"plano":"BALÃO"},
+        {"vendedor":"P3 RANK TERCEIRO","loja":"Loja 10","dept":"Novos","valorFinanciado":20000,"retorno":1500,"receitaSPF":100,"spfQtd":1,"plano":"LINEAR"},
+        {"vendedor":"P4 RANK QUARTO","loja":"Loja 10","dept":"Novos","valorFinanciado":10000,"retorno":600,"receitaSPF":0,"spfQtd":0,"plano":"LINEAR"}
+      ],
+      "focusSeller": null
+    }
+  ]
+}

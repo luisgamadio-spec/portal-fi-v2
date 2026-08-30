@@ -23,27 +23,34 @@ def main():
     print(f"[PASS] {len(modules)} modules found in registry" if modules else "[FAIL] 0 modules found")
     if not modules:
         errors.append("registry has 0 modules")
+    # Expected status per module as of PORTAL-NEXT-04 (Gate 29/65: only
+    # Landing and Score may have moved past NOT_MIGRATED; Score must
+    # stop at UAT_PENDING, never auto-promoted to HUMAN_APPROVED).
+    EXPECTED_STATUS = {
+        "landing": {"HUMAN_APPROVED"},
+        "score": {"UAT_PENDING", "VISUAL_PARITY_PENDING"},
+    }
+
     for m in modules:
         for field in REQUIRED_FIELDS:
             if field not in m:
                 errors.append(f"module '{m.get('id','?')}' missing field '{field}'")
-        # Gate 31 (PORTAL-NEXT-03): only Landing may have moved past
-        # NOT_MIGRATED this Wave. Every other module must still be
-        # NOT_MIGRATED — a silent status change anywhere else is a bug.
-        if m.get("id") == "landing":
-            if m.get("migrationStatus") not in ("UAT_PENDING", "VISUAL_PARITY_PENDING"):
-                errors.append(f"module 'landing' has migrationStatus={m.get('migrationStatus')!r}, expected UAT_PENDING or VISUAL_PARITY_PENDING after PORTAL-NEXT-03")
-        elif m.get("migrationStatus") != "NOT_MIGRATED":
-            errors.append(f"module '{m.get('id')}' has migrationStatus={m.get('migrationStatus')!r}, expected NOT_MIGRATED — only Landing may change status this Wave (Gate 31)")
-        if m.get("migrationStatus") not in enum:
-            errors.append(f"module '{m.get('id')}' migrationStatus not in enum")
+        mid = m.get("id")
+        status = m.get("migrationStatus")
+        if mid in EXPECTED_STATUS:
+            if status not in EXPECTED_STATUS[mid]:
+                errors.append(f"module '{mid}' has migrationStatus={status!r}, expected one of {EXPECTED_STATUS[mid]}")
+        elif status != "NOT_MIGRATED":
+            errors.append(f"module '{mid}' has migrationStatus={status!r}, expected NOT_MIGRATED — only Landing/Score may have changed status so far (Gate 29/65)")
+        if status not in enum:
+            errors.append(f"module '{mid}' migrationStatus not in enum")
 
     ids = [m.get("id") for m in modules]
     dupes = set(i for i in ids if ids.count(i) > 1)
     if dupes:
         errors.append(f"duplicate module ids: {dupes}")
 
-    print(f"[{'PASS' if not errors else 'FAIL'}] all modules have required contract fields and correct status discipline (landing=UAT_PENDING/VISUAL_PARITY_PENDING, all others=NOT_MIGRATED)")
+    print(f"[{'PASS' if not errors else 'FAIL'}] all modules have required contract fields and correct status discipline (landing=HUMAN_APPROVED, score=UAT_PENDING/VISUAL_PARITY_PENDING, all others=NOT_MIGRATED)")
     if errors:
         for e in errors:
             print("  -", e)

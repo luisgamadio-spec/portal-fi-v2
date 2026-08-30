@@ -32,9 +32,9 @@ parity, never substitute for it (Skill's Human Approval Gate).
 
 | Module | Status | Wave |
 |---|---|---|
-| Landing | **UAT_PENDING** (PORTAL-NEXT-03 — see `docs/HUMAN-UAT-LANDING.md`) | 1 |
+| Landing | **HUMAN_APPROVED** (PORTAL-NEXT-04, Gate 1 — human decision recorded) | 1 |
 | Portal Shell / MASTER Admin | NOT_MIGRATED | 0 |
-| Score | NOT_MIGRATED | 2 |
+| Score | **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) | 2 |
 | Coparticipado | NOT_MIGRATED | 3 |
 | Gestão | NOT_MIGRATED | 4 |
 | Dashbi | NOT_MIGRATED | 5 |
@@ -57,16 +57,44 @@ mapped onto the Approved Reference's category grammar, and what did
 NOT fit this Wave (Coparticipado — deliberately not on the Landing
 canvas, still reachable via the router).
 
+## PORTAL-NEXT-04 addendum
+
+Score moved `NOT_MIGRATED` → `UAT_PENDING` (technical: PASS — 12/12
+golden-fixture parity, see `docs/SCORE-ENGINE-AUDIT.md` and
+`docs/SCORE-EXTRACTION-TRACE.md`; human: pending, see
+`docs/HUMAN-UAT-SCORE.md`). Landing's `migrationStatus` updated to
+`HUMAN_APPROVED` per Gate 1 (metadata-only — Landing's implementation
+files remain byte-identical, re-verified this Wave). Every other
+module untouched.
+
+**Real, load-bearing finding this Wave**: `modules/score.html` was
+itself proved divergent between the local clone and `origin/main` (==
+production) — the local clone's `calcScores()` is NOT what production
+runs. Score was correctly re-extracted from `origin/main`, not the
+local clone. See `docs/SCORE-ENGINE-AUDIT.md` for the full diff
+(redistributed weights, a new sample-size confidence-dampening
+mechanism, a changed plan-mix methodology).
+
+**Genuine Design System conflict, not resolved this Wave**:
+`design-system-2.1/references/score.md` requires a band
+(ALTO/BOM/BAIXO) that does not exist anywhere in real production Score
+logic. Not invented — flagged as needing a future Design System Change
+Proposal. See `docs/SCORE-ENGINE-AUDIT.md`.
+
 ## Standing blockers carried forward (not resolved this phase)
 
 - Gestão / Salários-Comissões: commission-rule discrepancy
   (`PORTAL-NEXT-01.1/BLOCKER-CLASSIFICATION.md` Blocker #6) — RC
-  BLOCKER, must close before either can claim functional parity.
+  BLOCKER, must close before either can claim functional parity. Not
+  touched this Wave (Gate 32).
 - Simulador Novos / Seminovos: DOM-coupled loan-math extraction
   (Blocker #5) — RC BLOCKER, Wave 6 must start with the extraction
-  sub-project before any UI work.
+  sub-project before any UI work. Not touched this Wave (Gate 34).
 - Brabus Intelligence: Voice Orb variant still PROVISIONAL/HUMAN
   SELECTION PENDING; a separately-tracked V1 issue (the AI kill-switch)
-  — see `REPORT.md`'s PORTAL-NEXT-02 entry for this phase's discovery
-  that it appears to have been resolved in production since PORTAL-
-  NEXT-01.1, not independently re-verified this phase.
+  — appears resolved in production since PORTAL-NEXT-01.1 (see
+  PORTAL-NEXT-02's REPORT.md entry), not independently re-verified.
+  Not touched this Wave (Gate 33).
+- Score: band (ALTO/BOM/BAIXO) Design System conflict — see addendum
+  above. isScoreSellerEligible() and openSellerDetails() intentionally
+  not migrated — see `docs/SCORE-EXTRACTION-TRACE.md`.

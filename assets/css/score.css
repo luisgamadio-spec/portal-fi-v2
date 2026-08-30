@@ -1,0 +1,142 @@
+/* PORTAL-NEXT V2 — Score module CSS.
+   Visual authority: design-system-2.1/references/score.md (NORMATIVE
+   TEXT pattern, no executable Approved Reference exists for Score —
+   see docs/SCORE-VISUAL-AUTHORITY.md) + data-table.md (ranking table).
+   Every value is a var() from tokens.css. No speedometer/gauge/
+   trophy/medal/podium/emoji (score.md's own MUST NOT). Sortable-column
+   visual indicator is UNRESOLVED per data-table.md — not invented;
+   the table shows calcScores()'s own sort order only, not
+   interactively re-sortable this Wave. */
+
+.scPage { max-width: 1100px; }
+
+.scHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-5);
+}
+.scHeader h1 {
+  font-family: var(--font-ui);
+  font-weight: 300;
+  font-size: clamp(22px, 2.6vw, 30px);
+  letter-spacing: -.01em;
+  margin: 0;
+}
+.scHeader p {
+  color: var(--color-text-secondary);
+  margin: var(--space-1) 0 0;
+  font-size: 13px;
+}
+
+/* ---------- dev fixture context (Gate 30/51 — clearly dev-only) ---------- */
+.scFixtureBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-5);
+  border: 1px dashed var(--color-hairline-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+.scFixtureBar .scFixtureLabel {
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-warning);
+}
+.scFixtureBar select {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.scFixtureBar select:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+/* ---------- ranking table (HIGH density -- data-table.md pattern) ---------- */
+.scTableWrap { overflow-x: auto; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); }
+.scTable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.scTable thead th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  padding: var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--color-hairline-strong);
+  white-space: nowrap;
+}
+.scTable td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-hairline);
+  vertical-align: middle;
+}
+.scTable tbody tr:last-child td { border-bottom: none; }
+.scTable tbody tr { cursor: pointer; }
+.scTable tbody tr:hover,
+.scTable tbody tr:focus-visible { background: rgba(255,255,255,.028); }
+.scTable tbody tr:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
+.scTable .scNumCol { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.scTable .scNameCell {
+  position: sticky;
+  left: 0;
+  background: var(--color-surface-1);
+  font-weight: 500;
+}
+.scTable .scNameText {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scRankCol { font-family: var(--font-mono); color: var(--color-text-muted); width: 34px; }
+
+/* ---------- detail / breakdown (Gate 15-16 -- meters, not gamified) ---------- */
+.scDetail {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-hairline);
+}
+.scDetail[hidden] { display: none; }
+.scDetailHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.scDetailHead h2 { font-family: var(--font-ui); font-weight: 400; font-size: 18px; margin: 0; }
+.scDetailTotal { font-family: var(--font-mono); font-size: 13px; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.scCriterion { padding: var(--space-3) 0; border-bottom: 1px solid var(--color-hairline); }
+.scCriterion:last-child { border-bottom: none; }
+.scCriterionTop { display: flex; justify-content: space-between; gap: var(--space-3); font-size: 13px; }
+.scCriterionName { color: var(--color-text-primary); }
+.scCriterionPoints { font-family: var(--font-mono); color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.scCriterionMeta { display: flex; justify-content: space-between; gap: var(--space-3); margin-top: 2px; font-size: 11.5px; color: var(--color-text-muted); }
+.scMeter { height: 3px; background: var(--color-hairline-strong); border-radius: 2px; margin-top: var(--space-2); overflow: hidden; }
+.scMeter span { display: block; height: 100%; background: var(--color-accent-primary); }
+.scAmostraNote { margin-top: 4px; font-size: 11px; color: var(--color-text-muted); font-style: italic; }
+
+/* ---------- close/back affordance ---------- */
+.scCloseDetail {
+  background: none; border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-secondary); font-family: var(--font-mono);
+  font-size: 11px; padding: 4px var(--space-2); border-radius: var(--radius-sm); cursor: pointer;
+}
+.scCloseDetail:focus-visible, .scCloseDetail:hover { outline: var(--focus-ring); outline-offset: 2px; color: var(--color-accent-primary); }
+
+@media (max-width: 768px) {
+  .scTable .scNameCell { max-width: 140px; }
+  .scTable .scNameText { max-width: 120px; }
+}
