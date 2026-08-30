@@ -27,14 +27,29 @@
 
   function rowKey(r) { return r.vendedor + '|' + r.loja + '|' + r.dept; }
 
+  // Gate 4-5: real production scale is 0-1000 (calcScores' own
+  // Math.round(Math.max(0,Math.min(1000,score))) clamp — not
+  // presumed, read directly from the extracted source). Meter
+  // proportion is a DETERMINISTIC, display-only derivation from the
+  // already-final (post-confidence-dampening) score — it never
+  // touches the raw score, ranking, or sort order (Gate 18-19).
+  var SCORE_SCALE_MAX = 1000;
+  function meterPct(score) {
+    return Math.max(0, Math.min(100, (score / SCORE_SCALE_MAX) * 100));
+  }
+
   function renderTable(rows) {
     var body = rows.map(function (r, i) {
+      var pct = meterPct(r.score);
       return '<tr tabindex="0" role="button" data-key="' + esc(rowKey(r)) + '" aria-label="Ver detalhamento de ' + esc(r.vendedor) + '">' +
         '<td class="scRankCol">' + (i + 1) + '</td>' +
         '<td class="scNameCell"><span class="scNameText" title="' + esc(r.vendedor) + '">' + esc(r.vendedor) + '</span></td>' +
         '<td>' + esc(r.loja) + '</td>' +
         '<td>' + esc(r.dept) + '</td>' +
-        '<td class="scNumCol">' + r.score + '</td>' +
+        '<td class="scNumCol"><span class="scScoreCell">' +
+          '<span class="scMeterTrack" role="img" aria-label="Score ' + r.score + ' de ' + SCORE_SCALE_MAX + '"><span class="scMeterFill" style="width:' + pct.toFixed(1) + '%"></span></span>' +
+          '<span>' + r.score + '</span>' +
+          '</span></td>' +
         '<td class="scNumCol">' + (r.fin || 0) + '</td>' +
         '</tr>';
     }).join('');

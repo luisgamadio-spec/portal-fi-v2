@@ -60,7 +60,7 @@
       "landingTitle": "Análise de Score Vendedores",
       "landingDesc": "Ranking de performance F&I por vendedor, com score, detalhes e auditoria.",
       "functionalParity": "PASS — 12/12 golden fixtures, exact match (tests/score-parity-test.py)",
-      "normativeCompliance": "FAIL on exactly one point (band ALTO/BOM/BAIXO does not exist in production, not invented — see docs/SCORE-ENGINE-AUDIT.md \"Conflict with Design System 2.1\", requires a future Design System Change Proposal). PASS on every other MUST (confidence, breakdown, explanation, no-color-only-status, no gauge/speedometer).",
+      "normativeCompliance": "FAIL on exactly one point (band ALTO/BOM/BAIXO does not exist in production, not invented — formalized as docs/DS-CHANGE-PROPOSAL-SCORE-BAND-01.md, STATUS: HUMAN REVIEW REQUIRED). PASS on every other MUST, including the linear score meter (PORTAL-NEXT-04.1 — transplanted from module-landing-approved's Human Approved .rankScoreBar component, single non-band-derived fill color), confidence, breakdown, explanation, no-color-only-status, no gauge/speedometer.",
       "visualParity": "NOT APPLICABLE — no executable Approved Reference exists for Score (Gate 43)",
       "notMigratedThisWave": "isScoreSellerEligible() (needs backend vendor registry) and openSellerDetails() (per-transaction drill-down modal, overlaps Balão/Parcela simulator-domain rendering, explicitly out of scope — Gate 34). See docs/SCORE-EXTRACTION-TRACE.md.",
       "notes": "calcScores() changed substantially between what PORTAL-NEXT-01 originally audited (local clone) and real production (new confidence-dampening mechanism, redistributed weights, changed plan-mix methodology) — re-audited from the correct source this Wave, see docs/SCORE-ENGINE-AUDIT.md."

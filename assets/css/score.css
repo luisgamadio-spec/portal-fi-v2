@@ -87,6 +87,25 @@
 .scTable tbody tr:focus-visible { background: rgba(255,255,255,.028); }
 .scTable tbody tr:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
 .scTable .scNumCol { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- Score linear meter (Gate 3: TRANSPLANTED from the Human
+   Approved Executable Reference — design-system-2.1/references/
+   baselines/module-landing-approved/{pages.js,styles.css}
+   .rankScoreBar/.fill, app.js's own Design Trace tags this
+   'score-list' component status:APPROVED. Track size (80x4, radius 3)
+   and the literal #232325 track background are copied AS-IS from that
+   frozen reference — not tokenized here, since that's the approved
+   value, not this Wave's to "fix". ONE deliberate adaptation:
+   band-derived fill color (ALTO/BOM/BAIXO -> success/info/critical)
+   is NOT reused — production has no band, so the fill uses a single
+   --color-accent-primary, same as the criteria breakdown meters,
+   per Gate 11 ("não codificar qualidade do vendedor por cor se
+   produção não possui essa semântica"). No fill animation exists in
+   the reference (checked directly) -- none added here either. */
+.scScoreCell { display: flex; align-items: center; gap: var(--space-2); justify-content: flex-end; }
+.scMeterTrack { width: 80px; height: 4px; border-radius: 3px; background: #232325; overflow: hidden; flex-shrink: 0; }
+.scMeterFill { display: block; height: 100%; border-radius: 3px; background: var(--color-accent-primary); }
+@media (max-width: 480px) { .scMeterTrack { width: 48px; } }
 .scTable .scNameCell {
   position: sticky;
   left: 0;

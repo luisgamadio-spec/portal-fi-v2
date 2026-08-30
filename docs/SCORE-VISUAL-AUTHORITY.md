@@ -26,10 +26,25 @@ MUST show band (ALTO/BOM/BAIXO):                                     FAIL
   — see docs/SCORE-ENGINE-AUDIT.md's dedicated section. Real
   production has NO band concept. Inventing thresholds to satisfy
   this MUST would fabricate business logic this Wave's own principle
-  forbids ("DO NOT REDESIGN THE SCORE LOGIC"). Classified as a
-  genuine Design System / production-truth conflict requiring a
-  Change Proposal, NOT resolved by this phase either by inventing a
-  band or by silently dropping the requirement without disclosure.
+  forbids ("DO NOT REDESIGN THE SCORE LOGIC"). Formalized as
+  docs/DS-CHANGE-PROPOSAL-SCORE-BAND-01.md (STATUS: HUMAN REVIEW
+  REQUIRED) — proposes a "Continuous Score" normative variant that
+  drops the band requirement in favor of a linear meter. NOT resolved
+  by this phase either way; the proposal itself is the deliverable.
+
+MUST show linear score meter (PORTAL-NEXT-04.1):                       PASS
+  — TRANSPLANTED (Gate 3) from the Human Approved Executable Reference
+  (module-landing-approved/pages.js's .rankScoreBar/.fill, tagged
+  status:APPROVED in that same reference's own app.js Design Trace
+  registry). Track: 80x4px, 3px radius, literal #232325 background
+  (copied as-is from the approved source, not tokenized). Fill width
+  = deterministic score/1000 proportion (the real production scale,
+  read directly from calcScores()'s own clamp — not presumed).
+  ONE adaptation from the source: fill color is a single
+  --color-accent-primary, NOT the source's own faixa-derived
+  success/info/critical scheme — production has no faixa, and
+  reusing that color logic would require the very band this Wave
+  does not invent. See DS-CHANGE-PROPOSAL-SCORE-BAND-01.md.
 MUST show confidence:                                                PASS
   — the REAL per-criterion "amostra" mechanism (confVendas/confFin
   dampening), disclosed in the UI exactly as production discloses it
