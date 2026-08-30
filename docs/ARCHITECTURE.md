@@ -2,17 +2,35 @@
 
 ## Shell
 
-`index.html` + `assets/css/shell.css` + `assets/js/shell.js`. A
-single-page shell: fixed global nav (landmark `<nav aria-label>`),
-a content outlet (`<main id="nxContentOutlet" tabindex="-1">`), an
-overlay root and a modal root (both empty by default, `display:none`
-via `:empty`), a skip link as the very first focusable element, and a
-small, non-obstructive dev badge (bottom-left) — never a giant banner.
+`index.html` + `assets/css/shell.css` (dev-tooling chrome only) +
+`assets/css/landing.css` (persistent app chrome, transplanted from the
+Approved Reference — see PORTAL-NEXT-03) + `assets/js/shell.js`. The
+persistent chrome is `.pShell > .pGlobalNav + .pMain(.pTopBar,
+.ctxBeam, #nxContentOutlet.pContent)` — exact class names from
+`design-system-2.1/references/baselines/module-landing-approved/`, not
+reinvented. A skip link is the first focusable element; overlay/modal
+roots are empty by default.
 
-No module's real UI exists yet. Every route renders a minimal
-structural placeholder (name, title, migration status, a metadata
-table) proving the routing/registry mechanism works, per Gate 10's
-explicit instruction not to build a full visual mockup.
+**Landing** (`#/landing`, the default route) has a real, transplanted
+UI — see the dedicated section below. Every OTHER route still renders
+the Foundation-era minimal structural placeholder (name, title,
+migration status, a metadata table, honest `NOT_MIGRATED` label) — per
+Gate 10/40, no functionality is simulated for unmigrated modules.
+
+## Landing (PORTAL-NEXT-03)
+
+`assets/js/landing.js` + `assets/css/landing.css` +
+`config/landing-groups.json`. Method: TRANSPLANT + CONTROLLED
+ADAPTATION (Skill Gate 8) — structure/interaction model copied
+verbatim from the reference's `pages.js`/`app.js` (category selection
+via hover/focus/click, module block click navigates, Context Beam
+fires only on an actual context change, respects
+`prefers-reduced-motion`), tokens from `design-system-2/tokens.css`,
+motion from the shared `design-motion-lab-03/engine.js` (linked
+directly, not reimplemented), content from V2's real module registry.
+Full mapping rationale: `docs/LANDING-CONTENT-MAP.md`. Full test
+evidence: `tests/landing-composition-regression.py`,
+`tests/anti-ai-audit.md`, `REPORT.md`'s PORTAL-NEXT-03 entry.
 
 ## Router
 

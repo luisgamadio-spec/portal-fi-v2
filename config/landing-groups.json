@@ -1,0 +1,10 @@
+{
+  "note": "Gate 5 — real content mapped onto the Approved Reference's 6-category grammar. Full reasoning: docs/LANDING-CONTENT-MAP.md. moduleIds reference config/module-registry.json ids. 'Simuladores' category from the reference is deliberately unused (redundant given real V1 content). 'coparticipado' is deliberately NOT represented on the Landing canvas this Wave (content-fit guard, Gate 39) — still reachable via router/registry.",
+  "groups": [
+    { "label": "Gestão", "moduleIds": ["dashbi", "gestao"] },
+    { "label": "Novos & Seminovos", "moduleIds": ["simulador-novos", "simulador-seminovos"] },
+    { "label": "Score & Salários", "moduleIds": ["score", "salarios-comissoes"] },
+    { "label": "Brabus Intelligence", "moduleIds": ["brabus-intelligence"] },
+    { "label": "Auditoria", "moduleIds": ["shell-admin"] }
+  ]
+}

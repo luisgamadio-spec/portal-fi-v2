@@ -25,9 +25,12 @@ adapter must satisfy to reuse it verbatim.
 V2 does **not** duplicate it — `index.html` links
 `../design-system-2/tokens.css` directly (the exact same executable
 token file the Human Approved Executable Landing Reference itself
-links to), and `../shared/fonts.css` for IBM Plex Sans/Mono. No hex
-value or token name is retyped anywhere in V2. See
-`config/validate-token-authority.py`.
+links to), `../shared/fonts.css` for IBM Plex Sans/Mono, and (as of
+PORTAL-NEXT-03) `../design-motion-lab-03/parametric-catalog.js` +
+`engine.js` for the Parametric Reactive motion runtime — the same
+shared, approved implementation the Landing reference itself uses,
+not a reimplementation. No hex value, token name, or motion parameter
+is retyped anywhere in V2. See `config/validate-token-authority.py`.
 
 **Open item, not solved this phase**: these are relative-path
 references into the Lab, which will not survive V2 being promoted to

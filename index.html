@@ -7,21 +7,25 @@
 <link rel="stylesheet" href="../shared/fonts.css">
 <link rel="stylesheet" href="../design-system-2/tokens.css">
 <link rel="stylesheet" href="assets/css/shell.css">
+<link rel="stylesheet" href="assets/css/landing.css">
 </head>
 <body>
 
 <a class="nxSkipLink" href="#nxContentOutlet">Pular para o conteúdo</a>
 
 <div id="nxRoot">
-  <div class="nxShell">
-    <nav class="nxGlobalNav" aria-label="Navegação principal (Foundation)">
-      <span class="nxBrandMark" aria-hidden="true">V2</span>
-      <ul class="nxNavList" id="nxNavList"></ul>
-    </nav>
-
-    <main id="nxContentOutlet" class="nxContentOutlet" tabindex="-1" aria-live="polite">
-      <div class="nxPlaceholder"><p>Carregando…</p></div>
-    </main>
+  <div class="pShell">
+    <nav class="pGlobalNav" id="pGlobalNav" aria-label="Navegação principal"></nav>
+    <div class="pMain">
+      <div class="pTopBar">
+        <img class="pHeaderLogo" src="assets/images/brabus-logo.png" alt="Grupo Brabus Mitsubishi">
+        <span class="pBreadcrumb" id="pBreadcrumb"></span>
+      </div>
+      <div class="ctxBeam" id="ctxBeam"></div>
+      <main id="nxContentOutlet" class="pContent" tabindex="-1" aria-live="polite">
+        <div class="nxPlaceholder"><p>Carregando…</p></div>
+      </main>
+    </div>
   </div>
 
   <div id="nxOverlayRoot" aria-hidden="true"></div>
@@ -39,6 +43,8 @@
   </aside>
 </div>
 
+<script src="../design-motion-lab-03/parametric-catalog.js"></script>
+<script src="../design-motion-lab-03/engine.js"></script>
 <script src="assets/js/environment-guard.js"></script>
 <script src="assets/js/network-guard.js"></script>
 <script src="assets/js/auth-boundary.js"></script>
@@ -46,6 +52,7 @@
 <script src="assets/js/router.js"></script>
 <script src="assets/js/module-registry.js"></script>
 <script src="assets/js/design-trace.js"></script>
+<script src="assets/js/landing.js"></script>
 <script src="assets/js/shell.js"></script>
 </body>
 </html>

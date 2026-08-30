@@ -50,7 +50,8 @@ def main():
             print(f"  - {e}")
         sys.exit(1)
     print("RESULT: PASS — V2 can resolve the Landing Approved Reference.")
-    print("NOTE: this test does NOT render the reference and Landing was NOT migrated this phase.")
+    print("NOTE: this test only checks RESOLUTION (paths exist). Fresh rendering and")
+    print("structural/visual comparison happen in tests/landing-composition-regression.py.")
     sys.exit(0)
 
 if __name__ == "__main__":

@@ -1,0 +1,146 @@
+{
+  "1366x768": {
+    "globalNav": {
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 768
+    },
+    "fNav": {
+      "x": 64,
+      "y": 53,
+      "w": 546.8,
+      "h": 689
+    },
+    "canvas": {
+      "x": 610.8,
+      "y": 53,
+      "w": 755.2,
+      "h": 689
+    },
+    "fShell": {
+      "x": 64,
+      "y": 52,
+      "w": 1302,
+      "h": 690
+    },
+    "body": {
+      "x": 0,
+      "y": 0,
+      "w": 1366,
+      "h": 768
+    },
+    "navItemFontSize": "45px",
+    "navItemCount": 5,
+    "bodyScrollWidth": 1366,
+    "bodyClientWidth": 1366
+  },
+  "1920x1080": {
+    "globalNav": {
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 1080
+    },
+    "fNav": {
+      "x": 64,
+      "y": 53,
+      "w": 779.5,
+      "h": 1001
+    },
+    "canvas": {
+      "x": 843.5,
+      "y": 53,
+      "w": 1076.5,
+      "h": 1001
+    },
+    "fShell": {
+      "x": 64,
+      "y": 52,
+      "w": 1856,
+      "h": 1002
+    },
+    "body": {
+      "x": 0,
+      "y": 0,
+      "w": 1920,
+      "h": 1080
+    },
+    "navItemFontSize": "45px",
+    "navItemCount": 5,
+    "bodyScrollWidth": 1920,
+    "bodyClientWidth": 1920
+  },
+  "390x844": {
+    "globalNav": {
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 52
+    },
+    "fNav": {
+      "x": 0,
+      "y": 105,
+      "w": 390,
+      "h": 69
+    },
+    "canvas": {
+      "x": 0,
+      "y": 174,
+      "w": 390,
+      "h": 294
+    },
+    "fShell": {
+      "x": 0,
+      "y": 104,
+      "w": 390,
+      "h": 364
+    },
+    "body": {
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    "navItemFontSize": "17px",
+    "navItemCount": 5,
+    "bodyScrollWidth": 390,
+    "bodyClientWidth": 390
+  },
+  "430x932": {
+    "globalNav": {
+      "x": 0,
+      "y": 0,
+      "w": 430,
+      "h": 52
+    },
+    "fNav": {
+      "x": 0,
+      "y": 105,
+      "w": 430,
+      "h": 69
+    },
+    "canvas": {
+      "x": 0,
+      "y": 174,
+      "w": 430,
+      "h": 294
+    },
+    "fShell": {
+      "x": 0,
+      "y": 104,
+      "w": 430,
+      "h": 364
+    },
+    "body": {
+      "x": 0,
+      "y": 0,
+      "w": 430,
+      "h": 932
+    },
+    "navItemFontSize": "17px",
+    "navItemCount": 5,
+    "bodyScrollWidth": 430,
+    "bodyClientWidth": 430
+  }
+}

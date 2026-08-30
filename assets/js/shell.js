@@ -18,33 +18,19 @@
     }
   };
 
-  /* ---------- Gate 23: Context Beam event hook, not fired indiscriminately ---------- */
+  /* ---------- Gate 23/12: Context Beam event hook — REAL as of this
+     Wave (Landing exists now), fires only on an actual route/context
+     change, never on every hover/click. See assets/css/landing.css
+     .ctxBeam and assets/js/landing.js, which is the actual caller. */
   window.NX_CONTEXT_BEAM = {
-    fire: function (reason) {
-      // Intentionally a no-op in Foundation. Real firing is reserved
-      // for genuine group/module context changes once real modules
-      // exist — placeholders must not trigger it just to "look alive".
-      console.debug('[context-beam] fire() called with no-op Foundation stub. reason=', reason);
+    fire: function () {
+      if (window.MotionEngine && window.MotionEngine.reduce) return;
+      var beam = document.getElementById('ctxBeam');
+      if (!beam) return;
+      beam.classList.add('active');
+      setTimeout(function () { beam.classList.remove('active'); }, 420);
     }
   };
-
-  function renderNav(modules, activeId) {
-    var list = document.getElementById('nxNavList');
-    list.innerHTML = '';
-    modules.forEach(function (m) {
-      var li = document.createElement('li');
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'nxNavItem';
-      btn.textContent = m.name.split(' ')[0];
-      btn.title = m.name;
-      btn.setAttribute('data-route', m.id);
-      if (m.id === activeId) btn.setAttribute('aria-current', 'page');
-      btn.addEventListener('click', function () { window.NX_ROUTER.navigate(m.id); });
-      li.appendChild(btn);
-      list.appendChild(li);
-    });
-  }
 
   function renderPlaceholder(entry, routeId, moveFocus) {
     var outlet = document.getElementById('nxContentOutlet');
@@ -78,10 +64,13 @@
   var hasRenderedOnce = false;
   function onRouteChange(routeId) {
     var entry = window.NX_REGISTRY.byId(routeId);
-    renderNav(window.NX_REGISTRY.modules, routeId);
-    renderPlaceholder(entry, routeId, hasRenderedOnce);
-    window.NX_DESIGN_TRACE.render(entry, routeId);
-    hasRenderedOnce = true;
+    window.NX_LANDING.renderRoute(routeId, entry).then(function () {
+      if (!window.NX_LANDING.isLandingRoute(routeId)) {
+        renderPlaceholder(entry, routeId, hasRenderedOnce);
+      }
+      window.NX_DESIGN_TRACE.render(entry, routeId);
+      hasRenderedOnce = true;
+    });
   }
 
   function setupDevBadge() {

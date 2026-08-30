@@ -23,13 +23,18 @@ def main():
     print(f"[PASS] {len(modules)} modules found in registry" if modules else "[FAIL] 0 modules found")
     if not modules:
         errors.append("registry has 0 modules")
-
     for m in modules:
         for field in REQUIRED_FIELDS:
             if field not in m:
                 errors.append(f"module '{m.get('id','?')}' missing field '{field}'")
-        if m.get("migrationStatus") != "NOT_MIGRATED":
-            errors.append(f"module '{m.get('id')}' has migrationStatus={m.get('migrationStatus')!r}, expected NOT_MIGRATED for a Foundation-phase registry")
+        # Gate 31 (PORTAL-NEXT-03): only Landing may have moved past
+        # NOT_MIGRATED this Wave. Every other module must still be
+        # NOT_MIGRATED — a silent status change anywhere else is a bug.
+        if m.get("id") == "landing":
+            if m.get("migrationStatus") not in ("UAT_PENDING", "VISUAL_PARITY_PENDING"):
+                errors.append(f"module 'landing' has migrationStatus={m.get('migrationStatus')!r}, expected UAT_PENDING or VISUAL_PARITY_PENDING after PORTAL-NEXT-03")
+        elif m.get("migrationStatus") != "NOT_MIGRATED":
+            errors.append(f"module '{m.get('id')}' has migrationStatus={m.get('migrationStatus')!r}, expected NOT_MIGRATED — only Landing may change status this Wave (Gate 31)")
         if m.get("migrationStatus") not in enum:
             errors.append(f"module '{m.get('id')}' migrationStatus not in enum")
 
@@ -38,7 +43,7 @@ def main():
     if dupes:
         errors.append(f"duplicate module ids: {dupes}")
 
-    print(f"[{'PASS' if not errors else 'FAIL'}] all modules have required contract fields and status NOT_MIGRATED")
+    print(f"[{'PASS' if not errors else 'FAIL'}] all modules have required contract fields and correct status discipline (landing=UAT_PENDING/VISUAL_PARITY_PENDING, all others=NOT_MIGRATED)")
     if errors:
         for e in errors:
             print("  -", e)

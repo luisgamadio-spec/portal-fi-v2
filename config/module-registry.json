@@ -1,6 +1,7 @@
 {
   "$schemaNote": "Module Contract (Gate 12) fields per entry: id, route, title, density, authRequirement, designPattern, entryPoint, businessSource, migrationStatus. Manifest fields (Gate 39) add: name, approvedReference, functionalSource, migrationWave, risk, notes. Merged into one object per module below so a Wave doesn't have to invent structure twice.",
-  "migrationStatusEnum": ["NOT_MIGRATED", "IN_PROGRESS", "PARITY_PENDING", "UAT_PENDING", "HUMAN_APPROVED", "FROZEN"],
+  "migrationStatusEnum": ["NOT_MIGRATED", "IN_PROGRESS", "PARITY_PENDING", "VISUAL_PARITY_PENDING", "UAT_PENDING", "HUMAN_APPROVED", "FROZEN"],
+  "statusNote": "VISUAL_PARITY_PENDING (Gate 30, PORTAL-NEXT-03): implementation exists, visual comparison against an Approved Reference not yet passed. Distinct from PARITY_PENDING, which is about functional/data parity. A module moves VISUAL_PARITY_PENDING -> UAT_PENDING only after its structural/visual comparison test suite actually passes — never skipped, never auto-promoted to HUMAN_APPROVED regardless of technical PASS (only a human can do that).",
   "note": "functionalSource points at the REAL V1 location identified during PORTAL-NEXT-01's audit. Nothing at those paths was read, imported, or ported this phase — see tests/business-logic-scanner.py. approvedReference ids are design-system-2.1 approvedReferences[] ids, resolved not copied — see tests/foundation-regression.py's reference-resolution check.",
   "modules": [
     {
@@ -8,17 +9,18 @@
       "name": "Landing",
       "route": "/landing",
       "title": "Portal F&I — Grupo Brabus",
-      "density": "LOW-MEDIUM",
+      "density": "LOW",
       "authRequirement": "none (entry surface)",
       "designPattern": "module-landing (Human Approved Executable Reference)",
-      "entryPoint": "NOT YET CREATED in V2 — V1's equivalent is index.html's post-login home render (portal-financiamento-brabus-secure)",
-      "businessSource": "N/A (no business logic on Landing)",
+      "entryPoint": "assets/js/landing.js + assets/css/landing.css + config/landing-groups.json (PORTAL-NEXT-03)",
+      "businessSource": "N/A (no business logic on Landing — verified 0 backend calls, Gate 41)",
       "functionalSource": null,
       "approvedReference": "module-landing",
+      "referenceAuthorityStatus": "HUMAN_APPROVED (unchanged — design-system-2.1's own field, not altered by V2)",
       "migrationWave": 1,
       "risk": "LOW",
-      "migrationStatus": "NOT_MIGRATED",
-      "notes": "Most design groundwork already exists (frozen executable reference + screenshots). See PORTAL-NEXT-01/MIGRATION-WAVES.md Wave 1."
+      "migrationStatus": "UAT_PENDING",
+      "notes": "PORTAL-NEXT-03: transplanted (Gate 8 method) from the Approved Reference — same class names, same DOM nesting, same interaction model, same Parametric Reactive config, same Context Beam behavior. Structural/visual comparison PASSED (20/20 checks, tests/landing-composition-regression.py) — this is a TECHNICAL pass only. migrationStatus is UAT_PENDING, not HUMAN_APPROVED, until a human actually reviews it (Gate 47) — see docs/HUMAN-UAT-LANDING.md."
     },
     {
       "id": "shell-admin",
@@ -35,6 +37,8 @@
       "migrationWave": 0,
       "risk": "HIGH",
       "migrationStatus": "NOT_MIGRATED",
+      "landingTitle": "Auditoria / Painel Master",
+      "landingDesc": "Log de ações administrativas e configuração do Painel Master (usuários, acessos, revisões cadastrais).",
       "notes": "V1's shell wraps this via successive stacked JS patches (see PORTAL-NEXT-01/ARCHITECTURE-AUDIT.md Gate 4) — V2's shell must NOT reproduce that accretion pattern. Includes the 'Auditoria' admin-action-log tab (PORTAL-NEXT-01.1 finding: real, but a tab, not a standalone module)."
     },
     {
@@ -52,6 +56,8 @@
       "migrationWave": 2,
       "risk": "MEDIUM",
       "migrationStatus": "NOT_MIGRATED",
+      "landingTitle": "Análise de Score Vendedores",
+      "landingDesc": "Ranking de performance F&I por vendedor, com score, detalhes e auditoria.",
       "notes": "calcScores() is already a pure function in V1 — good early extraction candidate when Wave 2 actually starts. Not extracted this phase."
     },
     {
@@ -86,6 +92,8 @@
       "migrationWave": 4,
       "risk": "MEDIUM",
       "migrationStatus": "NOT_MIGRATED",
+      "landingTitle": "Análise F&I do Grupo",
+      "landingDesc": "Análise operacional F&I/FANDI consolidada do Grupo Brabus Mitsubishi.",
       "notes": "RC BLOCKER open (PORTAL-NEXT-01.1 Blocker #6): commission-rule discrepancy between this module's flat 70% and portal-app.js's multi-tier commissionCalc(). Not resolved. Do not port either formula until a human decision is made."
     },
     {
@@ -103,6 +111,8 @@
       "migrationWave": 5,
       "risk": "HIGH",
       "migrationStatus": "NOT_MIGRATED",
+      "landingTitle": "Análise Geral do Grupo",
+      "landingDesc": "Visão analítica geral do Grupo Brabus Mitsubishi.",
       "notes": "Largest/most complex real module (5,652 lines, one inline script). See PORTAL-NEXT-01/MIGRATION-WAVES.md Wave 5."
     },
     {
@@ -120,6 +130,8 @@
       "migrationWave": 6,
       "risk": "HIGHEST",
       "migrationStatus": "NOT_MIGRATED",
+      "landingTitle": "Simulador de Novos",
+      "landingDesc": "Simulação de financiamento para veículos novos.",
       "notes": "RC BLOCKER open (PORTAL-NEXT-01.1 Blocker #5): requires a dedicated pure-function extraction sub-project BEFORE any UI work. Highest financial-materiality surface in the Portal. Duplicated logic with simulador-seminovos, not shared."
     },
     {
@@ -137,6 +149,8 @@
       "migrationWave": 6,
       "risk": "HIGHEST",
       "migrationStatus": "NOT_MIGRATED",
+      "landingTitle": "Simulador de Seminovos",
+      "landingDesc": "Simulação de financiamento para veículos seminovos.",
       "notes": "Same RC BLOCKER as simulador-novos (#5) — the extraction sub-project should very likely produce ONE shared engine for both, ending V1's own duplication, but that is a Wave 6 design decision, not decided here."
     },
     {
@@ -154,6 +168,8 @@
       "migrationWave": 4,
       "risk": "MEDIUM",
       "migrationStatus": "NOT_MIGRATED",
+      "landingTitle": "Salários & Comissões",
+      "landingDesc": "Composição de comissão, produção e status da equipe.",
       "notes": "commissionCalc() is already a clean pure function in V1 — good extraction candidate. Same RC BLOCKER #6 as 'gestao': cannot claim reconciled parity with analise-fi-grupo.html's separate hardcoded rule until a human decides."
     },
     {
@@ -171,6 +187,8 @@
       "migrationWave": 7,
       "risk": "HIGH",
       "migrationStatus": "NOT_MIGRATED",
+      "landingTitle": "Brabus Intelligence",
+      "landingDesc": "Assistente de IA — texto e, futuramente, voz.",
       "notes": "UNSCHEDULABLE until 3 named blockers close (PORTAL-NEXT-01/MIGRATION-WAVES.md Wave 7): Voice Orb variant human decision; the separately-tracked V1 AI kill-switch issue (PORTAL-NEXT-01.1, CONFIRMED, MEDIUM, not this phase's concern); the Orb-to-real-backend bridge design (does not exist yet)."
     }
   ]

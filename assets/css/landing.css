@@ -1,0 +1,106 @@
+/* PORTAL-NEXT V2 — Shell + Landing CSS.
+   TRANSPLANTED VERBATIM from the Human Approved Executable Reference:
+   design-system-2.1/references/baselines/module-landing-approved/styles.css
+   (selectors: .pShell .pGlobalNav .brandMark .gNavBtn .pMain .pTopBar
+   .pBreadcrumb .pUserArea .pUserChip .pUserAvatar .pContent .ctxBeam
+   .ambientLayer .fShell .contextBeam .fNav .fNavItem .fCanvas
+   .motionProtectFull .fCanvasInner .fModuleBlock .fModuleTop
+   .fModuleTitle .fModuleArrow .fModuleDesc, plus the body.landing-active
+   override). Not reconstructed from memory or approximated — copied,
+   then adapted ONLY where V2 needs a different id strategy (documented
+   inline where that happens). Every value is a var() from tokens.css —
+   nothing hardcoded here, per Gate 9. */
+
+.pShell{display:flex;min-height:100vh}
+.pGlobalNav{width:64px;flex-shrink:0;background:var(--color-surface-1);border-right:1px solid var(--color-hairline);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:18px;position:sticky;top:0;height:100vh}
+.pGlobalNav .brandMark{width:28px;height:28px;border:1.5px solid var(--color-brand-red);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:11px;color:var(--color-brand-red);font-weight:700}
+.pGlobalNav .gNavBtn{width:36px;height:36px;border-radius:6px;background:none;border:0;color:var(--color-text-muted);font-family:var(--font-mono);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none}
+.pGlobalNav .gNavBtn.active,.pGlobalNav .gNavBtn:hover{color:var(--color-accent-primary);background:rgba(238,75,87,.1)}
+.pGlobalNav .gNavBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+.pMain{flex:1;min-width:0;display:flex;flex-direction:column}
+.pTopBar{position:sticky;top:0;z-index:40;background:rgba(10,10,10,.92);backdrop-filter:blur(4px);border-bottom:1px solid var(--color-hairline);display:flex;align-items:center;gap:16px;padding:0 20px;height:52px}
+.pBreadcrumb{font-family:var(--font-mono);font-size:11px;color:var(--color-text-muted)}
+.pBreadcrumb b{color:var(--color-text-primary);font-weight:500}
+.pUserArea{margin-left:auto;display:flex;align-items:center;gap:12px}
+.pUserChip{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary)}
+.pUserAvatar{width:26px;height:26px;border-radius:50%;background:var(--color-surface-2);border:1px solid var(--color-hairline-strong);display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--font-mono);color:var(--color-text-muted)}
+.pContent{flex:1;padding:28px 40px 100px;max-width:1500px;width:100%;margin:0 auto;position:relative}
+
+.ctxBeam{position:fixed;top:52px;left:64px;width:0;height:2px;background:linear-gradient(90deg,var(--color-accent-primary),transparent);opacity:0;pointer-events:none;z-index:50}
+@media(prefers-reduced-motion:no-preference){ .ctxBeam{transition:width .42s var(--ease-precise),opacity .3s var(--ease-precise)} }
+.ctxBeam.active{width:280px;opacity:.85}
+@media(max-width:900px){ .ctxBeam{top:auto;left:0} }
+
+.ambientLayer{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.ambientLayer canvas{position:absolute;inset:0;width:100%;height:100%}
+
+/* body.landing-active zeroes out the content outlet's own padding so
+   the Landing's fShell can use the full available box exactly as the
+   reference does — this is the same fix documented in
+   design-system-2.1/references/module-landing.md for the "huge dead
+   space" incident, transplanted verbatim, not rediscovered. */
+body.landing-active .pShell{min-height:0}
+body.landing-active #nxContentOutlet{padding:0;max-width:none;flex:none}
+
+.fShell{display:flex;min-height:calc(100vh - 78px);position:relative;border-top:1px solid var(--color-hairline)}
+.contextBeam{position:absolute;top:0;left:0;width:0;height:1.5px;background:linear-gradient(90deg,var(--color-accent-primary),transparent);opacity:0;pointer-events:none;z-index:5}
+@media(prefers-reduced-motion:no-preference){ .contextBeam{transition:width var(--duration-context) var(--ease-precise), opacity calc(var(--duration-context) * .7) var(--ease-precise)} }
+@media(max-width:1000px){ .contextBeam{display:none} }
+
+.fNav{width:42%;flex-shrink:0;background:var(--color-surface-1);padding:70px 0 70px 56px;display:flex;flex-direction:column;justify-content:center;gap:4px;border-right:1px solid var(--color-hairline);position:relative}
+.fNavItem{position:relative;display:flex;align-items:baseline;gap:15px;background:none;border:0;padding:11px 40px 11px 0;text-align:left;cursor:pointer;color:var(--color-text-muted);width:100%}
+.fNavItem:before{content:"";position:absolute;left:-56px;top:-6px;bottom:-6px;width:120px;background:radial-gradient(ellipse at left, rgba(238,75,87,.14), transparent 72%);opacity:0}
+@media(prefers-reduced-motion:no-preference){
+  .fNavItem{transition:color var(--duration-fast) var(--ease-precise)}
+  .fNavItem:before{transition:opacity calc(var(--duration-fast) * 1.25) var(--ease-precise)}
+  .fNavItem .idx{transition:opacity var(--duration-fast) var(--ease-precise)}
+}
+.fNavItem .idx{font-family:var(--font-mono);font-size:12.5px;color:var(--color-accent-primary);font-variant-numeric:tabular-nums;opacity:0;width:22px;flex-shrink:0}
+.fNavItem .label{font-family:var(--font-ui);font-size:clamp(27px,3.5vw,45px);font-weight:300;letter-spacing:-.012em;line-height:1.06;color:inherit}
+.fNavItem:hover{color:var(--color-text-secondary)}
+.fNavItem:hover:before{opacity:.55}
+.fNavItem.active{color:var(--color-text-primary)}
+.fNavItem.active:before{opacity:1}
+.fNavItem.active .idx{opacity:1}
+.fNavItem:focus-visible{outline:2px solid var(--color-accent-primary);outline-offset:6px}
+
+.fCanvas{flex:1;min-width:0;padding:70px 64px;display:flex;align-items:center;position:relative;overflow:hidden}
+.motionProtectFull{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,var(--color-canvas) 0%,rgba(10,10,10,.55) 38%,transparent 62%)}
+.fCanvasInner{max-width:640px;width:100%;position:relative;z-index:2}
+
+.fModuleBlock{padding:21px 18px;margin:0 -18px;border-radius:2px;cursor:pointer}
+@media(prefers-reduced-motion:no-preference){ .fModuleBlock{transition:background-color var(--duration-fast) var(--ease-precise)} }
+.fModuleBlock:hover,.fModuleBlock:focus-visible{background:rgba(255,255,255,.028)}
+.fModuleBlock:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+.fModuleTop{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.fModuleTitle{font-size:19.5px;font-weight:500;letter-spacing:-.004em;margin:0;color:var(--color-text-primary)}
+.fModuleArrow{color:var(--color-text-muted);flex-shrink:0;opacity:0;transform:translateX(-4px)}
+@media(prefers-reduced-motion:no-preference){ .fModuleArrow{transition:opacity var(--duration-fast) var(--ease-precise), transform var(--duration-fast) var(--ease-precise)} }
+.fModuleBlock:hover .fModuleArrow,.fModuleBlock:focus-visible .fModuleArrow{opacity:1;transform:translateX(0);color:var(--color-accent-primary)}
+.fModuleDesc{font-size:14px;line-height:1.62;color:var(--color-text-secondary);margin:7px 0 0;max-width:54ch}
+
+@media(max-width:1000px){
+  .fNav{width:46%;padding-left:32px}
+  .fCanvas{padding:60px 32px}
+  .pGlobalNav{width:100%;height:auto;flex-direction:row;position:sticky;padding:8px 12px;overflow-x:auto;gap:10px}
+  .pShell{flex-direction:column}
+  .pContent{padding:18px 16px 90px}
+}
+@media(max-width:900px){ .ctxBeam{top:auto;left:0} }
+@media(max-width:768px){
+  .fShell{flex-direction:column;min-height:0}
+  .fNav{width:100%;flex-direction:row;justify-content:flex-start;padding:18px;gap:24px;border-right:0;border-bottom:1px solid var(--color-hairline);overflow-x:auto}
+  .fNavItem{padding:5px 0 9px;flex-shrink:0;width:auto}
+  .fNavItem:before{display:none}
+  .fNavItem .idx{display:none}
+  .fNavItem .label{font-size:17px;font-weight:300}
+  .fNavItem.active .label{font-weight:500}
+  .fCanvas{padding:26px 18px 48px;align-items:flex-start}
+  .fCanvasInner{max-width:none}
+  .fModuleTitle{font-size:18px}
+}
+
+/* ---------- headerLogo (Gate 42 — real institutional asset, V2 addition,
+   not present in the reference's own fictional prototype, which used a
+   text "B" brandMark only) ---------- */
+.pHeaderLogo{height:20px;width:auto;display:block}

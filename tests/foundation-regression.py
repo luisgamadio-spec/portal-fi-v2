@@ -24,6 +24,7 @@ CHECKS = [
     ("Landing reference resolution (Gate 21)", ["python", os.path.join(HERE, "reference-resolution-test.py")]),
     ("No business logic (Gate 16)", ["python", os.path.join(HERE, "business-logic-scanner.py")]),
     ("Prototype + V1 contamination (Gates 33-34)", ["python", os.path.join(HERE, "contamination-scanner.py")]),
+    ("Landing Composition Regression (Gates 17-21)", ["python", os.path.join(HERE, "landing-composition-regression.py")]),
 ]
 
 def main():
@@ -50,9 +51,10 @@ def main():
     print("  - responsive shell across 6 breakpoints")
     print("  - keyboard/focus order, skip-link behavior")
     print("  - reduced-motion CSS actually applying")
-    print("  These were run manually via Playwright this phase — see REPORT.md's")
-    print("  PORTAL-NEXT-02 entry for the exact results, and re-run them the same way")
-    print("  before trusting this Foundation again after any future change.")
+    print("  These were run manually via Playwright each Wave — see REPORT.md's")
+    print("  PORTAL-NEXT-02 and PORTAL-NEXT-03 entries for the exact results, and")
+    print("  re-run them the same way before trusting this Foundation again after")
+    print("  any future change.")
 
     print(f"\nRESULT: {'PASS' if all_ok else 'FAIL'} ({sum(1 for _,ok in results if ok)}/{len(results)} static checks)")
     sys.exit(0 if all_ok else 1)
