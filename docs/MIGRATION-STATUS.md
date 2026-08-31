@@ -792,6 +792,42 @@ state — this Wave found and fixed a real readability defect in that
 same surface, so a fresh human visual pass is warranted before
 re-closing it).
 
+## PORTAL-NEXT-07.6.3 addendum
+
+Human visual UAT rejected PORTAL-NEXT-07.6.2 a second time with the
+same symptoms the 07.6.2 fix targeted, via screenshots taken after
+commit `b4fe4f6`. Before touching code again, verified what was
+actually being served: found **14 zombie `python -m http.server 8700`
+processes** accumulated across this multi-day session (7 of them
+simultaneously LISTENING on the same port — Windows honors
+`http.server`'s `allow_reuse_address=True` for concurrent binds), all
+killed, replaced with exactly one clean instance, served-file hashes
+confirmed byte-identical to the working tree. No `Cache-Control` header
+is ever sent by this server — the likely actual explanation, and the
+same root cause already confirmed once before in this engagement
+(PORTAL-NEXT-07.3.1): a normal browser reload can serve stale CSS from
+before a fix landed, where a genuine hard refresh would not. Full
+writeup: `docs/RESPONSIVE-STALE-SERVE-INVESTIGATION-07-6-3.md`.
+
+**0 code change this Wave** — re-verified the already-committed
+PORTAL-NEXT-07.6.2 implementation against the real served routes (not
+fixture HTML, not only scrollWidth): computed-style proof that no
+legacy table geometry constrains the narrow-width records
+(`table-layout:auto`/`display:block`, full-width flex-basis, no
+min/max-width floor), plus an exhaustive sweep — all 12 Score fixtures
+× 5 viewports, all 3 Dashbi views × 5 viewports × closed/detail-open
+states, Ranking and Novos por Loja at narrow width with detail open —
+0 problems found anywhere. Score 12/12, Dashbi 26/26, Coparticipado
+22/22, Gestão 30/30, Landing 20/20 all unchanged; working tree clean
+(no file diff, so no new commit — the environmental fix isn't a
+git-tracked change). Isolation baseline
+(`.baseline-portalnext0763-after.txt`) 0-line diff;
+`origin/main` SHA unchanged.
+
+Score/Dashbi RESPONSIVE status remains `UAT_PENDING` pending a fresh
+human visual pass against the now-clean, single-server environment
+with a genuine hard refresh.
+
 ## Standing blockers carried forward (not resolved this phase)
 
 - Gestão: commission-rule discrepancy (`PORTAL-NEXT-01.1/BLOCKER-

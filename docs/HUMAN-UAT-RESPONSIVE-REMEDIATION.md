@@ -1,4 +1,4 @@
-# Human UAT — Responsive Remediation (PORTAL-NEXT-07.6.2)
+# Human UAT — Responsive Remediation (PORTAL-NEXT-07.6.3)
 
 **Escopo desta rodada: SOMENTE apresentação responsiva.** Landing, Score,
 Coparticipado, Análise F&I do Grupo (Gestão) e Dashbi já estão
@@ -6,7 +6,36 @@ Coparticipado, Análise F&I do Grupo (Gestão) e Dashbi já estão
 classificação, filtro ou comissão foi tocada. Você não precisa revalidar
 nada disso.
 
-## O que mudou nesta rodada (07.6.2) — correção de Score e Dashbi
+## IMPORTANTE — antes de reavaliar (07.6.3)
+
+Sua rejeição visual da rodada 07.6.2 revelou um problema real no
+ambiente local, não no código: havia **14 processos de servidor
+(`python -m http.server 8700`) rodando ao mesmo tempo** nesta máquina,
+acumulados de reinícios ao longo de vários dias desta sessão — 7 deles
+ficaram simultaneamente "escutando" a mesma porta, então cada
+recarregamento da página podia ser respondido por um servidor
+diferente e imprevisível. Todos foram encerrados e reiniciamos com
+**exatamente um** servidor limpo. Também confirmamos que o navegador
+não recebe um cabeçalho `Cache-Control` do servidor — o que pode fazer
+um recarregamento normal (não forçado) manter uma versão em cache do
+CSS de antes da correção 07.6.2.
+
+**Antes de testar novamente, faça um hard refresh de verdade**
+(Ctrl+Shift+R, ou abra em uma aba anônima/privada) — não um F5 comum.
+Verificamos exaustivamente (12 fixtures de Score × 5 larguras, 3 visões
+do Dashbi × 5 larguras × aberto/fechado, Ranking, Novos por Loja — tudo
+via a rota real `localhost:8700`, com prova de estilo computado, não só
+visual) e **0 problema foi encontrado em nenhuma combinação** — o
+código já commitado na rodada 07.6.2 (commit `b4fe4f6`, inalterado
+nesta rodada) parece corrigir exatamente o que você reportou. Detalhes
+completos em `docs/RESPONSIVE-STALE-SERVE-INVESTIGATION-07-6-3.md`.
+
+Se, mesmo depois de um hard refresh de verdade contra o servidor agora
+limpo, o problema visual persistir — isso será uma evidência nova e
+real de um defeito que ainda não encontramos, e deve ser reportado
+exatamente como antes (prints da tela).
+
+## O que mudou na rodada 07.6.2 (para referência) — correção de Score e Dashbi
 
 Sua avaliação visual anterior apontou um problema real: não era mais
 rolagem lateral, mas as tabelas de Score e Dashbi ficavam esmagadas em
@@ -55,6 +84,11 @@ todos os valores/cálculos.
   verticais em telas menores.
 
 ## Como abrir
+
+Nesta sessão já reiniciamos o servidor de forma limpa — nenhuma ação
+necessária agora. Para o futuro: se o servidor já estiver rodando, não
+inicie um segundo; múltiplos processos `http.server` na mesma porta
+foi exatamente a causa da confusão desta rodada.
 
 ```
 cd C:\Projetos\PORTAL-FI-DESIGN-LAB
