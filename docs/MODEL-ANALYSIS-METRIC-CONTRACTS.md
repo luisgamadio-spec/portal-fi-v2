@@ -148,3 +148,74 @@ disclosed, deliberate adaptation, not an oversight — flagged per Gate 49's "IF
 CHANGES... HUMAN REVIEW: REQUIRED" provision, applied here to the presentation-shape
 decision as well: **HUMAN REVIEW REQUIRED** on whether this table-vs-card choice
 matches expectations, alongside the metric semantics themselves.
+
+**Superseded by PORTAL-NEXT-07.4**: the wide-table-with-horizontal-scroll decision
+above was rejected by human UAT and replaced with a primary-row + inline
+"+ Detalhes" pattern — see `docs/MODEL-ANALYSIS-NO-SCROLL-DESIGN.md` for the current
+authority. This section is kept for its historical reasoning (why cards were
+rejected; that reasoning still holds), not as a description of the current UI shape.
+
+## Qtd Subsidiado / Qtd Coparticipado at the model level (PORTAL-NEXT-07.4.1)
+
+Human UAT on the 07.4 primary+detail experience asked for these two counts inside
+the per-model Planos detail group, alongside the already-present Qtd Linear/Qtd
+Balão/Qtd Reversão. Traced before adding anything (Gates 0-7 of that Wave):
+
+```
+SOURCE:        aggregate()'s own compVals object (already extracted
+              byte-identical since PORTAL-NEXT-07) computes
+              coparticipadoQtd/subsidiadoQtd on the SAME compModelo
+              aggregation as linearQtd/balaoQtd -- same population
+              (dept==="Novos", same model), same mutually-exclusive
+              classifiers (isFinSubsidiado/isFinCoparticipado/
+              isFinBalao/isFinLinear/isFinReversao).
+WHY NOT ALREADY THERE:    production's own modelRowsUnified (byte-
+                        identical, unchanged) simply doesn't pick
+                        those two fields out into the row object it
+                        returns -- confirmed by direct source read,
+                        not an extraction gap. This is a real,
+                        disclosed production omission at that
+                        specific call site, not a V2 mistake.
+V2 SOURCE:                    NOT a new extraction. Read from
+                             planRowsByModel(results, currentFamily)
+                             -- already extracted, already called one
+                             section below in the same page, matched
+                             to the model-indicators row by Modelo.
+                             A model absent from planRowsByModel (not
+                             in FAMILY_MODELS' static list) shows 0
+                             for both, the same way it already has no
+                             row at all in "Quantidade por tipo de
+                             plano / Modelo".
+RECONCILIATION PROVED:               golden fixture
+                                    model_analysis_parcelamento_completo
+                                    extended with 1 real Subsidiado
+                                    contract (OUTLANDER HPE-S) and 1
+                                    real Coparticipado contract
+                                    (OUTLANDER SIGNATURE). Confirmed
+                                    in a real browser: OUTLANDER
+                                    HPE-S Financiamentos=4, Subsidiado
+                                    1 + Reversão 0 + Coparticipado 0 +
+                                    Balão 0 + Linear 3 = 4. OUTLANDER
+                                    SIGNATURE Financiamentos=2,
+                                    Subsidiado 0 + Reversão 0 +
+                                    Coparticipado 1 + Balão 1 +
+                                    Linear 0 = 2. 0 double counting in
+                                    either direction.
+ORDER:                                    Subsidiado, Reversão,
+                                        Coparticipado, Balão, Linear,
+                                        Balão Médio -- official
+                                        classification priority, per
+                                        explicit human preference,
+                                        not production's own (absent)
+                                        field order.
+```
+
+## Entrada Qtd removed from the UI (PORTAL-NEXT-07.4.1)
+
+Confirmed (again, same conclusion as 07.3's own audit): `entradaQtd` was never a
+production-visible metric — it is `modelExtraMetrics`'s internal count of
+Entrada-eligible financing records, the denominator `entradaMed` divides by. Human
+UAT asked for it to not be shown. Removed from `MODEL_TABLE_COLUMNS` (a
+presentation-only array) — the field itself is untouched on the row object and
+still feeds `entradaMed`/`entradaPct` exactly as before (both re-verified unchanged
+via the 26/26 golden-fixture re-run).

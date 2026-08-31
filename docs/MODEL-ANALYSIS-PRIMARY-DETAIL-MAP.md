@@ -1,8 +1,16 @@
-# Model Analysis — Primary / Detail Completeness Map (PORTAL-NEXT-07.4, Gates 36-37, 71-72)
+# Model Analysis — Primary / Detail Completeness Map (PORTAL-NEXT-07.4, updated 07.4.1)
 
 Authority: `docs/MODEL-ANALYSIS-PRODUCTION-INVENTORY.md` (PORTAL-NEXT-07.3, not
 re-audited from memory this Wave — same production evidence, only the V2
 presentation shape changed).
+
+**PORTAL-NEXT-07.4.1 update**: human UAT approved the primary+detail experience
+itself, with two presentation corrections — "Entrada Qtd" removed (it was never a
+production metric, only an internal denominator, item 18 below); Qtd Subsidiado/Qtd
+Coparticipado added to the Planos group (real counts, sourced from the
+already-extracted `planRowsByModel`, matched by Modelo — see
+`docs/MODEL-ANALYSIS-METRIC-CONTRACTS.md`'s new section for the full trace and
+reconciliation proof). Table below updated accordingly.
 
 ## Family-level (14 items) — unchanged location, `.dbFamilyMetricGrid`
 
@@ -33,7 +41,9 @@ touched this Wave.
 | 15 | Qtd Balão | VISIBLE_IN_INLINE_DETAIL (Planos group) |
 | 16 | Qtd Reversão | VISIBLE_IN_INLINE_DETAIL (Planos group) |
 | 17 | Valor Médio Balão | VISIBLE_IN_INLINE_DETAIL (Planos group) |
-| 18 | (Entrada Qtd — EXTRA_IN_V2, not a production column, kept) | VISIBLE_IN_INLINE_DETAIL (Entrada group) |
+| 18 | (Entrada Qtd — EXTRA_IN_V2, not a production column) | **REMOVED FROM UI (07.4.1)** — still computed internally, feeds Entrada Média/% exactly as before, just not rendered |
+| 19 | (Qtd Subsidiado — not in `modelRowsUnified`'s own row shape, but on the same `compModelo` aggregation with the same population/classifiers) | **ADDED (07.4.1)** — VISIBLE_IN_INLINE_DETAIL (Planos group), sourced from `planRowsByModel` matched by Modelo |
+| 20 | (Qtd Coparticipado — same as above) | **ADDED (07.4.1)** — VISIBLE_IN_INLINE_DETAIL (Planos group), sourced from `planRowsByModel` matched by Modelo |
 
 **Primary row (always visible, all viewports)**: Modelo, Volume, Financiamentos,
 Penetração — 1 click maximum to every other metric via `+ Detalhes`.
@@ -46,8 +56,14 @@ table row at 768px+.
 in the *first* detail group after `+ Detalhes` (Parcelamento) — one click, no
 nested interaction.
 
-**Entrada discoverability (Gate 39)**: Entrada Qtd/Média/% are together in their
-own detail group — one click.
+**Entrada discoverability (Gate 39)**: Entrada Média/% are together in their own
+detail group — one click. Entrada Qtd is not displayed (07.4.1, see above).
+
+**Planos group order (07.4.1)**: Qtd Subsidiado, Qtd Reversão, Qtd Coparticipado,
+Qtd Balão, Qtd Linear, Balão Médio — follows the official classification priority
+(SUBSIDIADO>REVERSÃO>COPARTICIPADO>BALÃO>LINEAR) per explicit human preference,
+not production's own field order (which never listed Subsidiado/Coparticipado at
+this level at all).
 
 ## Plan tables (already existing semantic subtables — unchanged mapping)
 

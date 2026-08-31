@@ -284,14 +284,31 @@
     { group: 'Retorno', key: 'retornoMedio', label: 'Retorno Médio', f: function (A, v) { return A.pct(v); } },
     { group: 'Parcelamento', key: 'prazoMedio', label: 'Prazo Médio', f: function (A, v) { return A.num(v, 1) + 'x'; } },
     { group: 'Parcelamento', key: 'pmtMed', label: 'Parcela Média', f: function (A, v) { return A.money(v); } },
-    { group: 'Entrada', key: 'entradaQtd', label: 'Entrada Qtd', f: function (A, v) { return A.num(v); } },
     { group: 'Entrada', key: 'entradaMed', label: 'Entrada Média', f: function (A, v) { return A.money(v); } },
     { group: 'Entrada', key: 'entradaPct', label: 'Entrada %', f: function (A, v) { return A.pct(v); } },
-    { group: 'Planos', key: 'linearQtd', label: 'Qtd Linear', f: function (A, v) { return A.num(v); } },
-    { group: 'Planos', key: 'balaoQtd', label: 'Qtd Balão', f: function (A, v) { return A.num(v); } },
+    { group: 'Planos', key: 'subsidiadoQtd', label: 'Qtd Subsidiado', f: function (A, v) { return A.num(v); } },
     { group: 'Planos', key: 'reversaoQtd', label: 'Qtd Reversão', f: function (A, v) { return A.num(v); } },
+    { group: 'Planos', key: 'coparticipadoQtd', label: 'Qtd Coparticipado', f: function (A, v) { return A.num(v); } },
+    { group: 'Planos', key: 'balaoQtd', label: 'Qtd Balão', f: function (A, v) { return A.num(v); } },
+    { group: 'Planos', key: 'linearQtd', label: 'Qtd Linear', f: function (A, v) { return A.num(v); } },
     { group: 'Planos', key: 'balaoMed', label: 'Balão Médio', f: function (A, v) { return A.money(v); } }
   ];
+  // PORTAL-NEXT-07.4.1 — "Entrada Qtd" removed from the UI (Gate 0): it was
+  // never a production-visible metric, only the internal eligible-record
+  // COUNT that Entrada Média/% divide by (modelExtraMetrics's entradaQtd,
+  // still computed and still on every row — untouched, still feeds those
+  // two real metrics exactly as before). subsidiadoQtd/coparticipadoQtd
+  // added to PLANOS (Gate 1-7): audited aggregate()'s own compVals (already
+  // extracted byte-identical) and found it computes coparticipadoQtd/
+  // subsidiadoQtd on the SAME compModelo aggregation, same population, same
+  // mutually-exclusive classifiers (isFinSubsidiado/isFinCoparticipado) as
+  // linearQtd/balaoQtd — production's own modelRowsUnified just doesn't
+  // surface those two fields into its row shape (confirmed by direct
+  // source read, not an extraction gap). Sourced here from planRowsByModel
+  // (already extracted, already on-page one section below) for the
+  // matching Modelo, not a new business-logic extraction. Order follows
+  // the official classification priority (SUBSIDIADO>REVERSÃO>
+  // COPARTICIPADO>BALÃO>LINEAR), per the human's stated preference.
 
   function penetracaoCellHtml(A, v) {
     var cls = v < 0.40 ? 'dbPenetracaoBaixa' : 'dbPenetracaoOk';
@@ -426,6 +443,21 @@
   function modelAnalysisHtml(A, results, counts) {
     var modelRows = A.modelRowsUnified(results, currentFamily);
     var planRows = A.planRowsByModel(results, currentFamily);
+    // PORTAL-NEXT-07.4.1 — merge Subsidiado/Coparticipado counts (already
+    // extracted, already computed by planRowsByModel for this same family)
+    // onto modelRowsUnified's rows by matching Modelo, so the PLANOS detail
+    // group can show all 5 categories. Presentation-only merge — neither
+    // function's own output is altered, no new calculation introduced. A
+    // model with no matching planRows entry (not in FAMILY_MODELS' static
+    // list) gets 0 for both, consistent with how that model already has no
+    // row at all in the "Quantidade por tipo de plano / Modelo" table.
+    var planByModelo = {};
+    planRows.forEach(function (r) { planByModelo[r.Modelo] = r; });
+    modelRows.forEach(function (r) {
+      var p = planByModelo[r.Modelo];
+      r.subsidiadoQtd = p ? p.Subsidiado : 0;
+      r.coparticipadoQtd = p ? p.Coparticipado : 0;
+    });
     var planTotalRows = A.planTotalRowsForFamily(results, currentFamily);
     var planStoreRows = A.planRowsByStoreForFamily(results, currentFamily);
     var specialRows = A.specialPlanDetailRows(results, currentFamily);

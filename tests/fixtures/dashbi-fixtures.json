@@ -1548,7 +1548,7 @@
     },
     {
       "id": "model_analysis_parcelamento_completo",
-      "description": "4 financiamentos Novos entre 2 SKUs reais da família OUTLANDER (HPE-S/SIGNATURE): 2 Linear com PMT/Parcelas reais, 1 Balão com PMT/Parcelas+BalãoPMT proprios, 1 sem correspondência na Base 03 (excluido das médias). Prova parcelasMed/pmtMed/balaoMed E as tabelas de plano por modelo/loja com percentuais reais, não só zeros.",
+      "description": "4 financiamentos Novos entre 2 SKUs reais da família OUTLANDER (HPE-S/SIGNATURE): 2 Linear com PMT/Parcelas reais, 1 Balão com PMT/Parcelas+BalãoPMT proprios, 1 sem correspondência na Base 03 (excluido das médias). Prova parcelasMed/pmtMed/balaoMed E as tabelas de plano por modelo/loja com percentuais reais, não só zeros. Estendida (07.4.1): +1 Subsidiado (OUTLANDER HPE-S) e +1 Coparticipado (OUTLANDER SIGNATURE), provando reconciliacao completa das 5 categorias de plano por modelo (Subsidiado+Reversao+Coparticipado+Balao+Linear = Financiamentos), sem contagem dupla.",
       "b1HistRows": [
         {
           "Transação": "V21",
@@ -1585,6 +1585,24 @@
           "Modelo": "OUTLANDER HPE-S",
           "Valor Venda": 240000,
           "Nome Cliente": "Cliente Parcela D Sem Base03"
+        },
+        {
+          "Transação": "V21",
+          "Chassi": "CHSPMT05",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "OUTLANDER HPE-S",
+          "Valor Venda": 250000,
+          "Nome Cliente": "Cliente Parcela E Subsidiado"
+        },
+        {
+          "Transação": "V21",
+          "Chassi": "CHSPMT06",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "OUTLANDER SIGNATURE",
+          "Valor Venda": 260000,
+          "Nome Cliente": "Cliente Parcela F Coparticipado"
         }
       ],
       "b2HistRows": [
@@ -1643,6 +1661,34 @@
           "COD_TIPO_VENDA": "N",
           "Chassi": "",
           "Data Venda": "2026-03-01"
+        },
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 250000,
+          "RECEITA": 19000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "OUTLANDER HPE-S",
+          "CLIENTE": "Cliente Parcela E Subsidiado",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        },
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 260000,
+          "RECEITA": 20000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "OUTLANDER SIGNATURE",
+          "CLIENTE": "Cliente Parcela F Coparticipado",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
         }
       ],
       "b1NovaRows": [],
@@ -1677,6 +1723,26 @@
           "Op Fin - PMT (R$)": 1800,
           "Op Fin - Quantidade Parcelas": 36,
           "Op Fin - Financiado (R$)": 230000
+        },
+        {
+          "Cli - Nome": "Cliente Parcela E Subsidiado",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": "",
+          "Tabela - Código IF": "999",
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - PMT (R$)": 2100,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 250000
+        },
+        {
+          "Cli - Nome": "Cliente Parcela F Coparticipado",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": "1",
+          "Tabela - Código IF": "",
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - PMT (R$)": 2200,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 260000
         }
       ],
       "vendorRows": [

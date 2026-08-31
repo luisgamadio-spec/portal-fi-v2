@@ -413,6 +413,34 @@ view×mode×viewport combinations pass with 0 horizontal overflow (detail panels
 open, worst case); full 26-fixture × 3-family sweep at 390px with every detail
 expanded: 0 overflow, 0 console errors.
 
+## PORTAL-NEXT-07.4.1 addendum
+
+Dashbi stays `UAT_PENDING`. Human UAT **strongly approved** the 07.4 primary +
+inline "+ Detalhes" experience, with two narrow presentation corrections inside
+the expanded model detail: "Entrada Qtd" removed (never a production metric,
+only the internal denominator `entradaMed` divides by — still computed, just not
+shown); Qtd Subsidiado and Qtd Coparticipado added to the Planos group, next to
+the already-present Qtd Linear/Qtd Balão/Qtd Reversão.
+
+Traced before adding anything: `aggregate()`'s own `compVals` (already extracted
+byte-identical) computes `subsidiadoQtd`/`coparticipadoQtd` on the same
+`compModelo` aggregation, same population, same mutually-exclusive classifiers as
+`linearQtd`/`balaoQtd` — production's own `modelRowsUnified` just never surfaced
+those two fields into its row shape. Sourced from `planRowsByModel` (already
+extracted, already on-page one section below), matched by Modelo — no new
+business-logic extraction. Reconciliation proved with a real golden fixture
+(extended with 1 real Subsidiado and 1 real Coparticipado contract):
+Subsidiado+Reversão+Coparticipado+Balão+Linear sums exactly to Financiamentos for
+both tested models, 0 double counting. Order follows the official classification
+priority (SUBSIDIADO>REVERSÃO>COPARTICIPADO>BALÃO>LINEAR), per explicit human
+preference. See `docs/MODEL-ANALYSIS-METRIC-CONTRACTS.md`.
+
+0 business-logic change (`dashbi.adapter.js`/`_dashbi-reference.js`: 0 diff —
+only `dashbi.js` presentation and `dashbi-fixtures.json` changed). 26/26 golden
+fixtures pass. 0 horizontal overflow reintroduced (re-verified at both document
+and component level, full 8-scenario × 6-viewport sweep plus 26-fixture ×
+3-family sweep). Landing/Score/Coparticipado/Gestão byte-identical.
+
 ## Standing blockers carried forward (not resolved this phase)
 
 - Gestão: commission-rule discrepancy (`PORTAL-NEXT-01.1/BLOCKER-
