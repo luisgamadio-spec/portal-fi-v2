@@ -62,8 +62,15 @@
 .scFixtureBar select:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
 
 /* ---------- ranking table (HIGH density -- data-table.md pattern) ---------- */
+/* PORTAL-NEXT-07.6 — overflow-x:auto kept only as a defensive safety
+   net (never meant to trigger, same convention as Dashbi's
+   .dbTableWrap); table-layout:fixed + wrapping below is what actually
+   guarantees 0 horizontal scroll now (root cause was auto-layout
+   sizing every column to its widest un-wrapped content, confirmed via
+   real DOM scrollWidth measurement: .scTableWrap overflowed by up to
+   174px at 320-430px). */
 .scTableWrap { overflow-x: auto; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); }
-.scTable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.scTable { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
 .scTable thead th {
   text-align: left;
   font-family: var(--font-mono);
@@ -74,7 +81,8 @@
   font-weight: 500;
   padding: var(--space-3) var(--space-3);
   border-bottom: 1px solid var(--color-hairline-strong);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 .scTable td {
   padding: var(--space-3);
@@ -112,12 +120,17 @@
   background: var(--color-surface-1);
   font-weight: 500;
 }
+/* PORTAL-NEXT-07.6 — was overflow:hidden + text-overflow:ellipsis
+   (truncating vendor names, real information loss and the direct
+   cause of a residual 2-4px overflow even past the ellipsis at
+   320-430px). Wraps instead, matching Gate 55's "seller names may
+   wrap" rule; the title attribute (full name on hover) stays, harmless
+   now that the name is never cut. */
 .scTable .scNameText {
   display: block;
   max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 .scRankCol { font-family: var(--font-mono); color: var(--color-text-muted); width: 34px; }
 
@@ -158,4 +171,20 @@
 @media (max-width: 768px) {
   .scTable .scNameCell { max-width: 140px; }
   .scTable .scNameText { max-width: 120px; }
+}
+
+/* PORTAL-NEXT-07.6 — at <=480px, 6 fixed-layout columns (even wrapped)
+   leave too little width per column to stay legible; recomposed as a
+   vertical label/value stack per row instead of shrinking further or
+   hiding a column — same technique already proven on Dashbi's tables
+   (data-th + flex stacking), reused here rather than inventing a new
+   pattern. Desktop/tablet keep the plain table above this breakpoint. */
+@media (max-width: 480px) {
+  .scTable thead { display: none; }
+  .scTable tbody tr { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding: var(--space-3); }
+  .scTable td { display: block; padding: 0; border: none; flex: 1 1 100px; min-width: 100px; }
+  .scTable td[data-th]::before { content: attr(data-th); display: block; color: var(--color-text-muted); font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+  .scTable .scNameCell { position: static; background: none; flex-basis: 100%; max-width: none; }
+  .scTable .scNameText { max-width: none; }
+  .scTable .scNumCol { text-align: left; }
 }

@@ -104,31 +104,52 @@
     });
   }
 
+  // PORTAL-NEXT-07.6 — CP_TABLE_COLUMNS centralizes each table's header
+  // labels so both the <thead> and every <td>'s data-th (consumed only
+  // by the <=900px vertical-record recomposition in coparticipado.css)
+  // come from one list — same order, same wording, nothing renamed.
+  var CP_COPART_HEADERS = ['Cliente', 'Vendedor', 'Loja', 'Modelo Base', 'Modelo Taxa', 'Valor Financiado', 'Rebate Total', 'Parte Brabus', 'Valor Rebate Total', 'Coparticipação', 'Situação', 'Data', 'Chassi'];
+  var CP_SUBS_HEADERS = ['Cliente', 'Vendedor', 'Loja', 'Departamento', 'Modelo', 'Valor Financiado', 'Retorno', 'SPF Extra', 'Situação', 'Data', 'Chassi'];
+  // PORTAL-NEXT-07.6 — atomic values (currency/percentage/date/chassi)
+  // must never break mid-token (Gate 26/56); table-layout:fixed only
+  // reads column widths from the FIRST row's cells, so a <colgroup>
+  // floor here is what actually protects them once Cliente/Vendedor's
+  // long text starts wrapping across several lines and would otherwise
+  // squeeze every other column below its safe width. Text columns
+  // (Cliente/Vendedor/Loja/Modelo/Departamento/Situação) are left
+  // unconstrained — they wrap safely, sharing whatever width remains.
+  var CP_FLOOR_PX = { 'Valor Financiado': 104, 'Rebate Total': 66, 'Parte Brabus': 66, 'Valor Rebate Total': 104, 'Coparticipação': 104, 'Retorno': 84, 'SPF Extra': 84, 'Data': 92, 'Chassi': 96 };
+  function cpColGroup(headers) {
+    return '<colgroup>' + headers.map(function (h) { return CP_FLOOR_PX[h] ? '<col style="width:' + CP_FLOOR_PX[h] + 'px">' : '<col>'; }).join('') + '</colgroup>';
+  }
+  function cpHeadRow(headers) { return '<tr>' + headers.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr>'; }
+
   function renderCoparticipadosTable(fins) {
     var A = window.NX_COPARTICIPADO_ADAPTER;
     var rows = fins.filter(function (r) { return r.plano === 'COPARTICIPADO'; });
+    var h = CP_COPART_HEADERS;
     var body = rows.map(function (r) {
       var c = r.coparticipacaoDetalhe || A.calcCoparticipacaoDetalhe(r);
       return '<tr>' +
-        '<td>' + esc(r.cliente) + '</td>' +
-        '<td>' + esc(r.vendedor) + '</td>' +
-        '<td>' + esc(r.loja) + '</td>' +
-        '<td>' + esc(r.modelo) + '</td>' +
-        '<td>' + (c.modeloTabela ? esc(c.modeloTabela) : '<span class="cpWarn">Não encontrado</span>') + '</td>' +
-        '<td class="cpNumCol">' + A.money(r.valorFinanciado) + '</td>' +
-        '<td class="cpNumCol">' + (c.ok ? A.pct(c.rebateTotal) : '<span class="cpWarn">—</span>') + '</td>' +
-        '<td class="cpNumCol">' + (c.ok ? A.pct(c.parteBrabus) : '<span class="cpWarn">—</span>') + '</td>' +
-        '<td class="cpNumCol">' + (c.ok ? A.money(c.valorRebateTotal) : '<span class="cpWarn">—</span>') + '</td>' +
-        '<td class="cpNumCol">' + (c.ok ? A.money(c.coparticipacao) : '<span class="cpWarn">Modelo não encontrado</span>') + '</td>' +
-        '<td>' + esc(r.situacaoB3 || '') + '</td>' +
-        '<td class="cpNumCol">' + esc(A.iso(r.data)) + '</td>' +
-        '<td>' + esc(r.chassi) + '</td>' +
+        '<td data-th="' + h[0] + '">' + esc(r.cliente) + '</td>' +
+        '<td data-th="' + h[1] + '">' + esc(r.vendedor) + '</td>' +
+        '<td data-th="' + h[2] + '">' + esc(r.loja) + '</td>' +
+        '<td data-th="' + h[3] + '">' + esc(r.modelo) + '</td>' +
+        '<td data-th="' + h[4] + '">' + (c.modeloTabela ? esc(c.modeloTabela) : '<span class="cpWarn">Não encontrado</span>') + '</td>' +
+        '<td class="cpNumCol" data-th="' + h[5] + '">' + A.money(r.valorFinanciado) + '</td>' +
+        '<td class="cpNumCol" data-th="' + h[6] + '">' + (c.ok ? A.pct(c.rebateTotal) : '<span class="cpWarn">—</span>') + '</td>' +
+        '<td class="cpNumCol" data-th="' + h[7] + '">' + (c.ok ? A.pct(c.parteBrabus) : '<span class="cpWarn">—</span>') + '</td>' +
+        '<td class="cpNumCol" data-th="' + h[8] + '">' + (c.ok ? A.money(c.valorRebateTotal) : '<span class="cpWarn">—</span>') + '</td>' +
+        '<td class="cpNumCol" data-th="' + h[9] + '">' + (c.ok ? A.money(c.coparticipacao) : '<span class="cpWarn">Modelo não encontrado</span>') + '</td>' +
+        '<td data-th="' + h[10] + '">' + esc(r.situacaoB3 || '') + '</td>' +
+        '<td class="cpNumCol" data-th="' + h[11] + '">' + esc(A.iso(r.data)) + '</td>' +
+        '<td class="cpAtomic" data-th="' + h[12] + '">' + esc(r.chassi) + '</td>' +
         '</tr>';
     }).join('');
     return '<h2>Planos Coparticipados</h2>' +
       '<p class="cpMuted">Coparticipação calculada pela tabela <b>taxa coparticipado.xlsx</b>: Modelo × Rebate Total × Rebate Parte Brabus.</p>' +
-      '<div class="cpTableWrap"><table class="cpTable">' +
-      '<thead><tr><th>Cliente</th><th>Vendedor</th><th>Loja</th><th>Modelo Base</th><th>Modelo Taxa</th><th>Valor Financiado</th><th>Rebate Total</th><th>Parte Brabus</th><th>Valor Rebate Total</th><th>Coparticipação</th><th>Situação</th><th>Data</th><th>Chassi</th></tr></thead>' +
+      '<div class="cpTableWrap"><table class="cpTable">' + cpColGroup(h) +
+      '<thead>' + cpHeadRow(h) + '</thead>' +
       '<tbody>' + (body || '<tr><td colspan="13" class="cpMuted">Nenhum coparticipado encontrado no filtro atual.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -137,19 +158,20 @@
     var rows = fins.filter(function (r) { return r.plano === 'SUBSIDIADO'; });
     var lojas = {}, vendedores = {};
     rows.forEach(function (r) { lojas[r.loja] = 1; vendedores[r.vendedor] = 1; });
+    var h = CP_SUBS_HEADERS;
     var body = rows.map(function (r) {
       return '<tr>' +
-        '<td>' + esc(r.cliente) + '</td>' +
-        '<td>' + esc(r.vendedor) + '</td>' +
-        '<td>' + esc(r.loja) + '</td>' +
-        '<td>' + esc(r.dept) + '</td>' +
-        '<td>' + esc(r.modelo) + '</td>' +
-        '<td class="cpNumCol">' + A.money(r.valorFinanciado) + '</td>' +
-        '<td class="cpNumCol">' + A.money(r.retorno) + '</td>' +
-        '<td class="cpNumCol">' + A.money(r.receitaSPF) + '</td>' +
-        '<td>' + esc(r.situacaoB3 || '') + '</td>' +
-        '<td class="cpNumCol">' + esc(A.iso(r.data)) + '</td>' +
-        '<td>' + esc(r.chassi) + '</td>' +
+        '<td data-th="' + h[0] + '">' + esc(r.cliente) + '</td>' +
+        '<td data-th="' + h[1] + '">' + esc(r.vendedor) + '</td>' +
+        '<td data-th="' + h[2] + '">' + esc(r.loja) + '</td>' +
+        '<td data-th="' + h[3] + '">' + esc(r.dept) + '</td>' +
+        '<td data-th="' + h[4] + '">' + esc(r.modelo) + '</td>' +
+        '<td class="cpNumCol" data-th="' + h[5] + '">' + A.money(r.valorFinanciado) + '</td>' +
+        '<td class="cpNumCol" data-th="' + h[6] + '">' + A.money(r.retorno) + '</td>' +
+        '<td class="cpNumCol" data-th="' + h[7] + '">' + A.money(r.receitaSPF) + '</td>' +
+        '<td data-th="' + h[8] + '">' + esc(r.situacaoB3 || '') + '</td>' +
+        '<td class="cpNumCol" data-th="' + h[9] + '">' + esc(A.iso(r.data)) + '</td>' +
+        '<td class="cpAtomic" data-th="' + h[10] + '">' + esc(r.chassi) + '</td>' +
         '</tr>';
     }).join('');
     return '<h2>Planos Subsidiados</h2>' +
@@ -159,8 +181,8 @@
       '<div class="cpSummaryItem"><div class="cpK">Lojas</div><div class="cpV">' + A.num(Object.keys(lojas).length) + '</div></div>' +
       '<div class="cpSummaryItem"><div class="cpK">Vendedores</div><div class="cpV">' + A.num(Object.keys(vendedores).length) + '</div></div>' +
       '</div>' +
-      '<div class="cpTableWrap"><table class="cpTable">' +
-      '<thead><tr><th>Cliente</th><th>Vendedor</th><th>Loja</th><th>Departamento</th><th>Modelo</th><th>Valor Financiado</th><th>Retorno</th><th>SPF Extra</th><th>Situação</th><th>Data</th><th>Chassi</th></tr></thead>' +
+      '<div class="cpTableWrap"><table class="cpTable">' + cpColGroup(h) +
+      '<thead>' + cpHeadRow(h) + '</thead>' +
       '<tbody>' + (body || '<tr><td colspan="11" class="cpMuted">Nenhum subsidiado encontrado no filtro atual.</td></tr>') + '</tbody></table></div>';
   }
 

@@ -42,15 +42,15 @@
     var body = rows.map(function (r, i) {
       var pct = meterPct(r.score);
       return '<tr tabindex="0" role="button" data-key="' + esc(rowKey(r)) + '" aria-label="Ver detalhamento de ' + esc(r.vendedor) + '">' +
-        '<td class="scRankCol">' + (i + 1) + '</td>' +
-        '<td class="scNameCell"><span class="scNameText" title="' + esc(r.vendedor) + '">' + esc(r.vendedor) + '</span></td>' +
-        '<td>' + esc(r.loja) + '</td>' +
-        '<td>' + esc(r.dept) + '</td>' +
-        '<td class="scNumCol"><span class="scScoreCell">' +
+        '<td class="scRankCol" data-th="#">' + (i + 1) + '</td>' +
+        '<td class="scNameCell" data-th="Vendedor"><span class="scNameText" title="' + esc(r.vendedor) + '">' + esc(r.vendedor) + '</span></td>' +
+        '<td data-th="Loja">' + esc(r.loja) + '</td>' +
+        '<td data-th="Depto">' + esc(r.dept) + '</td>' +
+        '<td class="scNumCol" data-th="Score"><span class="scScoreCell">' +
           '<span class="scMeterTrack" role="img" aria-label="Score ' + r.score + ' de ' + SCORE_SCALE_MAX + '"><span class="scMeterFill" style="width:' + pct.toFixed(1) + '%"></span></span>' +
           '<span>' + r.score + '</span>' +
           '</span></td>' +
-        '<td class="scNumCol">' + (r.fin || 0) + '</td>' +
+        '<td class="scNumCol" data-th="Financ.">' + (r.fin || 0) + '</td>' +
         '</tr>';
     }).join('');
     return '<div class="scTableWrap"><table class="scTable">' +

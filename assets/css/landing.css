@@ -89,7 +89,12 @@ body.landing-active #nxContentOutlet{padding:0;max-width:none;flex:none}
 @media(max-width:900px){ .ctxBeam{top:auto;left:0} }
 @media(max-width:768px){
   .fShell{flex-direction:column;min-height:0}
-  .fNav{width:100%;flex-direction:row;justify-content:flex-start;padding:18px;gap:24px;border-right:0;border-bottom:1px solid var(--color-hairline);overflow-x:auto}
+  /* PORTAL-NEXT-07.6 — was overflow-x:auto (a hidden horizontal
+     scrollbar carrying the category labels sideways off-screen); the
+     global no-horizontal-scroll directive forbids that pattern.
+     flex-wrap lets the same items reflow onto additional lines
+     instead — 0 label removed, 0 new component, same fNavItem markup. */
+  .fNav{width:100%;flex-direction:row;flex-wrap:wrap;justify-content:flex-start;padding:18px;gap:10px 24px;border-right:0;border-bottom:1px solid var(--color-hairline)}
   .fNavItem{padding:5px 0 9px;flex-shrink:0;width:auto}
   .fNavItem:before{display:none}
   .fNavItem .idx{display:none}

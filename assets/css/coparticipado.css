@@ -159,8 +159,22 @@
    tabular numerics, no cell fills, no pill-per-cell, sticky first
    column + horizontal scroll on narrow viewports instead of
    cardifying rows) ---------- */
+/* PORTAL-NEXT-07.6 — this is the widest table in V2 (13/11 columns);
+   real DOM measurement found it overflowing by up to 1461px at 320px
+   and STILL 469px at 1920px with the old fixed-min-content layout
+   (nowrap everywhere). overflow-x:auto kept only as a defensive safety
+   net (never meant to trigger, same convention as every other module
+   this Wave). table-layout:fixed + wrapping is what actually
+   guarantees 0 horizontal scroll at every width up to 1920px now —
+   same column set, same order, same values, no column hidden, no
+   information removed. Below 900px (13 real columns leave too little
+   width per column even wrapped) it recomposes into a full vertical
+   record instead — every field still shown, nothing moved behind a
+   secondary disclosure, per the "prefer vertical recomposition over
+   hiding information" directive (no authorized primary/secondary
+   split exists for this audit-style record, so none was invented). */
 .cpTableWrap { overflow-x: auto; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); }
-.cpTable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.cpTable { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12.5px; }
 .cpTable thead th {
   text-align: left;
   font-family: var(--font-mono);
@@ -171,17 +185,27 @@
   font-weight: 500;
   padding: var(--space-3);
   border-bottom: 1px solid var(--color-hairline-strong);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 .cpTable td {
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-hairline);
   vertical-align: middle;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 .cpTable tbody tr:last-child td { border-bottom: none; }
 .cpTable tbody tr:hover td { background: rgba(255,255,255,.028); }
 .cpTable .cpNumCol { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+/* PORTAL-NEXT-07.6 — currency/percentage/date/chassi values are a
+   single atomic unit (Gate 26/56: must never split mid-token, e.g.
+   "R$ 155.00" + "0" on the next line). The <colgroup> floor widths
+   above give them room; nowrap is the second half of that fix — without
+   it, a value could still wrap even inside its own floor-width column
+   once neighboring Cliente/Vendedor text pushes things around. */
+.cpTable .cpNumCol,
+.cpTable .cpAtomic { white-space: nowrap; }
 .cpTable thead th:first-child,
 .cpTable td:first-child {
   position: sticky;
@@ -191,6 +215,23 @@
 .cpTable thead th:first-child { background: var(--color-surface-2); z-index: 1; }
 
 .cpWarn { color: var(--color-warning); }
+
+@media (max-width: 900px) {
+  .cpTableWrap { overflow-x: visible; }
+  /* the <colgroup> floor widths (needed above 900px to protect atomic
+     values from mid-token wrapping) otherwise force the <table>'s own
+     rendered width to their sum via table-layout:fixed, regardless of
+     the flex row/cell styling below — auto releases that floor once
+     rows are no longer laid out as table cells. */
+  .cpTable { table-layout: auto; }
+  .cpTable thead { display: none; }
+  .cpTable tbody tr { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding: var(--space-3); border-bottom: 1px solid var(--color-hairline); }
+  .cpTable tbody tr:last-child { border-bottom: none; }
+  .cpTable td { display: block; padding: 0; border: none; position: static; background: none; flex: 1 1 130px; min-width: 130px; }
+  .cpTable td[data-th]::before { content: attr(data-th); display: block; color: var(--color-text-muted); font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+  .cpTable td:first-child { flex-basis: 100%; font-weight: 600; }
+  .cpTable .cpNumCol { text-align: left; }
+}
 
 @media (max-width: 768px) {
   .cpField { min-width: 130px; }

@@ -137,19 +137,39 @@
 .gePlanCard.planLinear { border-left-color: var(--color-text-muted); }
 
 /* ---------- tables (same discipline as Score/Coparticipado) ---------- */
+/* PORTAL-NEXT-07.6 — overflow-x:auto kept only as a defensive safety
+   net (same convention as Dashbi/Score, never meant to trigger).
+   table-layout:fixed + wrapping (was white-space:nowrap on every
+   header/cell) is what actually guarantees 0 horizontal scroll at
+   768px+ now; the widest tables here (up to 10 columns) still need the
+   <=768px vertical-stack recomposition below — real DOM measurement
+   found up to 819px of overflow at 320px on "Financiamentos por Loja"
+   alone. */
 .geTableWrap { overflow-x: auto; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); margin-bottom: var(--space-4); }
-.geTable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.geTable { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12.5px; }
 .geTable thead th {
   text-align: left; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase;
   letter-spacing: .05em; color: var(--color-text-muted); font-weight: 500;
-  padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-hairline-strong); white-space: nowrap;
+  padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-hairline-strong);
+  white-space: normal; overflow-wrap: break-word;
 }
-.geTable td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-hairline); white-space: nowrap; }
+.geTable td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-hairline); white-space: normal; overflow-wrap: break-word; }
 .geTable tbody tr:last-child td { border-bottom: none; }
 .geTable tbody tr:hover td { background: rgba(255,255,255,.028); }
 .geTable .geNumCol { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
 .geTable thead th:first-child, .geTable td:first-child { position: sticky; left: 0; background: var(--color-surface-1); }
 .geTable thead th:first-child { background: var(--color-surface-2); z-index: 1; }
+
+@media (max-width: 768px) {
+  .geTableWrap { overflow-x: visible; }
+  .geTable thead { display: none; }
+  .geTable tbody tr { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding: var(--space-3); border-bottom: 1px solid var(--color-hairline); }
+  .geTable tbody tr:last-child { border-bottom: none; }
+  .geTable td { display: block; padding: 0; border: none; position: static; background: none; flex: 1 1 120px; min-width: 120px; }
+  .geTable td[data-th]::before { content: attr(data-th); display: block; color: var(--color-text-muted); font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+  .geTable td:first-child { flex-basis: 100%; font-weight: 600; }
+  .geTable .geNumCol { text-align: left; }
+}
 
 @media (max-width: 768px) {
   .geField { min-width: 130px; }

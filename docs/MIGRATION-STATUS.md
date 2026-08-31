@@ -32,12 +32,12 @@ parity, never substitute for it (Skill's Human Approval Gate).
 
 | Module | Status | Wave |
 |---|---|---|
-| Landing | **HUMAN_APPROVED** (PORTAL-NEXT-04, Gate 1 — human decision recorded) | 1 |
+| Landing | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-04, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6, see `docs/HUMAN-UAT-RESPONSIVE-REMEDIATION.md`) | 1 |
 | Portal Shell / MASTER Admin | NOT_MIGRATED | 0 |
-| Score | **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) | 2 |
-| Coparticipado | **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1 — human decision recorded) | 3 |
-| Gestão | **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1 — human decision recorded) | 4 |
-| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07.5.2 — Ranking Departamentos removed, awaiting UAT, see `docs/HUMAN-UAT-DASHBI.md`) | 5 |
+| Score | BUSINESS **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`; PORTAL-NEXT-07.6's own brief assumed this was already HUMAN_APPROVED/FROZEN — it is NOT, per this same registry; flagged, not silently corrected) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 2 |
+| Coparticipado | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 3 |
+| Gestão | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 4 |
+| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07.5.2 — Ranking Departamentos removed, awaiting UAT, see `docs/HUMAN-UAT-DASHBI.md`; PORTAL-NEXT-07.6's own brief assumed this was already HUMAN_APPROVED/FROZEN — it is NOT; not modified this Wave regardless, per that brief's own separate explicit instruction) | 5 |
 | Simulador Novos | NOT_MIGRATED | 6 |
 | Simulador Seminovos | NOT_MIGRATED | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
@@ -617,6 +617,73 @@ console/page errors, 0 network calls. Isolation baseline
 (`.baseline-portalnext0752-after.txt`) 0-line diff against
 `.baseline-portalnext0751-after.txt`; `origin/main` SHA re-confirmed
 unchanged (`2f17eb2341c5cc14aa8710aa044103002ca572a9`).
+
+## PORTAL-NEXT-07.6 addendum
+
+Dedicated responsive remediation Wave for Landing/Score/Coparticipado/
+Gestão — eliminating the horizontal-scroll dependencies each module's
+own prior audit (07.4) had flagged but deliberately not touched at the
+time (they were already approved and out of scope then). Dashbi
+explicitly not modified this Wave (only regression-verified — 26/26
+goldens, byte-identical `dashbi.js`/`dashbi.css`/`dashbi.adapter.js`
+hashes before/after).
+
+**Premise discrepancy, flagged rather than silently accepted**: this
+Wave's own brief stated Score and Dashbi were already `HUMAN_APPROVED /
+FROZEN`. `config/module-registry.json`'s actual `migrationStatus` shows
+both as `UAT_PENDING` — Score has been `UAT_PENDING` since PORTAL-NEXT-04
+(its own Design System band conflict, `docs/SCORE-ENGINE-AUDIT.md`, was
+never resolved), and Dashbi has been `UAT_PENDING` since PORTAL-NEXT-07.5.2
+(no human approval message was received in between). Reported here
+per this whole engagement's standing "do not convert UNKNOWN into PASS"
+discipline — not corrected unilaterally, not treated as blocking the
+requested technical work either (the remediation itself is valid
+regardless of exact approval status, and Dashbi was left untouched
+exactly as instructed either way).
+
+**Full audit before any fix (Gate 2)**: `docs/FROZEN-MODULE-NO-SCROLL-
+INVENTORY.md` — real DOM measurement (not CSS inference) found every
+module's own `*TableWrap` table overflowing via the same root cause
+(no `table-layout:fixed`, so auto-layout sized every column to its
+widest un-wrapped content): Landing's mobile category nav (up to 339px
+over via a literal `overflow-x:auto`), Score's ranking table (up to
+174px) plus a name-truncation bug, Gestão's 8 tables (up to 819px), and
+Coparticipado's Coparticipados/Subsidiados tables — the most severe
+case in V2, still 469px over even at 1920px.
+
+**Recomposition, not hiding (Gate 66)**: every fix follows the same
+already-proven recipe (`table-layout:fixed` + wrap, `data-th`-driven
+vertical stacking below each table's own natural breakpoint — 480px for
+Score, 768px for Gestão, 900px for Coparticipado's unusually wide
+13-column record). Coparticipado additionally needed a `<colgroup>`
+floor-width + `nowrap` protection for its atomic (currency/percentage/
+date/chassi) columns — a real character-collapse bug ("R$ 155.00" +
+"0" on the next line) was caught by re-screenshotting after the first
+wrap-only attempt and fixed before being reported clean, not assumed
+safe. No column, table, or field was hidden or moved behind a new
+`+ Detalhes`; Coparticipado's mobile view is a full vertical record
+(every field), since no authorized primary/secondary hierarchy exists
+for it (unlike Dashbi's own human-directed KPI hierarchy) and none was
+invented.
+
+**0 business-logic change**: Score 12/12, Coparticipado 22/22, Gestão
+30/30 golden fixtures pass unchanged (including all 4 SPF-rounding
+fixtures — Comissão Líquida SPF EXTRA = 70%, untouched); Landing's own
+`landing-composition-regression.py` (20/20) shows 0.0pp drift on every
+desktop (1366/1920) structural check. Full field-by-field parity in
+`docs/FROZEN-MODULE-RESPONSIVE-INFORMATION-PARITY.md` — material
+information loss: 0. Isolation baseline
+(`.baseline-portalnext076-after.txt`) 0-line diff against
+`.baseline-portalnext0752-after.txt`; `origin/main` SHA re-confirmed
+unchanged (`2f17eb2341c5cc14aa8710aa044103002ca572a9`).
+
+**Honestly scoped, not exhaustively automated**: keyboard/focus/touch-
+target behavior was verified by code-diff audit (no interactive/focus
+code was touched in any of the 7 changed files), not by live automated
+re-testing; 200% zoom, continuous resize, and device orientation were
+not independently exercised as literal browser interactions this Wave —
+see `docs/FROZEN-MODULE-NO-SCROLL-REMEDIATION.md`'s closing section for
+exactly what was and wasn't tested.
 
 ## Standing blockers carried forward (not resolved this phase)
 

@@ -101,7 +101,7 @@
       var cells = isNovos
         ? [b.LINEAR, b['BALÃO'], b.SUBSIDIADO, b['REVERSÃO'], b.COPARTICIPADO, b.total]
         : [b.LINEAR, b['BALÃO'], b['REVERSÃO'], b.total];
-      return '<tr><td>' + esc(r.loja) + '</td>' + cells.map(function (c) { return '<td class="geNumCol">' + c + '</td>'; }).join('') + '</tr>';
+      return '<tr><td data-th="' + esc(headers[0]) + '">' + esc(r.loja) + '</td>' + cells.map(function (c, i) { return '<td class="geNumCol" data-th="' + esc(headers[i + 1]) + '">' + c + '</td>'; }).join('') + '</tr>';
     }).join('');
     return '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
       '<tbody>' + (body || '<tr><td colspan="' + headers.length + '" class="geMuted">Nenhuma loja encontrada.</td></tr>') + '</tbody></table></div>';
@@ -111,13 +111,13 @@
     var headers, body;
     if (vehicle === 'Novos') {
       headers = ['Loja', 'Qtd Novos', 'Fin. médio Novos', 'Parcela média Novos', 'Qtd Balão', 'Parcela média Balão'];
-      body = store.map(function (r) { return row([r.loja, r.qtd, A.money(r.finNovos), A.money(r.pmtNovos), r.qtdBalao, A.money(r.balaoMedio)]); });
+      body = store.map(function (r) { return row([r.loja, r.qtd, A.money(r.finNovos), A.money(r.pmtNovos), r.qtdBalao, A.money(r.balaoMedio)], headers); });
     } else if (vehicle === 'Seminovos') {
       headers = ['Loja', 'Qtd Seminovos', 'Fin. médio Seminovos', 'Parcela média Seminovos', 'Qtd Balão', 'Parcela média Balão'];
-      body = store.map(function (r) { return row([r.loja, r.qtd, A.money(r.finSemis), A.money(r.pmtSemis), r.qtdBalao, A.money(r.balaoMedio)]); });
+      body = store.map(function (r) { return row([r.loja, r.qtd, A.money(r.finSemis), A.money(r.pmtSemis), r.qtdBalao, A.money(r.balaoMedio)], headers); });
     } else {
       headers = ['Loja', 'Qtd Total', 'Novos', 'Seminovos', 'Fin. médio Novos', 'Fin. médio Seminovos', 'Parcela média Novos', 'Parcela média Seminovos', 'Qtd Balão', 'Parcela média Balão'];
-      body = store.map(function (r) { return row([r.loja, r.qtd, r.novos, r.seminovos, A.money(r.finNovos), A.money(r.finSemis), A.money(r.pmtNovos), A.money(r.pmtSemis), r.qtdBalao, A.money(r.balaoMedio)]); });
+      body = store.map(function (r) { return row([r.loja, r.qtd, r.novos, r.seminovos, A.money(r.finNovos), A.money(r.finSemis), A.money(r.pmtNovos), A.money(r.pmtSemis), r.qtdBalao, A.money(r.balaoMedio)], headers); });
     }
     return tableHtml(headers, body);
   }
@@ -136,8 +136,13 @@
       return '<th' + (i >= numericFrom ? ' class="geNumCol"' : '') + '>' + esc(h) + '</th>';
     }).join('');
   }
-  function row(cells) {
-    return '<tr><td>' + esc(cells[0]) + '</td>' + cells.slice(1).map(function (c) { return '<td class="geNumCol">' + esc(String(c)) + '</td>'; }).join('') + '</tr>';
+  // PORTAL-NEXT-07.6 — headers (optional) stamps each <td> with a
+  // data-th label, consumed only by the mobile stacking recomposition
+  // in gestao.css (<=768px); omitted, markup is byte-identical to
+  // before.
+  function row(cells, headers) {
+    function th(i) { return headers ? ' data-th="' + esc(headers[i]) + '"' : ''; }
+    return '<tr><td' + th(0) + '>' + esc(cells[0]) + '</td>' + cells.slice(1).map(function (c, i) { return '<td class="geNumCol"' + th(i + 1) + '>' + esc(String(c)) + '</td>'; }).join('') + '</tr>';
   }
   function tableHtml(headers, bodyRows) {
     return '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
@@ -147,7 +152,7 @@
   function statusTableHtml(A, rows, keyField) {
     var headers = [keyField === 'loja' ? 'Unidade' : 'Banco', 'Pago Qtd', 'Pago Valor', 'Faturado Qtd', 'Faturado Valor', 'AG. Fat. Qtd', 'AG. Fat. Valor', 'Total Qtd', 'Total Valor'];
     var body = rows.map(function (r) {
-      return row([r[keyField], r.pagaQtd, A.money(r.pagaValor), r.fatQtd, A.money(r.fatValor), r.agQtd, A.money(r.agValor), r.totalQtd, A.money(r.totalValor)]);
+      return row([r[keyField], r.pagaQtd, A.money(r.pagaValor), r.fatQtd, A.money(r.fatValor), r.agQtd, A.money(r.agValor), r.totalQtd, A.money(r.totalValor)], headers);
     });
     return tableHtml(headers, body);
   }
@@ -156,13 +161,13 @@
     var headers, body;
     if (vehicle === 'Novos') {
       headers = ['Loja', 'Qtd CPFs Novos', 'Valor Novos', 'Valor Médio por CPF'];
-      body = items.map(function (r) { return row([r.loja, r.novosQtd, A.money(r.novosValor), A.money(r.novosQtd ? r.novosValor / r.novosQtd : 0)]); });
+      body = items.map(function (r) { return row([r.loja, r.novosQtd, A.money(r.novosValor), A.money(r.novosQtd ? r.novosValor / r.novosQtd : 0)], headers); });
     } else if (vehicle === 'Seminovos') {
       headers = ['Loja', 'Qtd CPFs Seminovos', 'Valor Seminovos', 'Valor Médio por CPF'];
-      body = items.map(function (r) { return row([r.loja, r.seminovosQtd, A.money(r.seminovosValor), A.money(r.seminovosQtd ? r.seminovosValor / r.seminovosQtd : 0)]); });
+      body = items.map(function (r) { return row([r.loja, r.seminovosQtd, A.money(r.seminovosValor), A.money(r.seminovosQtd ? r.seminovosValor / r.seminovosQtd : 0)], headers); });
     } else {
       headers = ['Loja', 'Novos Qtd', 'Novos Valor', 'Seminovos Qtd', 'Seminovos Valor', 'Total CPFs', 'Valor Total', 'Valor Médio por CPF'];
-      body = items.map(function (r) { return row([r.loja, r.novosQtd, A.money(r.novosValor), r.seminovosQtd, A.money(r.seminovosValor), r.qtd, A.money(r.valor), A.money(r.qtd ? r.valor / r.qtd : 0)]); });
+      body = items.map(function (r) { return row([r.loja, r.novosQtd, A.money(r.novosValor), r.seminovosQtd, A.money(r.seminovosValor), r.qtd, A.money(r.valor), A.money(r.qtd ? r.valor / r.qtd : 0)], headers); });
     }
     return tableHtml(headers, body);
   }
@@ -191,7 +196,7 @@
 
     var spfExtra = out.spfExtra || { detalhes: [], total: 0, comissao: 0 };
     var spfDetailRows = spfExtra.detalhes.map(function (r) {
-      return '<tr><td>' + esc(r.loja) + '</td><td>' + esc(r.departamento) + '</td><td class="geNumCol">' + A.money(r.valor) + '</td><td class="geNumCol">' + A.money(r.comissao) + '</td></tr>';
+      return '<tr><td data-th="Loja">' + esc(r.loja) + '</td><td data-th="Departamento">' + esc(r.departamento) + '</td><td class="geNumCol" data-th="SPF Total">' + A.money(r.valor) + '</td><td class="geNumCol" data-th="Comissão Líquida 70%">' + A.money(r.comissao) + '</td></tr>';
     });
 
     var html =
