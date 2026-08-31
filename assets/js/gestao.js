@@ -11,8 +11,10 @@
      - Classificação dos Planos (5 cards)
      - Planos por Loja e Departamento (2 tables, Novos 5-type / Seminovos
        3-type -- exact real column scope, see GESTAO-KPI-CONTRACT.md)
-     - SPF EXTRA (Total + Comissão Líquida -- the latter BLOCKED, see
-       docs/GESTAO-COMMISSION-DECISION.md)
+     - SPF EXTRA (Total + Comissão Líquida = Total x 70%, fixed/non-
+       configurable per the human's PORTAL-NEXT-06.1 decision -- see
+       docs/GESTAO-COMMISSION-DECISION.md; same byte-identical 0.70
+       computation extracted since PORTAL-NEXT-06, no new formula)
      - Support KPIs (Visão/Tipo/Período/Total geral/PMT médio/Balão)
      - Financiamentos por Loja, Status por Unidade, Status por Banco
      - Propostas Recusadas Válidas / Aprovadas Válidas por Loja
@@ -101,7 +103,7 @@
         : [b.LINEAR, b['BALÃO'], b['REVERSÃO'], b.total];
       return '<tr><td>' + esc(r.loja) + '</td>' + cells.map(function (c) { return '<td class="geNumCol">' + c + '</td>'; }).join('') + '</tr>';
     }).join('');
-    return '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headers.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead>' +
+    return '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
       '<tbody>' + (body || '<tr><td colspan="' + headers.length + '" class="geMuted">Nenhuma loja encontrada.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -120,11 +122,25 @@
     return tableHtml(headers, body);
   }
 
+  // Shared column-alignment contract (Gate 8-10): a numeric column's
+  // header and its values share ONE axis -- both get .geNumCol
+  // (text-align:right + tabular-nums, assets/css/gestao.css), never a
+  // per-cell offset. `numericFrom` is the index where numeric columns
+  // begin (every Gestão table is "N leading text columns, then numeric
+  // to the end" -- default 1, since every table here has exactly one
+  // leading text column (Loja/Unidade/Banco), except the SPF Extra
+  // detail table, which has two (Loja, Departamento)).
+  function headerRow(headers, numericFrom) {
+    numericFrom = numericFrom == null ? 1 : numericFrom;
+    return headers.map(function (h, i) {
+      return '<th' + (i >= numericFrom ? ' class="geNumCol"' : '') + '>' + esc(h) + '</th>';
+    }).join('');
+  }
   function row(cells) {
     return '<tr><td>' + esc(cells[0]) + '</td>' + cells.slice(1).map(function (c) { return '<td class="geNumCol">' + esc(String(c)) + '</td>'; }).join('') + '</tr>';
   }
   function tableHtml(headers, bodyRows) {
-    return '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headers.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead>' +
+    return '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
       '<tbody>' + (bodyRows.length ? bodyRows.join('') : '<tr><td colspan="' + headers.length + '" class="geMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -175,7 +191,7 @@
 
     var spfExtra = out.spfExtra || { detalhes: [], total: 0, comissao: 0 };
     var spfDetailRows = spfExtra.detalhes.map(function (r) {
-      return '<tr><td>' + esc(r.loja) + '</td><td>' + esc(r.departamento) + '</td><td class="geNumCol">' + A.money(r.valor) + '</td><td class="geNumCol geBlockedCol">bloqueado</td></tr>';
+      return '<tr><td>' + esc(r.loja) + '</td><td>' + esc(r.departamento) + '</td><td class="geNumCol">' + A.money(r.valor) + '</td><td class="geNumCol">' + A.money(r.comissao) + '</td></tr>';
     });
 
     var html =
@@ -204,12 +220,9 @@
       '<h2>SPF EXTRA</h2>' +
       '<div class="geKpiGridExec">' +
       kpiExec('Total SPF EXTRA', A.money(spfExtra.total), 'Valor total de opcionais SPF EXTRA') +
-      '<div class="geKpiCardExec geBlocked"><div class="geK">Comissão Líquida SPF EXTRA</div><div class="geV">' + A.money(spfExtra.comissao) + '</div>' +
-      '<div class="geHint">70% sobre o total SPF EXTRA (literal, não configurável)</div>' +
-      '<span class="geBlockedTag">Bloqueado — decisão humana pendente</span></div>' +
+      kpiExec('Comissão Líquida SPF EXTRA', A.money(spfExtra.comissao), '70% sobre o total SPF EXTRA (regra fixa, não configurável — docs/GESTAO-COMMISSION-DECISION.md)') +
       '</div>' +
-      '<p class="geMuted">Ver <b>docs/GESTAO-COMMISSION-DECISION.md</b>: dois mecanismos reais e distintos calculam este percentual hoje — o literal 70% mostrado acima (extraído byte-idêntico desta tela) e o parâmetro configurável <code>spf_liquido_percentual</code> usado pelo motor de comissão real (portal-app.js). Nenhuma das duas foi escolhida autonomamente.</p>' +
-      '<div class="geTableWrap"><table class="geTable"><thead><tr><th>Loja</th><th>Departamento</th><th>SPF Total</th><th>Comissão Líquida 70%</th></tr></thead>' +
+      '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(['Loja', 'Departamento', 'SPF Total', 'Comissão Líquida 70%'], 2) + '</tr></thead>' +
       '<tbody>' + (spfDetailRows.length ? spfDetailRows.join('') : '<tr><td colspan="4" class="geMuted">Nenhum SPF Extra encontrado.</td></tr>') + '</tbody></table></div>' +
 
       '<h2>Indicadores de Apoio</h2>' +

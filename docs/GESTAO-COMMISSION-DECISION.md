@@ -1,6 +1,19 @@
-# DECISION REQUIRED: COMMISSION BUSINESS AUTHORITY (Gate 22/86/155)
+# COMMISSION BUSINESS AUTHORITY — DECIDED (PORTAL-NEXT-06.1 Gate 2)
+
+```
+STATUS:        HUMAN DECIDED (PORTAL-NEXT-06.1, human UAT feedback on
+              PORTAL-NEXT-06)
+AUTHORITY:        SPF EXTRA × 70%
+SCOPE:               Gestão (Análise F&I do Grupo) / Comissão Líquida
+                  SPF EXTRA — this metric specifically, nowhere else.
+CONFIGURABLE:           NO — fixed and rigid for this metric. Do not
+                      replace with spf_liquido_percentual or any other
+                      configurable parameter used by another module.
+```
 
 **Affected surface**: the "Comissão Líquida SPF EXTRA" KPI card and its breakdown table's "Comissão Líquida 70%" column, on the Gestão (Análise F&I do Grupo) screen. Nothing else in Gestão is affected — see `docs/COMMISSION-RULE-MAP.md` for the full investigation.
+
+The two options below are kept as a historical record of the investigation that led to this decision — **Option A is now the authoritative rule for this metric**; Option B is preserved as evidence that a second, configurable mechanism genuinely exists elsewhere (Salários/Comissões' `commissionCalc()`), not as a governing rule for Gestão's SPF Extra commission. Do not delete this record when reading it as "resolved" — it documents why Option B does NOT apply here, which matters if this decision is ever revisited.
 
 ## Option A
 
@@ -60,6 +73,20 @@ Not investigated (Salários/Comissões module itself is out of scope this Wave, 
 
 ## Decision
 
-**PENDING HUMAN.**
+**HUMAN DECIDED (PORTAL-NEXT-06.1): Option A.**
 
-Per Gate 86/155, this Wave does not recommend Option A or Option B — recommending "the newer/more sophisticated formula" or "the one that's currently in the file being migrated" are exactly the shortcuts this gate forbids without an independent, previously-approved business authority proving one is correct. Until a human decides, V2's "Comissão Líquida SPF EXTRA" card and column are rendered but explicitly marked **BLOCKED — HUMAN BUSINESS DECISION REQUIRED** in the UI (not computed and silently passed off as resolved parity, not left blank/fabricated with a placeholder number) — see `assets/js/gestao.js`.
+`Comissão Líquida SPF EXTRA = Total SPF EXTRA × 70%`, fixed and rigid, not configurable, for this metric specifically. The human explicitly confirmed the synthetic example already in this document (R$ 10.000,00 → R$ 7.000,00) as authoritative and instructed that 70% must **not** be generalized to other commissions, and that Salários/Comissões must **not** be altered based on this decision — Option B's `spf_liquido_percentual` mechanism remains real and unaffected, it simply does not govern this metric.
+
+V2's "Comissão Líquida SPF EXTRA" card and column are no longer marked BLOCKED — the existing byte-identical `valor * 0.70` computation (already present in `assets/js/adapters/gestao.adapter.js`'s `buildSpfExtraAnalysis`, unchanged) is now reported as ordinary functional parity. No second formula was introduced — the literal 70% logic already extracted from production is the one now authorized to compute and display this metric (Gate 3's own "não criar segunda fórmula" instruction).
+
+## Rounding audit (PORTAL-NEXT-06.1 Gate 4)
+
+The formula itself (`comissao = valor * 0.70`) never rounds — rounding happens only at display time, in `money()`'s `toLocaleString('pt-BR', {maximumFractionDigits:0})`, which is a pure formatting concern (Gate 106: raw/display separation — the formatter never feeds back into the stored/compared value). Verified against 5 fixtures (`tests/fixtures/gestao-fixtures.json`, `tests/gestao-parity-test.py`, all PASS):
+
+| SPF Extra (raw) | Comissão (raw, unrounded) | Comissão (displayed, `money()`) |
+|---|---|---|
+| R$ 0,00 | 0 (row excluded — production requires value > 0) | R$ 0,00 |
+| R$ 100,00 | 70 | R$ 70 |
+| R$ 1.000,00 | 700 | R$ 700 |
+| R$ 10.000,00 | 7.000 | R$ 7.000 |
+| R$ 12.345,67 | 8.641,969 | R$ 8.642 |

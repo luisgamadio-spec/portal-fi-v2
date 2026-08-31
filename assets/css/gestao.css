@@ -136,16 +136,6 @@
 .gePlanCard.planBalao { border-left-color: var(--color-info); }
 .gePlanCard.planLinear { border-left-color: var(--color-text-muted); }
 
-/* Blocked commission surface (Gate 85, 87) -- never a silent number */
-.geBlocked { border-left-color: var(--color-critical) !important; position: relative; }
-.geBlocked .geV { color: var(--color-text-muted); }
-.geBlockedTag {
-  display: inline-block; margin-top: var(--space-1); font-family: var(--font-mono);
-  font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em;
-  color: var(--color-critical); border: 1px solid var(--color-critical); border-radius: var(--radius-sm);
-  padding: 1px 5px;
-}
-
 /* ---------- tables (same discipline as Score/Coparticipado) ---------- */
 .geTableWrap { overflow-x: auto; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); margin-bottom: var(--space-4); }
 .geTable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
@@ -160,7 +150,6 @@
 .geTable .geNumCol { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
 .geTable thead th:first-child, .geTable td:first-child { position: sticky; left: 0; background: var(--color-surface-1); }
 .geTable thead th:first-child { background: var(--color-surface-2); z-index: 1; }
-.geBlockedCol { color: var(--color-text-muted); font-style: italic; }
 
 @media (max-width: 768px) {
   .geField { min-width: 130px; }

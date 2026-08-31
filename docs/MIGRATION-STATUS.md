@@ -36,7 +36,7 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Portal Shell / MASTER Admin | NOT_MIGRATED | 0 |
 | Score | **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) | 2 |
 | Coparticipado | **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1 — human decision recorded) | 3 |
-| Gestão | **UAT_PENDING**, SURFACE-SCOPED COMMISSION BLOCKER on 1 of ~30 surfaces (PORTAL-NEXT-06 — see `docs/HUMAN-UAT-GESTAO.md` and `docs/GESTAO-COMMISSION-DECISION.md`) | 4 |
+| Gestão | **UAT_PENDING**, commission decision RESOLVED, table alignment FIXED (PORTAL-NEXT-06.1 — see `docs/HUMAN-UAT-GESTAO.md` and `docs/GESTAO-COMMISSION-DECISION.md`) | 4 |
 | Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | NOT_MIGRATED | 5 |
 | Simulador Novos | NOT_MIGRATED | 6 |
 | Simulador Seminovos | NOT_MIGRATED | 6 |
@@ -138,27 +138,55 @@ grupo.html` is NOT divergent between the local clone and `origin/main`
 divergence this Wave found instead was in `portal-app.js` and
 `index.html`, both read from `origin/main` per standing discipline).
 
-**RC BLOCKER #6 re-scoped, not resolved**: the original "flat 70% vs.
-multi-tier commissionCalc()" framing (PORTAL-NEXT-01.1) is real but
-narrower than it read — only ONE Gestão KPI card + one table column
+**RC BLOCKER #6 re-scoped, not resolved this Wave**: the original "flat
+70% vs. multi-tier commissionCalc()" framing (PORTAL-NEXT-01.1) is real
+but narrower than it read — only ONE Gestão KPI card + one table column
 ("Comissão Líquida SPF EXTRA") is affected; every other Gestão surface
 is unaffected. Formalized as `docs/COMMISSION-RULE-MAP.md` +
-`docs/GESTAO-COMMISSION-DECISION.md`, STATUS: PENDING HUMAN. V2 renders
-the one affected surface with an explicit BLOCKED label, never a
-silent number.
+`docs/GESTAO-COMMISSION-DECISION.md`, STATUS: PENDING HUMAN at the time.
+
+## PORTAL-NEXT-06.1 addendum
+
+Human UAT feedback on PORTAL-NEXT-06 requested two adjustments before
+final approval: (1) table header/value alignment across Gestão, (2) the
+SPF commission decision. Both resolved this Wave, Gestão remains
+`UAT_PENDING` (not auto-promoted):
+
+- **Commission decision — RESOLVED**: `docs/GESTAO-COMMISSION-DECISION.md`
+  moved PENDING HUMAN → HUMAN DECIDED. Authority: "Comissão Líquida SPF
+  EXTRA = Total SPF EXTRA × 70%", fixed, non-configurable, scoped to
+  this one metric only — not generalized to other commissions, Salários/
+  Comissões untouched. No new formula introduced (the pre-existing
+  byte-identical extraction is what's now authorized). Rounding audited
+  with 4 new golden fixtures (R$0/R$100/R$1.000/R$12.345,67 — the
+  formula itself never rounds, only `money()`'s display formatting
+  does, per raw/display separation).
+- **Table alignment — FIXED**: a real bug (numeric column headers
+  left-aligned while their values were right-aligned, so they didn't
+  share an axis) found in human UAT, root-caused (missing `.geNumCol`
+  on `<th>` elements) and fixed via one shared `headerRow()` alignment
+  contract applied to every Gestão table — not per-cell offsets.
+  Verified 0px header/value axis diff across all 8 tables. Score/
+  Coparticipado's own tables share the same underlying pattern but were
+  deliberately NOT touched (no proven need there, out of this Wave's
+  scope per explicit instruction).
+
+30/30 golden fixtures pass (26 from PORTAL-NEXT-06 + 4 new SPF-rounding
+cases). Landing/Score/Coparticipado re-verified byte-identical.
 
 ## Standing blockers carried forward (not resolved this phase)
 
 - Gestão: commission-rule discrepancy (`PORTAL-NEXT-01.1/BLOCKER-
-  CLASSIFICATION.md` Blocker #6) — RE-SCOPED this Wave from "blocks
-  the whole module" to SURFACE-SCOPED (one KPI card + one table
-  column, "Comissão Líquida SPF EXTRA" — see `docs/COMMISSION-RULE-
-  MAP.md`), which is why Gestão could still reach `UAT_PENDING` for
-  everything else. STILL PENDING HUMAN DECISION for that one surface
-  — see `docs/GESTAO-COMMISSION-DECISION.md`. Not resolved.
+  CLASSIFICATION.md` Blocker #6) — RESOLVED for its actual (surface-
+  scoped) extent as of PORTAL-NEXT-06.1: `docs/GESTAO-COMMISSION-
+  DECISION.md`, STATUS: HUMAN DECIDED (70% fixed, non-configurable,
+  scoped to "Comissão Líquida SPF EXTRA" only). The broader Blocker #6
+  framing (a possible discrepancy reaching Salários/Comissões'
+  `commissionCalc()`) is NOT closed — only Gestão's own surface is.
 - Salários/Comissões: same underlying `commissionCalc()` engine (Rule
-  B) — not investigated beyond confirming it exists and is unaffected
-  by this Wave; module itself remains untouched (Gate 118).
+  B from `docs/COMMISSION-RULE-MAP.md`) — not investigated beyond
+  confirming it exists and is unaffected by the Gestão decision above
+  (explicitly not generalized to it); module itself remains untouched.
 - Simulador Novos / Seminovos: DOM-coupled loan-math extraction
   (Blocker #5) — RC BLOCKER, Wave 6 must start with the extraction
   sub-project before any UI work. Not touched this Wave (Gate 34).
