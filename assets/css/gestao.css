@@ -1,0 +1,172 @@
+/* PORTAL-NEXT V2 — Gestão (Análise F&I do Grupo) module CSS.
+   Visual authority: design-system-2.1/references/data-table.md
+   (APPROVED, same pattern Score/Coparticipado use) — no dedicated
+   Approved Reference exists for Gestão; NORMATIVE COMPLIANCE reported,
+   not VISUAL PARITY (Gate 32/43). Executive surface (Gate 42, 67):
+   KPI hierarchy reflects materiality (Gate 34) — production cards are
+   the largest/first, support KPIs are visually quieter, no giant
+   uniform KPI wall. No charts (none exist in production — Gate 35
+   N/A). Tables stay tables (Gate 36). High-density table regions:
+   Ambient Motion OFF (Gate 38, 93). */
+
+.gePage { max-width: 1320px; }
+
+.geHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-5);
+}
+.geHeader h1 {
+  font-family: var(--font-ui);
+  font-weight: 300;
+  font-size: clamp(22px, 2.6vw, 30px);
+  letter-spacing: -.01em;
+  margin: 0;
+}
+.geHeader p { color: var(--color-text-secondary); margin: var(--space-1) 0 0; font-size: 13px; }
+
+.geFixtureBar {
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3); margin-bottom: var(--space-4);
+  border: 1px dashed var(--color-hairline-strong); border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--color-text-muted);
+}
+.geFixtureBar .geFixtureLabel { text-transform: uppercase; letter-spacing: .06em; color: var(--color-warning); }
+.geFixtureBar select {
+  background: var(--color-surface-2); border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-primary); font-family: var(--font-mono); font-size: 11px;
+  padding: 3px var(--space-2); border-radius: var(--radius-sm);
+}
+.geFixtureBar select:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+/* ---------- filters ---------- */
+.geFilters {
+  display: flex; align-items: flex-end; gap: var(--space-4); flex-wrap: wrap;
+  margin-bottom: var(--space-5); padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-hairline);
+}
+.geField { display: flex; flex-direction: column; gap: var(--space-1); min-width: 160px; }
+.geField label { color: var(--color-text-muted); font-size: 10.5px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.geField select, .geField input[type="date"] {
+  background: var(--color-surface-2); border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-primary); font-family: var(--font-ui); font-size: 13px;
+  padding: var(--space-2); border-radius: var(--radius-sm);
+}
+.geField select:focus-visible, .geField input:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+.gePresetGroup { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.gePresetBtn {
+  background: none; border: 1px solid var(--color-hairline-strong); color: var(--color-text-secondary);
+  font-family: var(--font-ui); font-size: 12px; padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.gePresetBtn:hover:not(.gePresetActive) { color: var(--color-text-primary); }
+.gePresetBtn:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+.gePresetActive { color: var(--color-canvas); background: var(--color-text-primary); border-color: var(--color-text-primary); }
+
+.geVehicleGroup { display: flex; gap: var(--space-1); }
+.geVehicleBtn {
+  background: none; border: 1px solid var(--color-hairline-strong); color: var(--color-text-secondary);
+  font-family: var(--font-ui); font-size: 13px; font-weight: 500; padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.geVehicleBtn:hover:not(.geVehicleActive) { color: var(--color-text-primary); }
+.geVehicleBtn:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+.geVehicleActive { color: var(--color-canvas); background: var(--color-text-primary); border-color: var(--color-text-primary); }
+
+/* ---------- section headings ---------- */
+.gePage h2 {
+  font-family: var(--font-ui); font-weight: 400; font-size: 17px;
+  margin: var(--space-6) 0 var(--space-3);
+}
+.gePage h2:first-of-type { margin-top: 0; }
+.geMuted { color: var(--color-text-muted); font-size: 12px; margin: 0 0 var(--space-3); }
+
+/* ---------- KPI hierarchy (Gate 34: materiality, not uniform weight) ---------- */
+.geKpiGridPrimary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3); margin-bottom: var(--space-4);
+}
+.geKpiCardPrimary {
+  border: 1px solid var(--color-hairline); border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+.geKpiCardPrimary .geK { color: var(--color-text-muted); font-size: 10.5px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.geKpiCardPrimary .geV { font-family: var(--font-mono); font-size: 26px; font-weight: 500; margin-top: var(--space-1); font-variant-numeric: tabular-nums; }
+.geKpiCardPrimary .geSplit { display: flex; gap: var(--space-4); margin-top: var(--space-2); font-size: 11.5px; color: var(--color-text-secondary); }
+.geKpiCardPrimary .geSplit b { color: var(--color-text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.geKpiGridExec {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3); margin-bottom: var(--space-4);
+}
+.geKpiCardExec {
+  border: 1px solid var(--color-hairline); border-radius: var(--radius-md);
+  padding: var(--space-4); border-left: 2px solid var(--color-accent-primary);
+}
+.geKpiCardExec .geK { color: var(--color-text-muted); font-size: 10.5px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.geKpiCardExec .geV { font-family: var(--font-mono); font-size: 22px; font-weight: 500; margin-top: var(--space-1); font-variant-numeric: tabular-nums; }
+.geKpiCardExec .geHint { color: var(--color-text-muted); font-size: 11px; margin-top: 2px; }
+
+.geKpiGridSecondary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-2); margin-bottom: var(--space-4);
+}
+.geKpiCardSecondary {
+  border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); padding: var(--space-3);
+}
+.geKpiCardSecondary .geK { color: var(--color-text-muted); font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+.geKpiCardSecondary .geV { font-size: 15px; font-weight: 500; margin-top: 3px; }
+.geKpiCardSecondary .geHint { color: var(--color-text-muted); font-size: 10.5px; margin-top: 2px; }
+
+/* Plan classification cards -- distinct plan identity via left-border
+   accent + text label together (never color-only), same discipline as
+   Coparticipado's plan semantics. */
+.gePlanGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-2); }
+.gePlanCard { border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); padding: var(--space-3); border-left: 3px solid var(--color-hairline-strong); }
+.gePlanCard .geK { font-size: 11px; font-weight: 600; letter-spacing: .03em; }
+.gePlanCard .geV { font-family: var(--font-mono); font-size: 20px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.gePlanCard .geHint { color: var(--color-text-muted); font-size: 11px; margin-top: 2px; font-family: var(--font-mono); }
+.gePlanCard.planSubsidiado { border-left-color: var(--color-success); }
+.gePlanCard.planReversao { border-left-color: var(--color-warning); }
+.gePlanCard.planCoparticipado { border-left-color: var(--color-accent-primary); }
+.gePlanCard.planBalao { border-left-color: var(--color-info); }
+.gePlanCard.planLinear { border-left-color: var(--color-text-muted); }
+
+/* Blocked commission surface (Gate 85, 87) -- never a silent number */
+.geBlocked { border-left-color: var(--color-critical) !important; position: relative; }
+.geBlocked .geV { color: var(--color-text-muted); }
+.geBlockedTag {
+  display: inline-block; margin-top: var(--space-1); font-family: var(--font-mono);
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--color-critical); border: 1px solid var(--color-critical); border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+
+/* ---------- tables (same discipline as Score/Coparticipado) ---------- */
+.geTableWrap { overflow-x: auto; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); margin-bottom: var(--space-4); }
+.geTable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.geTable thead th {
+  text-align: left; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--color-text-muted); font-weight: 500;
+  padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-hairline-strong); white-space: nowrap;
+}
+.geTable td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-hairline); white-space: nowrap; }
+.geTable tbody tr:last-child td { border-bottom: none; }
+.geTable tbody tr:hover td { background: rgba(255,255,255,.028); }
+.geTable .geNumCol { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.geTable thead th:first-child, .geTable td:first-child { position: sticky; left: 0; background: var(--color-surface-1); }
+.geTable thead th:first-child { background: var(--color-surface-2); z-index: 1; }
+.geBlockedCol { color: var(--color-text-muted); font-style: italic; }
+
+@media (max-width: 768px) {
+  .geField { min-width: 130px; }
+  .geKpiGridPrimary, .geKpiGridExec { grid-template-columns: 1fr 1fr; }
+  .geKpiGridSecondary { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .geKpiGridPrimary, .geKpiGridExec, .geKpiGridSecondary, .gePlanGrid { grid-template-columns: 1fr; }
+}

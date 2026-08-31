@@ -1,0 +1,4543 @@
+{
+  "linear_novos_paga": {
+    "base": [
+      {
+        "opCodigo": "P0001",
+        "cliente": "Cliente Um",
+        "cpf": "11111111111",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 150000,
+        "pmt": 3000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-01 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0001"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0001",
+        "cliente": "Cliente Um",
+        "cpf": "11111111111",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 150000,
+        "pmt": 3000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-01 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0001"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 150000,
+        "finSemis": 0,
+        "pmtNovos": 3000,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 150000
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO A",
+        "qtd": 1,
+        "total": 150000,
+        "medio": 150000,
+        "novos": 150000,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 150000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 150000
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO A",
+        "pagaQtd": 1,
+        "pagaValor": 150000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 150000
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 1,
+        "valor": 150000
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 150000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 150000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 150000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 150000,
+      "valorSeminovos": 0
+    }
+  },
+  "subsidiado_codigo_if": {
+    "base": [
+      {
+        "opCodigo": "P0002",
+        "cliente": "Cliente Dois",
+        "cpf": "22222222222",
+        "loja": "ALPHAVILLE",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "FATURADA",
+        "banco": "BANCO B",
+        "valorFinanciado": 160000,
+        "pmt": 3100,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-02 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": 999,
+        "planoTipo": "SUBSIDIADO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0002"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0002",
+        "cliente": "Cliente Dois",
+        "cpf": "22222222222",
+        "loja": "ALPHAVILLE",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "FATURADA",
+        "banco": "BANCO B",
+        "valorFinanciado": 160000,
+        "pmt": 3100,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-02 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": 999,
+        "planoTipo": "SUBSIDIADO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0002"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ALPHAVILLE",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 160000,
+        "finSemis": 0,
+        "pmtNovos": 3100,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 160000
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO B",
+        "qtd": 1,
+        "total": 160000,
+        "medio": 160000,
+        "novos": 160000,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "ALPHAVILLE",
+        "pagaQtd": 0,
+        "pagaValor": 0,
+        "fatQtd": 1,
+        "fatValor": 160000,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 160000
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO B",
+        "pagaQtd": 0,
+        "pagaValor": 0,
+        "fatQtd": 1,
+        "fatValor": 160000,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 160000
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 1,
+        "valor": 160000
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ALPHAVILLE",
+        "novos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "SUBSIDIADO": 1,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 1,
+      "valor": 160000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 160000,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 160000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 160000,
+      "valorSeminovos": 0
+    }
+  },
+  "reversao_codigo_if": {
+    "base": [
+      {
+        "opCodigo": "P0003",
+        "cliente": "Cliente Tres",
+        "cpf": "33333333333",
+        "loja": "BARRA FUNDA",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 170000,
+        "pmt": 3200,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-03 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": 777,
+        "planoTipo": "REVERSÃO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0003"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0003",
+        "cliente": "Cliente Tres",
+        "cpf": "33333333333",
+        "loja": "BARRA FUNDA",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 170000,
+        "pmt": 3200,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-03 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": 777,
+        "planoTipo": "REVERSÃO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0003"
+      }
+    ],
+    "store": [
+      {
+        "loja": "BARRA FUNDA",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 170000,
+        "finSemis": 0,
+        "pmtNovos": 3200,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 170000
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO A",
+        "qtd": 1,
+        "total": 170000,
+        "medio": 170000,
+        "novos": 170000,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "BARRA FUNDA",
+        "pagaQtd": 1,
+        "pagaValor": 170000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 170000
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO A",
+        "pagaQtd": 1,
+        "pagaValor": 170000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 170000
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 1,
+        "valor": 170000
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "BARRA FUNDA",
+        "novos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 1,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 170000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 170000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 170000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 170000,
+      "valorSeminovos": 0
+    }
+  },
+  "coparticipado_tc_devolvida": {
+    "base": [
+      {
+        "opCodigo": "P0004",
+        "cliente": "Cliente Quatro",
+        "cpf": "44444444444",
+        "loja": "EUROPA",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO C",
+        "valorFinanciado": 155000,
+        "pmt": 3050,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-04 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": 1,
+        "codigoIF": "",
+        "planoTipo": "COPARTICIPADO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0004"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0004",
+        "cliente": "Cliente Quatro",
+        "cpf": "44444444444",
+        "loja": "EUROPA",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO C",
+        "valorFinanciado": 155000,
+        "pmt": 3050,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-04 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": 1,
+        "codigoIF": "",
+        "planoTipo": "COPARTICIPADO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0004"
+      }
+    ],
+    "store": [
+      {
+        "loja": "EUROPA",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 155000,
+        "finSemis": 0,
+        "pmtNovos": 3050,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 155000
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO C",
+        "qtd": 1,
+        "total": 155000,
+        "medio": 155000,
+        "novos": 155000,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "EUROPA",
+        "pagaQtd": 1,
+        "pagaValor": 155000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 155000
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO C",
+        "pagaQtd": 1,
+        "pagaValor": 155000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 155000
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 1,
+        "valor": 155000
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "EUROPA",
+        "novos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 1,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 155000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 155000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 155000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 155000,
+      "valorSeminovos": 0
+    }
+  },
+  "balao_pmt": {
+    "base": [
+      {
+        "opCodigo": "P0005",
+        "cliente": "Cliente Cinco",
+        "cpf": "55555555555",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 180000,
+        "pmt": 3300,
+        "balao": 25000,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-05 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "BALÃO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0005"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0005",
+        "cliente": "Cliente Cinco",
+        "cpf": "55555555555",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 180000,
+        "pmt": 3300,
+        "balao": 25000,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-05 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "BALÃO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0005"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 180000,
+        "finSemis": 0,
+        "pmtNovos": 3300,
+        "pmtSemis": 0,
+        "qtdBalao": 1,
+        "balaoMedio": 25000,
+        "valorTotal": 180000
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO A",
+        "qtd": 1,
+        "total": 180000,
+        "medio": 180000,
+        "novos": 180000,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 180000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 180000
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO A",
+        "pagaQtd": 1,
+        "pagaValor": 180000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 180000
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 1,
+        "valor": 180000
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 0,
+          "BALÃO": 1,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 180000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 180000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 180000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 180000,
+      "valorSeminovos": 0
+    }
+  },
+  "priority_collision": {
+    "base": [
+      {
+        "opCodigo": "P0006",
+        "cliente": "Cliente Seis",
+        "cpf": "66666666666",
+        "loja": "ALPHAVILLE",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO B",
+        "valorFinanciado": 190000,
+        "pmt": 3400,
+        "balao": 30000,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-06 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": 1,
+        "codigoIF": 999,
+        "planoTipo": "SUBSIDIADO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0006"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0006",
+        "cliente": "Cliente Seis",
+        "cpf": "66666666666",
+        "loja": "ALPHAVILLE",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO B",
+        "valorFinanciado": 190000,
+        "pmt": 3400,
+        "balao": 30000,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-06 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": 1,
+        "codigoIF": 999,
+        "planoTipo": "SUBSIDIADO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0006"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ALPHAVILLE",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 190000,
+        "finSemis": 0,
+        "pmtNovos": 3400,
+        "pmtSemis": 0,
+        "qtdBalao": 1,
+        "balaoMedio": 30000,
+        "valorTotal": 190000
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO B",
+        "qtd": 1,
+        "total": 190000,
+        "medio": 190000,
+        "novos": 190000,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "ALPHAVILLE",
+        "pagaQtd": 1,
+        "pagaValor": 190000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 190000
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO B",
+        "pagaQtd": 1,
+        "pagaValor": 190000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 190000
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 1,
+        "valor": 190000
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ALPHAVILLE",
+        "novos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "SUBSIDIADO": 1,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 190000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 190000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 190000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 190000,
+      "valorSeminovos": 0
+    }
+  },
+  "multi_row_proposal_plan_signal": {
+    "base": [
+      {
+        "opCodigo": "P0007",
+        "cliente": "Cliente Sete",
+        "cpf": "77777777777",
+        "loja": "EUROPA",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO C",
+        "valorFinanciado": 145000,
+        "pmt": 2900,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-07 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0007"
+      },
+      {
+        "opCodigo": "P0007",
+        "cliente": "Cliente Sete",
+        "cpf": "77777777777",
+        "loja": "EUROPA",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 0,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-07 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "COPARTICIPACAO",
+        "opcionalValor": 0,
+        "tcDevolvida": 1,
+        "codigoIF": "",
+        "planoTipo": "COPARTICIPADO",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0007"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0007",
+        "cliente": "Cliente Sete",
+        "cpf": "77777777777",
+        "loja": "EUROPA",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO C",
+        "valorFinanciado": 145000,
+        "pmt": 2900,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-07 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0007"
+      },
+      {
+        "opCodigo": "P0007",
+        "cliente": "Cliente Sete",
+        "cpf": "77777777777",
+        "loja": "EUROPA",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 0,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-07 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "COPARTICIPACAO",
+        "opcionalValor": 0,
+        "tcDevolvida": 1,
+        "codigoIF": "",
+        "planoTipo": "COPARTICIPADO",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0007"
+      }
+    ],
+    "store": [
+      {
+        "loja": "EUROPA",
+        "qtd": 2,
+        "novos": 2,
+        "seminovos": 0,
+        "finNovos": 145000,
+        "finSemis": 0,
+        "pmtNovos": 2900,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 145000
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO C",
+        "qtd": 1,
+        "total": 145000,
+        "medio": 145000,
+        "novos": 145000,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "EUROPA",
+        "pagaQtd": 2,
+        "pagaValor": 145000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 2,
+        "totalValor": 145000
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO C",
+        "pagaQtd": 1,
+        "pagaValor": 145000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 145000
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 1,
+        "valor": 145000
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "EUROPA",
+        "novos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 1,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 2,
+      "valor": 145000,
+      "novos": 2,
+      "seminovos": 0,
+      "valorNovos": 145000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 2,
+      "valor": 145000,
+      "novos": 2,
+      "seminovos": 0,
+      "valorNovos": 145000,
+      "valorSeminovos": 0
+    }
+  },
+  "spf_extra_commission": {
+    "base": [
+      {
+        "opCodigo": "P0008",
+        "cliente": "Cliente Oito",
+        "cpf": "88888888888",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 150000,
+        "pmt": 3000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-08 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0008"
+      },
+      {
+        "opCodigo": "P0008",
+        "cliente": "Cliente Oito",
+        "cpf": "88888888888",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 0,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-08 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "SPF EXTRA",
+        "opcionalValor": 10000,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0008"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0008",
+        "cliente": "Cliente Oito",
+        "cpf": "88888888888",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 150000,
+        "pmt": 3000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-08 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0008"
+      },
+      {
+        "opCodigo": "P0008",
+        "cliente": "Cliente Oito",
+        "cpf": "88888888888",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 0,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-08 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "SPF EXTRA",
+        "opcionalValor": 10000,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0008"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 2,
+        "novos": 2,
+        "seminovos": 0,
+        "finNovos": 150000,
+        "finSemis": 0,
+        "pmtNovos": 3000,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 150000
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO A",
+        "qtd": 1,
+        "total": 150000,
+        "medio": 150000,
+        "novos": 150000,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 2,
+        "pagaValor": 150000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 2,
+        "totalValor": 150000
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO A",
+        "pagaQtd": 1,
+        "pagaValor": 150000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 150000
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 1,
+        "valor": 150000
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [
+        {
+          "loja": "ABC",
+          "departamento": "Novos",
+          "valor": 10000,
+          "comissao": 7000
+        }
+      ],
+      "total": 10000,
+      "comissao": 7000
+    },
+    "pagaResumo": {
+      "qtd": 2,
+      "valor": 150000,
+      "novos": 2,
+      "seminovos": 0,
+      "valorNovos": 150000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 2,
+      "valor": 150000,
+      "novos": 2,
+      "seminovos": 0,
+      "valorNovos": 150000,
+      "valorSeminovos": 0
+    }
+  },
+  "cpf_recusa_liquida": {
+    "base": [
+      {
+        "opCodigo": "P0009",
+        "cliente": "Cliente Nove",
+        "cpf": "99999999999",
+        "loja": "BANDEIRANTES",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "RECUSADA",
+        "banco": "",
+        "valorFinanciado": 120000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": null,
+        "dataPagamento": "2026-03-09 00:00:00+00:00",
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0009"
+      }
+    ],
+    "operacional": [],
+    "store": [],
+    "bank": [],
+    "statusStore": [],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [
+        {
+          "loja": "BANDEIRANTES",
+          "qtd": 1,
+          "valor": 120000,
+          "novosQtd": 1,
+          "novosValor": 120000,
+          "seminovosQtd": 0,
+          "seminovosValor": 0
+        }
+      ],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    }
+  },
+  "cpf_recusa_anulada_cancelada": {
+    "base": [
+      {
+        "opCodigo": "P0010A",
+        "cliente": "Cliente Dez",
+        "cpf": "10101010101",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "RECUSADA",
+        "banco": "",
+        "valorFinanciado": 110000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": null,
+        "dataPagamento": "2026-03-10 00:00:00+00:00",
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0010A"
+      },
+      {
+        "opCodigo": "P0010B",
+        "cliente": "Cliente Dez",
+        "cpf": "10101010101",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "CANCELADA",
+        "banco": "",
+        "valorFinanciado": 110000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": null,
+        "dataPagamento": "2026-03-11 00:00:00+00:00",
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0010B"
+      }
+    ],
+    "operacional": [],
+    "store": [],
+    "bank": [],
+    "statusStore": [],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": [
+        {
+          "loja": "ABC",
+          "qtd": 1,
+          "valor": 110000,
+          "novosQtd": 1,
+          "novosValor": 110000,
+          "seminovosQtd": 0,
+          "seminovosValor": 0
+        }
+      ]
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    }
+  },
+  "cpf_aprovada_valida": {
+    "base": [
+      {
+        "opCodigo": "P0011",
+        "cliente": "Cliente Onze",
+        "cpf": "11011011011",
+        "loja": "GASTÃO VIDIGAL",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "APROVADA",
+        "banco": "",
+        "valorFinanciado": 135000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": null,
+        "dataPagamento": "2026-03-12 00:00:00+00:00",
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0011"
+      }
+    ],
+    "operacional": [],
+    "store": [],
+    "bank": [],
+    "statusStore": [],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": [
+        {
+          "loja": "GASTÃO VIDIGAL",
+          "qtd": 1,
+          "valor": 135000,
+          "novosQtd": 1,
+          "novosValor": 135000,
+          "seminovosQtd": 0,
+          "seminovosValor": 0
+        }
+      ]
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    }
+  },
+  "cpf_aprovada_mas_ja_operacional": {
+    "base": [
+      {
+        "opCodigo": "P0012A",
+        "cliente": "Cliente Doze",
+        "cpf": "12012012012",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "APROVADA",
+        "banco": "",
+        "valorFinanciado": 125000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": null,
+        "dataPagamento": "2026-03-13 00:00:00+00:00",
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0012A"
+      },
+      {
+        "opCodigo": "P0012B",
+        "cliente": "Cliente Doze",
+        "cpf": "12012012012",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 125000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-14 00:00:00+00:00",
+        "dataPagamento": "2026-03-13 00:00:00+00:00",
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0012B"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0012B",
+        "cliente": "Cliente Doze",
+        "cpf": "12012012012",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 125000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-14 00:00:00+00:00",
+        "dataPagamento": "2026-03-13 00:00:00+00:00",
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0012B"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 125000,
+        "finSemis": 0,
+        "pmtNovos": 0,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 125000
+      }
+    ],
+    "bank": [],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 125000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 125000
+      }
+    ],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 1,
+        "valor": 125000
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 125000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 125000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 125000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 125000,
+      "valorSeminovos": 0
+    }
+  },
+  "modalidade_excluida": {
+    "base": [],
+    "operacional": [],
+    "store": [],
+    "bank": [],
+    "statusStore": [],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    }
+  },
+  "modalidade_nao_fandi": {
+    "base": [],
+    "operacional": [],
+    "store": [],
+    "bank": [],
+    "statusStore": [],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    }
+  },
+  "status_total_excluido": {
+    "base": [],
+    "operacional": [],
+    "store": [],
+    "bank": [],
+    "statusStore": [],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    }
+  },
+  "status_ag_faturamento_variantes": {
+    "base": [
+      {
+        "opCodigo": "P0016A",
+        "cliente": "Cliente Dezesseis A",
+        "cpf": "16016016016",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "AG. FATURAMENTO",
+        "banco": "",
+        "valorFinanciado": 90000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-18 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0016A"
+      },
+      {
+        "opCodigo": "P0016B",
+        "cliente": "Cliente Dezesseis B",
+        "cpf": "16016016017",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "AG. FATURAMENTO",
+        "banco": "",
+        "valorFinanciado": 95000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-19 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0016B"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0016A",
+        "cliente": "Cliente Dezesseis A",
+        "cpf": "16016016016",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "AG. FATURAMENTO",
+        "banco": "",
+        "valorFinanciado": 90000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-18 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0016A"
+      },
+      {
+        "opCodigo": "P0016B",
+        "cliente": "Cliente Dezesseis B",
+        "cpf": "16016016017",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "AG. FATURAMENTO",
+        "banco": "",
+        "valorFinanciado": 95000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-19 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0016B"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 2,
+        "novos": 2,
+        "seminovos": 0,
+        "finNovos": 92500,
+        "finSemis": 0,
+        "pmtNovos": 0,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 185000
+      }
+    ],
+    "bank": [],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 0,
+        "pagaValor": 0,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 2,
+        "agValor": 185000,
+        "totalQtd": 2,
+        "totalValor": 185000
+      }
+    ],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 2,
+        "valor": 185000
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 2,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 2
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 2,
+      "valor": 185000,
+      "novos": 2,
+      "seminovos": 0,
+      "valorNovos": 185000,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 2,
+      "valor": 185000,
+      "novos": 2,
+      "seminovos": 0,
+      "valorNovos": 185000,
+      "valorSeminovos": 0
+    }
+  },
+  "seminovos_plan_scope": {
+    "base": [
+      {
+        "opCodigo": "P0017",
+        "cliente": "Cliente Dezessete",
+        "cpf": "17017017017",
+        "loja": "ABC",
+        "departamento": "Seminovos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 80000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-20 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": 1,
+        "codigoIF": "",
+        "planoTipo": "COPARTICIPADO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0017"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0017",
+        "cliente": "Cliente Dezessete",
+        "cpf": "17017017017",
+        "loja": "ABC",
+        "departamento": "Seminovos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 80000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-20 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": 1,
+        "codigoIF": "",
+        "planoTipo": "COPARTICIPADO",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0017"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 0,
+        "seminovos": 1,
+        "finNovos": 0,
+        "finSemis": 80000,
+        "pmtNovos": 0,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 80000
+      }
+    ],
+    "bank": [],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 80000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 80000
+      }
+    ],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 1,
+        "valor": 80000
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 0
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 1
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 80000,
+      "novos": 0,
+      "seminovos": 1,
+      "valorNovos": 0,
+      "valorSeminovos": 80000
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 80000,
+      "novos": 0,
+      "seminovos": 1,
+      "valorNovos": 0,
+      "valorSeminovos": 80000
+    }
+  },
+  "multi_store_bank": {
+    "base": [
+      {
+        "opCodigo": "P0018A",
+        "cliente": "A",
+        "cpf": "18018018018",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 100000,
+        "pmt": 2000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-21 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0018A"
+      },
+      {
+        "opCodigo": "P0018B",
+        "cliente": "B",
+        "cpf": "18018018019",
+        "loja": "ALPHAVILLE",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO B",
+        "valorFinanciado": 110000,
+        "pmt": 2100,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-22 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0018B"
+      },
+      {
+        "opCodigo": "P0018C",
+        "cliente": "C",
+        "cpf": "18018018020",
+        "loja": "EUROPA",
+        "departamento": "Seminovos",
+        "modalidade": "FANDI",
+        "status": "FATURADA",
+        "banco": "BANCO A",
+        "valorFinanciado": 90000,
+        "pmt": 1900,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-23 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 2,
+        "__proposalKey": "COD:P0018C"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0018A",
+        "cliente": "A",
+        "cpf": "18018018018",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 100000,
+        "pmt": 2000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-21 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0018A"
+      },
+      {
+        "opCodigo": "P0018B",
+        "cliente": "B",
+        "cpf": "18018018019",
+        "loja": "ALPHAVILLE",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO B",
+        "valorFinanciado": 110000,
+        "pmt": 2100,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-22 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0018B"
+      },
+      {
+        "opCodigo": "P0018C",
+        "cliente": "C",
+        "cpf": "18018018020",
+        "loja": "EUROPA",
+        "departamento": "Seminovos",
+        "modalidade": "FANDI",
+        "status": "FATURADA",
+        "banco": "BANCO A",
+        "valorFinanciado": 90000,
+        "pmt": 1900,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-23 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 2,
+        "__proposalKey": "COD:P0018C"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 100000,
+        "finSemis": 0,
+        "pmtNovos": 2000,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 100000
+      },
+      {
+        "loja": "ALPHAVILLE",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 110000,
+        "finSemis": 0,
+        "pmtNovos": 2100,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 110000
+      },
+      {
+        "loja": "EUROPA",
+        "qtd": 1,
+        "novos": 0,
+        "seminovos": 1,
+        "finNovos": 0,
+        "finSemis": 90000,
+        "pmtNovos": 0,
+        "pmtSemis": 1900,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 90000
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO A",
+        "qtd": 2,
+        "total": 190000,
+        "medio": 95000,
+        "novos": 100000,
+        "seminovos": 90000
+      },
+      {
+        "banco": "BANCO B",
+        "qtd": 1,
+        "total": 110000,
+        "medio": 110000,
+        "novos": 110000,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "ALPHAVILLE",
+        "pagaQtd": 1,
+        "pagaValor": 110000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 110000
+      },
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 100000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 100000
+      },
+      {
+        "loja": "EUROPA",
+        "pagaQtd": 0,
+        "pagaValor": 0,
+        "fatQtd": 1,
+        "fatValor": 90000,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 90000
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO A",
+        "pagaQtd": 1,
+        "pagaValor": 100000,
+        "fatQtd": 1,
+        "fatValor": 90000,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 2,
+        "totalValor": 190000
+      },
+      {
+        "banco": "BANCO B",
+        "pagaQtd": 1,
+        "pagaValor": 110000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 110000
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 3,
+        "valor": 300000
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      },
+      {
+        "loja": "ALPHAVILLE",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      },
+      {
+        "loja": "EUROPA",
+        "novos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 0
+        },
+        "seminovos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 1
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 2,
+      "valor": 210000,
+      "novos": 2,
+      "seminovos": 0,
+      "valorNovos": 210000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 1,
+      "valor": 90000,
+      "novos": 0,
+      "seminovos": 1,
+      "valorNovos": 0,
+      "valorSeminovos": 90000
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 3,
+      "valor": 300000,
+      "novos": 2,
+      "seminovos": 1,
+      "valorNovos": 210000,
+      "valorSeminovos": 90000
+    }
+  },
+  "banco_ausente": {
+    "base": [
+      {
+        "opCodigo": "P0019",
+        "cliente": "Cliente Dezenove",
+        "cpf": "19019019019",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 100000,
+        "pmt": 2000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-24 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0019"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0019",
+        "cliente": "Cliente Dezenove",
+        "cpf": "19019019019",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 100000,
+        "pmt": 2000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-24 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0019"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 100000,
+        "finSemis": 0,
+        "pmtNovos": 2000,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 100000
+      }
+    ],
+    "bank": [],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 100000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 100000
+      }
+    ],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 1,
+        "valor": 100000
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 100000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 100000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 100000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 100000,
+      "valorSeminovos": 0
+    }
+  },
+  "date_boundary": {
+    "base": [
+      {
+        "opCodigo": "P0020B",
+        "cliente": "B",
+        "cpf": "20020020021",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 100000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-31 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0020B"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0020B",
+        "cliente": "B",
+        "cpf": "20020020021",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 100000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-31 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0020B"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 100000,
+        "finSemis": 0,
+        "pmtNovos": 0,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 100000
+      }
+    ],
+    "bank": [],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 100000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 100000
+      }
+    ],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 1,
+        "valor": 100000
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 100000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 100000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 100000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 100000,
+      "valorSeminovos": 0
+    }
+  },
+  "valores_zero": {
+    "base": [
+      {
+        "opCodigo": "P0021",
+        "cliente": "Cliente Vinteum",
+        "cpf": "21021021021",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 0,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-25 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0021"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0021",
+        "cliente": "Cliente Vinteum",
+        "cpf": "21021021021",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 0,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-25 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0021"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 0,
+        "finSemis": 0,
+        "pmtNovos": 0,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 0
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO A",
+        "qtd": 1,
+        "total": 0,
+        "medio": 0,
+        "novos": 0,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 0,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 0
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO A",
+        "pagaQtd": 1,
+        "pagaValor": 0,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 0
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 1,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 0,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 0,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    }
+  },
+  "valores_grandes": {
+    "base": [
+      {
+        "opCodigo": "P0022",
+        "cliente": "Cliente Vintedois",
+        "cpf": "22022022022",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 9999999.99,
+        "pmt": 180000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-26 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0022"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0022",
+        "cliente": "Cliente Vintedois",
+        "cpf": "22022022022",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 9999999.99,
+        "pmt": 180000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-26 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0022"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 9999999.99,
+        "finSemis": 0,
+        "pmtNovos": 180000,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 9999999.99
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO A",
+        "qtd": 1,
+        "total": 9999999.99,
+        "medio": 9999999.99,
+        "novos": 9999999.99,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 9999999.99,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 9999999.99
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO A",
+        "pagaQtd": 1,
+        "pagaValor": 9999999.99,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 9999999.99
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 1,
+        "valor": 9999999.99
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 9999999.99,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 9999999.99,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 9999999.99,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 9999999.99,
+      "valorSeminovos": 0
+    }
+  },
+  "store_filter_scope": {
+    "base": [
+      {
+        "opCodigo": "P0023A",
+        "cliente": "A",
+        "cpf": "23023023023",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 100000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-27 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0023A"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0023A",
+        "cliente": "A",
+        "cpf": "23023023023",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 100000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-27 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0023A"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 100000,
+        "finSemis": 0,
+        "pmtNovos": 0,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 100000
+      }
+    ],
+    "bank": [],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 100000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 100000
+      }
+    ],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 1,
+        "valor": 100000
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 100000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 100000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 100000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 100000,
+      "valorSeminovos": 0
+    }
+  },
+  "vehicle_filter_scope": {
+    "base": [
+      {
+        "opCodigo": "P0024B",
+        "cliente": "B",
+        "cpf": "24024024025",
+        "loja": "ABC",
+        "departamento": "Seminovos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 100000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-30 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0024B"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0024B",
+        "cliente": "B",
+        "cpf": "24024024025",
+        "loja": "ABC",
+        "departamento": "Seminovos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "",
+        "valorFinanciado": 100000,
+        "pmt": 0,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-30 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 1,
+        "__proposalKey": "COD:P0024B"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 0,
+        "seminovos": 1,
+        "finNovos": 0,
+        "finSemis": 100000,
+        "pmtNovos": 0,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 100000
+      }
+    ],
+    "bank": [],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 100000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 100000
+      }
+    ],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 1,
+        "valor": 100000
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 0
+        },
+        "seminovos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 1
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 100000,
+      "novos": 0,
+      "seminovos": 1,
+      "valorNovos": 0,
+      "valorSeminovos": 100000
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 100000,
+      "novos": 0,
+      "seminovos": 1,
+      "valorNovos": 0,
+      "valorSeminovos": 100000
+    }
+  },
+  "nome_longo": {
+    "base": [
+      {
+        "opCodigo": "P0025",
+        "cliente": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+        "cpf": "25025025025",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 100000,
+        "pmt": 2000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-31 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0025"
+      }
+    ],
+    "operacional": [
+      {
+        "opCodigo": "P0025",
+        "cliente": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+        "cpf": "25025025025",
+        "loja": "ABC",
+        "departamento": "Novos",
+        "modalidade": "FANDI",
+        "status": "PAGA",
+        "banco": "BANCO A",
+        "valorFinanciado": 100000,
+        "pmt": 2000,
+        "balao": 0,
+        "valorBalao": 0,
+        "dataFaturamento": "2026-03-31 00:00:00+00:00",
+        "dataPagamento": null,
+        "opcionalNome": "",
+        "opcionalValor": 0,
+        "tcDevolvida": "",
+        "codigoIF": "",
+        "planoTipo": "LINEAR",
+        "__isAuxOptional": false,
+        "__rowOrder": 0,
+        "__proposalKey": "COD:P0025"
+      }
+    ],
+    "store": [
+      {
+        "loja": "ABC",
+        "qtd": 1,
+        "novos": 1,
+        "seminovos": 0,
+        "finNovos": 100000,
+        "finSemis": 0,
+        "pmtNovos": 2000,
+        "pmtSemis": 0,
+        "qtdBalao": 0,
+        "balaoMedio": 0,
+        "valorTotal": 100000
+      }
+    ],
+    "bank": [
+      {
+        "banco": "BANCO A",
+        "qtd": 1,
+        "total": 100000,
+        "medio": 100000,
+        "novos": 100000,
+        "seminovos": 0
+      }
+    ],
+    "statusStore": [
+      {
+        "loja": "ABC",
+        "pagaQtd": 1,
+        "pagaValor": 100000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 100000
+      }
+    ],
+    "statusBank": [
+      {
+        "banco": "BANCO A",
+        "pagaQtd": 1,
+        "pagaValor": 100000,
+        "fatQtd": 0,
+        "fatValor": 0,
+        "agQtd": 0,
+        "agValor": 0,
+        "totalQtd": 1,
+        "totalValor": 100000
+      }
+    ],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 1,
+        "valor": 100000
+      }
+    ],
+    "planosLojaDept": [
+      {
+        "loja": "ABC",
+        "novos": {
+          "LINEAR": 1,
+          "BALÃO": 0,
+          "SUBSIDIADO": 0,
+          "REVERSÃO": 0,
+          "COPARTICIPADO": 0,
+          "total": 1
+        },
+        "seminovos": {
+          "LINEAR": 0,
+          "BALÃO": 0,
+          "REVERSÃO": 0,
+          "total": 0
+        }
+      }
+    ],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 1,
+      "valor": 100000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 100000,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 1,
+      "valor": 100000,
+      "novos": 1,
+      "seminovos": 0,
+      "valorNovos": 100000,
+      "valorSeminovos": 0
+    }
+  },
+  "empty": {
+    "base": [],
+    "operacional": [],
+    "store": [],
+    "bank": [],
+    "statusStore": [],
+    "statusBank": [],
+    "cpf": {
+      "recusadas": [],
+      "aprovadas": []
+    },
+    "planos": [
+      {
+        "tipo": "SUBSIDIADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "REVERSÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "COPARTICIPADO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "BALÃO",
+        "qtd": 0,
+        "valor": 0
+      },
+      {
+        "tipo": "LINEAR",
+        "qtd": 0,
+        "valor": 0
+      }
+    ],
+    "planosLojaDept": [],
+    "spfExtra": {
+      "detalhes": [],
+      "total": 0,
+      "comissao": 0
+    },
+    "pagaResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "fatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "agResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    },
+    "totalPagoFatResumo": {
+      "qtd": 0,
+      "valor": 0,
+      "novos": 0,
+      "seminovos": 0,
+      "valorNovos": 0,
+      "valorSeminovos": 0
+    }
+  }
+}

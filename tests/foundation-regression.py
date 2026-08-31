@@ -27,6 +27,7 @@ CHECKS = [
     ("Landing Composition Regression (Gates 17-21)", ["python", os.path.join(HERE, "landing-composition-regression.py")]),
     ("Score Parity (Gates 6-7)", ["python", os.path.join(HERE, "score-parity-test.py")]),
     ("Coparticipado Parity (PORTAL-NEXT-05 Gates 13-14)", ["python", os.path.join(HERE, "coparticipado-parity-test.py")]),
+    ("Gestão Parity (PORTAL-NEXT-06 Gates 27-28)", ["python", os.path.join(HERE, "gestao-parity-test.py")]),
 ]
 
 def main():

@@ -35,9 +35,9 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Landing | **HUMAN_APPROVED** (PORTAL-NEXT-04, Gate 1 — human decision recorded) | 1 |
 | Portal Shell / MASTER Admin | NOT_MIGRATED | 0 |
 | Score | **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) | 2 |
-| Coparticipado | **UAT_PENDING** (PORTAL-NEXT-05 — see `docs/HUMAN-UAT-COPARTICIPADO.md`) | 3 |
-| Gestão | NOT_MIGRATED | 4 |
-| Dashbi | NOT_MIGRATED | 5 |
+| Coparticipado | **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1 — human decision recorded) | 3 |
+| Gestão | **UAT_PENDING**, SURFACE-SCOPED COMMISSION BLOCKER on 1 of ~30 surfaces (PORTAL-NEXT-06 — see `docs/HUMAN-UAT-GESTAO.md` and `docs/GESTAO-COMMISSION-DECISION.md`) | 4 |
+| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | NOT_MIGRATED | 5 |
 | Simulador Novos | NOT_MIGRATED | 6 |
 | Simulador Seminovos | NOT_MIGRATED | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
@@ -116,12 +116,49 @@ was confirmed DEAD CODE (unreachable from any real tab in production)
 and correctly left untouched, same finding pattern as Score's own
 stale-code discovery.
 
+## PORTAL-NEXT-06 addendum
+
+Coparticipado moved `UAT_PENDING` → `HUMAN_APPROVED` (PORTAL-NEXT-06
+Gate 1 — human decision recorded in this Wave's CONTEXT section,
+metadata-only update, implementation files re-verified byte-identical
+before/after). Gestão (Análise F&I do Grupo) moved `NOT_MIGRATED` →
+`UAT_PENDING` (technical: PASS for 37/38 extracted functions and every
+KPI/table except one commission-dependent surface — 26/26 golden
+fixtures, see `docs/GESTAO-ENGINE-AUDIT.md`/`GESTAO-FUNCTION-MAP.md`;
+human: pending, see `docs/HUMAN-UAT-GESTAO.md`). Landing/Score/
+Coparticipado re-verified byte-identical. Every other module untouched.
+
+**Real, load-bearing finding this Wave**: "Gestão" in production is a
+MENU CATEGORY (`grupo:'📊 Gestão'`), not a single module — it groups two
+sibling screens, "Análise F&I do Grupo" (`gestao`, migrated this Wave)
+and "Análise Geral do Grupo" (`dashbi`, a different and much larger
+file, Wave 5, untouched). Unlike Score/Coparticipado, `analise-fi-
+grupo.html` is NOT divergent between the local clone and `origin/main`
+— all three (local/origin/live) are byte-identical for this file (the
+divergence this Wave found instead was in `portal-app.js` and
+`index.html`, both read from `origin/main` per standing discipline).
+
+**RC BLOCKER #6 re-scoped, not resolved**: the original "flat 70% vs.
+multi-tier commissionCalc()" framing (PORTAL-NEXT-01.1) is real but
+narrower than it read — only ONE Gestão KPI card + one table column
+("Comissão Líquida SPF EXTRA") is affected; every other Gestão surface
+is unaffected. Formalized as `docs/COMMISSION-RULE-MAP.md` +
+`docs/GESTAO-COMMISSION-DECISION.md`, STATUS: PENDING HUMAN. V2 renders
+the one affected surface with an explicit BLOCKED label, never a
+silent number.
+
 ## Standing blockers carried forward (not resolved this phase)
 
-- Gestão / Salários-Comissões: commission-rule discrepancy
-  (`PORTAL-NEXT-01.1/BLOCKER-CLASSIFICATION.md` Blocker #6) — RC
-  BLOCKER, must close before either can claim functional parity. Not
-  touched this Wave (Gate 32).
+- Gestão: commission-rule discrepancy (`PORTAL-NEXT-01.1/BLOCKER-
+  CLASSIFICATION.md` Blocker #6) — RE-SCOPED this Wave from "blocks
+  the whole module" to SURFACE-SCOPED (one KPI card + one table
+  column, "Comissão Líquida SPF EXTRA" — see `docs/COMMISSION-RULE-
+  MAP.md`), which is why Gestão could still reach `UAT_PENDING` for
+  everything else. STILL PENDING HUMAN DECISION for that one surface
+  — see `docs/GESTAO-COMMISSION-DECISION.md`. Not resolved.
+- Salários/Comissões: same underlying `commissionCalc()` engine (Rule
+  B) — not investigated beyond confirming it exists and is unaffected
+  by this Wave; module itself remains untouched (Gate 118).
 - Simulador Novos / Seminovos: DOM-coupled loan-math extraction
   (Blocker #5) — RC BLOCKER, Wave 6 must start with the extraction
   sub-project before any UI work. Not touched this Wave (Gate 34).

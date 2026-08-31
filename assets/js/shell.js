@@ -81,6 +81,13 @@
           window.NX_COPARTICIPADO_PAGE.render(cpOutlet).then(function () {
             if (hasRenderedOnce) cpOutlet.focus();
           });
+        } else if (routeId === 'gestao' && window.NX_GESTAO_PAGE) {
+          // PORTAL-NEXT-06 Gate 40: real Gestão route, same outlet-only
+          // rendering contract as Score/Coparticipado.
+          var geOutlet = document.getElementById('nxContentOutlet');
+          window.NX_GESTAO_PAGE.render(geOutlet).then(function () {
+            if (hasRenderedOnce) geOutlet.focus();
+          });
         } else {
           renderPlaceholder(entry, routeId, hasRenderedOnce);
         }
