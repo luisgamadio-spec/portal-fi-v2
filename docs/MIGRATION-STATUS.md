@@ -272,6 +272,52 @@ scrollable at 360/390/430 — on the Grupo view too, unrelated to any of this Wa
 additions. Fixed with a single `overflow-wrap: anywhere` rule scoped to that one
 diagnostic span; 0 business-logic change.
 
+## PORTAL-NEXT-07.2 addendum
+
+Dashbi stays `UAT_PENDING` (never auto-promoted). PORTAL-NEXT-07.1's human UAT
+confirmed the restored content (Análise por Modelos/Ranking/Novos por Loja/vehicle
+imagery) was itself correct, but flagged that these 3 surfaces must not stay
+expanded simultaneously — the previous Portal exposed them one at a time. This Wave
+adds selective analytical navigation: a compact 4-option control (Visão Geral /
+Análise por Modelos / Ranking / Novos por Loja), exactly one active at a time,
+availability per department view matching production's own `updateModelosTabVisibility`
+gating (already established in 07.1, reused here rather than re-derived).
+
+**Production authority, not assumed**: production's `showTab()` (origin/main lines
+4944-4961) already implements a single-active-region switcher — exactly one of
+`share`/`modelos`/`ranking`/`novosLoja` gets `display:block`, the rest
+`display:none`. V2's new mode switcher reproduces this behavior, not a newly
+invented interaction pattern. No dedicated Design System tabs/segmented-nav
+component exists (checked `design-system-2.1/references/`), so the existing
+`.dbBtn` segmented-control grammar (already used on this same page for
+Visão/Período) was the correct authority to extend, per this Wave's own instruction
+not to blindly implement literal tabs when another approved component applies.
+
+**A real production inconsistency found and closed, not reproduced**: production's
+fallback-on-view-change is asymmetric — `updateModelosTabVisibility()` explicitly
+falls back to the Share tab when Análise por Modelos becomes unavailable (leaving
+Novos), but has no equivalent branch for Novos por Loja. Traced this to Novos por
+Loja apparently being added in a later UX iteration (its own `UX-Grupo-3.x` source
+comments postdate the Modelos-fallback code) without extending that same fallback.
+Left as-is in production this would mean switching Novos+Novos-por-Loja→Seminovos
+leaves no analytical content visible at all — V2 applies the same deterministic
+Visão-Geral fallback uniformly to both cases instead, per this Wave's explicit "no
+blank page, no stale content" requirement.
+
+**Plan Classification re-placed within Model Analysis, not a separate block**:
+confirmed by direct source read that production's `planoDestaqueFamiliaAtualHtml`
+call is literally emitted inside `renderModelos()`'s own `innerHTML` assignment —
+not a sibling section. V2's 07.1 implementation had it as a separate always-shown-
+in-Novos block; this Wave nests it inside the Análise por Modelos mode instead,
+matching production's real DOM structure.
+
+**0 change to any already-approved content**: `dashbi.adapter.js` and every fixture
+file are byte-identical to PORTAL-NEXT-07.1 (confirmed via `git diff`, 0 lines) —
+this Wave touched only `dashbi.js`/`dashbi.css` (presentation). 25/25 golden
+fixtures pass unchanged. Landing/Score/Coparticipado/Gestão re-verified byte-
+identical. 0 console/network errors across the full visibility matrix, 0 page-level
+horizontal overflow at all 6 required breakpoints (360/390/430/768/1366/1920).
+
 ## Standing blockers carried forward (not resolved this phase)
 
 - Gestão: commission-rule discrepancy (`PORTAL-NEXT-01.1/BLOCKER-

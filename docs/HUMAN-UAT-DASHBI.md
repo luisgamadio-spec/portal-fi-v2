@@ -1,6 +1,6 @@
-# Human UAT — Análise Geral do Grupo (Dashbi) V2 (PORTAL-NEXT-07.1)
+# Human UAT — Análise Geral do Grupo (Dashbi) V2 (PORTAL-NEXT-07.2)
 
-**Technical status: TECHNICALLY GREEN** (25/25 golden-fixture parity incl. the new Ranking tie-break fixture, 0 console/page errors, 0 backend network calls, 0 page-level horizontal overflow at 360/390/430, Landing/Score/Coparticipado/Análise F&I freeze re-verified byte-identical). Not the same thing as approval — this round specifically targets the 4 issues you raised on the previous round.
+**Technical status: TECHNICALLY GREEN** (25/25 golden-fixture parity — 0 change from PORTAL-NEXT-07.1 — 0 console/page errors, 0 backend network calls, 0 page-level horizontal overflow at 6 breakpoints, Landing/Score/Coparticipado/Análise F&I freeze re-verified byte-identical). Not the same thing as approval. PORTAL-NEXT-07.1 confirmed the restored content itself (Análise por Modelos/Ranking/Novos por Loja/vehicle imagery) was correct — this round only changes **how and when** those 3 surfaces appear.
 
 ## How to open it
 
@@ -10,31 +10,37 @@ python -m http.server 8700
 ```
 Then open: **http://localhost:8700/portal-next-v2/index.html#/dashbi**
 
-## 6 steps (targeting your 4 issues directly)
+## O que mudou desde a rodada anterior
 
-1. Com **Grupo** selecionado (padrão): confirme que **Classificação dos Planos** e **Análise por Modelos** (com o seletor de família/imagens) **não aparecem** — devem existir somente em Novos.
-2. Alterne para **Novos**: confirme que Classificação dos Planos e Análise por Modelos **voltam a aparecer**, com o seletor de veículos mostrando as imagens reais (Outlander/Eclipse Cross/Triton) — clique em cada card para trocar de família.
-3. Alterne para **Seminovos**: confirme que os dois blocos acima continuam ocultos (mesma regra de Novos).
-4. Em qualquer visão (Grupo/Novos/Seminovos), role até **Ranking** — confirme que os TOP 10 Vendedores/Lojas/Departamentos aparecem, ordenados por maior Receita Total. Troque de visão e confirme que o Ranking se atualiza e permanece visível nas 3.
-5. Volte para **Novos** e role até **Novos por Loja** — confirme que a leitura por loja/unidade (Vendidos/Financiados/Balão/Subsidiada/Coparticipada/Reversão/Linear/Plano Destaque) aparece, e que ela **desaparece** ao trocar para Grupo ou Seminovos.
-6. Teste a fixture "priority_collision" e a "multi_loja_vendedor" (seletor "DADOS DE TESTE") para ver os 3 blocos acima com mais de uma linha de dado.
+Você pediu que as análises complementares (Análise por Modelos, Ranking, Novos por Loja) não fiquem todas expandidas ao mesmo tempo — como no Portal anterior, onde só uma aparece por vez. Agora existe um controle compacto logo abaixo das tabelas de Loja/Vendedor, com 4 opções: **Visão Geral · Análise por Modelos · Ranking · Novos por Loja**. Apenas uma fica ativa por vez; as outras não ocupam espaço nenhum na página.
+
+## 7 passos
+
+1. Com **Grupo** selecionado (padrão): confirme que o controle mostra só **Visão Geral** e **Ranking** — Análise por Modelos e Novos por Loja nem aparecem como opção (não é um botão desabilitado, ele simplesmente não existe nessa visão).
+2. Clique em **Ranking**: confirme que só o Ranking aparece, nada mais.
+3. Alterne para **Novos**: confirme que agora aparecem as 4 opções, e que o Ranking continua selecionado/visível (ele existe nas 3 visões).
+4. Clique em **Análise por Modelos**: confirme que Classificação dos Planos + o seletor de veículos + os indicadores por modelo aparecem juntos, e que Ranking desaparece.
+5. Clique em **Novos por Loja**: confirme que só essa tabela aparece.
+6. Com Novos por Loja ainda selecionado, alterne para **Seminovos**: confirme que a página não fica em branco — ela volta automaticamente para **Visão Geral** (Novos por Loja e Análise por Modelos não existem em Seminovos).
+7. Teste a fixture "priority_collision" (seletor "DADOS DE TESTE") para ver os 3 blocos com dado real, e teste o teclado: dê Tab até um dos botões de análise e ative com Enter ou barra de espaço.
 
 Não é necessário revisar código.
 
 ## A pergunta principal
 
-**"Agora a Análise Geral do Grupo mantém Ranking e Novos por Loja, mostra a Análise por Modelos somente em Novos e recupera as imagens dos veículos da forma que você esperava?"**
+**"Agora Ranking, Análise por Modelos e Novos por Loja aparecem apenas quando você os seleciona, como no Portal anterior?"**
 
 ## O que você deve saber antes de avaliar
 
 - Os dados exibidos são **fixtures locais sintéticas**, não dados reais — sinalizado na própria tela ("DADOS DE TESTE").
-- As imagens dos veículos são as **mesmas fotos reais que a produção usa hoje** (extraídas diretamente do arquivo de produção, não geradas nem baixadas da internet), só redimensionadas para o seletor compacto.
-- O **Ranking** aparece nas 3 visões (Grupo/Novos/Seminovos) porque é assim que a produção real se comporta — não é um bloco exclusivo de Novos como Análise por Modelos.
-- **Novos por Loja** é exclusivo de Novos porque a própria produção assim define (mesma aba/visibilidade da Análise por Modelos).
-- Nenhum número de Vendas/Financiamentos/Produção/Receita/Entrada já homologado nesta tela mudou nesta rodada — só a visibilidade de Classificação dos Planos/Análise por Modelos, a presença de Ranking/Novos por Loja, e a apresentação dos veículos.
+- **Nenhum número já homologado mudou** — Vendas/Financiamentos/Produção/Receita/Entrada/Entrada Média/Entrada %, o Ranking (Top 10, ordenação, desempate) e Novos por Loja continuam calculando exatamente igual à rodada anterior. Só a navegação mudou.
+- O **Ranking** continua disponível nas 3 visões (Grupo/Novos/Seminovos) — é assim que a produção real se comporta, não uma exclusividade de Novos.
+- **Análise por Modelos** e **Novos por Loja** continuam exclusivas de Novos.
+- **Classificação dos Planos** agora aparece só dentro de **Análise por Modelos** (não mais como um bloco separado) — é assim que a produção real organiza essa informação (confirmado por leitura direta do código de produção: o bloco de classificação vive dentro da mesma seção de Análise por Modelos).
+- Ao trocar de Grupo/Novos/Seminovos, se a análise que você tinha aberto deixar de existir naquela visão, o sistema volta sozinho para Visão Geral — nunca fica com a tela em branco ou travada numa aba que sumiu.
 - A fixture "vendedor_nao_localizado_bloqueia" mostra um comportamento real: se um vendedor não está cadastrado, a produção real **interrompe** o processamento inteiro em vez de mostrar um resultado parcial — reproduzido de propósito, não é um erro do V2.
-- O selo "FECHAMENTO" só aparece quando o período filtrado é exatamente um mês fechado (do dia 1 ao último dia) — teste com a fixture "fechamento_mes_fechado" e as datas 01/03/2026 a 31/03/2026. Ele agora fica ao lado dos KPIs principais (visível nas 3 visões), não mais grudado no título de Classificação dos Planos, já que este último só aparece em Novos.
-- A seção "Diagnóstico (dev only)" no rodapé é apenas para verificação técnica — não faz parte da experiência final e não deve ser confundida com um indicador de negócio.
+- O selo "FECHAMENTO" continua ao lado dos KPIs principais, visível nas 3 visões.
+- A seção "Diagnóstico (dev only)" no rodapé é apenas para verificação técnica.
 - A tabela **não é** clicável por coluna para reordenar (mesma limitação já registrada para todos os módulos anteriores).
 
 ## O que acontece depois

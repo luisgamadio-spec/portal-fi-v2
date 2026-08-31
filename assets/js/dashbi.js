@@ -26,6 +26,17 @@
        seller has no known loja, production aborts rendering entirely
        rather than showing a partial/wrong result -- V2 reproduces
        this exact behavior (results.blocked)
+     - Selective analytical navigation (PORTAL-NEXT-07.2): Análise por
+       Modelos/Ranking/Novos por Loja are mutually exclusive, one active
+       at a time, mirroring production's own showTab() single-active-
+       region switcher. Availability by view (from updateModelosTabVisibility,
+       confirmed by direct source read): Grupo/Seminovos expose Visão
+       Geral + Ranking only; Novos exposes all 4. Switching away from an
+       unavailable mode falls back to Visão Geral -- applied uniformly to
+       both Modelos and Novos por Loja, closing a real asymmetry in
+       production's own code (only Modelos has an explicit fallback
+       wired; Novos por Loja does not, apparently an oversight from when
+       it was added in a later UX iteration).
 
    NOT migrated (Gate 20-21/137 deferred, real reasons -- see
    docs/DASHBI-FUNCTION-MAP.md):
@@ -56,6 +67,24 @@
   var currentPreset = 'CUSTOM';
   var currentDateStart = '2026-01-01';
   var currentDateEnd = '2026-12-31';
+
+  // PORTAL-NEXT-07.2 — selective analytical navigation. Mirrors production's
+  // own single-active-region tab switcher (showTab(): exactly one of
+  // share/modelos/ranking/novosLoja gets display:block, the rest
+  // display:none) plus its per-view tab availability (updateModelosTabVisibility():
+  // modelosTab/novosLojaTab hidden outside Novos; rankingTab never gated).
+  // 'overview' stands in for production's default "Share / Retorno" tab,
+  // which V2 never built as a distinct surface — its content is the
+  // always-on store/seller tables already rendered below the KPIs.
+  var MODES_BY_VIEW = {
+    Grupo: ['overview', 'ranking'],
+    Novos: ['overview', 'modelos', 'ranking', 'novosLoja'],
+    Seminovos: ['overview', 'ranking']
+  };
+  var MODE_LABELS = { overview: 'Visão Geral', modelos: 'Análise por Modelos', ranking: 'Ranking', novosLoja: 'Novos por Loja' };
+  var currentMode = 'overview';
+
+  function modesForView(view) { return MODES_BY_VIEW[view] || MODES_BY_VIEW.Grupo; }
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -147,7 +176,24 @@
       '</div>';
   }
 
-  function modelAnalysisHtml(A, results) {
+  function modeNavHtml() {
+    var available = modesForView(currentDeptView);
+    return '<div class="dbModeGroup" role="group" aria-label="Análise complementar">' +
+      available.map(function (m) {
+        var active = m === currentMode;
+        return '<button type="button" class="dbBtn dbModeBtn' + (active ? ' dbBtnActive' : '') +
+          '" data-mode="' + esc(m) + '" aria-pressed="' + (active ? 'true' : 'false') + '">' + esc(MODE_LABELS[m]) + '</button>';
+      }).join('') +
+      '</div>';
+  }
+
+  function planClassificationHtml(A, counts) {
+    return '<h2 style="margin-top:0">Classificação dos Planos</h2>' +
+      '<div class="dbPlanGrid">' + ['SUBSIDIADO', 'REVERSÃO', 'COPARTICIPADO', 'BALÃO', 'LINEAR'].map(function (t) { return planCardHtml(A, t, counts[t]); }).join('') + '</div>' +
+      '<p class="dbMuted">Classificação oficial por operação, mesma prioridade de Análise F&I do Grupo e Coparticipado: Código IF 999 ou SUBSIDIADO; Código IF 777 ou REVERSÃO; TC Devolvida 1 ou COPARTICIPADO; Balão PMT maior que zero; demais = LINEAR. Faz parte da Análise por Modelos em produção (mesma seção/aba real), não uma visão geral separada.</p>';
+  }
+
+  function modelAnalysisHtml(A, results, counts) {
     var modelRows = A.modelRowsUnified(results, currentFamily);
     var planRows = A.planRowsByModel(results, currentFamily);
     var modelBody = modelRows.map(function (r) {
@@ -158,7 +204,8 @@
       return row([r.Modelo, r.Financiamentos, r.Linear, r.Balao, r.Coparticipado, r.Subsidiado, r.Reversao]);
     });
     return '<div class="dbModelSection">' +
-      '<h2 style="margin-top:0">Análise por Modelos (Novos)</h2>' +
+      planClassificationHtml(A, counts) +
+      '<h2>Análise por Modelos (Novos)</h2>' +
       '<p class="dbMuted">Selecione uma família para abrir os indicadores específicos dos modelos Novos.</p>' +
       vehicleSelectorHtml() +
       '<p class="dbMuted">Vendas/Financiamentos/Produção/Receita/Ticket/Retorno por modelo, mais os indicadores de Entrada (Entrada, Entrada Média, Entrada %) — nunca ocultos.</p>' +
@@ -260,7 +307,22 @@
     var salesView = currentDeptView === 'Grupo' ? out.sales : out.sales.filter(function (x) { return x.dept === currentDeptView; });
     var finsView = currentDeptView === 'Grupo' ? out.fins : out.fins.filter(function (x) { return x.dept === currentDeptView; });
 
-    var isNovos = currentDeptView === 'Novos';
+    // Reset to a valid mode if the current one is unavailable in this view
+    // (e.g. leaving Novos while Model Analysis or Novos por Loja was active).
+    // Production's own code (updateModelosTabVisibility) only wires this
+    // fallback for the Modelos tab, not for Novos por Loja -- a real,
+    // asymmetric gap confirmed by direct source read, not a deliberate rule
+    // (Novos por Loja was added in a later UX iteration and the same
+    // fallback branch was never extended to it). V2 applies the fallback
+    // uniformly to both, closing that gap rather than reproducing it,
+    // per this Wave's explicit "no blank page, no stale content" gate.
+    if (modesForView(currentDeptView).indexOf(currentMode) === -1) currentMode = 'overview';
+
+    var complementaryHtml = '';
+    if (currentMode === 'modelos') complementaryHtml = modelAnalysisHtml(A, out, counts);
+    else if (currentMode === 'ranking') complementaryHtml = rankingHtml(A, out, salesView, finsView);
+    else if (currentMode === 'novosLoja') complementaryHtml = novosLojaHtml(A, out);
+    else complementaryHtml = '<p class="dbMuted dbModeHint">Selecione uma análise complementar acima (Análise por Modelos, Ranking ou Novos por Loja) para abrir seus indicadores.</p>';
 
     var html =
       '<div class="dbKpiGridPrimary">' +
@@ -272,21 +334,12 @@
       '</div>' +
       (closed ? '<div class="dbFechamentoBar"><span class="dbFechamento">FECHAMENTO</span><span class="dbMuted">Período filtrado corresponde a um mês fechado.</span></div>' : '') +
 
-      (isNovos ?
-        '<h2>Classificação dos Planos</h2>' +
-        '<div class="dbPlanGrid">' + ['SUBSIDIADO', 'REVERSÃO', 'COPARTICIPADO', 'BALÃO', 'LINEAR'].map(function (t) { return planCardHtml(A, t, counts[t]); }).join('') + '</div>' +
-        '<p class="dbMuted">Classificação oficial por operação, mesma prioridade de Análise F&I do Grupo e Coparticipado: Código IF 999 ou SUBSIDIADO; Código IF 777 ou REVERSÃO; TC Devolvida 1 ou COPARTICIPADO; Balão PMT maior que zero; demais = LINEAR. Exibida somente em Novos (mesma visibilidade da Análise por Modelos em produção — ambas vivem dentro da mesma seção/aba real).</p>'
-        : '') +
-
       '<h2>Vendas e Financiamentos por Loja</h2>' + storeTableHtml(A, out) +
 
       '<h2>Vendas e Financiamentos por Vendedor</h2>' + sellerTableHtml(A, out) +
 
-      (isNovos ? modelAnalysisHtml(A, out) : '') +
-
-      rankingHtml(A, out, salesView, finsView) +
-
-      (isNovos ? novosLojaHtml(A, out) : '') +
+      modeNavHtml() +
+      complementaryHtml +
 
       '<h2>Diagnóstico (dev only)</h2>' +
       '<p class="dbMuted">DADOS DE TESTE — não faz parte da experiência final. sourceInfo: <span class="dbDiagJson">' + esc(JSON.stringify(out.sourceInfo)) + '</span></p>' +
@@ -336,6 +389,15 @@
       var btn = e.target.closest('.dbVehicleCard');
       if (!btn) return;
       currentFamily = btn.dataset.family;
+      render();
+    });
+    // .dbModeBtn is re-created every render() too (its own available set
+    // depends on currentDeptView), same delegation pattern as the vehicle
+    // cards above.
+    document.getElementById('dbPanel').addEventListener('click', function (e) {
+      var btn = e.target.closest('.dbModeBtn');
+      if (!btn) return;
+      currentMode = btn.dataset.mode;
       render();
     });
   }
