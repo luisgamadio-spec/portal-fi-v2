@@ -37,7 +37,7 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Score | **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) | 2 |
 | Coparticipado | **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1 — human decision recorded) | 3 |
 | Gestão | **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1 — human decision recorded) | 4 |
-| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07.5.1 — redundant Model Analysis plan tables removed, awaiting UAT, see `docs/HUMAN-UAT-DASHBI.md`) | 5 |
+| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07.5.2 — Ranking Departamentos removed, awaiting UAT, see `docs/HUMAN-UAT-DASHBI.md`) | 5 |
 | Simulador Novos | NOT_MIGRATED | 6 |
 | Simulador Seminovos | NOT_MIGRATED | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
@@ -580,6 +580,42 @@ Geral KPI grid, Ranking) spot-checked unchanged. 0 console/page errors,
 0 network calls. Isolation baseline
 (`.baseline-portalnext0751-after.txt`) 0-line diff against
 `.baseline-portalnext075-after.txt`; `origin/main` SHA re-confirmed
+unchanged (`2f17eb2341c5cc14aa8710aa044103002ca572a9`).
+
+## PORTAL-NEXT-07.5.2 addendum
+
+Dashbi stays `UAT_PENDING`. Human decision: Ranking's "Departamentos"
+dimension removed from the rendered UI — "not required in the final
+analytical experience," presentation simplification. Ranking now
+contains exactly Vendedores and Lojas.
+
+**Reuse checked before removing (Gate 1)**: `A.rankingFromViews()` is
+shared by all 3 kinds (`vendedor`/`loja`/`dept`) — the function itself
+stays, called with `'vendedor'`/`'loja'` as before. Only the `depts`
+variable (`rankingFromViews(..., 'dept')`) and its
+`rankingTableHtml(A, 'Departamentos', depts, 'dept')` render call were
+removed from `rankingHtml()`. The underlying `vendasDept`/`finDept`
+department aggregation in `aggregate()` was already unused by any other
+V2 surface before this change (confirmed in
+`docs/DASHBI-ANALYTICAL-HIERARCHY-INVENTORY.md`, PORTAL-NEXT-07.5) and
+remains fully intact in the adapter — 0 business logic deleted.
+
+**0 business-logic change**: `dashbi.adapter.js`/`_dashbi-reference.js`/
+`dashbi-fixtures.json` — 0 diff. 26/26 golden fixtures unchanged
+(`dashbi-parity-test.py` only exercises `NX_DASHBI_ADAPTER.compute()`,
+which never called `rankingFromViews()` at all — this presentation-only
+removal could not affect it). Verified in a real browser: Ranking shows
+exactly 2 sections (Vendedores, Lojas), both with their full primary
+5-metric header row and working `+ Detalhes` (multiple rows open
+simultaneously, same as before), the section ends naturally after the
+Lojas table with no blank gap or orphan heading where Departamentos
+used to be. Model Analysis (07.5.1's removed sections stay removed),
+Overview KPI grid, and Novos por Loja spot-checked unchanged.
+No-horizontal-scroll re-verified clean at all 6 required viewports,
+document- and component-level, a detail row expanded (worst case). 0
+console/page errors, 0 network calls. Isolation baseline
+(`.baseline-portalnext0752-after.txt`) 0-line diff against
+`.baseline-portalnext0751-after.txt`; `origin/main` SHA re-confirmed
 unchanged (`2f17eb2341c5cc14aa8710aa044103002ca572a9`).
 
 ## Standing blockers carried forward (not resolved this phase)

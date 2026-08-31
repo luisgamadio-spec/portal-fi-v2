@@ -1,11 +1,22 @@
-# Human UAT — Análise Geral do Grupo (Dashbi) V2 (PORTAL-NEXT-07.5.1)
+# Human UAT — Análise Geral do Grupo (Dashbi) V2 (PORTAL-NEXT-07.5.2)
 
 **Technical status: TECHNICALLY GREEN** (26/26 golden-fixture parity, 0
 console/page errors, 0 backend network calls, 0 horizontal scrollbar
 anywhere in Dashbi at all 6 required viewports with detail panels open,
 Landing/Score/Coparticipado/Gestão freeze untouched).
 
-## O que mudou desde a rodada anterior (07.5.1)
+## O que mudou desde a rodada anterior (07.5.2)
+
+Você pediu a remoção da seção **Departamentos** dentro do Ranking — não
+é necessária na experiência analítica final. O Ranking agora contém
+apenas **Vendedores** e **Lojas**, nessa ordem, sem espaço em branco
+onde Departamentos estava. Vendedores e Lojas não mudaram em nada
+(mesma ordenação, mesmos valores, mesmo "+ Detalhes"). Nenhuma lógica
+de negócio de departamento foi removida — só deixou de existir a
+tabela de Ranking por Departamento na tela; os dados de departamento
+usados em outros lugares do Dashbi continuam intactos.
+
+## O que mudou na rodada anterior (07.5.1, para referência)
 
 Você pediu a remoção de 4 blocos da Análise por Modelos que ficaram
 redundantes depois que o "+ Detalhes" por modelo passou a mostrar as
@@ -61,39 +72,44 @@ Then open (hard refresh recommended after any update): **http://localhost:8700/p
 
 ## Passos
 
-1. Troque para **Novos** e abra **Análise por Modelos**. Confirme que a
-   tela termina logo depois da tabela "Indicadores por modelo" (mais
-   "Inconsistências TRITON" quando existir) — **sem** os 4 blocos
-   removidos ("Resumo tipos de plano", "Quantidade por tipo de plano /
+1. Troque para **Novos** e abra **Ranking**. Confirme que aparecem
+   apenas duas seções, nessa ordem: **Vendedores** e **Lojas** — sem
+   **Departamentos** e sem nenhum espaço em branco onde ela estava.
+2. Clique em **"+ Detalhes"** em uma linha de Vendedores e em uma linha
+   de Lojas — confirme que ambos continuam funcionando normalmente
+   (Receita, Receita SPF, Retorno).
+3. Confirme que a ordenação e os valores de Vendedores e Lojas
+   continuam exatamente como antes (mesmo Top 10 por Receita Total).
+4. Abra **Análise por Modelos**. Confirme que a tela termina logo
+   depois da tabela "Indicadores por modelo" (mais "Inconsistências
+   TRITON" quando existir) — **sem** os 4 blocos removidos na rodada
+   anterior ("Resumo tipos de plano", "Quantidade por tipo de plano /
    Modelo", "Quantidade por tipo de plano / Loja", "Detalhe
-   Coparticipado / Subsidiado / Reversão") e sem nenhum espaço vazio ou
-   título órfão onde eles estavam.
-2. Clique em **"+ Detalhes"** de um ou mais modelos (teste a fixture
-   "model_analysis_parcelamento_completo") e confirme que o grupo
-   **Planos** continua mostrando as 5 quantidades (Subsidiado, Reversão,
-   Coparticipado, Balão, Linear) — mesmos valores de sempre, mais de um
-   modelo pode ficar aberto ao mesmo tempo.
-3. Na **Visão Geral** (view "Grupo"), confirme que os 5 cartões
+   Coparticipado / Subsidiado / Reversão").
+5. Na **Visão Geral** (view "Grupo"), confirme que os 5 cartões
    principais continuam lado a lado: Vendas, Financiamentos, Share
    (com destaque verde/laranja), Produção Total, Receita Total (com
    destaque azul em negrito) — sem precisar clicar em nada.
-4. Em **"Vendas e Financiamentos por Loja"** e **"...por Vendedor"**,
-   confirme que Share, Produção Total e Receita Total continuam na
-   linha principal.
-5. Abra **Ranking** e **Novos por Loja** — confirme que continuam como
-   na rodada anterior.
-6. Reduza a janela do navegador (ou abra no celular) e confirme que
+6. Em **"Vendas e Financiamentos por Loja"**, **"...por Vendedor"** e
+   **Novos por Loja**, confirme que continuam como antes.
+7. Reduza a janela do navegador (ou abra no celular) e confirme que
    nenhuma tabela fica com rolagem lateral.
 
 Não é necessário revisar código.
 
 ## A pergunta principal desta rodada
 
+**"O Ranking ficou correto agora somente com Vendedores e Lojas, sem a
+seção Departamentos e sem alterar os dados ou a apresentação dos dois
+rankings restantes?"**
+
+## Perguntas da rodada anterior (07.5.1, ainda válida)
+
 **"A Análise por Modelos ficou mais limpa agora, mantendo somente as
 informações úteis no modelo e no + Detalhes, sem os quatro blocos
 repetitivos no final?"**
 
-## Perguntas da rodada anterior (07.5, ainda válidas)
+## Perguntas de duas rodadas atrás (07.5, ainda válidas)
 
 1. **"Agora as tabelas principais deixam claro de imediato o que
    realmente importa — Vendas, Financiamentos, Share, Produção Total e
@@ -116,6 +132,10 @@ repetitivos no final?"**
   explícita — a lista completa está em
   `docs/MODEL-ANALYSIS-REDUNDANT-SECTIONS-REMOVAL.md`, caso queira
   revisar antes de confirmar.
+- **Sobre a remoção do Ranking por Departamento**: apenas a tabela na
+  tela foi removida. Os dados de departamento que outras partes do
+  Dashbi já usavam continuam intactos — nenhuma lógica de negócio foi
+  apagada.
 - Os dados exibidos são **fixtures locais sintéticas**, não dados reais.
 - Nenhum número já homologado mudou — Vendas/Financiamentos/Produção/
   Receita/Entrada/Ranking/Novos por Loja calculam exatamente igual à

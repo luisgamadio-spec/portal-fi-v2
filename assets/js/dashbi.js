@@ -537,16 +537,23 @@
       '</tr></thead><tbody>' + rankingRowHtml(A, list, kind) + '</tbody></table></div>';
   }
 
+  // PORTAL-NEXT-07.5.2 — human decision: Ranking > Departamentos removed
+  // from the rendered UI (not required in the final analytical
+  // experience) — presentation-only. A.rankingFromViews() itself is
+  // shared with Vendedores/Lojas (kept, called with 'vendedor'/'loja'
+  // below) and stays untouched; only the 'dept' call + its render was
+  // removed. vendasDept/finDept (the underlying department aggregation
+  // in aggregate()) were already unused by any other V2 surface before
+  // this change (see docs/DASHBI-ANALYTICAL-HIERARCHY-INVENTORY.md) and
+  // remain in the adapter, untouched — no business logic deleted.
   function rankingHtml(A, out, salesView, finsView) {
     var vendedores = A.rankingFromViews(salesView, finsView, 'vendedor').slice(0, 10);
     var lojas = A.rankingFromViews(salesView, finsView, 'loja').slice(0, 10);
-    var depts = A.rankingFromViews(salesView, finsView, 'dept').slice(0, 10);
     return '<div class="dbRankingSection">' +
       '<h2 style="margin-top:0">Ranking — ' + esc(currentDeptView) + '</h2>' +
       '<p class="dbMuted">Top 10, ordenado por maior Receita Total captada no período selecionado.</p>' +
       rankingTableHtml(A, 'Vendedores', vendedores, 'vendedor') +
       rankingTableHtml(A, 'Lojas', lojas, 'loja') +
-      rankingTableHtml(A, 'Departamentos', depts, 'dept') +
       '</div>';
   }
 
