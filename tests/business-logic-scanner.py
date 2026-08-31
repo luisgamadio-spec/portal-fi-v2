@@ -11,11 +11,22 @@ PORTAL-NEXT-05, Coparticipado's calcCoparticipacaoDetalhe() is
 authorized, but ONLY inside assets/js/adapters/coparticipado.adapter.js
 and tests/fixtures/_coparticipado-reference.js (the byte-identical
 adapter extraction + its independently re-extracted golden-reference
-counterpart, see docs/COPARTICIPADO-ENGINE-AUDIT.md) — anywhere else is
-still forbidden (would mean an unauthorized duplicate/leak). Simulator
-math (calcTrad/calcPeriod/calcParcelaUnica), commission formulas, and
-AI/RPC calls remain forbidden EVERYWHERE, no exceptions (Gates 32-34:
-no commission touch, no AI touch, no simulator touch this Wave).
+counterpart, see docs/COPARTICIPADO-ENGINE-AUDIT.md). As of
+PORTAL-NEXT-08, the loan-math helpers baseCalculoLinear/
+taxaPricePorIteracao are authorized, but ONLY inside the three
+simulator adapter files (assets/js/adapters/simulador-shared.adapter.js,
+simulador-novos.adapter.js, simulador-seminovos.adapter.js — see
+docs/SIMULATOR-ENGINE-DISCOVERY-08.md) — anywhere else these patterns
+are still forbidden (would mean an unauthorized duplicate/leak).
+calcTrad/calcPeriod/calcParcelaUnica remain forbidden EVERYWHERE,
+including in the simulator adapters themselves — PORTAL-NEXT-08's own
+extraction deliberately used DIFFERENT function names (calcularXxx,
+not the V1 DOM-coupled names) for its pure re-derivations (Gate 25:
+no DOM dependency), specifically so this scanner keeps catching a
+future literal copy-paste of the original DOM-coupled functions by
+their original names. Commission formulas and AI/RPC calls remain
+forbidden EVERYWHERE, no exceptions (Gates 32-33: no commission touch,
+no AI touch this Wave).
 """
 import os
 import re
@@ -28,16 +39,20 @@ SCAN_EXTENSIONS = (".js", ".html", ".css")
 
 # path is relative to V2_ROOT, forward-slash form
 ALWAYS_FORBIDDEN = [
-    (r"\bfunction\s+calc(Trad|Period|ParcelaUnica)\b", "V1 simulator function name — Gate 34 forbids touching this Wave"),
-    (r"\bfunction\s+commissionCalc\b", "V1 commission function name — Gate 32 forbids touching this Wave"),
-    (r"\bbaseCalculoLinear\b", "V1 loan-math function name — Gate 34 forbids touching this Wave"),
-    (r"\btaxaPricePorIteracao\b", "V1 rate-solver function name — Gate 34 forbids touching this Wave"),
+    (r"\bfunction\s+calc(Trad|Period|ParcelaUnica)\b", "V1 DOM-coupled simulator function name — PORTAL-NEXT-08 deliberately used different names (calcularXxx) for its pure re-derivations; this literal V1 name is still forbidden everywhere"),
+    (r"\bfunction\s+commissionCalc\b", "V1 commission function name — no commission touch this Wave"),
     (r"\.rpc\(\s*['\"]operational_", "a real operational_* RPC call — 0 backend this Wave (Gate 8)"),
     (r"\.rpc\(\s*['\"]master_", "a real master_* RPC call — 0 backend this Wave (Gate 8)"),
     (r"supabase\.co", "a literal Supabase project host — 0 backend this Wave (Gate 8)"),
-    (r"api\.openai\.com", "a literal OpenAI API host — Gate 33 forbids AI this Wave"),
-    (r"portal-ai-ui|portal-ai\b", "Brabus Intelligence reference — Gate 33 forbids AI this Wave"),
+    (r"api\.openai\.com", "a literal OpenAI API host — no AI touch this Wave"),
+    (r"portal-ai-ui|portal-ai\b", "Brabus Intelligence reference — no AI touch this Wave"),
 ]
+
+SIMULATOR_ADAPTERS = {
+    "assets/js/adapters/simulador-shared.adapter.js",
+    "assets/js/adapters/simulador-novos.adapter.js",
+    "assets/js/adapters/simulador-seminovos.adapter.js",
+}
 
 # patterns authorized ONLY inside specific files (path relative to V2_ROOT, forward slashes)
 SCOPED_AUTHORIZATIONS = {
@@ -45,6 +60,8 @@ SCOPED_AUTHORIZATIONS = {
     r"\bSCORE_WEIGHTS\b": {"assets/js/adapters/score.adapter.js"},
     r"\bMIX_PLANOS_UNIVERSO\b": {"assets/js/adapters/score.adapter.js"},
     r"\bfunction\s+calcCoparticipacaoDetalhe\b": {"assets/js/adapters/coparticipado.adapter.js", "tests/fixtures/_coparticipado-reference.js"},
+    r"\bbaseCalculoLinear\b": SIMULATOR_ADAPTERS,
+    r"\btaxaPricePorIteracao\b": SIMULATOR_ADAPTERS,
 }
 
 def rel(path):

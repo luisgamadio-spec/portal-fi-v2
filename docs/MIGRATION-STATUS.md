@@ -38,8 +38,8 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Coparticipado | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 3 |
 | Gestão | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 4 |
 | Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | BUSINESS **HUMAN_APPROVED** (reconciled PORTAL-NEXT-07.6.1, cc3a296) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6.2 found and fixed a real readability defect in the same narrow-width presentation 07.6.1 had reconciled as approved — see the PORTAL-NEXT-07.6.2 addendum below, `docs/HUMAN-UAT-RESPONSIVE-REMEDIATION.md`) | 5 |
-| Simulador Novos | NOT_MIGRATED | 6 |
-| Simulador Seminovos | NOT_MIGRATED | 6 |
+| Simulador Novos | NOT_MIGRATED (UI) — ENGINE **PARITY_VERIFIED** (PORTAL-NEXT-08: 9 engines extracted, 40/40 parity — see `docs/SIMULATOR-ENGINE-DISCOVERY-08.md`) · BUSINESS UAT PENDING | 6 |
+| Simulador Seminovos | NOT_MIGRATED (UI) — ENGINE **PARITY_VERIFIED** (PORTAL-NEXT-08: 6 reachable engines extracted, 24/24 parity + 2 confirmed dead-code engines documented — see `docs/SIMULATOR-ENGINE-DISCOVERY-08.md`) · BUSINESS UAT PENDING | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
 | Brabus Intelligence | NOT_MIGRATED | 7 |
 
@@ -1024,8 +1024,14 @@ decision.
   confirming it exists and is unaffected by the Gestão decision above
   (explicitly not generalized to it); module itself remains untouched.
 - Simulador Novos / Seminovos: DOM-coupled loan-math extraction
-  (Blocker #5) — RC BLOCKER, Wave 6 must start with the extraction
-  sub-project before any UI work. Not touched this Wave (Gate 34).
+  (Blocker #5) — the extraction sub-project itself was executed in
+  PORTAL-NEXT-08 (engines extracted + parity-verified, see that Wave's
+  addendum below and `docs/SIMULATOR-ENGINE-DISCOVERY-08.md`). Blocker
+  #5 is therefore satisfied for its own stated scope ("a dedicated
+  extraction sub-project... verifies cent-accurate output equivalence,
+  which has not been attempted yet" — now attempted and green). UI
+  migration itself is explicitly NOT done — `migrationStatus` for both
+  modules stays `NOT_MIGRATED`.
 - Brabus Intelligence: Voice Orb variant still PROVISIONAL/HUMAN
   SELECTION PENDING; a separately-tracked V1 issue (the AI kill-switch)
   — appears resolved in production since PORTAL-NEXT-01.1 (see
