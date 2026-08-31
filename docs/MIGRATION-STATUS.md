@@ -37,7 +37,7 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Score | BUSINESS **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`; PORTAL-NEXT-07.6's own brief assumed this was already HUMAN_APPROVED/FROZEN — it is NOT, per this same registry; flagged, not silently corrected) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 2 |
 | Coparticipado | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 3 |
 | Gestão | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 4 |
-| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | BUSINESS **HUMAN_APPROVED** · RESPONSIVE **HUMAN_APPROVED** (PORTAL-NEXT-07.6.1 — status reconciled: human approved at commit cc3a296 after PORTAL-NEXT-07.5.2's report, this record had gone stale through PORTAL-NEXT-07.6; see the PORTAL-NEXT-07.6.1 addendum below) | 5 |
+| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | BUSINESS **HUMAN_APPROVED** (reconciled PORTAL-NEXT-07.6.1, cc3a296) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6.2 found and fixed a real readability defect in the same narrow-width presentation 07.6.1 had reconciled as approved — see the PORTAL-NEXT-07.6.2 addendum below, `docs/HUMAN-UAT-RESPONSIVE-REMEDIATION.md`) | 5 |
 | Simulador Novos | NOT_MIGRATED | 6 |
 | Simulador Seminovos | NOT_MIGRATED | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
@@ -727,6 +727,70 @@ Gestão/Dashbi golden suites re-run fresh and unchanged. Responsive
 status for Landing/Score/Coparticipado/Gestão remains `UAT_PENDING` —
 technical testing passing does not substitute for human visual approval
 (Gate 19 of this Wave's own brief).
+
+## PORTAL-NEXT-07.6.2 addendum
+
+Human visual UAT rejected PORTAL-NEXT-07.6's responsive solution for
+Score and Dashbi: not horizontal scroll, but readability — desktop
+tables compressed into narrow widths until headers/values wrapped
+badly ("FINANCIAMENTOS breaking almost character-by-character", Share/
+Produção Total/Receita Total breaking vertically, currency values
+splitting across many lines). Landing/Coparticipado/Gestão were not
+targets and were not touched.
+
+**Root cause actually found, not just patched**: the previous <=480px
+stacking CSS used a generic flex-wrap of every `data-th` cell, packing
+however many fit per row — inherently non-deterministic under real
+content lengths. Worse, reproducing the exact human-reported symptom
+(character-by-character collapse) traced to a genuine bug:
+`.dbTableExpandable{table-layout:fixed}` (set since PORTAL-NEXT-07.4)
+stayed active on Dashbi's `<table>` even with primary rows flexed —
+with a `+ Detalhes` row open (a colspan'd `<tr>` the fixed layout still
+accounts for), the fixed column-width algorithm squeezed every primary
+cell to a few px, reproduced directly (identity/currency cells
+collapsed to ~17px, paired metrics to ~7.5px) and fixed with
+`table-layout:auto` inside the media query — the exact same class of
+fix PORTAL-NEXT-07.6 had already needed for Coparticipado's
+`<colgroup>`, not applied to Dashbi's own stacking block at the time
+because the interaction wasn't tested with a detail row open at narrow
+width until this Wave.
+
+**Redesigned as an explicit, deterministic record** (not generic
+flex-wrap): every field defaults to the full row width, one per line;
+only Vendas+Financiamentos (Dashbi) — both always a short integer,
+never a currency/percentage string — share a row, per explicit human
+spec. Score: identity (Vendedor) gets full-width bold emphasis, Score
+gets its own bordered/emphasized block with the approved score bar
+intact, every other field (#, Loja, Depto, Financ.) gets its own
+full-width row. No new bands/colors/thresholds/score semantics
+introduced (Gate 5) — the score-band Design System conflict remains
+unresolved, untouched.
+
+**Verified, not assumed**: re-tested the exact failure condition (long
+name + `+ Detalhes` open + 320-430px) that reproduced the bug pre-fix —
+clean after. 0 overflowing components and 0 narrow-cell readability
+findings at 320/360/390/430/768/1366/1920 for both Score and Dashbi
+(one pre-existing, out-of-scope, non-material finding noted: the
+dev-only `.dbFixtureBar` diagnostic bar overflows by 2px at 320px only,
+0 document-level scroll, not touched — it existed before this Wave and
+isn't part of the approved user-facing experience). Score 12/12,
+Dashbi 26/26, Coparticipado 22/22, Gestão 30/30, Landing 20/20 — all
+unchanged. `dashbi.js`/`dashbi.adapter.js`/`score.adapter.js` byte-
+identical (0 diff) — only `dashbi.css`/`score.css` changed, 0 JS
+touched. Keyboard/focus re-verified on the new stacked markup (real
+browser test): `+ Detalhes`/row-click both remain keyboard-reachable
+with visible focus.
+
+**Status unchanged by this Wave**: Score stays `BUSINESS UAT_PENDING /
+RESPONSIVE UAT_PENDING` — successful readability work doesn't promote
+business status, the score-band conflict is untouched. Dashbi stays
+`BUSINESS HUMAN_APPROVED/FROZEN` — only its narrow-width presentation
+was reopened, its business logic was never touched (byte-identical);
+`RESPONSIVE` reverts to `UAT_PENDING` for Dashbi specifically (the
+07.6.1 reconciliation covered Dashbi's *already-validated* zero-scroll
+state — this Wave found and fixed a real readability defect in that
+same surface, so a fresh human visual pass is warranted before
+re-closing it).
 
 ## Standing blockers carried forward (not resolved this phase)
 
