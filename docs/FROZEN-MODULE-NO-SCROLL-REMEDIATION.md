@@ -231,3 +231,53 @@ separately; not treated as requiring a fix, since it isn't a new finding
 and fixing it would only shrink an intentional, already-approved
 hover-bleed visual. Landing's keyboard/focus check passes with 0
 qualification.
+
+## PORTAL-NEXT-07.6.4 — dual renderer (Score, Dashbi store/seller/Ranking/Novos por Loja)
+
+**Human UAT rejected 07.6.2 a second time even after the 07.6.3
+investigation ruled out cache** (the human performed the requested
+clean-server/hard-refresh/incognito validation and still saw the
+compressed-table result). The 07.6/07.6.2 strategy — CSS-transforming
+the desktop `<table>` itself into a mobile layout, however
+deterministic the last version was proven to be — was abandoned rather
+than iterated on again.
+
+**New architecture**: `renderDesktopTable()` (unchanged desktop markup,
+wrapped in `.dbDesktopOnly`/`.scDesktopOnly`) and `renderMobileCards()`
+(new, plain `<div>` markup, `.dbMobileOnly`/`.scMobileOnly`) both build
+from the same computed row data in the same function call — verified
+field-for-field identical between the two (see
+`docs/MIGRATION-STATUS.md`'s 07.6.4 addendum for the exact comparison).
+Applied to Score and to every Dashbi table sharing the
+`expandableRow()`/`expandableTableHtml()` component (store, seller,
+Ranking, Novos por Loja) — extended per Gate 3D's explicit allowance,
+since they all shared the identical underlying compression pattern, not
+touched merely for consistency.
+
+**Proof this is structurally different, not just visually similar**:
+at 390px, `.scTable`'s own `<table>` wrapper computes `display:none`
+(0 visible `<table>` elements anywhere in the Score/Dashbi surfaces);
+`.scMobileCard`/`.dbMobileCard` computes `display:block`, built from
+`<div>` elements with no `td`/`th`/`tr`/`colgroup` in their markup at
+all — measured via `getComputedStyle` and `querySelectorAll` counts,
+not inferred from source. Screenshots via the real served route at
+390px show individual labeled cards with no trace of the old `# |
+VENDEDOR | LOJA | DEPTO | SCORE | FINANC.` / `LOJA | VENDAS |
+FINANCIAMENTOS | SHARE | PRODUÇÃO TOTAL | RECEITA TOTAL` header rows.
+
+**A real bug caught by the exhaustive sweep, not the single fixture
+used for screenshots**: the Score mobile card's score-bar row
+overflowed by up to 52px with the `large_values` fixture at 320px
+(`width:100%` on the meter track didn't release the base rule's
+`flex-shrink:0`) — fixed with `flex:1 1 0; min-width:0`.
+
+**Verification**: all 12 Score fixtures × 7 viewports
+(320/360/390/430/768/1366/1920) with a detail toggle opened, all 3
+Dashbi views × 7 viewports with a detail toggle opened, Ranking + Novos
+por Loja × 7 viewports with a detail toggle opened — 0 overflow, 0
+character-stacked cells anywhere. Score 12/12, Dashbi 26/26
+(Ranking/Model Analysis/primary KPI hierarchy all re-verified
+unchanged), Coparticipado 22/22, Gestão 30/30, Landing 20/20 all
+unchanged. `dashbi.adapter.js`/`score.adapter.js` byte-identical.
+Keyboard/focus re-verified on the new card markup: reachable, visible
+computed outline, `Enter` activates.

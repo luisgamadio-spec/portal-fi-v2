@@ -138,12 +138,17 @@
   }
   function resetExpanded(ns) { expandedKeys[ns] = {}; }
 
-  function detailDomId(ns, key) { return 'db-detail-' + ns + '-' + String(key).replace(/[^a-zA-Z0-9_-]/g, '_'); }
+  // PORTAL-NEXT-07.6.4 — idSuffix (optional) keeps the desktop and
+  // mobile-card renderers' detail-panel DOM ids distinct when both
+  // exist in the document at once (one visible, one display:none) —
+  // every pre-existing call site omits it and gets byte-identical
+  // output to before.
+  function detailDomId(ns, key, idSuffix) { return 'db-detail-' + ns + '-' + String(key).replace(/[^a-zA-Z0-9_-]/g, '_') + (idSuffix || ''); }
 
-  function detailToggleHtml(ns, key) {
+  function detailToggleHtml(ns, key, idSuffix) {
     var open = isExpanded(ns, key);
     return '<button type="button" class="dbDetailToggle" data-detail-ns="' + esc(ns) + '" data-detail-key="' + esc(String(key)) +
-      '" aria-expanded="' + (open ? 'true' : 'false') + '" aria-controls="' + detailDomId(ns, key) + '">' + (open ? '− Detalhes' : '+ Detalhes') + '</button>';
+      '" aria-expanded="' + (open ? 'true' : 'false') + '" aria-controls="' + detailDomId(ns, key, idSuffix) + '">' + (open ? '− Detalhes' : '+ Detalhes') + '</button>';
   }
 
   // groups: [{label, items:[{label, value}]}] — value is pre-formatted HTML/text.
@@ -162,9 +167,39 @@
   // PORTAL-NEXT-07.5 — same detail-panel body, without the <tr>/<td> wrapper,
   // for the KPI grid (a div grid, not a table) — reuses the identical
   // dbDetailPanel/dbDetailGroup markup and expandedKeys state machinery.
-  function kpiDetailPanelHtml(ns, key, groups) {
+  // PORTAL-NEXT-07.6.4 — also reused as-is for every mobile card's own
+  // detail panel (idSuffix keeps its DOM id distinct from the desktop
+  // row's, since both share the same ns/key toggle state).
+  function kpiDetailPanelHtml(ns, key, groups, idSuffix) {
     if (!isExpanded(ns, key)) return '';
-    return '<div id="' + detailDomId(ns, key) + '" class="dbDetailPanel dbKpiDetailPanel">' + detailGroupsHtml(groups) + '</div>';
+    return '<div id="' + detailDomId(ns, key, idSuffix) + '" class="dbDetailPanel dbKpiDetailPanel">' + detailGroupsHtml(groups) + '</div>';
+  }
+
+  // PORTAL-NEXT-07.6.4 — human UAT rejected transforming the desktop
+  // <table> into a mobile layout (07.6/07.6.2/07.6.3), even after that
+  // last version was proven correct by every computed-style/DOM check
+  // available — the human's actual browser result is authoritative
+  // regardless. Strategy changed: a dedicated non-table mobile card
+  // renderer, fed by the SAME already-computed row data as the desktop
+  // table (no recalculation), for every table that shares this
+  // component (store/seller/Ranking/Novos por Loja). Exactly one of
+  // .dbDesktopOnly/.dbMobileOnly is visible at a time (dashbi.css);
+  // Model Analysis's own tables (frozen, Gate 32) don't use this helper
+  // and are untouched.
+  function dbMobileField(label, valueHtml, extraClass) {
+    return '<div class="dbMobileField' + (extraClass ? ' ' + extraClass : '') + '"><div class="dbMobileLabel">' + esc(label) + '</div><div class="dbMobileValue">' + valueHtml + '</div></div>';
+  }
+  function dbMobileCard(ns, key, identityText, subText, primaryFieldsHtml, detailGroups) {
+    return '<div class="dbMobileCard">' +
+      '<div class="dbMobileIdentity">' + esc(identityText) + '</div>' +
+      (subText ? '<div class="dbMobileSub">' + esc(subText) + '</div>' : '') +
+      '<div class="dbMobileFieldGrid">' + primaryFieldsHtml + '</div>' +
+      detailToggleHtml(ns, key, '-m') +
+      kpiDetailPanelHtml(ns, key, detailGroups, '-m') +
+      '</div>';
+  }
+  function dbMobileListHtml(cards) {
+    return '<div class="dbMobileOnly">' + cards.join('') + '</div>';
   }
 
   function kpiPrimary(label, value, hint) {
@@ -225,8 +260,8 @@
       detailRowHtml(ns, key, colspan, detailGroups);
   }
 
-  function expandableTableHtml(headers, numericFrom, bodyRowsHtml, colCount, stackable) {
-    return '<div class="dbTableWrap"><table class="dbTable dbTableExpandable' + (stackable ? ' dbTableStackable' : '') + '"><thead><tr>' + headerRow(headers.concat(['']), numericFrom) + '</tr></thead>' +
+  function expandableTableHtml(headers, numericFrom, bodyRowsHtml, colCount) {
+    return '<div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' + headerRow(headers.concat(['']), numericFrom) + '</tr></thead>' +
       '<tbody>' + (bodyRowsHtml.length ? bodyRowsHtml.join('') : '<tr><td colspan="' + colCount + '" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -239,45 +274,66 @@
   var STORE_HEADERS = ['Loja', 'Vendas', 'Financiamentos', 'Share', 'Produção Total', 'Receita Total'];
   var SELLER_HEADERS = ['Vendedor', 'Vendas', 'Financiamentos', 'Share', 'Produção Total', 'Receita Total'];
 
+  // PORTAL-NEXT-07.6.4 — shared by store/seller: the 5 primary metrics
+  // as mobile-card fields (Vendas+Financiamentos paired, per the human's
+  // own spec — both always a short integer; Share/Produção Total/
+  // Receita Total each full width), built from the SAME v/f/share
+  // values the desktop row already computed. No recalculation.
+  function dbPrimaryMetricFieldsHtml(A, v, f, share) {
+    return dbMobileField('Vendas', String(v.qtd), 'dbMobileFieldPair') +
+      dbMobileField('Financiamentos', String(f.qtd), 'dbMobileFieldPair') +
+      dbMobileField('Share', penetracaoCellHtml(A, share), 'dbMobileFieldEmph') +
+      dbMobileField('Produção Total', esc(A.money(f.producao || 0))) +
+      dbMobileField('Receita Total', esc(A.money(f.receitaTotal || 0)));
+  }
+
   function storeTableHtml(A, results) {
     var A_ = results.aggs;
     var lojas = Object.keys(A_.vendasLoja);
     var finLojaMap = A_.finLoja;
     var ns = 'storeTable';
-    var body = lojas.sort(function (a, b) { return (A_.vendasLoja[b].qtd || 0) - (A_.vendasLoja[a].qtd || 0); }).map(function (loja) {
+    var desktopRows = [];
+    var mobileCards = [];
+    lojas.sort(function (a, b) { return (A_.vendasLoja[b].qtd || 0) - (A_.vendasLoja[a].qtd || 0); }).forEach(function (loja) {
       var v = A_.vendasLoja[loja] || { qtd: 0 };
       var f = finLojaMap[loja] || { qtd: 0, producao: 0, receita: 0, receitaSPF: 0, receitaTotal: 0 };
       var share = v.qtd ? f.qtd / v.qtd : 0;
-      return expandableRow(ns, loja, [loja, v.qtd, f.qtd, { raw: penetracaoCellHtml(A, share) }, A.money(f.producao || 0), A.money(f.receitaTotal || 0)], 1, 7, [
+      var detailGroups = [
         { label: 'Financeiro (complementar)', items: [
           { label: 'Receita', value: esc(A.money(f.receita || 0)) },
           { label: 'Receita SPF', value: esc(A.money(f.receitaSPF || 0)) },
           { label: 'Retorno', value: esc(A.pct(retornoFromFin(f))) }
         ] }
-      ], STORE_HEADERS);
+      ];
+      desktopRows.push(expandableRow(ns, loja, [loja, v.qtd, f.qtd, { raw: penetracaoCellHtml(A, share) }, A.money(f.producao || 0), A.money(f.receitaTotal || 0)], 1, 7, detailGroups, STORE_HEADERS));
+      mobileCards.push(dbMobileCard(ns, loja, loja, null, dbPrimaryMetricFieldsHtml(A, v, f, share), detailGroups));
     });
-    return expandableTableHtml(STORE_HEADERS, 1, body, 7, true);
+    return '<div class="dbDesktopOnly">' + expandableTableHtml(STORE_HEADERS, 1, desktopRows, 7) + '</div>' + dbMobileListHtml(mobileCards);
   }
 
   function sellerTableHtml(A, results) {
     var A_ = results.aggs;
     var keys = Object.keys(A_.vendasVendDept);
     var ns = 'sellerTable';
-    var body = keys.sort(function (a, b) { return (A_.vendasVendDept[b].qtd || 0) - (A_.vendasVendDept[a].qtd || 0); }).map(function (key) {
+    var desktopRows = [];
+    var mobileCards = [];
+    keys.sort(function (a, b) { return (A_.vendasVendDept[b].qtd || 0) - (A_.vendasVendDept[a].qtd || 0); }).forEach(function (key) {
       var parts = key.split(' | ');
       var v = A_.vendasVendDept[key] || { qtd: 0 };
       var f = A_.finVendDept[key] || { qtd: 0, producao: 0, receita: 0, receitaSPF: 0, receitaTotal: 0 };
       var share = v.qtd ? f.qtd / v.qtd : 0;
-      return expandableRow(ns, key, [parts[0], v.qtd, f.qtd, { raw: penetracaoCellHtml(A, share) }, A.money(f.producao || 0), A.money(f.receitaTotal || 0)], 1, 7, [
+      var detailGroups = [
         { label: 'Detalhe', items: [
           { label: 'Depto', value: esc(parts[1] || '') },
           { label: 'Receita', value: esc(A.money(f.receita || 0)) },
           { label: 'Receita SPF', value: esc(A.money(f.receitaSPF || 0)) },
           { label: 'Retorno', value: esc(A.pct(retornoFromFin(f))) }
         ] }
-      ], SELLER_HEADERS);
+      ];
+      desktopRows.push(expandableRow(ns, key, [parts[0], v.qtd, f.qtd, { raw: penetracaoCellHtml(A, share) }, A.money(f.producao || 0), A.money(f.receitaTotal || 0)], 1, 7, detailGroups, SELLER_HEADERS));
+      mobileCards.push(dbMobileCard(ns, key, parts[0], parts[1] || null, dbPrimaryMetricFieldsHtml(A, v, f, share), detailGroups));
     });
-    return expandableTableHtml(SELLER_HEADERS, 1, body, 7, true);
+    return '<div class="dbDesktopOnly">' + expandableTableHtml(SELLER_HEADERS, 1, desktopRows, 7) + '</div>' + dbMobileListHtml(mobileCards);
   }
 
   var VEHICLE_IMAGES = {
@@ -504,7 +560,9 @@
 
   function rankingRowHtml(A, list, kind) {
     var ns = 'ranking-' + kind;
-    return list.map(function (r, i) {
+    var rows = [];
+    var cards = [];
+    list.forEach(function (r, i) {
       var nome = r.Nome, sub = '';
       if (kind === 'vendedor') {
         var parts = String(r.Nome || '').split(' | ');
@@ -512,29 +570,41 @@
         sub = parts.length > 1 ? parts.slice(1).join(' · ') : '';
       }
       var key = kind + '-' + i;
-      return '<tr><td data-th="#">' + (i + 1) + 'º</td><td data-th="Nome">' + esc(nome) + (sub ? '<div class="dbTableSub">' + esc(sub) + '</div>' : '') + '</td>' +
+      var detailGroups = [
+        { label: 'Detalhe', items: [
+          { label: 'Receita', value: esc(A.money(r.receita)) },
+          { label: 'Receita SPF', value: esc(A.money(r.receitaSPF)) },
+          { label: 'Retorno', value: esc(A.pct(r.retorno)) }
+        ] }
+      ];
+      rows.push('<tr><td data-th="#">' + (i + 1) + 'º</td><td data-th="Nome">' + esc(nome) + (sub ? '<div class="dbTableSub">' + esc(sub) + '</div>' : '') + '</td>' +
         '<td class="dbNumCol" data-th="Vendas">' + esc(String(r.vendas)) + '</td>' +
         '<td class="dbNumCol" data-th="Financiamentos">' + esc(String(r.fin)) + '</td>' +
         '<td class="dbNumCol" data-th="Share">' + penetracaoCellHtml(A, r.penetracao) + '</td>' +
         '<td class="dbNumCol" data-th="Produção Total">' + esc(A.money(r.producao)) + '</td>' +
         '<td class="dbNumCol" data-th="Receita Total">' + esc(A.money(r.receitaTotal)) + '</td>' +
         '<td class="dbDetailToggleCell">' + detailToggleHtml(ns, key) + '</td></tr>' +
-        detailRowHtml(ns, key, 8, [
-          { label: 'Detalhe', items: [
-            { label: 'Receita', value: esc(A.money(r.receita)) },
-            { label: 'Receita SPF', value: esc(A.money(r.receitaSPF)) },
-            { label: 'Retorno', value: esc(A.pct(r.retorno)) }
-          ] }
-        ]);
-    }).join('');
+        detailRowHtml(ns, key, 8, detailGroups));
+
+      var primaryFieldsHtml =
+        dbMobileField('Vendas', esc(String(r.vendas)), 'dbMobileFieldPair') +
+        dbMobileField('Financiamentos', esc(String(r.fin)), 'dbMobileFieldPair') +
+        dbMobileField('Share', penetracaoCellHtml(A, r.penetracao), 'dbMobileFieldEmph') +
+        dbMobileField('Produção Total', esc(A.money(r.producao))) +
+        dbMobileField('Receita Total', esc(A.money(r.receitaTotal)));
+      cards.push(dbMobileCard(ns, key, (i + 1) + 'º ' + nome, sub || null, primaryFieldsHtml, detailGroups));
+    });
+    return { rowsHtml: rows.join(''), cards: cards };
   }
 
   function rankingTableHtml(A, title, list, kind) {
     if (!list.length) return '<h3 class="dbSubHeading">' + esc(title) + '</h3><p class="dbMuted">Sem dados.</p>';
+    var built = rankingRowHtml(A, list, kind);
     return '<h3 class="dbSubHeading">' + esc(title) + '</h3>' +
-      '<div class="dbTableWrap"><table class="dbTable dbTableExpandable dbTableStackable"><thead><tr>' +
+      '<div class="dbDesktopOnly"><div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' +
       headerRow(['#', 'Nome', 'Vendas', 'Financiamentos', 'Share', 'Produção Total', 'Receita Total', ''], 2) +
-      '</tr></thead><tbody>' + rankingRowHtml(A, list, kind) + '</tbody></table></div>';
+      '</tr></thead><tbody>' + built.rowsHtml + '</tbody></table></div></div>' +
+      dbMobileListHtml(built.cards);
   }
 
   // PORTAL-NEXT-07.5.2 — human decision: Ranking > Departamentos removed
@@ -560,33 +630,46 @@
   function novosLojaHtml(A, out) {
     var rows = A.buildNovosLojaRows(out);
     var ns = 'novosLoja';
-    var body = rows.map(function (r, i) {
+    var desktopRows = [];
+    var mobileCards = [];
+    rows.forEach(function (r, i) {
       var cls = r._total ? ' class="dbTotalRow"' : '';
       var key = r._total ? 'total' : (r.Loja + '-' + i);
       var share = r.Vendidos ? r.Financiados / r.Vendidos : 0;
-      return '<tr' + cls + '><td data-th="Loja">' + esc(r.Loja) + '</td>' +
+      var detailGroups = [
+        { label: 'Planos', items: [
+          { label: 'Balão', value: esc(String(r.Balao)) },
+          { label: '% Balão', value: esc(A.pct(r.BalaoPct)) },
+          { label: 'Subsidiada', value: esc(String(r.Subsidiada)) },
+          { label: 'Coparticipada', value: esc(String(r.Coparticipada)) },
+          { label: 'Reversão', value: esc(String(r.Reversao)) },
+          { label: 'Linear', value: esc(String(r.Linear)) }
+        ] }
+      ];
+      desktopRows.push('<tr' + cls + '><td data-th="Loja">' + esc(r.Loja) + '</td>' +
         '<td class="dbNumCol" data-th="Vendidos">' + esc(String(r.Vendidos)) + '</td>' +
         '<td class="dbNumCol" data-th="Financiados">' + esc(String(r.Financiados)) + '</td>' +
         '<td class="dbNumCol" data-th="Share">' + penetracaoCellHtml(A, share) + '</td>' +
         '<td data-th="Plano Destaque">' + esc(r.PlanoDestaque || '-') + '</td>' +
         '<td class="dbDetailToggleCell">' + detailToggleHtml(ns, key) + '</td></tr>' +
-        detailRowHtml(ns, key, 6, [
-          { label: 'Planos', items: [
-            { label: 'Balão', value: esc(String(r.Balao)) },
-            { label: '% Balão', value: esc(A.pct(r.BalaoPct)) },
-            { label: 'Subsidiada', value: esc(String(r.Subsidiada)) },
-            { label: 'Coparticipada', value: esc(String(r.Coparticipada)) },
-            { label: 'Reversão', value: esc(String(r.Reversao)) },
-            { label: 'Linear', value: esc(String(r.Linear)) }
-          ] }
-        ]);
-    }).join('');
+        detailRowHtml(ns, key, 6, detailGroups));
+
+      var primaryFieldsHtml =
+        dbMobileField('Vendidos', esc(String(r.Vendidos)), 'dbMobileFieldPair') +
+        dbMobileField('Financiados', esc(String(r.Financiados)), 'dbMobileFieldPair') +
+        dbMobileField('Share', penetracaoCellHtml(A, share), 'dbMobileFieldEmph') +
+        dbMobileField('Plano Destaque', esc(r.PlanoDestaque || '-'));
+      var card = dbMobileCard(ns, key, r.Loja, null, primaryFieldsHtml, detailGroups);
+      if (r._total) card = card.replace('class="dbMobileCard"', 'class="dbMobileCard dbMobileCardTotal"');
+      mobileCards.push(card);
+    });
     return '<div class="dbNovosLojaSection">' +
       '<h2 style="margin-top:0">Novos por Loja</h2>' +
       '<p class="dbMuted">Leitura por loja/unidade considerando apenas veículos Novos, respeitando o período selecionado.</p>' +
-      '<div class="dbTableWrap"><table class="dbTable dbTableExpandable dbTableStackable"><thead><tr>' +
+      '<div class="dbDesktopOnly"><div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' +
       headerRow(['Loja', 'Vendidos', 'Financiados', 'Share', 'Plano Destaque', ''], 1) +
-      '</tr></thead><tbody>' + body + '</tbody></table></div>' +
+      '</tr></thead><tbody>' + desktopRows.join('') + '</tbody></table></div></div>' +
+      dbMobileListHtml(mobileCards) +
       '</div>';
   }
 

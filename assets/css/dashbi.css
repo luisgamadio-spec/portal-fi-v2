@@ -179,62 +179,47 @@
   .dbDesktopCol { display: none; }
 }
 
-/* PORTAL-NEXT-07.5 — mobile recomposition for the tables that gained the
-   5-primary-metric hierarchy (store/seller/Ranking/Novos por Loja): a
-   literal 6-7 column fixed-layout table has too little width per metric
-   to stay legible at <=480px, and hiding columns behind +Detalhes there
-   would put a primary metric out of reach exactly where the global
-   directive forbids it (all 5 primary metrics stay OUTSIDE +Detalhes at
-   EVERY viewport, mobile included). Recomposed as a vertical label/value
-   stack per row instead: same primary information, no horizontal
-   movement, nothing demoted. Opt-in via .dbTableStackable (set only by
-   storeTableHtml/sellerTableHtml/rankingTableHtml/novosLojaHtml) so Model
-   Analysis's own tables (frozen, Gate 32) keep their exact prior
-   behavior. */
-/* PORTAL-NEXT-07.6.2 — human UAT rejected the 07.6 version: a generic
-   flex-wrap of every data-th cell let however many happened to fit per
-   row pack together, and real content still compressed into narrow
-   slots (Financiamentos/Share/Produção Total/Receita Total wrapping
-   badly). Replaced with an explicit, deterministic record: every field
-   defaults to the FULL row width (one per line, no packing decision
-   left to content length); only Vendas+Financiamentos — both always a
-   short integer, the one pairing the human's own spec explicitly
-   authorizes — share a row. Identity keeps its existing full-width/bold
-   treatment. */
-@media (max-width: 480px) {
-  /* PORTAL-NEXT-07.6.2 — root cause actually found for the human's
-     reported bug: .dbTableExpandable{table-layout:fixed} (set at the
-     top of this file) stayed active on the <table> element even though
-     primary rows are flexed here. With a + Detalhes row open (a
-     colspan'd <tr> the fixed layout still accounts for), the fixed
-     column-width algorithm squeezed every primary-row cell down to a
-     few px regardless of the flex-basis rules below — reproduced
-     directly: identity/currency cells collapsed to ~17px, Vendas/
-     Financiamentos to ~7.5px, exactly matching "breaking almost
-     character-by-character". table-layout:auto releases that floor
-     once rows are no longer laid out as real table cells — the same
-     fix already proven necessary for Coparticipado's <colgroup> in
-     PORTAL-NEXT-07.6. */
-  .dbTableStackable { table-layout: auto; }
-  .dbTableStackable thead { display: none; }
-  .dbTableStackable tbody tr:not(.dbDetailRow) { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding: var(--space-3); border-bottom: 1px solid var(--color-hairline); }
-  .dbTableStackable tbody tr:not(.dbDetailRow):last-child { border-bottom: none; }
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td { display: block; padding: 0; border: none; white-space: normal; text-align: left; flex-basis: 100%; }
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td[data-th]::before { content: attr(data-th); display: block; color: var(--color-text-muted); font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td[data-th="Loja"],
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td[data-th="Vendedor"],
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td[data-th="Nome"] { font-weight: 600; font-size: 15px; color: var(--color-text-primary); }
-  /* the one authorized 2-up pair (Gate 9): both are always a short
-     integer, never a currency/percentage string, so pairing them never
-     risks the wrapping this Wave exists to fix. */
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td[data-th="Vendas"],
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td[data-th="Vendidos"],
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td[data-th="Financiamentos"],
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td[data-th="Financiados"] { flex-basis: calc(50% - var(--space-2)); }
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td[data-th="Share"] { margin-top: var(--space-1); padding: var(--space-2); border: 1px solid var(--color-hairline-strong); border-radius: var(--radius-sm); }
-  .dbTableStackable tbody tr:not(.dbDetailRow) > td.dbDetailToggleCell { flex-basis: 100%; margin-top: var(--space-1); }
-  .dbTableStackable tr.dbDetailRow td { padding: var(--space-3); }
+/* PORTAL-NEXT-07.6.4 — human UAT rejected transforming the desktop
+   <table> into a mobile layout three separate times (07.6, 07.6.2,
+   07.6.3-retested) — even after the last version was proven correct by
+   every computed-style/DOM check available, the human's actual browser
+   result is authoritative regardless. Strategy changed: two independent
+   renderers (dashbi.js's dbMobileCard()/dbMobileListHtml(), fed by the
+   same computed row data as the desktop table, no recalculation) for
+   store/seller/Ranking/Novos por Loja. Exactly one of
+   .dbDesktopOnly/.dbMobileOnly is visible at a time; Model Analysis's
+   own tables (frozen, Gate 32) don't use this component and are
+   untouched. <=767px uses the non-table mobile renderer; 768px+ keeps
+   the plain table (verified readable there). */
+.dbDesktopOnly { display: block; }
+.dbMobileOnly { display: none; }
+
+@media (max-width: 767px) {
+  .dbDesktopOnly { display: none; }
+  .dbMobileOnly { display: block; }
 }
+
+/* ---------- mobile record cards (plain divs — no table/tr/td/th/col
+   anywhere in this block, so no legacy column geometry can ever reach
+   them again) ---------- */
+.dbMobileCard {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.dbMobileCard:last-child { margin-bottom: 0; }
+.dbMobileCardTotal { border-color: var(--color-hairline-strong); font-weight: 600; }
+.dbMobileIdentity { font-size: 15px; font-weight: 600; color: var(--color-text-primary); overflow-wrap: break-word; }
+.dbMobileSub { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
+.dbMobileFieldGrid { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+.dbMobileField { flex-basis: 100%; }
+.dbMobileFieldPair { flex-basis: calc(50% - var(--space-2)); }
+.dbMobileFieldEmph { padding: var(--space-2); border: 1px solid var(--color-hairline-strong); border-radius: var(--radius-sm); }
+.dbMobileLabel { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); margin-bottom: 2px; }
+.dbMobileValue { font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: break-word; }
+.dbMobileCard > .dbDetailToggle { display: block; width: 100%; margin-top: var(--space-3); }
+.dbMobileCard > .dbDetailPanel { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-hairline); }
 
 .dbFamilyMetricGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-2); margin: var(--space-3) 0 var(--space-4); }
 .dbFamilyMetricBox { border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }

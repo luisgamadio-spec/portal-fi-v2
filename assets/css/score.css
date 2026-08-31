@@ -173,30 +173,54 @@
   .scTable .scNameText { max-width: 120px; }
 }
 
-/* PORTAL-NEXT-07.6.2 — human UAT rejected the 07.6 version of this
-   block: packing however many flex items happened to fit per row (a
-   generic flex-wrap of every data-th cell) let real content still
-   compress into narrow slots and wrap badly (e.g. "FINANCIAMENTOS"
-   squeezed next to 2 siblings). Replaced with an explicit, deterministic
-   one-field-per-row record — every field gets the FULL row width, no
-   flex-wrap packing decision left to content length. Identity
-   (Vendedor) and Score get visual emphasis matching their reading
-   priority (Gate 4: identity, score, supporting metrics). 481-768px
-   keeps the plain table (verified readable there — Loja 10/Novos/full
-   meter+value/Financ. all fit on one line with room to spare; Gate 21's
-   "don't assume, verify" was checked, not skipped). */
-@media (max-width: 480px) {
-  .scTable thead { display: none; }
-  .scTable, .scTable tbody, .scTable tbody tr, .scTable td { display: block; width: 100%; }
-  .scTable tbody tr { padding: var(--space-3) 0; border-bottom: 1px solid var(--color-hairline); }
-  .scTable tbody tr:last-child { border-bottom: none; }
-  .scTable td { padding: var(--space-1) 0; border: none; }
-  .scTable td[data-th]::before { content: attr(data-th); display: block; color: var(--color-text-muted); font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
-  .scTable .scNameCell { position: static; background: none; max-width: none; }
-  .scTable .scNameCell::before { display: none; } /* identity needs no label, matches Score's own desktop convention (Vendedor has no visible row-level label either) */
-  .scTable .scNameText { max-width: none; font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
-  .scTable td[data-th="Score"] { margin-top: var(--space-2); padding: var(--space-2); border: 1px solid var(--color-hairline-strong); border-radius: var(--radius-sm); }
-  .scTable .scNumCol { text-align: left; }
-  .scTable .scScoreCell { justify-content: flex-start; }
-  .scTable .scMeterTrack { width: 120px; }
+/* PORTAL-NEXT-07.6.4 — human UAT rejected transforming the desktop
+   <table> into a mobile layout three times in a row (07.6, 07.6.2,
+   07.6.3-retested), even though the last version was proven correct by
+   every automated/computed-style check available — the human's actual
+   browser result is authoritative regardless. Strategy changed: two
+   independent renderers (score.js's renderDesktopTable()/
+   renderMobileCards()), fed by the same computed `rows`, no
+   recalculation. Exactly one is visible at a time; the inactive one is
+   display:none, never both. <=767px uses the non-table mobile
+   renderer; 768px+ keeps the plain table (verified readable there in
+   PORTAL-NEXT-07.6.2 — Loja/Depto/full meter+value/Financ. all fit on
+   one line with room to spare). */
+.scDesktopOnly { display: block; }
+.scMobileOnly { display: none; }
+
+@media (max-width: 767px) {
+  .scDesktopOnly { display: none; }
+  .scMobileOnly { display: block; }
 }
+
+/* ---------- mobile record cards (plain divs — no table/tr/td/th/col
+   anywhere in this block, so no legacy column geometry can ever reach
+   them again) ---------- */
+.scMobileCard {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  cursor: pointer;
+}
+.scMobileCard:last-child { margin-bottom: 0; }
+.scMobileCard:hover,
+.scMobileCard:focus-visible { background: rgba(255,255,255,.028); }
+.scMobileCard:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+.scMobileRank { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted); }
+.scMobileName { font-size: 16px; font-weight: 600; color: var(--color-text-primary); margin-top: 2px; overflow-wrap: break-word; }
+.scMobileSub { font-size: 12.5px; color: var(--color-text-secondary); margin-top: 2px; overflow-wrap: break-word; }
+.scMobileLabel { font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); }
+.scMobileScoreBlock { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-hairline-strong); border-radius: var(--radius-sm); }
+.scMobileScoreRow { display: flex; align-items: center; gap: var(--space-3); margin-top: 4px; }
+.scMobileScoreValue { font-family: var(--font-mono); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* overrides the base .scMeterTrack's flex-shrink:0 (correct for the
+   desktop table, where the track has a small fixed budget alongside
+   the number) — here the track is the one flexible element in the row
+   and must be allowed to shrink; found via real measurement with the
+   large_values fixture (score value "1000" widened the number enough
+   to overflow a non-shrinking 100%-width track by 52px at 320px). */
+.scMobileScoreBlock .scMeterTrack { width: 100%; flex: 1 1 0; min-width: 0; }
+.scMobileScoreValue { flex-shrink: 0; }
+.scMobileField { margin-top: var(--space-3); }
+.scMobileValue { font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; margin-top: 2px; }

@@ -38,24 +38,55 @@
     return Math.max(0, Math.min(100, (score / SCORE_SCALE_MAX) * 100));
   }
 
-  function renderTable(rows) {
+  // PORTAL-NEXT-07.6.4 — human UAT rejected the 07.6/07.6.2 approach of
+  // transforming the desktop <table> itself into a mobile layout (via
+  // CSS, however deterministic) three times in a row. Replaced with two
+  // independent renderers fed by the SAME `rows` array — no
+  // recomputation, no duplicated business logic. Only one is visible at
+  // a time (CSS display:none on the inactive one, score.css); the
+  // mobile renderer uses plain div markup, not table/tr/td, so no
+  // legacy column geometry can ever reach it again.
+  function scoreMeterHtml(r) {
+    var pct = meterPct(r.score);
+    return '<span class="scMeterTrack" role="img" aria-label="Score ' + r.score + ' de ' + SCORE_SCALE_MAX + '"><span class="scMeterFill" style="width:' + pct.toFixed(1) + '%"></span></span>';
+  }
+
+  function renderDesktopTable(rows) {
     var body = rows.map(function (r, i) {
-      var pct = meterPct(r.score);
       return '<tr tabindex="0" role="button" data-key="' + esc(rowKey(r)) + '" aria-label="Ver detalhamento de ' + esc(r.vendedor) + '">' +
-        '<td class="scRankCol" data-th="#">' + (i + 1) + '</td>' +
-        '<td class="scNameCell" data-th="Vendedor"><span class="scNameText" title="' + esc(r.vendedor) + '">' + esc(r.vendedor) + '</span></td>' +
-        '<td data-th="Loja">' + esc(r.loja) + '</td>' +
-        '<td data-th="Depto">' + esc(r.dept) + '</td>' +
-        '<td class="scNumCol" data-th="Score"><span class="scScoreCell">' +
-          '<span class="scMeterTrack" role="img" aria-label="Score ' + r.score + ' de ' + SCORE_SCALE_MAX + '"><span class="scMeterFill" style="width:' + pct.toFixed(1) + '%"></span></span>' +
+        '<td class="scRankCol">' + (i + 1) + '</td>' +
+        '<td class="scNameCell"><span class="scNameText" title="' + esc(r.vendedor) + '">' + esc(r.vendedor) + '</span></td>' +
+        '<td>' + esc(r.loja) + '</td>' +
+        '<td>' + esc(r.dept) + '</td>' +
+        '<td class="scNumCol"><span class="scScoreCell">' + scoreMeterHtml(r) +
           '<span>' + r.score + '</span>' +
           '</span></td>' +
-        '<td class="scNumCol" data-th="Financ.">' + (r.fin || 0) + '</td>' +
+        '<td class="scNumCol">' + (r.fin || 0) + '</td>' +
         '</tr>';
     }).join('');
-    return '<div class="scTableWrap"><table class="scTable">' +
+    return '<div class="scDesktopOnly"><div class="scTableWrap"><table class="scTable">' +
       '<thead><tr><th scope="col">#</th><th scope="col">Vendedor</th><th scope="col">Loja</th><th scope="col">Depto</th><th scope="col">Score</th><th scope="col">Financ.</th></tr></thead>' +
-      '<tbody>' + body + '</tbody></table></div>';
+      '<tbody>' + body + '</tbody></table></div></div>';
+  }
+
+  function renderMobileCards(rows) {
+    var cards = rows.map(function (r, i) {
+      return '<div class="scMobileCard" tabindex="0" role="button" data-key="' + esc(rowKey(r)) + '" aria-label="Ver detalhamento de ' + esc(r.vendedor) + '">' +
+        '<div class="scMobileRank">#' + (i + 1) + '</div>' +
+        '<div class="scMobileName">' + esc(r.vendedor) + '</div>' +
+        '<div class="scMobileSub">' + esc(r.loja) + ' · ' + esc(r.dept) + '</div>' +
+        '<div class="scMobileScoreBlock">' +
+          '<div class="scMobileLabel">Score</div>' +
+          '<div class="scMobileScoreRow"><span class="scMobileScoreValue">' + r.score + '</span>' + scoreMeterHtml(r) + '</div>' +
+        '</div>' +
+        '<div class="scMobileField"><div class="scMobileLabel">Financ.</div><div class="scMobileValue">' + (r.fin || 0) + '</div></div>' +
+        '</div>';
+    }).join('');
+    return '<div class="scMobileOnly">' + cards + '</div>';
+  }
+
+  function renderTable(rows) {
+    return renderDesktopTable(rows) + renderMobileCards(rows);
   }
 
   function renderDetail(row) {
@@ -101,13 +132,16 @@
     currentDetailKey = null;
     render();
     if (returnFocusKey) {
-      var row = document.querySelector('.scTable tbody tr[data-key="' + CSS.escape(returnFocusKey) + '"]');
+      // whichever renderer is currently visible (desktop table row or
+      // mobile card) carries the same data-key -- query both, focus
+      // whichever exists (display:none elements are simply skipped).
+      var row = document.querySelector('.scTable tbody tr[data-key="' + CSS.escape(returnFocusKey) + '"], .scMobileCard[data-key="' + CSS.escape(returnFocusKey) + '"]');
       if (row) row.focus();
     }
   }
 
   function wireTableInteraction() {
-    document.querySelectorAll('.scTable tbody tr').forEach(function (tr) {
+    document.querySelectorAll('.scTable tbody tr, .scMobileCard').forEach(function (tr) {
       tr.addEventListener('click', function () { openDetail(tr.getAttribute('data-key')); });
       tr.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(tr.getAttribute('data-key')); }

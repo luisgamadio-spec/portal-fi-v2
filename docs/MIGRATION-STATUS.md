@@ -828,6 +828,85 @@ Score/Dashbi RESPONSIVE status remains `UAT_PENDING` pending a fresh
 human visual pass against the now-clean, single-server environment
 with a genuine hard refresh.
 
+## PORTAL-NEXT-07.6.4 addendum
+
+**Human UAT history, recorded honestly, not rewritten as PASS**:
+
+```
+PORTAL-NEXT-07.6.2:  TECHNICALLY GREEN — HUMAN RESPONSIVE UAT REJECTED
+                     (compressed/unreadable narrow-width tables)
+PORTAL-NEXT-07.6.3:  TECHNICALLY GREEN — HUMAN RESPONSIVE UAT REJECTED
+                     AGAIN, after the human performed the requested
+                     clean-server/hard-refresh/incognito validation —
+                     ruling out cache as the explanation
+PORTAL-NEXT-07.6.4:  strategy changed (this addendum)
+```
+
+**Strategy change**: after two rejections of "transform the desktop
+`<table>` into a mobile layout via CSS" (07.6, 07.6.2) — the second
+proven correct by every computed-style/DOM check available, and still
+rejected — this Wave stopped trying to prove that approach should work
+and replaced it instead. Score and every Dashbi table sharing the
+`expandableRow`/`expandableTableHtml` component (store, seller,
+Ranking, Novos por Loja — all showed the identical underlying pattern,
+so the fix was extended to all of them, matching Gate 3D's explicit
+allowance) now render through **two independent, non-table renderers**
+fed by the same already-computed row data:
+
+- `renderDesktopTable()`/`.dbDesktopOnly` — the pre-existing, unchanged
+  `<table>`, visible at 768px+.
+- `renderMobileCards()`/`dbMobileCard()`/`.dbMobileOnly` — new plain
+  `<div>`-based cards (no `table`/`thead`/`tr`/`td`/`th`/`colgroup`
+  anywhere in this markup), visible at <=767px.
+
+Exactly one is `display:block`, the other `display:none` — never both
+occupying layout at once. Proven by computed style, not assumed: at
+390px, `.scTable` computes to `display:block` at all (Score's own
+`<table>` stops being a table at that breakpoint since its wrapper is
+hidden and only the sibling card list renders); Dashbi's desktop table
+wrap computes `display:none`, its card list `display:block`, 0 visible
+`<table>` elements, >0 visible cards — measured directly via
+`getComputedStyle`/`offsetParent`, not inferred.
+
+**0 business duplication**: the mobile renderer receives the exact same
+`v`/`f`/`share`/`r` objects the desktop renderer already computed in
+the same function call — verified by direct comparison (a representative
+desktop row's cell text vs. the matching mobile card's field values,
+identical for every field, both derived from one shared object, not
+recalculated).
+
+**Detail toggle state, shared correctly**: both renderers' `+ Detalhes`
+button reference the same `ns`/`key` toggle state (so opening one and
+resizing keeps it open in the other), but each gets its own DOM id
+(`idSuffix` parameter added to `detailDomId()`/`detailToggleHtml()`/
+`kpiDetailPanelHtml()`, optional and omitted by every pre-existing call
+site — Model Analysis's own usage is byte-identical to before) so the
+two renderers' detail panels never collide as duplicate ids while both
+exist in the DOM.
+
+**A real bug found and fixed during this Wave's own verification, not
+assumed safe**: the Score mobile card's score-bar row used `width:100%`
+on the meter track without releasing the base rule's `flex-shrink:0`,
+which overflowed by up to 52px with the `large_values` fixture at
+320px (a wide 4-digit score number pushed the non-shrinking bar past
+the container) — caught by the exhaustive fixture sweep, not by the
+single fixture used for screenshots, fixed with `flex:1 1 0;
+min-width:0`.
+
+**0 business-logic change**: `dashbi.adapter.js`/`score.adapter.js`
+byte-identical (0 diff); Score 12/12, Dashbi 26/26 (Ranking =
+Vendedores + Lojas, Departamentos absent, Model Analysis's 07.5.1
+removed sections still absent, Entrada Qtd still absent — all
+re-verified), Coparticipado 22/22, Gestão 30/30, Landing 20/20 all
+unchanged. Isolation baseline 0-line diff; `origin/main` SHA unchanged.
+
+**Score/Dashbi status unchanged by this Wave**: Score stays `UAT_PENDING`
+(business and responsive) — no promotion, score-band conflict
+untouched. Dashbi business stays `HUMAN_APPROVED/FROZEN` (unaffected —
+only presentation reopened); responsive stays `UAT_PENDING` pending a
+fresh human visual pass on this specific, structurally different
+mobile-card presentation.
+
 ## Standing blockers carried forward (not resolved this phase)
 
 - Gestão: commission-rule discrepancy (`PORTAL-NEXT-01.1/BLOCKER-
