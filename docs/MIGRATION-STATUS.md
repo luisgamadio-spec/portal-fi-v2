@@ -37,7 +37,7 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Score | **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) | 2 |
 | Coparticipado | **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1 — human decision recorded) | 3 |
 | Gestão | **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1 — human decision recorded) | 4 |
-| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07.1 — 4 UAT issues addressed, awaiting re-review, see `docs/HUMAN-UAT-DASHBI.md`) | 5 |
+| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07.5 — primary KPI hierarchy rework, awaiting UAT, see `docs/HUMAN-UAT-DASHBI.md`) | 5 |
 | Simulador Novos | NOT_MIGRATED | 6 |
 | Simulador Seminovos | NOT_MIGRATED | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
@@ -440,6 +440,93 @@ only `dashbi.js` presentation and `dashbi-fixtures.json` changed). 26/26 golden
 fixtures pass. 0 horizontal overflow reintroduced (re-verified at both document
 and component level, full 8-scenario × 6-viewport sweep plus 26-fixture ×
 3-family sweep). Landing/Score/Coparticipado/Gestão byte-identical.
+
+## PORTAL-NEXT-07.5 addendum
+
+Dashbi stays `UAT_PENDING`. New human product authority this Wave: 5
+PRIMARY metrics (Vendas, Financiamentos, Share, Produção Total, Receita
+Total) must be immediately visible wherever they semantically exist,
+with 0 +Detalhes/modal/extra navigation needed to reach them; Receita
+SPF and Retorno Médio may stay secondary. Named example of the prior
+violation: the Loja table showed Produção/Receita Total only behind
+`+ Detalhes`.
+
+**Full surface audit before any code change**
+(`docs/DASHBI-ANALYTICAL-HIERARCHY-INVENTORY.md`): confirmed Produção/
+Receita Total already existed as computed, unrendered fields on
+`finLoja`/`finVendDept`/ranking rows (a presentation gap, not an
+extraction gap — the same recurring pattern as every prior Wave in this
+sequence). Confirmed no distinct "department analysis" V2 surface
+exists (only Ranking's own Departamentos dimension) — not invented.
+Confirmed Novos por Loja's business universe (`buildNovosLojaRows`) has
+no production/financing-value field at all — Produção Total/Receita
+Total correctly reported NOT APPLICABLE there rather than fabricated;
+only a derived Share (Financiados/Vendidos, same ratio pattern used
+everywhere else) was added to its primary row.
+
+**Promoted to primary** (`docs/DASHBI-PRIMARY-DETAIL-MAP.md` is the
+full after-state contract): Overview KPI grid (Share and Receita Total
+become their own cards instead of hint text under Financiamentos/
+Receita); Loja and Vendedor tables (Produção Total, Receita Total);
+Ranking's 3 dimensions (Share/Penetração, Produção Total — Receita
+Total was already primary, being the sort key); Novos por Loja (derived
+Share). Retorno Médio moved out of the KPI grid's primary row into a
+new KPI-level `+ Detalhes` toggle alongside Receita (base)/Receita SPF
+— the KPI grid never had a detail mechanism before this Wave.
+
+**Share emphasis**: reused the already-approved `penetracaoCellHtml()`/
+`.dbPenetracaoBaixa`/`.dbPenetracaoOk` pattern (Model Analysis, 07.3) —
+same threshold, same classes, 0 new logic, applied consistently across
+every table gaining a Share column. Threshold re-confirmed against
+current production authority this Wave (not assumed from memory):
+v<0.40 → baixa, per `docs/DASHBI-KPI-CONTRACT.md`
+(`pctPenetracao`, origin/main lines 2788-2794).
+
+**Receita Total emphasis — new token usage, documented, not invented
+silently**: no exact "financial value emphasis" token exists in
+`design-system-2/tokens.css` (the real token authority, confirmed via
+`index.html`'s own `<link>` order). `--color-accent-primary` was
+rejected (already load-bearing for interactive/selection state
+elsewhere on this same page); `--color-info` was selected as a
+provisional, documented reuse — see
+`docs/DS-CHANGE-PROPOSAL-RECEITA-TOTAL-EMPHASIS-01.md`, including a
+computed contrast ratio (≈7.66:1 against `--color-canvas`, WCAG AAA).
+Share and Receita Total are distinguishable from each other and from
+plain KPI cards by position (left vs. top border stripe) and hue family
+(status vs. info), not color alone; applied ONLY to the KPI-grid cards
+(the most prominent surface) — table cells keep plain-formatted values,
+per the explicit "not a rainbow" instruction.
+
+**Responsive strategy — a genuinely new component, not a shrink**: the
+existing `.dbDesktopCol` hide-and-duplicate-in-detail pattern (Model
+Analysis, 07.4) does not satisfy this Wave's rule (all 5 primary metrics
+outside `+ Detalhes` at every viewport, mobile included), so a new
+opt-in `.dbTableStackable` modifier recomposes each row into a vertical
+label/value stack at <=480px instead, applied only to
+store/seller/Ranking/Novos-por-Loja (Model Analysis's own tables
+untouched, Gate 32). A real bug was caught and fixed during this Wave's
+own verification: the first CSS draft let stacked metric cells shrink to
+near-zero width, combining with the pre-existing
+`word-break:break-word` rule to wrap every character onto its own
+line — fixed with an explicit `min-width:108px` per stacked cell, then
+re-verified clean via screenshot.
+
+**0 business-logic change**: `dashbi.adapter.js`/`_dashbi-reference.js`/
+`dashbi-fixtures.json` — 0 diff. 26/26 golden fixtures pass unchanged.
+Model Analysis spot-checked via Playwright (fixture
+`model_analysis_parcelamento_completo`): "Entrada Qtd" still absent, all
+5 plan Qtd categories still present, 0 horizontal overflow — matches
+07.4.1 exactly, not reopened. Full no-horizontal-scroll matrix
+(document- and component-level `.dbTableWrap` scrollWidth check, a
+detail row expanded at every viewport as the worst case) re-verified
+clean at all 6 required viewports (360/390/430/768/1366/1920). 0
+console/page errors, 0 network calls. Landing/Score/Coparticipado/
+Gestão untouched (not re-read this Wave beyond the existing automated
+parity suites, which stayed green). Isolation baseline
+(`.baseline-portalnext075-after.txt`) shows 0-line diff against
+`.baseline-portalnext0741-after.txt` across all ~30 sibling worktrees;
+`origin/main` SHA re-confirmed unchanged
+(`2f17eb2341c5cc14aa8710aa044103002ca572a9`).
 
 ## Standing blockers carried forward (not resolved this phase)
 
