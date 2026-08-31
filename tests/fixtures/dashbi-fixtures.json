@@ -1476,6 +1476,75 @@
           "Loja": "BARRA FUNDA"
         }
       ]
+    },
+    {
+      "id": "ranking_empate_receita_total",
+      "description": "2 lojas/vendedores com receita total idêntica -> testa o desempate estável (ordem de insercao) do Ranking, comportamento real nao coberto pelas 24 fixtures anteriores.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHSTIE01",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "RICARDO NUNES BRAGA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 100000,
+          "Nome Cliente": "TIE1"
+        },
+        {
+          "Transação": "V21",
+          "Chassi": "CHSTIE02",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "FERNANDA LIMA ROCHA",
+          "Modelo": "TRITON GL",
+          "Valor Venda": 100000,
+          "Nome Cliente": "TIE2"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 100000,
+          "RECEITA": 10000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "RICARDO NUNES BRAGA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "TIE1",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        },
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 100000,
+          "RECEITA": 10000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "FERNANDA LIMA ROCHA",
+          "DES_MODELO": "TRITON GL",
+          "CLIENTE": "TIE2",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V101",
+          "Nome": "RICARDO NUNES BRAGA",
+          "Loja": "LOJA_TIE_A"
+        },
+        {
+          "NBS": "V102",
+          "Nome": "FERNANDA LIMA ROCHA",
+          "Loja": "LOJA_TIE_B"
+        }
+      ]
     }
   ]
 }

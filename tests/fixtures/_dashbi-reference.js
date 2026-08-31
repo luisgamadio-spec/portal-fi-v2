@@ -362,6 +362,40 @@ function buildB03Index(rows){
   return {byBoth, byBothClean, byName, byNameClean, byDoc};
 }
 
+function buildNovosLojaRows(results){
+  const sales = (results.sales || []).filter(r => r.dept === "Novos");
+  const fins = (results.fins || []).filter(r => r.dept === "Novos");
+  const map = {};
+  const ensure = loja => {
+    const k = loja || "NÃO LOCALIZADO";
+    if(!map[k]) map[k] = {Loja:k,Vendidos:0,Financiados:0,Balao:0,BalaoPct:0,Subsidiada:0,Coparticipada:0,Reversao:0,Linear:0,PlanoDestaque:"",_regs:[]};
+    return map[k];
+  };
+  sales.forEach(r => ensure(r.loja).Vendidos++);
+  fins.forEach(r => {
+    const row = ensure(r.loja);
+    row.Financiados++;
+    row._regs.push(r);
+    if(isPlanoSubsidiada(r)) row.Subsidiada++;
+    else if(isPlanoReversao(r)) row.Reversao++;
+    else if(isPlanoCoparticipada(r)) row.Coparticipada++;
+    else if(isPlanoBalaoClassificado(r)) row.Balao++;
+    else row.Linear++;
+  });
+  const rows = Object.values(map).sort((a,b)=>(b.Vendidos-a.Vendidos)||(b.Financiados-a.Financiados)||a.Loja.localeCompare(b.Loja));
+  rows.forEach(r => {
+    r.BalaoPct = r.Financiados ? r.Balao/r.Financiados : 0;
+    r.PlanoDestaque = getPlanoDestaque(r._regs || []);
+  });
+  const total = rows.reduce((a,r)=>{
+    a.Vendidos+=r.Vendidos; a.Financiados+=r.Financiados; a.Balao+=r.Balao; a.Subsidiada+=r.Subsidiada;
+    a.Coparticipada+=r.Coparticipada; a.Reversao+=r.Reversao; a.Linear+=r.Linear; a._regs.push(...(r._regs||[])); return a;
+  }, {Loja:"TOTAL GERAL",Vendidos:0,Financiados:0,Balao:0,BalaoPct:0,Subsidiada:0,Coparticipada:0,Reversao:0,Linear:0,PlanoDestaque:"",_regs:[],_total:true});
+  total.BalaoPct = total.Financiados ? total.Balao/total.Financiados : 0;
+  total.PlanoDestaque = getPlanoDestaque(total._regs || []);
+  return [...rows, total];
+}
+
 function buildSalesByChassiForEntry(sales){
   const idx = {};
   (sales || []).forEach(s=>{
@@ -1311,6 +1345,42 @@ function processBase02(rows, b03index){
   return {valid, semMatch:[...new Set(semMatch)].filter(Boolean)};
 }
 
+function rankingFromViews(salesView, finsView, tipo){
+  const map = {};
+
+  const keyFor = (r) => {
+    if(tipo === "loja") return r.loja || "NÃO LOCALIZADO";
+    if(tipo === "dept") return r.dept || "NÃO INFORMADO";
+    const loja = r.loja || VENDOR_MAP[normalizeText(r.vendedor)] || "NÃO LOCALIZADO";
+    return `${r.vendedor || "NÃO INFORMADO"} | ${r.dept || "NÃO INFORMADO"} | ${loja}`;
+  };
+
+  salesView.forEach(r=>{
+    const k = keyFor(r);
+    if(!map[k]) map[k] = {Nome:k, vendas:0, fin:0, receita:0, receitaSPF:0, receitaTotal:0, producao:0};
+    map[k].vendas += 1;
+  });
+
+  finsView.forEach(r=>{
+    const k = keyFor(r);
+    if(!map[k]) map[k] = {Nome:k, vendas:0, fin:0, receita:0, receitaSPF:0, receitaTotal:0, producao:0};
+    map[k].fin += 1;
+    map[k].receita += r.receita || 0;
+    map[k].receitaSPF += r.receitaSPF || 0;
+    map[k].receitaTotal += (r.receita || 0) + (r.receitaSPF || 0);
+    map[k].producao += r.producao || 0;
+  });
+
+  return Object.values(map)
+    .map((r,i)=>({
+      ...r,
+      penetracao:r.vendas ? r.fin/r.vendas : 0,
+      retorno:r.producao ? (r.receitaTotal || ((r.receita||0)+(r.receitaSPF||0)))/r.producao : 0,
+      retornoTotal:r.producao ? (r.receitaTotal || ((r.receita||0)+(r.receitaSPF||0)))/r.producao : 0
+    }))
+    .sort((a,b)=>((b.receitaTotal||b.receita||0)-(a.receitaTotal||a.receita||0)));
+}
+
 function resolveLoja(row){
   const vendor = sellerNameFromRow(row);
   if(vendor){
@@ -1441,6 +1511,8 @@ function toDateOnly(d){
     modelRowsUnified: modelRowsUnified,
     planRowsByModel: planRowsByModel,
     planRowsByStoreForFamily: planRowsByStoreForFamily,
-    kpiMetricsFor: kpiMetricsFor
+    kpiMetricsFor: kpiMetricsFor,
+    rankingFromViews: rankingFromViews,
+    buildNovosLojaRows: buildNovosLojaRows
   };
 })();

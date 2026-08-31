@@ -26,13 +26,15 @@
 .dbField select, .dbField input[type="date"] { background: var(--color-surface-2); border: 1px solid var(--color-hairline-strong); color: var(--color-text-primary); font-family: var(--font-ui); font-size: 13px; padding: var(--space-2); border-radius: var(--radius-sm); }
 .dbField select:focus-visible, .dbField input:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
 
-.dbPresetGroup, .dbViewGroup, .dbFamilyGroup { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.dbPresetGroup, .dbViewGroup { display: flex; gap: var(--space-1); flex-wrap: wrap; }
 .dbBtn { background: none; border: 1px solid var(--color-hairline-strong); color: var(--color-text-secondary); font-family: var(--font-ui); font-size: 12.5px; font-weight: 500; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; }
 .dbBtn:hover:not(.dbBtnActive) { color: var(--color-text-primary); }
 .dbBtn:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
 .dbBtnActive { color: var(--color-canvas); background: var(--color-text-primary); border-color: var(--color-text-primary); }
 
-.dbFechamento { display: inline-block; margin-left: var(--space-3); font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-success); border: 1px solid var(--color-success); border-radius: var(--radius-sm); padding: 2px 7px; }
+.dbFechamentoBar { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
+.dbFechamentoBar .dbMuted { margin: 0; }
+.dbFechamento { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-success); border: 1px solid var(--color-success); border-radius: var(--radius-sm); padding: 2px 7px; flex-shrink: 0; }
 
 .dbBlockedNotice { border: 1px solid var(--color-critical); border-radius: var(--radius-md); padding: var(--space-4); color: var(--color-critical); font-size: 13px; margin-bottom: var(--space-4); }
 .dbBlockedNotice b { color: var(--color-text-primary); }
@@ -40,6 +42,7 @@
 .dbPage h2 { font-family: var(--font-ui); font-weight: 400; font-size: 17px; margin: var(--space-6) 0 var(--space-3); }
 .dbPage h2:first-of-type { margin-top: 0; }
 .dbMuted { color: var(--color-text-muted); font-size: 12px; margin: 0 0 var(--space-3); }
+.dbDiagJson { font-family: var(--font-mono); overflow-wrap: anywhere; }
 
 .dbKpiGridPrimary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
 .dbKpiCardPrimary { border: 1px solid var(--color-hairline); border-radius: var(--radius-md); padding: var(--space-4); }
@@ -76,6 +79,31 @@
 
 .dbPenetracaoBaixa { color: var(--color-critical); }
 .dbPenetracaoOk { color: var(--color-success); }
+
+/* Vehicle selector (Análise por Modelos, Novos only) — compact family
+   picker built from the real production assets (origin/main
+   VEHICLE_IMAGES, resized). Image + name + accent, no catalog/card
+   styling: no shadow, no glow, no gradient. Selected state is signaled
+   by border weight + a check glyph + bold text, never color alone. */
+.dbVehicleSelector { display: flex; gap: var(--space-2); flex-wrap: wrap; margin: var(--space-3) 0 var(--space-4); }
+.dbVehicleCard { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); width: 132px; background: none; border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); padding: var(--space-2); cursor: pointer; font-family: var(--font-ui); }
+.dbVehicleCard:hover:not(.dbVehicleCardActive) { border-color: var(--color-hairline-strong); }
+.dbVehicleCard:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+.dbVehicleCardActive { border-color: var(--color-accent-primary); border-width: 2px; padding: calc(var(--space-2) - 1px); }
+.dbVehicleImgWrap { width: 100%; height: 60px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.dbVehicleImgWrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.dbVehicleName { font-size: 11.5px; font-weight: 500; letter-spacing: .02em; text-align: center; color: var(--color-text-secondary); }
+.dbVehicleCardActive .dbVehicleName { color: var(--color-text-primary); font-weight: 700; }
+.dbVehicleCheck { color: var(--color-accent-primary); }
+
+.dbSubHeading { font-family: var(--font-ui); font-weight: 500; font-size: 13px; margin: var(--space-4) 0 var(--space-2); color: var(--color-text-secondary); }
+.dbRankingSection h3:first-of-type, .dbNovosLojaSection h3:first-of-type { margin-top: var(--space-2); }
+.dbTableSub { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
+.dbTable tbody tr.dbTotalRow td { font-weight: 700; border-top: 1px solid var(--color-hairline-strong); }
+
+@media (max-width: 480px) {
+  .dbVehicleCard { width: calc(50% - var(--space-2) / 2); }
+}
 
 @media (max-width: 768px) {
   .dbField { min-width: 130px; }

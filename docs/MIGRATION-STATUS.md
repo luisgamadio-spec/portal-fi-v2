@@ -37,7 +37,7 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Score | **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) | 2 |
 | Coparticipado | **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1 — human decision recorded) | 3 |
 | Gestão | **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1 — human decision recorded) | 4 |
-| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07 — see `docs/HUMAN-UAT-DASHBI.md`) | 5 |
+| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07.1 — 4 UAT issues addressed, awaiting re-review, see `docs/HUMAN-UAT-DASHBI.md`) | 5 |
 | Simulador Novos | NOT_MIGRATED | 6 |
 | Simulador Seminovos | NOT_MIGRATED | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
@@ -227,6 +227,50 @@ B03 candidate tiebreak — Coparticipado breaks ties by most-recent
 contract date, Dashbi breaks ties by array order (no date comparison
 exists in its own scoring function) — see `docs/DASHBI-CROSS-MODULE-
 CONSISTENCY.md`.
+
+## PORTAL-NEXT-07.1 addendum
+
+Dashbi stays `UAT_PENDING` (never auto-promoted) — this Wave addressed the 4 issues
+raised in PORTAL-NEXT-07's human UAT, technical status re-verified GREEN (25/25
+golden fixtures incl. 1 new Ranking tie-break fixture; 0 console/page errors and 0
+external network calls across a full 25-fixture × 3-view sweep; 0 page-level
+horizontal overflow at 360/390/430; Landing/Score/Coparticipado/Gestão re-verified
+byte-identical). See `docs/HUMAN-UAT-DASHBI.md` for the updated UAT script and
+`docs/DASHBI-PRODUCTION-SURFACE-INVENTORY.md` for the from-scratch surface audit
+this Wave was built on.
+
+**Root cause, not just symptom, for all 4 issues**: PORTAL-NEXT-07's own production
+audit was incomplete — it extracted the classification/aggregation/Entrada engine it
+had identified, but never built an exhaustive inventory of every user-facing
+production surface before wiring the V2 UI. Concretely: (1-2) Plan Classification and
+Model Analysis were shown in all 3 views because V2 never added a visibility gate,
+not because production shows them everywhere — direct source read this Wave
+(`updateModelosTabVisibility`, origin/main lines 3633-3652) confirms production
+itself hides both outside Novos; V2 now matches. (3) Vehicle images were never
+searched for during PORTAL-NEXT-07's business-logic-focused audit — found this Wave
+at origin/main line 2651 (`VEHICLE_IMAGES`, 3 real base64 product photos), decoded,
+visually verified as genuine, and resized into a new compact selector — see
+`docs/DASHBI-VEHICLE-ASSETS.md`. (4) Ranking and Novos por Loja's *rendering*
+functions were correctly identified as presentation-only in PORTAL-NEXT-07, but their
+underlying *business logic* (`rankingFromViews`, `buildNovosLojaRows`) was never read
+in full and got miscategorized as deferred along with the rendering — both are now
+extracted byte-identical; see `docs/RANKING-FUNCTION-MAP.md` and
+`docs/NOVOS-POR-LOJA-FUNCTION-MAP.md`.
+
+**A real, production-confirmed visibility asymmetry, not assumed**: Ranking is
+visible in all 3 department views (its tab carries no Novos-only gating class in
+production), while Novos por Loja is Novos-only (shares the same gating class as
+Análise por Modelos, and independently self-guards in its own render function) —
+both behaviors verified by direct source read, not inferred from the human's wording,
+and reproduced exactly.
+
+**A real, pre-existing bug found and fixed as a side effect of this Wave's mobile
+testing, not present in PORTAL-NEXT-07's own claimed responsive pass**: the "Diagnóstico
+(dev only)" footer's `JSON.stringify(sourceInfo)` dump renders as one unbroken string
+with no spaces, which was silently making the entire Dashbi page horizontally
+scrollable at 360/390/430 — on the Grupo view too, unrelated to any of this Wave's
+additions. Fixed with a single `overflow-wrap: anywhere` rule scoped to that one
+diagnostic span; 0 business-logic change.
 
 ## Standing blockers carried forward (not resolved this phase)
 

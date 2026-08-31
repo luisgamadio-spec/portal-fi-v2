@@ -128,6 +128,25 @@
     return tableHtml(['Vendedor', 'Depto', 'Vendas', 'Financiamentos', 'Share', 'Produção'], body, 2);
   }
 
+  var VEHICLE_IMAGES = {
+    OUTLANDER: 'assets/img/vehicles/outlander.png',
+    'ECLIPSE CROSS': 'assets/img/vehicles/eclipse_cross.png',
+    TRITON: 'assets/img/vehicles/triton.png'
+  };
+
+  function vehicleSelectorHtml() {
+    return '<div class="dbVehicleSelector" role="group" aria-label="Selecionar família de modelo">' +
+      FAMILIES.map(function (f) {
+        var active = f === currentFamily;
+        return '<button type="button" class="dbVehicleCard' + (active ? ' dbVehicleCardActive' : '') +
+          '" data-family="' + esc(f) + '" aria-pressed="' + (active ? 'true' : 'false') + '">' +
+          '<span class="dbVehicleImgWrap"><img src="' + esc(VEHICLE_IMAGES[f]) + '" alt="" loading="lazy"></span>' +
+          '<span class="dbVehicleName">' + esc(f) + (active ? ' <span class="dbVehicleCheck" aria-hidden="true">&#10003;</span>' : '') + '</span>' +
+          '</button>';
+      }).join('') +
+      '</div>';
+  }
+
   function modelAnalysisHtml(A, results) {
     var modelRows = A.modelRowsUnified(results, currentFamily);
     var planRows = A.planRowsByModel(results, currentFamily);
@@ -139,11 +158,76 @@
       return row([r.Modelo, r.Financiamentos, r.Linear, r.Balao, r.Coparticipado, r.Subsidiado, r.Reversao]);
     });
     return '<div class="dbModelSection">' +
-      '<h2 style="margin-top:0">Análise por Modelos — ' + esc(currentFamily) + ' (Novos)</h2>' +
+      '<h2 style="margin-top:0">Análise por Modelos (Novos)</h2>' +
+      '<p class="dbMuted">Selecione uma família para abrir os indicadores específicos dos modelos Novos.</p>' +
+      vehicleSelectorHtml() +
       '<p class="dbMuted">Vendas/Financiamentos/Produção/Receita/Ticket/Retorno por modelo, mais os indicadores de Entrada (Entrada, Entrada Média, Entrada %) — nunca ocultos.</p>' +
       tableHtml(['Modelo', 'Vendas', 'Financiamentos', 'Penetração', 'Produção', 'Receita Total', 'Ticket', 'Retorno Médio', 'Entrada Qtd', 'Entrada Média', 'Entrada %'], modelBody) +
       '<h2>Mix de Planos por Modelo</h2>' +
       tableHtml(['Modelo', 'Financiamentos', 'Linear', 'Balão', 'Coparticipado', 'Subsidiado', 'Reversão'], planBody) +
+      '</div>';
+  }
+
+  function rankingRowHtml(A, list, kind) {
+    return list.map(function (r, i) {
+      var nome = r.Nome, sub = '';
+      if (kind === 'vendedor') {
+        var parts = String(r.Nome || '').split(' | ');
+        nome = parts[0] || r.Nome;
+        sub = parts.length > 1 ? parts.slice(1).join(' · ') : '';
+      }
+      return '<tr><td>' + (i + 1) + 'º</td><td>' + esc(nome) + (sub ? '<div class="dbTableSub">' + esc(sub) + '</div>' : '') + '</td>' +
+        '<td class="dbNumCol">' + esc(String(r.vendas)) + '</td>' +
+        '<td class="dbNumCol">' + esc(String(r.fin)) + '</td>' +
+        '<td class="dbNumCol">' + esc(A.pct(r.penetracao)) + '</td>' +
+        '<td class="dbNumCol">' + esc(A.money(r.receitaTotal)) + '</td>' +
+        '<td class="dbNumCol">' + esc(A.money(r.producao)) + '</td>' +
+        '<td class="dbNumCol">' + esc(A.pct(r.retorno)) + '</td></tr>';
+    }).join('');
+  }
+
+  function rankingTableHtml(A, title, list, kind) {
+    if (!list.length) return '<h3 class="dbSubHeading">' + esc(title) + '</h3><p class="dbMuted">Sem dados.</p>';
+    return '<h3 class="dbSubHeading">' + esc(title) + '</h3>' +
+      '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' +
+      headerRow(['#', 'Nome', 'Vendas', 'Financiamentos', 'Penetração', 'Receita Total', 'Produção', 'Retorno'], 2) +
+      '</tr></thead><tbody>' + rankingRowHtml(A, list, kind) + '</tbody></table></div>';
+  }
+
+  function rankingHtml(A, out, salesView, finsView) {
+    var vendedores = A.rankingFromViews(salesView, finsView, 'vendedor').slice(0, 10);
+    var lojas = A.rankingFromViews(salesView, finsView, 'loja').slice(0, 10);
+    var depts = A.rankingFromViews(salesView, finsView, 'dept').slice(0, 10);
+    return '<div class="dbRankingSection">' +
+      '<h2 style="margin-top:0">Ranking — ' + esc(currentDeptView) + '</h2>' +
+      '<p class="dbMuted">Top 10, ordenado por maior Receita Total captada no período selecionado.</p>' +
+      rankingTableHtml(A, 'Vendedores', vendedores, 'vendedor') +
+      rankingTableHtml(A, 'Lojas', lojas, 'loja') +
+      rankingTableHtml(A, 'Departamentos', depts, 'dept') +
+      '</div>';
+  }
+
+  function novosLojaHtml(A, out) {
+    var rows = A.buildNovosLojaRows(out);
+    var body = rows.map(function (r) {
+      var cls = r._total ? ' class="dbTotalRow"' : '';
+      return '<tr' + cls + '><td>' + esc(r.Loja) + '</td>' +
+        '<td class="dbNumCol">' + esc(String(r.Vendidos)) + '</td>' +
+        '<td class="dbNumCol">' + esc(String(r.Financiados)) + '</td>' +
+        '<td class="dbNumCol">' + esc(String(r.Balao)) + '</td>' +
+        '<td class="dbNumCol">' + esc(A.pct(r.BalaoPct)) + '</td>' +
+        '<td class="dbNumCol">' + esc(String(r.Subsidiada)) + '</td>' +
+        '<td class="dbNumCol">' + esc(String(r.Coparticipada)) + '</td>' +
+        '<td class="dbNumCol">' + esc(String(r.Reversao)) + '</td>' +
+        '<td class="dbNumCol">' + esc(String(r.Linear)) + '</td>' +
+        '<td>' + esc(r.PlanoDestaque || '-') + '</td></tr>';
+    }).join('');
+    return '<div class="dbNovosLojaSection">' +
+      '<h2 style="margin-top:0">Novos por Loja</h2>' +
+      '<p class="dbMuted">Leitura por loja/unidade considerando apenas veículos Novos, respeitando o período selecionado.</p>' +
+      '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' +
+      headerRow(['Loja', 'Vendidos', 'Financiados', 'Balão', '% Balão', 'Subsidiada', 'Coparticipada', 'Reversão', 'Linear', 'Plano Destaque'], 1) +
+      '</tr></thead><tbody>' + body + '</tbody></table></div>' +
       '</div>';
   }
 
@@ -167,12 +251,16 @@
       closed = A.isClosedMonthPeriod({ min: new Date(currentDateStart + 'T00:00:00'), max: new Date(currentDateEnd + 'T00:00:00') });
     }
 
-    var planoMap = out.aggs ? null : null;
     var counts = { LINEAR: 0, 'BALÃO': 0, COPARTICIPADO: 0, SUBSIDIADO: 0, 'REVERSÃO': 0 };
     (out.fins || []).forEach(function (f) {
       var k = A.planoKeyOperacao(f);
       counts[k] = (counts[k] || 0) + 1;
     });
+
+    var salesView = currentDeptView === 'Grupo' ? out.sales : out.sales.filter(function (x) { return x.dept === currentDeptView; });
+    var finsView = currentDeptView === 'Grupo' ? out.fins : out.fins.filter(function (x) { return x.dept === currentDeptView; });
+
+    var isNovos = currentDeptView === 'Novos';
 
     var html =
       '<div class="dbKpiGridPrimary">' +
@@ -182,19 +270,26 @@
       kpiPrimary('Receita', A.money(kpi.receita), 'SPF ' + A.money(kpi.receitaSPF) + ' · Total ' + A.money(kpi.receitaTotal)) +
       kpiPrimary('Retorno', A.pct(kpi.retorno)) +
       '</div>' +
+      (closed ? '<div class="dbFechamentoBar"><span class="dbFechamento">FECHAMENTO</span><span class="dbMuted">Período filtrado corresponde a um mês fechado.</span></div>' : '') +
 
-      '<h2>Classificação dos Planos' + (closed ? '<span class="dbFechamento">FECHAMENTO</span>' : '') + '</h2>' +
-      '<div class="dbPlanGrid">' + ['SUBSIDIADO', 'REVERSÃO', 'COPARTICIPADO', 'BALÃO', 'LINEAR'].map(function (t) { return planCardHtml(A, t, counts[t]); }).join('') + '</div>' +
-      '<p class="dbMuted">Classificação oficial por operação, mesma prioridade de Análise F&I do Grupo e Coparticipado: Código IF 999 ou SUBSIDIADO; Código IF 777 ou REVERSÃO; TC Devolvida 1 ou COPARTICIPADO; Balão PMT maior que zero; demais = LINEAR.</p>' +
+      (isNovos ?
+        '<h2>Classificação dos Planos</h2>' +
+        '<div class="dbPlanGrid">' + ['SUBSIDIADO', 'REVERSÃO', 'COPARTICIPADO', 'BALÃO', 'LINEAR'].map(function (t) { return planCardHtml(A, t, counts[t]); }).join('') + '</div>' +
+        '<p class="dbMuted">Classificação oficial por operação, mesma prioridade de Análise F&I do Grupo e Coparticipado: Código IF 999 ou SUBSIDIADO; Código IF 777 ou REVERSÃO; TC Devolvida 1 ou COPARTICIPADO; Balão PMT maior que zero; demais = LINEAR. Exibida somente em Novos (mesma visibilidade da Análise por Modelos em produção — ambas vivem dentro da mesma seção/aba real).</p>'
+        : '') +
 
       '<h2>Vendas e Financiamentos por Loja</h2>' + storeTableHtml(A, out) +
 
       '<h2>Vendas e Financiamentos por Vendedor</h2>' + sellerTableHtml(A, out) +
 
-      modelAnalysisHtml(A, out) +
+      (isNovos ? modelAnalysisHtml(A, out) : '') +
+
+      rankingHtml(A, out, salesView, finsView) +
+
+      (isNovos ? novosLojaHtml(A, out) : '') +
 
       '<h2>Diagnóstico (dev only)</h2>' +
-      '<p class="dbMuted">DADOS DE TESTE — não faz parte da experiência final. sourceInfo: ' + esc(JSON.stringify(out.sourceInfo)) + '</p>' +
+      '<p class="dbMuted">DADOS DE TESTE — não faz parte da experiência final. sourceInfo: <span class="dbDiagJson">' + esc(JSON.stringify(out.sourceInfo)) + '</span></p>' +
       '<p class="dbMuted">Entrada (bases novas): total financiamentos ' + out.entradaDiagnostic.totalFinanciamentos +
       ' · chassis localizados ' + out.entradaDiagnostic.chassisLocalizados +
       ' · não localizados ' + out.entradaDiagnostic.chassisNaoLocalizados +
@@ -233,12 +328,15 @@
         render();
       });
     });
-    document.querySelectorAll('.dbFamilyBtn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        currentFamily = btn.dataset.family;
-        document.querySelectorAll('.dbFamilyBtn').forEach(function (b) { b.classList.toggle('dbBtnActive', b === btn); });
-        render();
-      });
+    // .dbVehicleCard is re-created on every render() (it lives inside the
+    // Model Analysis section, not the static filter bar), so it is wired
+    // via delegation on the persistent #dbPanel container rather than a
+    // one-time querySelectorAll like the static filter controls above.
+    document.getElementById('dbPanel').addEventListener('click', function (e) {
+      var btn = e.target.closest('.dbVehicleCard');
+      if (!btn) return;
+      currentFamily = btn.dataset.family;
+      render();
     });
   }
 
@@ -265,9 +363,6 @@
           '</div></div>' +
           '<div class="dbField"><label for="dbDateStart">Data inicial</label><input id="dbDateStart" type="date" value="' + currentDateStart + '"></div>' +
           '<div class="dbField"><label for="dbDateEnd">Data final</label><input id="dbDateEnd" type="date" value="' + currentDateEnd + '"></div>' +
-          '<div class="dbField"><label>Família (Análise por Modelos)</label><div class="dbFamilyGroup">' +
-          FAMILIES.map(function (f, i) { return '<button type="button" class="dbBtn dbFamilyBtn' + (i === 0 ? ' dbBtnActive' : '') + '" data-family="' + esc(f) + '">' + esc(f) + '</button>'; }).join('') +
-          '</div></div>' +
           '</div>' +
           '<div id="dbPanel"></div>' +
           '</div>';

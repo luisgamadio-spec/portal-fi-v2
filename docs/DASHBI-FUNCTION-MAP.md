@@ -109,8 +109,9 @@ REASON:                  0 file I/O this Wave (Gate 31); fixtures
 FUTURE WAVE:              same admin-tooling Wave as every prior
                         module's Excel-parsing deferral.
 
-DEPENDENCY:    Ranking/medal cards (rankingFromViews, renderRanking,
-              addMedals, medalha), previous-period comparison deltas
+DEPENDENCY:    medal cards (renderRanking, addMedals, medalha,
+              rankingHeroHtml, renderRankingCard, renderRankingGrid),
+              previous-period comparison deltas
               (calcDelta/formatDelta/comparisonBlock/metricCompareBlock),
               CSV export (exportarResumoCSV), the multi-tab shell
               chrome (showTab)
@@ -122,6 +123,16 @@ REASON:                  V2 builds its own Red Precision presentation
 FUTURE WAVE:              N/A -- not a data gap, a presentation choice.
 ```
 
+**PORTAL-NEXT-07.1 correction**: `rankingFromViews` (the actual Ranking business
+logic — grouping, aggregation, sort) was wrongly bucketed under this deferral in
+PORTAL-NEXT-07 — it was never read in full during that Wave's audit, only its line
+number was recorded. It has since been extracted byte-identical and is no longer
+deferred; see `docs/RANKING-FUNCTION-MAP.md`. Likewise `buildNovosLojaRows` was not
+discovered at all in PORTAL-NEXT-07 (Novos por Loja was missed entirely, not
+deliberately deferred); see `docs/NOVOS-POR-LOJA-FUNCTION-MAP.md`. 96 functions
+extracted as of this Wave (94 + `rankingFromViews` + `buildNovosLojaRows`), still 0
+mismatches against an independently re-extracted reference.
+
 ## Functional diff audit (Gate 124)
 
-0 unintentional business differences. Every extracted function's output was verified byte-for-byte against an independently re-extracted reference across all 24 fixtures. The two documented substitutions above (VENDOR_MAP, the live-fetch omission) are I/O-boundary/PII decisions, not business-rule differences — neither changes what any of the 94 extracted functions themselves compute for a given input.
+0 unintentional business differences. Every extracted function's output was verified byte-for-byte against an independently re-extracted reference across all 25 fixtures (24 from PORTAL-NEXT-07 + 1 new tie fixture from PORTAL-NEXT-07.1). The two documented substitutions above (VENDOR_MAP, the live-fetch omission) are I/O-boundary/PII decisions, not business-rule differences — neither changes what any of the 96 extracted functions themselves compute for a given input.
