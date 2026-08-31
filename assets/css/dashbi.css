@@ -83,6 +83,23 @@
 .dbTable thead th:first-child, .dbTable td:first-child { position: sticky; left: 0; background: var(--color-surface-1); }
 .dbTable thead th:first-child { background: var(--color-surface-2); z-index: 1; }
 
+/* Grouped-header wide table (PORTAL-NEXT-07.3, Model Analysis completeness
+   restoration) — sticky Modelo column + horizontal scroll instead of
+   production's own card+modal shape (data-table.md forbids cardifying
+   tabular data; see docs/MODEL-ANALYSIS-METRIC-CONTRACTS.md). Group
+   labels (Volume/Financeiro/Retorno/Parcelamento/Entrada/Planos) are
+   presentational only — each still maps 1:1 to one production column. */
+.dbTableGrouped thead tr:nth-child(2) th:first-child { position: static; left: auto; background: none; z-index: auto; }
+.dbTableGrouped thead th.dbSticky { position: sticky; left: 0; background: var(--color-surface-2); z-index: 2; text-align: left; }
+.dbTableGrouped tbody td.dbSticky { position: sticky; left: 0; background: var(--color-surface-1); font-weight: 500; }
+.dbTableGrouped thead tr:first-child th.dbGroupHead { text-align: center; background: var(--color-surface-2); border-bottom: 1px solid var(--color-hairline); font-size: 9.5px; }
+.dbTableGrouped thead tr:nth-child(2) th { border-bottom: 1px solid var(--color-hairline-strong); }
+
+.dbFamilyMetricGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-2); margin: var(--space-3) 0 var(--space-4); }
+.dbFamilyMetricBox { border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
+.dbFamilyMetricBox .dbK { color: var(--color-text-muted); font-size: 9.5px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+.dbFamilyMetricBox .dbV { font-family: var(--font-mono); font-size: 15px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
 /* Model Analysis — HIGH density, its own visual region (Gate 81-82) */
 .dbModelSection { border: 1px solid var(--color-hairline-strong); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-5); }
 .dbEntradaGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); margin: var(--space-3) 0; }
@@ -123,5 +140,5 @@
   .dbKpiGridPrimary { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 480px) {
-  .dbKpiGridPrimary, .dbPlanGrid, .dbEntradaGrid { grid-template-columns: 1fr; }
+  .dbKpiGridPrimary, .dbPlanGrid, .dbEntradaGrid, .dbFamilyMetricGrid { grid-template-columns: 1fr; }
 }

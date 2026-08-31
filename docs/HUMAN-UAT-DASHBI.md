@@ -1,6 +1,6 @@
-# Human UAT — Análise Geral do Grupo (Dashbi) V2 (PORTAL-NEXT-07.2)
+# Human UAT — Análise Geral do Grupo (Dashbi) V2 (PORTAL-NEXT-07.3)
 
-**Technical status: TECHNICALLY GREEN** (25/25 golden-fixture parity — 0 change from PORTAL-NEXT-07.1 — 0 console/page errors, 0 backend network calls, 0 page-level horizontal overflow at 6 breakpoints, Landing/Score/Coparticipado/Análise F&I freeze re-verified byte-identical). Not the same thing as approval. PORTAL-NEXT-07.1 confirmed the restored content itself (Análise por Modelos/Ranking/Novos por Loja/vehicle imagery) was correct — this round only changes **how and when** those 3 surfaces appear.
+**Technical status: TECHNICALLY GREEN** (26/26 golden-fixture parity — 25 unchanged + 1 new — 0 console/page errors, 0 backend network calls, 0 page-level horizontal overflow at 6 breakpoints, Landing/Score/Coparticipado/Análise F&I freeze re-verified byte-identical). PORTAL-NEXT-07.2's selective navigation is unchanged — this round only restores columns/metrics inside the Análise por Modelos panel.
 
 ## How to open it
 
@@ -12,36 +12,35 @@ Then open: **http://localhost:8700/portal-next-v2/index.html#/dashbi**
 
 ## O que mudou desde a rodada anterior
 
-Você pediu que as análises complementares (Análise por Modelos, Ranking, Novos por Loja) não fiquem todas expandidas ao mesmo tempo — como no Portal anterior, onde só uma aparece por vez. Agora existe um controle compacto logo abaixo das tabelas de Loja/Vendedor, com 4 opções: **Visão Geral · Análise por Modelos · Ranking · Novos por Loja**. Apenas uma fica ativa por vez; as outras não ocupam espaço nenhum na página.
+Você identificou que a Análise por Modelos estava sem colunas/métricas que existem no Portal atual — citou Balão Médio e Parcela Média como exemplos, mas avisou que não era a lista completa. Fizemos um levantamento completo (produção × V2, coluna por coluna) antes de mudar qualquer código, e restauramos tudo que estava faltando: um bloco de indicadores por família (13 métricas, novo), 8 colunas por modelo que não apareciam (Receita, Receita SPF, Prazo Médio, Parcela Média, Qtd Linear, Qtd Balão, Qtd Reversão, Balão Médio), e 4 tabelas de plano que não existiam (resumo da família, por loja, detalhe Coparticipado/Subsidiado/Reversão, e Inconsistências TRITON quando aplicável).
 
-## 7 passos
+**Uma decisão de apresentação que pedimos para você revisar especificamente**: o Portal atual mostra só 3 indicadores por modelo por padrão (Volume/Financiada/Penetração), com os outros 15 escondidos atrás de um botão "Ver Detalhes" que abre um modal — isso porque 18 colunas não cabem em nenhuma tela sem rolagem. A V2 **não replicou esse modal** — em vez disso, todas as 18 colunas ficam numa única tabela larga, com a coluna Modelo fixa e rolagem horizontal, agrupada por Volume/Financeiro/Retorno/Parcelamento/Entrada/Planos. Nenhuma métrica foi escondida atrás de cliques extras, mas a experiência de navegação é diferente da atual.
 
-1. Com **Grupo** selecionado (padrão): confirme que o controle mostra só **Visão Geral** e **Ranking** — Análise por Modelos e Novos por Loja nem aparecem como opção (não é um botão desabilitado, ele simplesmente não existe nessa visão).
-2. Clique em **Ranking**: confirme que só o Ranking aparece, nada mais.
-3. Alterne para **Novos**: confirme que agora aparecem as 4 opções, e que o Ranking continua selecionado/visível (ele existe nas 3 visões).
-4. Clique em **Análise por Modelos**: confirme que Classificação dos Planos + o seletor de veículos + os indicadores por modelo aparecem juntos, e que Ranking desaparece.
-5. Clique em **Novos por Loja**: confirme que só essa tabela aparece.
-6. Com Novos por Loja ainda selecionado, alterne para **Seminovos**: confirme que a página não fica em branco — ela volta automaticamente para **Visão Geral** (Novos por Loja e Análise por Modelos não existem em Seminovos).
-7. Teste a fixture "priority_collision" (seletor "DADOS DE TESTE") para ver os 3 blocos com dado real, e teste o teclado: dê Tab até um dos botões de análise e ative com Enter ou barra de espaço.
+## 6 passos
+
+1. Abra **Novos → Análise por Modelos**. Confirme o novo bloco de indicadores da família (Volume vendido, Financiamentos, Penetração, Produção, Receita, Receita SPF, Receita Total, Ticket médio, Média de retorno, Prazo médio, Média de parcela, Entrada média, % Entrada médio) logo abaixo do seletor de veículos.
+2. Role a tabela "Indicadores por modelo" na horizontal. Confirme que agora aparecem TODAS as colunas: Volume, Financiamentos, Penetração, Produção, Receita, Receita SPF, Receita Total, Ticket Médio, Retorno Médio, **Prazo Médio**, **Parcela Média**, Entrada Qtd, Entrada Média, Entrada %, **Qtd Linear**, **Qtd Balão**, **Qtd Reversão**, **Balão Médio**.
+3. Teste a fixture "model_analysis_parcelamento_completo" (seletor "DADOS DE TESTE") — ela tem dados reais de PMT, Quantidade de Parcelas e Balão PMT espalhados em 2 modelos (OUTLANDER HPE-S e OUTLANDER SIGNATURE), então Prazo Médio/Parcela Média/Balão Médio aparecem com valores diferentes de zero.
+4. Confirme as 4 tabelas de plano abaixo: "Resumo tipos de plano" (1 linha, total da família, com percentuais), "Quantidade por tipo de plano / Modelo" (com percentuais, não só contagem), "Quantidade por tipo de plano / Loja" (nova), "Detalhe Coparticipado / Subsidiado / Reversão" (nova).
+5. Teste a fixture "modelo_inconsistencia_triton" para ver a tabela condicional "Inconsistências TRITON" aparecer (ela só existe quando há dado real).
+6. Confirme que Ranking e Novos por Loja continuam exatamente como na rodada anterior — nenhuma mudança nesses dois.
 
 Não é necessário revisar código.
 
-## A pergunta principal
+## As duas perguntas principais
 
-**"Agora Ranking, Análise por Modelos e Novos por Loja aparecem apenas quando você os seleciona, como no Portal anterior?"**
+**"Agora a Análise por Modelos da V2 possui todas as colunas e métricas que existem no Portal atual, sem perder a organização Red Precision?"**
+
+**"As métricas como Parcela Média, Média de Parcelas e Balão Médio estão apresentadas com o significado e a leitura que você esperava?"**
 
 ## O que você deve saber antes de avaliar
 
-- Os dados exibidos são **fixtures locais sintéticas**, não dados reais — sinalizado na própria tela ("DADOS DE TESTE").
-- **Nenhum número já homologado mudou** — Vendas/Financiamentos/Produção/Receita/Entrada/Entrada Média/Entrada %, o Ranking (Top 10, ordenação, desempate) e Novos por Loja continuam calculando exatamente igual à rodada anterior. Só a navegação mudou.
-- O **Ranking** continua disponível nas 3 visões (Grupo/Novos/Seminovos) — é assim que a produção real se comporta, não uma exclusividade de Novos.
-- **Análise por Modelos** e **Novos por Loja** continuam exclusivas de Novos.
-- **Classificação dos Planos** agora aparece só dentro de **Análise por Modelos** (não mais como um bloco separado) — é assim que a produção real organiza essa informação (confirmado por leitura direta do código de produção: o bloco de classificação vive dentro da mesma seção de Análise por Modelos).
-- Ao trocar de Grupo/Novos/Seminovos, se a análise que você tinha aberto deixar de existir naquela visão, o sistema volta sozinho para Visão Geral — nunca fica com a tela em branco ou travada numa aba que sumiu.
-- A fixture "vendedor_nao_localizado_bloqueia" mostra um comportamento real: se um vendedor não está cadastrado, a produção real **interrompe** o processamento inteiro em vez de mostrar um resultado parcial — reproduzido de propósito, não é um erro do V2.
-- O selo "FECHAMENTO" continua ao lado dos KPIs principais, visível nas 3 visões.
-- A seção "Diagnóstico (dev only)" no rodapé é apenas para verificação técnica.
-- A tabela **não é** clicável por coluna para reordenar (mesma limitação já registrada para todos os módulos anteriores).
+- Os dados exibidos são **fixtures locais sintéticas**, não dados reais.
+- **Parcela Média** = valor médio da parcela em R$ (não a quantidade de parcelas).
+- **Prazo Médio** já é a "quantidade média de parcelas" — conferimos e a produção real não tem uma métrica separada com esse nome; são a mesma coisa, só que o rótulo em produção é "Prazo Médio" (formatado como "24,0x", por exemplo).
+- **Balão Médio** = valor médio do balão, calculado só entre os contratos que realmente têm balão (não dividido pelo total de financiamentos).
+- Nenhum número já homologado (Vendas/Financiamentos/Produção/Receita Total/Entrada/Entrada Média/Entrada %, Ranking, Novos por Loja) mudou nesta rodada — só a Análise por Modelos ganhou colunas novas.
+- A tabela larga de indicadores por modelo não é clicável por coluna para reordenar (mesma limitação já registrada para todos os módulos anteriores).
 
 ## O que acontece depois
 

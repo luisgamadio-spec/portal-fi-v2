@@ -187,6 +187,107 @@
       '</div>';
   }
 
+  // PORTAL-NEXT-07.3 — full production column contract for "Indicadores por
+  // modelo" (18 fields, origin/main lines 4088-4107), plus Entrada Qtd
+  // (already on modelRowsUnified's row, EXTRA_IN_V2, kept — see
+  // docs/MODEL-ANALYSIS-PRODUCTION-VS-V2.md). Group labels are purely
+  // presentational (Gate 25/50) — every column still maps 1:1 to a single
+  // production label, no new business category. Rendered as one wide table
+  // with a sticky Modelo column + horizontal scroll, NOT the card+modal
+  // shape production currently uses for this data — see
+  // docs/MODEL-ANALYSIS-METRIC-CONTRACTS.md's "Presentation decision"
+  // (data-table.md forbids cardifying tabular data; HUMAN REVIEW REQUIRED
+  // on this choice, flagged there).
+  var MODEL_TABLE_COLUMNS = [
+    { group: null, key: 'Modelo', label: 'Modelo' },
+    { group: 'Volume', key: 'volume', label: 'Volume', f: function (A, v) { return A.num(v); } },
+    { group: 'Volume', key: 'financiada', label: 'Financiamentos', f: function (A, v) { return A.num(v); } },
+    { group: 'Volume', key: 'penetracao', label: 'Penetração', f: function (A, v) { return A.pct(v); }, penetracao: true },
+    { group: 'Financeiro', key: 'producao', label: 'Produção', f: function (A, v) { return A.money(v); } },
+    { group: 'Financeiro', key: 'receita', label: 'Receita', f: function (A, v) { return A.money(v); } },
+    { group: 'Financeiro', key: 'receitaSPF', label: 'Receita SPF', f: function (A, v) { return A.money(v); } },
+    { group: 'Financeiro', key: 'receitaTotal', label: 'Receita Total', f: function (A, v) { return A.money(v); } },
+    { group: 'Financeiro', key: 'ticket', label: 'Ticket Médio', f: function (A, v) { return A.money(v); } },
+    { group: 'Retorno', key: 'retornoMedio', label: 'Retorno Médio', f: function (A, v) { return A.pct(v); } },
+    { group: 'Parcelamento', key: 'prazoMedio', label: 'Prazo Médio', f: function (A, v) { return A.num(v, 1) + 'x'; } },
+    { group: 'Parcelamento', key: 'pmtMed', label: 'Parcela Média', f: function (A, v) { return A.money(v); } },
+    { group: 'Entrada', key: 'entradaQtd', label: 'Entrada Qtd', f: function (A, v) { return A.num(v); } },
+    { group: 'Entrada', key: 'entradaMed', label: 'Entrada Média', f: function (A, v) { return A.money(v); } },
+    { group: 'Entrada', key: 'entradaPct', label: 'Entrada %', f: function (A, v) { return A.pct(v); } },
+    { group: 'Planos', key: 'linearQtd', label: 'Qtd Linear', f: function (A, v) { return A.num(v); } },
+    { group: 'Planos', key: 'balaoQtd', label: 'Qtd Balão', f: function (A, v) { return A.num(v); } },
+    { group: 'Planos', key: 'reversaoQtd', label: 'Qtd Reversão', f: function (A, v) { return A.num(v); } },
+    { group: 'Planos', key: 'balaoMed', label: 'Balão Médio', f: function (A, v) { return A.money(v); } }
+  ];
+
+  function penetracaoCellHtml(A, v) {
+    var cls = v < 0.40 ? 'dbPenetracaoBaixa' : 'dbPenetracaoOk';
+    return '<span class="' + cls + '">' + esc(A.pct(v)) + '</span>';
+  }
+
+  function modelWideTableHtml(A, modelRows) {
+    var dataCols = MODEL_TABLE_COLUMNS.slice(1);
+    var groups = [];
+    dataCols.forEach(function (c) {
+      var last = groups[groups.length - 1];
+      if (last && last.label === c.group) last.span++;
+      else groups.push({ label: c.group, span: 1 });
+    });
+    var groupRow = '<th class="dbSticky" rowspan="2" scope="col">Modelo</th>' +
+      groups.map(function (g) { return '<th colspan="' + g.span + '" scope="colgroup" class="dbGroupHead">' + esc(g.label) + '</th>'; }).join('');
+    var labelRow = dataCols.map(function (c) { return '<th class="dbNumCol" scope="col">' + esc(c.label) + '</th>'; }).join('');
+    var body = modelRows.map(function (r) {
+      var cells = dataCols.map(function (c) {
+        var val = r[c.key];
+        var html = c.penetracao ? penetracaoCellHtml(A, val) : esc(String(c.f(A, val)));
+        return '<td class="dbNumCol">' + html + '</td>';
+      }).join('');
+      return '<tr><td class="dbSticky">' + esc(r.Modelo) + '</td>' + cells + '</tr>';
+    }).join('');
+    return '<div class="dbTableWrap"><table class="dbTable dbTableGrouped"><thead>' +
+      '<tr>' + groupRow + '</tr><tr>' + labelRow + '</tr>' +
+      '</thead><tbody>' + (body || '<tr><td colspan="' + (dataCols.length + 1) + '" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
+  }
+
+  function familyMetricGridHtml(A, results, modelRows) {
+    var totals = modelRows.reduce(function (a, r) {
+      a.volume += r.volume; a.financiada += r.financiada; a.producao += r.producao;
+      a.receita += r.receita; a.receitaSPF += r.receitaSPF; a.receitaTotal += r.receitaTotal;
+      return a;
+    }, { volume: 0, financiada: 0, producao: 0, receita: 0, receitaSPF: 0, receitaTotal: 0 });
+    var pen = totals.volume ? totals.financiada / totals.volume : 0;
+    var ticket = totals.financiada ? totals.producao / totals.financiada : 0;
+    var extraFam = A.familyExtraMetrics(results, modelRows);
+    function box(label, value) { return '<div class="dbFamilyMetricBox"><div class="dbK">' + esc(label) + '</div><div class="dbV">' + value + '</div></div>'; }
+    return '<div class="dbFamilyMetricGrid">' +
+      box('Volume vendido', A.num(totals.volume)) +
+      box('Financiamentos', A.num(totals.financiada)) +
+      box('Penetração', A.pct(pen)) +
+      box('Produção', A.money(totals.producao)) +
+      box('Receita', A.money(totals.receita)) +
+      box('Receita SPF', A.money(totals.receitaSPF)) +
+      box('Receita Total', A.money(totals.receitaTotal)) +
+      box('Ticket médio', A.money(ticket)) +
+      box('Média de retorno', A.pct(extraFam.retornoMedio)) +
+      box('Prazo médio', A.num(extraFam.prazoMedio, 1) + 'x') +
+      box('Média de parcela', A.money(extraFam.pmtMed)) +
+      box('Entrada média', A.money(extraFam.entradaMed)) +
+      box('% Entrada médio', A.pct(extraFam.entradaPct)) +
+      '</div>';
+  }
+
+  function planPctRow(cells) {
+    // Loja/Modelo/Família label, then 5 pairs of (count, pct) columns —
+    // count and pct both numeric-aligned, matching production's own
+    // Linear/Linear%/Balão/Balão%/... column sequence exactly.
+    return '<tr><td>' + esc(cells[0]) + '</td>' + cells.slice(1).map(function (c) { return '<td class="dbNumCol">' + esc(String(c)) + '</td>'; }).join('') + '</tr>';
+  }
+  var PLAN_PCT_HEADERS = ['Financiamentos', 'Linear', 'Linear %', 'Balão', 'Balão %', 'Coparticipado', 'Coparticipado %', 'Subsidiado', 'Subsidiado %', 'Reversão', 'Reversão %'];
+  function planPctBodyRow(A, r) {
+    return planPctRow([r.__label, r.Financiamentos, r.Linear, A.pct(r.LinearPct), r.Balao, A.pct(r.BalaoPct),
+      r.Coparticipado, A.pct(r.CoparticipadoPct), r.Subsidiado, A.pct(r.SubsidiadoPct), r.Reversao, A.pct(r.ReversaoPct)]);
+  }
+
   function planClassificationHtml(A, counts) {
     return '<h2 style="margin-top:0">Classificação dos Planos</h2>' +
       '<div class="dbPlanGrid">' + ['SUBSIDIADO', 'REVERSÃO', 'COPARTICIPADO', 'BALÃO', 'LINEAR'].map(function (t) { return planCardHtml(A, t, counts[t]); }).join('') + '</div>' +
@@ -196,22 +297,48 @@
   function modelAnalysisHtml(A, results, counts) {
     var modelRows = A.modelRowsUnified(results, currentFamily);
     var planRows = A.planRowsByModel(results, currentFamily);
-    var modelBody = modelRows.map(function (r) {
-      return row([r.Modelo, r.volume, r.financiada, A.pct(r.penetracao), A.money(r.producao), A.money(r.receitaTotal),
-        A.money(r.ticket), A.pct(r.retornoMedio), r.entradaQtd, A.money(r.entradaMed), A.pct(r.entradaPct)]);
-    });
-    var planBody = planRows.map(function (r) {
-      return row([r.Modelo, r.Financiamentos, r.Linear, r.Balao, r.Coparticipado, r.Subsidiado, r.Reversao]);
-    });
+    var planTotalRows = A.planTotalRowsForFamily(results, currentFamily);
+    var planStoreRows = A.planRowsByStoreForFamily(results, currentFamily);
+    var specialRows = A.specialPlanDetailRows(results, currentFamily);
+    var tritonRows = A.inconsistenciaTritonRows(results);
+
+    var planTotalBody = planTotalRows.map(function (r) { r.__label = r['Família']; return planPctBodyRow(A, r); }).join('');
+    var planModelBody = planRows.map(function (r) { r.__label = r.Modelo; return planPctBodyRow(A, r); }).join('');
+    var planStoreBody = planStoreRows.map(function (r) { r.__label = r.Loja; return planPctBodyRow(A, r); }).join('');
+
+    var specialBody = specialRows.map(function (r) {
+      return '<tr><td>' + esc(r.Loja) + '</td><td>' + esc(r.Modelo) + '</td><td>' + esc(r.Plano) + '</td><td>' + esc(r.Cliente) +
+        '</td><td class="dbNumCol">' + esc(A.money(r.Producao)) + '</td><td class="dbNumCol">' + esc(A.money(r.Receita)) + '</td></tr>';
+    }).join('');
+
+    var tritonHtml = '';
+    if (tritonRows.length) {
+      var tritonBody = tritonRows.map(function (r) {
+        return '<tr><td>' + esc(r.Base) + '</td><td>' + esc(r.Cliente) + '</td><td>' + esc(r.ModeloOriginal) + '</td><td>' + esc(r.Vendedor) + '</td></tr>';
+      }).join('');
+      tritonHtml = '<h3 class="dbSubHeading">Inconsistências TRITON</h3>' +
+        '<p class="dbMuted">Registros classificados como TRITON com o modelo original divergente entre as bases — sinalizado, não corrigido automaticamente.</p>' +
+        tableHtml(['Base', 'Cliente', 'Modelo original', 'Vendedor'], tritonBody ? [tritonBody] : []);
+    }
+
     return '<div class="dbModelSection">' +
       planClassificationHtml(A, counts) +
       '<h2>Análise por Modelos (Novos)</h2>' +
       '<p class="dbMuted">Selecione uma família para abrir os indicadores específicos dos modelos Novos.</p>' +
       vehicleSelectorHtml() +
-      '<p class="dbMuted">Vendas/Financiamentos/Produção/Receita/Ticket/Retorno por modelo, mais os indicadores de Entrada (Entrada, Entrada Média, Entrada %) — nunca ocultos.</p>' +
-      tableHtml(['Modelo', 'Vendas', 'Financiamentos', 'Penetração', 'Produção', 'Receita Total', 'Ticket', 'Retorno Médio', 'Entrada Qtd', 'Entrada Média', 'Entrada %'], modelBody) +
-      '<h2>Mix de Planos por Modelo</h2>' +
-      tableHtml(['Modelo', 'Financiamentos', 'Linear', 'Balão', 'Coparticipado', 'Subsidiado', 'Reversão'], planBody) +
+      familyMetricGridHtml(A, results, modelRows) +
+      '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Indicadores por modelo</h3>' +
+      '<p class="dbMuted">Vendas/Financiamentos/Produção/Receita/Ticket/Retorno por modelo, mais os indicadores de Entrada e Parcelamento (Prazo Médio, Parcela Média) — nunca ocultos. Role a tabela na horizontal para ver todas as colunas.</p>' +
+      modelWideTableHtml(A, modelRows) +
+      tritonHtml +
+      '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Resumo tipos de plano</h3>' +
+      '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' + headerRow(['Família'].concat(PLAN_PCT_HEADERS), 1) + '</tr></thead><tbody>' + (planTotalBody || '<tr><td colspan="12" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>' +
+      '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Quantidade por tipo de plano / Modelo</h3>' +
+      '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' + headerRow(['Modelo'].concat(PLAN_PCT_HEADERS), 1) + '</tr></thead><tbody>' + (planModelBody || '<tr><td colspan="12" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>' +
+      '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Quantidade por tipo de plano / Loja</h3>' +
+      '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' + headerRow(['Loja'].concat(PLAN_PCT_HEADERS), 1) + '</tr></thead><tbody>' + (planStoreBody || '<tr><td colspan="12" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>' +
+      '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Detalhe Coparticipado / Subsidiado / Reversão</h3>' +
+      tableHtml(['Loja', 'Modelo', 'Plano', 'Cliente', 'Produção', 'Receita'], specialBody ? [specialBody] : [], 4) +
       '</div>';
   }
 

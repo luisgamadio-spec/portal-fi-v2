@@ -1545,6 +1545,147 @@
           "Loja": "LOJA_TIE_B"
         }
       ]
+    },
+    {
+      "id": "model_analysis_parcelamento_completo",
+      "description": "4 financiamentos Novos entre 2 SKUs reais da família OUTLANDER (HPE-S/SIGNATURE): 2 Linear com PMT/Parcelas reais, 1 Balão com PMT/Parcelas+BalãoPMT proprios, 1 sem correspondência na Base 03 (excluido das médias). Prova parcelasMed/pmtMed/balaoMed E as tabelas de plano por modelo/loja com percentuais reais, não só zeros.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHSPMT01",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "OUTLANDER HPE-S",
+          "Valor Venda": 210000,
+          "Nome Cliente": "Cliente Parcela A"
+        },
+        {
+          "Transação": "V21",
+          "Chassi": "CHSPMT02",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "OUTLANDER HPE-S",
+          "Valor Venda": 220000,
+          "Nome Cliente": "Cliente Parcela B"
+        },
+        {
+          "Transação": "V21",
+          "Chassi": "CHSPMT03",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "OUTLANDER SIGNATURE",
+          "Valor Venda": 230000,
+          "Nome Cliente": "Cliente Parcela C Balao"
+        },
+        {
+          "Transação": "V21",
+          "Chassi": "CHSPMT04",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "OUTLANDER HPE-S",
+          "Valor Venda": 240000,
+          "Nome Cliente": "Cliente Parcela D Sem Base03"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 210000,
+          "RECEITA": 15000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "OUTLANDER HPE-S",
+          "CLIENTE": "Cliente Parcela A",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        },
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 220000,
+          "RECEITA": 16000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "OUTLANDER HPE-S",
+          "CLIENTE": "Cliente Parcela B",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        },
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 230000,
+          "RECEITA": 17000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "OUTLANDER SIGNATURE",
+          "CLIENTE": "Cliente Parcela C Balao",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        },
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 240000,
+          "RECEITA": 18000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "OUTLANDER HPE-S",
+          "CLIENTE": "Cliente Parcela D Sem Base03",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [
+        {
+          "Cli - Nome": "Cliente Parcela A",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": "",
+          "Tabela - Código IF": "",
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - PMT (R$)": 1500,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 210000
+        },
+        {
+          "Cli - Nome": "Cliente Parcela B",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": "",
+          "Tabela - Código IF": "",
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - PMT (R$)": 2500,
+          "Op Fin - Quantidade Parcelas": 24,
+          "Op Fin - Financiado (R$)": 220000
+        },
+        {
+          "Cli - Nome": "Cliente Parcela C Balao",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": "",
+          "Tabela - Código IF": "",
+          "Op Fin - Balão PMT (R$)": 15000,
+          "Op Fin - PMT (R$)": 1800,
+          "Op Fin - Quantidade Parcelas": 36,
+          "Op Fin - Financiado (R$)": 230000
+        }
+      ],
+      "vendorRows": [
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        }
+      ]
     }
   ]
 }

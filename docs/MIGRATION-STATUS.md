@@ -318,6 +318,57 @@ fixtures pass unchanged. Landing/Score/Coparticipado/Gestão re-verified byte-
 identical. 0 console/network errors across the full visibility matrix, 0 page-level
 horizontal overflow at all 6 required breakpoints (360/390/430/768/1366/1920).
 
+## PORTAL-NEXT-07.3 addendum
+
+Dashbi stays `UAT_PENDING`. Human UAT on PORTAL-NEXT-07.2's selective navigation
+flagged that Análise por Modelos was missing columns/metrics present in current
+production (named examples: Balão Médio, Parcela Média — explicitly flagged as not
+the complete scope). This Wave performed a from-scratch production × V2 audit
+before touching any code (`docs/MODEL-ANALYSIS-PRODUCTION-INVENTORY.md`,
+`docs/MODEL-ANALYSIS-V2-INVENTORY.md`, `docs/MODEL-ANALYSIS-PRODUCTION-VS-V2.md`)
+and restored every material item found missing (`docs/MODEL-ANALYSIS-RESTORATION-
+MATRIX.md`): 14 family-level metric boxes (entirely absent), 8 per-model fields
+(Receita/Receita SPF split, Prazo Médio, Parcela Média, Qtd Linear/Balão/Reversão,
+Balão Médio), 4 more plan-breakdown tables (family total, per-loja breakdown,
+special-plan detail, conditional TRITON-inconsistency table).
+
+**Most of the restoration was a presentation gap, not a missing-extraction gap**:
+`modelRowsUnified`/`familyExtraMetrics`/`planRowsByStoreForFamily` — all already
+extracted byte-identical since PORTAL-NEXT-07 — already computed nearly every
+missing field; V2's UI simply never rendered it. Only 3 functions needed fresh
+extraction (`planTotalRowsForFamily`, `specialPlanDetailRows`,
+`inconsistenciaTritonRows`) — 99 functions total, 0 mismatches against an
+independently re-extracted reference.
+
+**Metric semantics proved before restoring, not assumed** (`docs/MODEL-ANALYSIS-
+METRIC-CONTRACTS.md`): "Parcela Média" = average PMT value in R$ (eligible
+population: records with pmt>0, excluded not zeroed otherwise); "Prazo Médio" *is*
+the average-installment-count metric — production has exactly one such metric, not
+two separately-labeled ones as a plausible reading of the brief might suggest;
+"Balão Médio" = average balloon value among only balloon contracts (same population
+as the BALÃO plan-classification flag), not averaged across all financings. A new
+golden fixture (`model_analysis_parcelamento_completo`) proves this with real
+non-zero PMT/installment-count/balloon values across 2 real SKUs plus one record
+with no Base03 match, confirming the exclusion (not zero-inclusion) averaging rule.
+
+**Deliberate, disclosed presentation choice — flagged for human review**:
+production's own current UI shows only 3 of the 18 per-model fields by default
+(cards) with the rest behind a "Ver Detalhes" modal — its own source comment
+explains this was production's real response to the same "18 columns too wide"
+problem. V2 does **not** reproduce the card+modal shape: `data-table.md` (the
+actual Design System authority for dense data throughout this whole engagement)
+forbids cardifying tabular data. Restored instead as one wide table (grouped
+headers, sticky Modelo column, horizontal scroll) — same completeness, a
+different, already-approved interaction shape. Human review requested specifically
+on this choice, separately from the metric semantics.
+
+**0 change** to Ranking, Novos por Loja, the vehicle selector, selective navigation,
+or any already-parity-proven metric — confirmed via `git diff` showing only
+additions to `dashbi.adapter.js` (0 deletions to existing functions). 26/26 golden
+fixtures (25 + 1 new). Landing/Score/Coparticipado/Gestão re-verified byte-
+identical. 0 console/network errors across a full 26-fixture × 3-family sweep, 0
+page-level horizontal overflow at all 6 required breakpoints.
+
 ## Standing blockers carried forward (not resolved this phase)
 
 - Gestão: commission-rule discrepancy (`PORTAL-NEXT-01.1/BLOCKER-

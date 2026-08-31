@@ -713,6 +713,14 @@ function hasTCPlanColumn(row){
   return hasAnyCol(row,["Tabela - TC Devolvida (R$)","Tabela - TC Devolvida","TC Devolvida","Tabela TC Devolvida"]) || isTCHeader(row.__HEADER_E) || isCoparticipadoValue(row.__COL_E);
 }
 
+function inconsistenciaTritonRows(results){
+  const vendas = (results.sales || []).filter(r => r.dept === "Novos" && r.modelo === "INCONSISTÊNCIA TRITON")
+    .map(r => ({Base:"Base 01", Cliente:r.cliente||"", ModeloOriginal:getCol(r.origem||{},["Modelo","DES_MODELO","Veículo"]), Vendedor:r.vendedor||""}));
+  const fins = (results.fins || []).filter(r => r.dept === "Novos" && r.modelo === "INCONSISTÊNCIA TRITON")
+    .map(r => ({Base:"Base 02", Cliente:r.cliente||"", ModeloOriginal:getCol(r.origem||{},["DES_MODELO","Modelo","VEICULO"]), Vendedor:r.vendedor||""}));
+  return [...vendas, ...fins];
+}
+
 function inferirTipoNovoSeminovo(row, vendaRef=null){
   function extrairTipo(r){
     if(!r) return "";
@@ -1208,6 +1216,31 @@ function planTextValue(v){
   return normalizeText(v).replace(/[^\w\s]/g," ").replace(/\s+/g," ").trim();
 }
 
+function planTotalRowsForFamily(results, family){
+  const modelos = FAMILY_MODELS[family] || [];
+  const rows = results.fins.filter(r => r.dept === "Novos" && modelos.includes(r.modelo));
+  const total = rows.length || 0;
+  const countLinear = rows.filter(isFinLinear).length;
+  const countBalao = rows.filter(isFinBalao).length;
+  const countCop = rows.filter(isFinCoparticipado).length;
+  const countSub = rows.filter(isFinSubsidiado).length;
+  const countRev = rows.filter(isFinReversao).length;
+  return [{
+    Família: family,
+    Financiamentos: total,
+    Linear: countLinear,
+    LinearPct: total ? countLinear/total : 0,
+    Balao: countBalao,
+    BalaoPct: total ? countBalao/total : 0,
+    Coparticipado: countCop,
+    CoparticipadoPct: total ? countCop/total : 0,
+    Subsidiado: countSub,
+    SubsidiadoPct: total ? countSub/total : 0,
+    Reversao: countRev,
+    ReversaoPct: total ? countRev/total : 0
+  }];
+}
+
 function planoCounts(registros){
   const c = {LINEAR:0,"BALÃO":0,COPARTICIPADO:0,SUBSIDIADO:0,"REVERSÃO":0};
   (registros || []).forEach(r => { const k = planoKeyOperacao(r); c[k] = (c[k] || 0) + 1; });
@@ -1458,6 +1491,22 @@ function sellerNameFromRow(row){
   ]));
 }
 
+function specialPlanDetailRows(results, family){
+  const modelos = FAMILY_MODELS[family] || [];
+  return results.fins
+    .filter(r => r.dept === "Novos" && modelos.includes(r.modelo))
+    .filter(r => isFinCoparticipado(r) || isFinSubsidiado(r) || isFinReversao(r))
+    .map(r => ({
+      Loja:r.loja,
+      Modelo:r.modelo,
+      Plano:[isFinCoparticipado(r) ? "COPARTICIPADO" : "", isFinSubsidiado(r) ? "SUBSIDIADO" : "", isFinReversao(r) ? "REVERSÃO" : ""].filter(Boolean).join(" + "),
+      Cliente:r.cliente || "",
+      Producao:r.producao || 0,
+      Receita:r.receita || 0
+    }))
+    .sort((a,b)=>a.Plano.localeCompare(b.Plano) || a.Modelo.localeCompare(b.Modelo) || a.Loja.localeCompare(b.Loja));
+}
+
 function toDateOnly(d){
   if(!d) return null;
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -1511,6 +1560,10 @@ function toDateOnly(d){
     modelRowsUnified: modelRowsUnified,
     planRowsByModel: planRowsByModel,
     planRowsByStoreForFamily: planRowsByStoreForFamily,
+    planTotalRowsForFamily: planTotalRowsForFamily,
+    specialPlanDetailRows: specialPlanDetailRows,
+    inconsistenciaTritonRows: inconsistenciaTritonRows,
+    familyExtraMetrics: familyExtraMetrics,
     kpiMetricsFor: kpiMetricsFor,
     rankingFromViews: rankingFromViews,
     buildNovosLojaRows: buildNovosLojaRows
