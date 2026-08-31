@@ -36,8 +36,8 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Portal Shell / MASTER Admin | NOT_MIGRATED | 0 |
 | Score | **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) | 2 |
 | Coparticipado | **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1 — human decision recorded) | 3 |
-| Gestão | **UAT_PENDING**, commission decision RESOLVED, table alignment FIXED (PORTAL-NEXT-06.1 — see `docs/HUMAN-UAT-GESTAO.md` and `docs/GESTAO-COMMISSION-DECISION.md`) | 4 |
-| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | NOT_MIGRATED | 5 |
+| Gestão | **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1 — human decision recorded) | 4 |
+| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07 — see `docs/HUMAN-UAT-DASHBI.md`) | 5 |
 | Simulador Novos | NOT_MIGRATED | 6 |
 | Simulador Seminovos | NOT_MIGRATED | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
@@ -173,6 +173,60 @@ SPF commission decision. Both resolved this Wave, Gestão remains
 
 30/30 golden fixtures pass (26 from PORTAL-NEXT-06 + 4 new SPF-rounding
 cases). Landing/Score/Coparticipado re-verified byte-identical.
+
+## PORTAL-NEXT-07 addendum
+
+Gestão (Análise F&I do Grupo) moved `UAT_PENDING` → `HUMAN_APPROVED`
+(Gate 1 — human decision recorded in this Wave's CONTEXT section,
+metadata-only, implementation files re-verified byte-identical).
+Dashbi (Análise Geral do Grupo) moved `NOT_MIGRATED` → `UAT_PENDING`
+(technical: PASS — 24/24 golden fixtures, see `docs/DASHBI-FUNCTION-
+MAP.md`/`DASHBI-DATA-CONTRACT.md`/`DASHBI-MODEL-ANALYSIS-CONTRACT.md`/
+`DASHBI-BASE02-DIAGNOSTICS.md`/`DASHBI-BASE03-SCHEMA.md`/`DASHBI-
+CROSS-MODULE-CONSISTENCY.md`; human: pending, see `docs/HUMAN-UAT-
+DASHBI.md`). Landing/Score/Coparticipado/Gestão re-verified byte-
+identical. Every other module untouched.
+
+**Real, load-bearing finding this Wave**: "Gestão" is confirmed as a
+menu CATEGORY containing two independent sibling screens — this Wave
+migrated the second one, "Análise Geral do Grupo" (dashbi,
+`analise-geral-grupo-secure-original-layout.html`, 6010 lines, the
+largest module migrated so far: 94 functions extracted, vs. Gestão's
+38 and Coparticipado's 40). Unlike Gestão, this file IS divergent
+between the local clone and `origin/main` (like Score/Coparticipado).
+
+**Historically-cited risks, re-audited from current production
+authority, not presumed still accurate**: a hard 2026-06-01 date-
+cutoff splits "historical" and "Nova" (new) Base01/Base02 formats,
+each with its own adapter, both streams concatenated (not chosen
+exclusively); Base03 supports a positional column E/F alias fallback
+for "anonymized" exports; Model Analysis's Entrada/Entrada Média/
+Entrada % has a real eligibility guard (`financiado <= valorVenda ×
+1.15`) and a traceable diagnostic (`chassisLocalizados`/
+`chassisNaoLocalizados`) instead of an opaque zero — all confirmed
+present in current production, extracted byte-identical, and covered
+by dedicated golden fixtures (`base03_alias_posicional`,
+`nova_entrada_com_match`, `nova_entrada_sem_match`,
+`entrada_financiado_excede_tolerancia`).
+
+**A real hard-stop validation gate, faithfully reproduced**: if any
+resolved seller has no known store, production aborts rendering
+entirely rather than showing a partial/wrong result
+(`vendedor_nao_localizado_bloqueia` fixture) — V2's `compute()`
+returns `{blocked:true}` in that case, and the UI shows an explicit
+notice, never a silently-wrong partial dashboard.
+
+**Cross-module plan-priority consistency proved a third time**:
+Dashbi's own source comments explicitly cross-reference Análise F&I's
+classification rule ("igual a planTypeFromFields() do módulo Análise
+F&I do Grupo") — independently confirmed via a shared priority-
+collision fixture run through all three modules' own extracted
+engines (Dashbi/Gestão/Coparticipado), 0 unexplained difference. One
+real, disclosed, NOT-unified difference was found and preserved: B3/
+B03 candidate tiebreak — Coparticipado breaks ties by most-recent
+contract date, Dashbi breaks ties by array order (no date comparison
+exists in its own scoring function) — see `docs/DASHBI-CROSS-MODULE-
+CONSISTENCY.md`.
 
 ## Standing blockers carried forward (not resolved this phase)
 

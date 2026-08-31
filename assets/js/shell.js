@@ -88,6 +88,13 @@
           window.NX_GESTAO_PAGE.render(geOutlet).then(function () {
             if (hasRenderedOnce) geOutlet.focus();
           });
+        } else if (routeId === 'dashbi' && window.NX_DASHBI_PAGE) {
+          // PORTAL-NEXT-07 Gate 99: real Dashbi route, same outlet-only
+          // rendering contract as every prior module.
+          var dbOutlet = document.getElementById('nxContentOutlet');
+          window.NX_DASHBI_PAGE.render(dbOutlet).then(function () {
+            if (hasRenderedOnce) dbOutlet.focus();
+          });
         } else {
           renderPlaceholder(entry, routeId, hasRenderedOnce);
         }

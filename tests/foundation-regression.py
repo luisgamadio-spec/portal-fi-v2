@@ -28,6 +28,7 @@ CHECKS = [
     ("Score Parity (Gates 6-7)", ["python", os.path.join(HERE, "score-parity-test.py")]),
     ("Coparticipado Parity (PORTAL-NEXT-05 Gates 13-14)", ["python", os.path.join(HERE, "coparticipado-parity-test.py")]),
     ("Gestão Parity (PORTAL-NEXT-06 Gates 27-28)", ["python", os.path.join(HERE, "gestao-parity-test.py")]),
+    ("Dashbi Parity (PORTAL-NEXT-07 Gates 34-35)", ["python", os.path.join(HERE, "dashbi-parity-test.py")]),
 ]
 
 def main():

@@ -23,17 +23,15 @@ def main():
     print(f"[PASS] {len(modules)} modules found in registry" if modules else "[FAIL] 0 modules found")
     if not modules:
         errors.append("registry has 0 modules")
-    # Expected status per module as of PORTAL-NEXT-06 (Gate 132: Landing/
-    # Score/Coparticipado are now HUMAN_APPROVED; Gestão must stop at
-    # UAT_PENDING, never auto-promoted, and carries an explicit
-    # commissionImpact/SURFACE-SCOPED blocker instead of a new status enum
-    # value — Gate 131 permits either; this registry chose the simpler
-    # "existing status + blocker metadata" option).
+    # Expected status per module as of PORTAL-NEXT-07 (Gate 139: Landing/
+    # Score/Coparticipado/Gestão are now HUMAN_APPROVED; Dashbi must stop
+    # at UAT_PENDING, never auto-promoted).
     EXPECTED_STATUS = {
         "landing": {"HUMAN_APPROVED"},
         "score": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "HUMAN_APPROVED"},
         "coparticipado": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
-        "gestao": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS"},
+        "gestao": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
+        "dashbi": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS"},
     }
 
     for m in modules:
@@ -46,7 +44,7 @@ def main():
             if status not in EXPECTED_STATUS[mid]:
                 errors.append(f"module '{mid}' has migrationStatus={status!r}, expected one of {EXPECTED_STATUS[mid]}")
         elif status != "NOT_MIGRATED":
-            errors.append(f"module '{mid}' has migrationStatus={status!r}, expected NOT_MIGRATED — only Landing/Score/Coparticipado/Gestão may have changed status so far (Gate 29/65)")
+            errors.append(f"module '{mid}' has migrationStatus={status!r}, expected NOT_MIGRATED — only Landing/Score/Coparticipado/Gestão/Dashbi may have changed status so far (Gate 29/65)")
         if status not in enum:
             errors.append(f"module '{mid}' migrationStatus not in enum")
 

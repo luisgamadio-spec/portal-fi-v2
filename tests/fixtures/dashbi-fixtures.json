@@ -1,0 +1,1481 @@
+{
+  "note": "Gate 33 -- synthetic/sample inputs, no real customer/employee PII. All names/chassis/CPFs are invented placeholders (VENDOR_MAP itself ships empty in the adapter -- see docs/DASHBI-FUNCTION-MAP.md -- so every fixture supplies its own synthetic vendorRows). Column shapes match production's real Base01(historical)/Base01(nova)/Base02(historical)/Base02(nova)/Base03 contracts (docs/DASHBI-DATA-CONTRACT.md).",
+  "cases": [
+    {
+      "id": "linear_sem_b3",
+      "description": "Venda+financiamento históricos, sem nenhuma linha Base03 correspondente -> LINEAR (matched=false).",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0001",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "CARLOS EDUARDO SILVA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 180000,
+          "Nome Cliente": "Cliente Um"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 180000,
+          "RECEITA": 14000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "CARLOS EDUARDO SILVA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Um",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "subsidiado",
+      "description": "Base03 com Código IF=999 -> SUBSIDIADO.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0002",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "TRITON GLS",
+          "Valor Venda": 190000,
+          "Nome Cliente": "Cliente Dois"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 190000,
+          "RECEITA": 15000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "TRITON GLS",
+          "CLIENTE": "Cliente Dois",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [
+        {
+          "Cli - Nome": "Cliente Dois",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": "",
+          "Tabela - Código IF": 999,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 0,
+          "Op Fin - Financiado (R$)": 190000
+        }
+      ],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "reversao",
+      "description": "Base03 com Código IF=777 -> REVERSÃO.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0003",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "JULIANA PEREIRA LIMA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 195000,
+          "Nome Cliente": "Cliente Tres"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 195000,
+          "RECEITA": 15500,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "JULIANA PEREIRA LIMA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Tres",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [
+        {
+          "Cli - Nome": "Cliente Tres",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": "",
+          "Tabela - Código IF": 777,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 0,
+          "Op Fin - Financiado (R$)": 195000
+        }
+      ],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "coparticipado",
+      "description": "Base03 com TC Devolvida=1 -> COPARTICIPADO.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0004",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "CARLOS EDUARDO SILVA",
+          "Modelo": "TRITON GL",
+          "Valor Venda": 170000,
+          "Nome Cliente": "Cliente Quatro"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 170000,
+          "RECEITA": 13000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "CARLOS EDUARDO SILVA",
+          "DES_MODELO": "TRITON GL",
+          "CLIENTE": "Cliente Quatro",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [
+        {
+          "Cli - Nome": "Cliente Quatro",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": 1,
+          "Tabela - Código IF": "",
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 0,
+          "Op Fin - Financiado (R$)": 170000
+        }
+      ],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "balao",
+      "description": "Base03 com Balão PMT>0, sem outro sinal -> BALÃO.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0005",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 200000,
+          "Nome Cliente": "Cliente Cinco"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 200000,
+          "RECEITA": 16000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Cinco",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [
+        {
+          "Cli - Nome": "Cliente Cinco",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": "",
+          "Tabela - Código IF": "",
+          "Op Fin - Balão PMT (R$)": 25000,
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 0,
+          "Op Fin - Financiado (R$)": 200000
+        }
+      ],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "priority_collision",
+      "description": "Mesma linha Base03 tem Código IF=999 + TC Devolvida=1 + Balão>0 -> deve vencer SUBSIDIADO (prioridade oficial SUBSIDIADO>REVERSÃO>COPARTICIPADO>BALÃO>LINEAR, igual Análise F&I/Coparticipado).",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0006",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "JULIANA PEREIRA LIMA",
+          "Modelo": "TRITON GLS",
+          "Valor Venda": 210000,
+          "Nome Cliente": "Cliente Seis"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 210000,
+          "RECEITA": 17000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "JULIANA PEREIRA LIMA",
+          "DES_MODELO": "TRITON GLS",
+          "CLIENTE": "Cliente Seis",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [
+        {
+          "Cli - Nome": "Cliente Seis",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": 1,
+          "Tabela - Código IF": 999,
+          "Op Fin - Balão PMT (R$)": 30000,
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 0,
+          "Op Fin - Financiado (R$)": 210000
+        }
+      ],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "base03_alias_posicional",
+      "description": "Base03 'anonimizada': colunas nomeadas ausentes, mas __COL_F contém 'SUBSIDIADO' (coluna F posicional) -> deve classificar SUBSIDIADO via getCodigoIFValue's fallback.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0007",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "CARLOS EDUARDO SILVA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 205000,
+          "Nome Cliente": "Cliente Sete"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 205000,
+          "RECEITA": 16500,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "CARLOS EDUARDO SILVA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Sete",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [
+        {
+          "Cli - Nome": "Cliente Sete",
+          "Op Fin - Financiado (R$)": 205000,
+          "__COL_E": "",
+          "__HEADER_E": "",
+          "__COL_F": "SUBSIDIADO",
+          "__HEADER_F": "Coluna F"
+        }
+      ],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "duplicate_b3",
+      "description": "Dois candidatos Base03 para o mesmo cliente: um SUBSIDIADO (score 100) e um LINEAR-like residual (score baixo) -> deve escolher o SUBSIDIADO.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0008",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "TRITON GL",
+          "Valor Venda": 175000,
+          "Nome Cliente": "Cliente Oito"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 175000,
+          "RECEITA": 14000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "TRITON GL",
+          "CLIENTE": "Cliente Oito",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [
+        {
+          "Cli - Nome": "Cliente Oito",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": "",
+          "Tabela - Código IF": "",
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - PMT (R$)": 3000,
+          "Op Fin - Quantidade Parcelas": 48,
+          "Op Fin - Financiado (R$)": 175000
+        },
+        {
+          "Cli - Nome": "Cliente Oito",
+          "Cli - CPF/CNPJ": "",
+          "Tabela - TC Devolvida (R$)": "",
+          "Tabela - Código IF": 999,
+          "Op Fin - Balão PMT (R$)": 0,
+          "Op Fin - PMT (R$)": 0,
+          "Op Fin - Quantidade Parcelas": 0,
+          "Op Fin - Financiado (R$)": 175000
+        }
+      ],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "date_cutoff_misto",
+      "description": "Uma venda histórica em 2026-05-31 e uma venda Nova em 2026-06-01 (o corte exato) -> ambas devem ser incluídas, cada uma pelo pipeline correto.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0009A",
+          "Data Venda": "2026-05-31",
+          "Nome Vendedor": "CARLOS EDUARDO SILVA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 180000,
+          "Nome Cliente": "Cliente NoveA"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 180000,
+          "RECEITA": 14000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "CARLOS EDUARDO SILVA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente NoveA",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-05-31"
+        }
+      ],
+      "b1NovaRows": [
+        {
+          "Vendedor": "V002",
+          "Novo": "Novo",
+          "Chassi": "CHS0009B",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 185000,
+          "Nome Cliente": "Cliente NoveB",
+          "Data venda": "2026-06-01"
+        }
+      ],
+      "b2NovaRows": [
+        {
+          "Nome": "V002",
+          "Novo/Usado": "N",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 90000,
+          "Retorno Bruto": 14500,
+          "Cliente": "Cliente NoveB",
+          "Desc. Modelo": "OUTLANDER",
+          "Chassi Resumido": "CHS0009B",
+          "Data Venda": "2026-06-01"
+        }
+      ],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "nova_entrada_com_match",
+      "description": "Base01 Nova + Base02 Nova com o MESMO chassi -> enriquecerEntradaBase02Adaptada encontra o cruzamento e calcula ENTRADA_NOVO = valorVenda - valorFinanciado.",
+      "b1HistRows": [],
+      "b2HistRows": [],
+      "b1NovaRows": [
+        {
+          "Vendedor": "V001",
+          "Novo": "Novo",
+          "Chassi": "CHS0010",
+          "Modelo": "TRITON GLS",
+          "Valor Venda": 200000,
+          "Nome Cliente": "Cliente Dez",
+          "Data venda": "2026-06-10"
+        }
+      ],
+      "b2NovaRows": [
+        {
+          "Nome": "V001",
+          "Novo/Usado": "N",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 150000,
+          "Retorno Bruto": 12000,
+          "Cliente": "Cliente Dez",
+          "Desc. Modelo": "TRITON GLS",
+          "Chassi Resumido": "CHS0010",
+          "Data Venda": "2026-06-10"
+        }
+      ],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "nova_entrada_sem_match",
+      "description": "Base02 Nova cujo chassi NÃO aparece na Base01 Nova adaptada -> ENTRADA_NOVO=0 e o diagnóstico marca chassisNaoLocalizados=1 (sem opaco entradasLength=0 sem motivo -- ver entradaDiagnostic).",
+      "b1HistRows": [],
+      "b2HistRows": [],
+      "b1NovaRows": [
+        {
+          "Vendedor": "V001",
+          "Novo": "Novo",
+          "Chassi": "CHS0011X",
+          "Modelo": "TRITON GLS",
+          "Valor Venda": 200000,
+          "Nome Cliente": "Cliente Onze",
+          "Data venda": "2026-06-11"
+        }
+      ],
+      "b2NovaRows": [
+        {
+          "Nome": "V001",
+          "Novo/Usado": "N",
+          "Descrição Serviço": "POR PLANO-FINANCIAMENTO",
+          "Valor Serviço": 150000,
+          "Retorno Bruto": 12000,
+          "Cliente": "Cliente Onze",
+          "Desc. Modelo": "TRITON GLS",
+          "Chassi Resumido": "CHS0011Y",
+          "Data Venda": "2026-06-11"
+        }
+      ],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "modelo_eclipse_variantes",
+      "description": "Duas variantes de nome bruto de Eclipse Cross devem normalizar para o mesmo modeloPadrao consistente.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0012A",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "CARLOS EDUARDO SILVA",
+          "Modelo": "ECLIPSE CROSS HPE-S 4X4 S-AWC AT",
+          "Valor Venda": 210000,
+          "Nome Cliente": "A"
+        },
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0012B",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "MITSUBISHI ECLIPSE CROSS HPE-S 4X4 AUTOMATICO",
+          "Valor Venda": 212000,
+          "Nome Cliente": "B"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 210000,
+          "RECEITA": 16000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "CARLOS EDUARDO SILVA",
+          "DES_MODELO": "ECLIPSE CROSS HPE-S 4X4 S-AWC AT",
+          "CLIENTE": "A",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        },
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 212000,
+          "RECEITA": 16200,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "MITSUBISHI ECLIPSE CROSS HPE-S 4X4 AUTOMATICO",
+          "CLIENTE": "B",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "modelo_inconsistencia_triton",
+      "description": "Nome de modelo Triton sem nenhum sufixo reconhecido -> modeloPadrao retorna 'INCONSISTÊNCIA TRITON' (comportamento real de produção, não corrigido/inventado).",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0013",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "JULIANA PEREIRA LIMA",
+          "Modelo": "TRITON XYZ DESCONHECIDO",
+          "Valor Venda": 190000,
+          "Nome Cliente": "Cliente Treze"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 190000,
+          "RECEITA": 15000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "JULIANA PEREIRA LIMA",
+          "DES_MODELO": "TRITON XYZ DESCONHECIDO",
+          "CLIENTE": "Cliente Treze",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "entrada_elegivel",
+      "description": "financiado (150000) <= 1.15 x valorVenda (200000) -> registro elegível para Entrada; entrada = 200000-150000 = 50000.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0014",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "CARLOS EDUARDO SILVA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 200000,
+          "Nome Cliente": "Cliente Quatorze"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 150000,
+          "RECEITA": 12000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "CARLOS EDUARDO SILVA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Quatorze",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "CHS0014",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "entrada_financiado_excede_tolerancia",
+      "description": "financiado (250000) > 1.15 x valorVenda (200000) -> registro NÃO entra em Entrada (guarda de sanidade), mesmo com valorVenda e financiado > 0.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0015",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 200000,
+          "Nome Cliente": "Cliente Quinze"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 250000,
+          "RECEITA": 18000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Quinze",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "CHS0015",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "vendedor_excluido",
+      "description": "Vendedor RICARDO SILVA COSTA está em EXCLUDED_SELLERS -> linha inteira descartada, mesmo com dados válidos.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0016",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "RICARDO SILVA COSTA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 180000,
+          "Nome Cliente": "Cliente Dezesseis"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 180000,
+          "RECEITA": 14000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "RICARDO SILVA COSTA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Dezesseis",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "vendedor_nao_localizado_bloqueia",
+      "description": "Vendedor não existe na Base de Vendedores (nem no VENDOR_MAP) -> resolveLoja retorna NÃO LOCALIZADO -> compute() retorna {blocked:true}, sem renderizar resultado parcial.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0017",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "VENDEDOR DESCONHECIDO SEM CADASTRO",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 180000,
+          "Nome Cliente": "Cliente Dezessete"
+        }
+      ],
+      "b2HistRows": [],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": []
+    },
+    {
+      "id": "multi_loja_vendedor",
+      "description": "4 lojas/vendedores diferentes no mesmo lote -> agregação por loja/vendedor/departamento deve refletir a distribuição exata.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0018A",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "CARLOS EDUARDO SILVA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 180000,
+          "Nome Cliente": "A"
+        },
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0018B",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "TRITON GL",
+          "Valor Venda": 170000,
+          "Nome Cliente": "B"
+        },
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0018C",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "JULIANA PEREIRA LIMA",
+          "Modelo": "ECLIPSE CROSS HPE",
+          "Valor Venda": 160000,
+          "Nome Cliente": "C"
+        },
+        {
+          "Transação": "U21",
+          "Chassi": "CHS0018D",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 190000,
+          "Nome Cliente": "D"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 180000,
+          "RECEITA": 14000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "CARLOS EDUARDO SILVA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "A",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        },
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 170000,
+          "RECEITA": 13500,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "TRITON GL",
+          "CLIENTE": "B",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        },
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 160000,
+          "RECEITA": 12800,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "JULIANA PEREIRA LIMA",
+          "DES_MODELO": "ECLIPSE CROSS HPE",
+          "CLIENTE": "C",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        },
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 190000,
+          "RECEITA": 14500,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "D",
+          "CPF": "",
+          "COD_TIPO_VENDA": "U",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "fechamento_mes_fechado",
+      "description": "Período custom exatamente do dia 1 ao último dia do mês -> isClosedMonthPeriod=true.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0019",
+          "Data Venda": "2026-03-15",
+          "Nome Vendedor": "CARLOS EDUARDO SILVA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 180000,
+          "Nome Cliente": "Cliente Dezenove"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 180000,
+          "RECEITA": 14000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "CARLOS EDUARDO SILVA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Dezenove",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-15"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "valores_zero",
+      "description": "Financiado=0 -> processBase02 descarta a linha (isFin exige valorFin>0 quando financiado flag != 1... aqui financiado flag=1 mas valorFin=0, então isFin=true porém valorFin<=0 -> linha descartada).",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0020",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 0,
+          "Nome Cliente": "Cliente Vinte"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 0,
+          "RECEITA": 0,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Vinte",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "valores_grandes",
+      "description": "Valor financiado muito grande (R$ 9.999.999,99) -> não deve quebrar formatação/soma nem a checagem de tolerância de Entrada.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0021",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "CARLOS EDUARDO SILVA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 9999999.99,
+          "Nome Cliente": "Cliente Vinteum"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 9500000,
+          "RECEITA": 500000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "CARLOS EDUARDO SILVA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Vinteum",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "CHS0021",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "nome_longo",
+      "description": "Vendedor com nome de 49 caracteres -> stress de truncamento/sticky column.",
+      "b1HistRows": [
+        {
+          "Transação": "V21",
+          "Chassi": "CHS0022",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Modelo": "TRITON GLS",
+          "Valor Venda": 195000,
+          "Nome Cliente": "Cliente Vintedois"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 195000,
+          "RECEITA": 15200,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "DES_MODELO": "TRITON GLS",
+          "CLIENTE": "Cliente Vintedois",
+          "CPF": "",
+          "COD_TIPO_VENDA": "N",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "seminovos_fora_model_analysis",
+      "description": "Venda/financiamento Seminovos (U21) -> departamento Seminovos; modelo não é computado (dept!=Novos) e não entra em nenhuma agregação por modelo.",
+      "b1HistRows": [
+        {
+          "Transação": "U21",
+          "Chassi": "CHS0023",
+          "Data Venda": "2026-03-01",
+          "Nome Vendedor": "MARIANA ALVES COSTA",
+          "Modelo": "OUTLANDER",
+          "Valor Venda": 120000,
+          "Nome Cliente": "Cliente Vintetres"
+        }
+      ],
+      "b2HistRows": [
+        {
+          "FINANCIADO": 1,
+          "DESCRICAO": "FINANCIAMENTO",
+          "VALOR_FINANCIADO": 120000,
+          "RECEITA": 9000,
+          "RECEITA_SPF": 0,
+          "NOME_VENDEDOR": "MARIANA ALVES COSTA",
+          "DES_MODELO": "OUTLANDER",
+          "CLIENTE": "Cliente Vintetres",
+          "CPF": "",
+          "COD_TIPO_VENDA": "U",
+          "Chassi": "",
+          "Data Venda": "2026-03-01"
+        }
+      ],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    },
+    {
+      "id": "empty",
+      "description": "Nenhuma linha em nenhuma base -> todas as agregações retornam vazio/zero, sem NaN/Infinity/erro.",
+      "b1HistRows": [],
+      "b2HistRows": [],
+      "b1NovaRows": [],
+      "b2NovaRows": [],
+      "b3Rows": [],
+      "vendorRows": [
+        {
+          "NBS": "V001",
+          "Nome": "CARLOS EDUARDO SILVA",
+          "Loja": "ABC"
+        },
+        {
+          "NBS": "V002",
+          "Nome": "MARIANA ALVES COSTA",
+          "Loja": "ALPHAVILLE"
+        },
+        {
+          "NBS": "V003",
+          "Nome": "JULIANA PEREIRA LIMA",
+          "Loja": "EUROPA"
+        },
+        {
+          "NBS": "V004",
+          "Nome": "PEDRO HENRIQUE ALMEIDA NASCIMENTO SANTOS BARBOSA",
+          "Loja": "BARRA FUNDA"
+        }
+      ]
+    }
+  ]
+}

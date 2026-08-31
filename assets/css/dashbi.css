@@ -1,0 +1,86 @@
+/* PORTAL-NEXT V2 — Dashbi (Análise Geral do Grupo) module CSS.
+   Visual authority: design-system-2.1/references/data-table.md
+   (APPROVED, same pattern Score/Coparticipado/Gestão use) — no
+   dedicated Approved Reference exists for Dashbi; NORMATIVE
+   COMPLIANCE reported, not VISUAL PARITY (Gate 69/121). Executive
+   surface (Gate 72-74): KPI hierarchy reflects materiality — Grupo/
+   Novos/Seminovos primary KPIs are largest, Model Analysis (HIGH
+   density, Gate 82) gets its own dense region with Ambient Motion
+   OFF. Numeric table headers and values share one right-aligned axis
+   (Gate 77, the PORTAL-NEXT-06.1 lesson) — never per-cell offsets. */
+
+.dbPage { max-width: 1360px; }
+
+.dbHeader { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-5); }
+.dbHeader h1 { font-family: var(--font-ui); font-weight: 300; font-size: clamp(22px, 2.6vw, 30px); letter-spacing: -.01em; margin: 0; }
+.dbHeader p { color: var(--color-text-secondary); margin: var(--space-1) 0 0; font-size: 13px; }
+
+.dbFixtureBar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-2) var(--space-3); margin-bottom: var(--space-4); border: 1px dashed var(--color-hairline-strong); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 10.5px; color: var(--color-text-muted); }
+.dbFixtureBar .dbFixtureLabel { text-transform: uppercase; letter-spacing: .06em; color: var(--color-warning); }
+.dbFixtureBar select { background: var(--color-surface-2); border: 1px solid var(--color-hairline-strong); color: var(--color-text-primary); font-family: var(--font-mono); font-size: 11px; padding: 3px var(--space-2); border-radius: var(--radius-sm); }
+.dbFixtureBar select:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+.dbFilters { display: flex; align-items: flex-end; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-hairline); }
+.dbField { display: flex; flex-direction: column; gap: var(--space-1); min-width: 160px; }
+.dbField label { color: var(--color-text-muted); font-size: 10.5px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.dbField select, .dbField input[type="date"] { background: var(--color-surface-2); border: 1px solid var(--color-hairline-strong); color: var(--color-text-primary); font-family: var(--font-ui); font-size: 13px; padding: var(--space-2); border-radius: var(--radius-sm); }
+.dbField select:focus-visible, .dbField input:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+.dbPresetGroup, .dbViewGroup, .dbFamilyGroup { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.dbBtn { background: none; border: 1px solid var(--color-hairline-strong); color: var(--color-text-secondary); font-family: var(--font-ui); font-size: 12.5px; font-weight: 500; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; }
+.dbBtn:hover:not(.dbBtnActive) { color: var(--color-text-primary); }
+.dbBtn:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+.dbBtnActive { color: var(--color-canvas); background: var(--color-text-primary); border-color: var(--color-text-primary); }
+
+.dbFechamento { display: inline-block; margin-left: var(--space-3); font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-success); border: 1px solid var(--color-success); border-radius: var(--radius-sm); padding: 2px 7px; }
+
+.dbBlockedNotice { border: 1px solid var(--color-critical); border-radius: var(--radius-md); padding: var(--space-4); color: var(--color-critical); font-size: 13px; margin-bottom: var(--space-4); }
+.dbBlockedNotice b { color: var(--color-text-primary); }
+
+.dbPage h2 { font-family: var(--font-ui); font-weight: 400; font-size: 17px; margin: var(--space-6) 0 var(--space-3); }
+.dbPage h2:first-of-type { margin-top: 0; }
+.dbMuted { color: var(--color-text-muted); font-size: 12px; margin: 0 0 var(--space-3); }
+
+.dbKpiGridPrimary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
+.dbKpiCardPrimary { border: 1px solid var(--color-hairline); border-radius: var(--radius-md); padding: var(--space-4); }
+.dbKpiCardPrimary .dbK { color: var(--color-text-muted); font-size: 10.5px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.dbKpiCardPrimary .dbV { font-family: var(--font-mono); font-size: 24px; font-weight: 500; margin-top: var(--space-1); font-variant-numeric: tabular-nums; }
+.dbKpiCardPrimary .dbHint { color: var(--color-text-muted); font-size: 11px; margin-top: 2px; }
+
+.dbPlanGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-2); }
+.dbPlanCard { border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); padding: var(--space-3); border-left: 3px solid var(--color-hairline-strong); }
+.dbPlanCard .dbK { font-size: 11px; font-weight: 600; letter-spacing: .03em; }
+.dbPlanCard .dbV { font-family: var(--font-mono); font-size: 18px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.dbPlanCard.planSubsidiado { border-left-color: var(--color-success); }
+.dbPlanCard.planReversao { border-left-color: var(--color-warning); }
+.dbPlanCard.planCoparticipado { border-left-color: var(--color-accent-primary); }
+.dbPlanCard.planBalao { border-left-color: var(--color-info); }
+.dbPlanCard.planLinear { border-left-color: var(--color-text-muted); }
+
+.dbTableWrap { overflow-x: auto; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); margin-bottom: var(--space-4); }
+.dbTable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.dbTable thead th { text-align: left; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); font-weight: 500; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-hairline-strong); white-space: nowrap; }
+.dbTable td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-hairline); white-space: nowrap; }
+.dbTable tbody tr:last-child td { border-bottom: none; }
+.dbTable tbody tr:hover td { background: rgba(255,255,255,.028); }
+.dbTable .dbNumCol { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.dbTable thead th:first-child, .dbTable td:first-child { position: sticky; left: 0; background: var(--color-surface-1); }
+.dbTable thead th:first-child { background: var(--color-surface-2); z-index: 1; }
+
+/* Model Analysis — HIGH density, its own visual region (Gate 81-82) */
+.dbModelSection { border: 1px solid var(--color-hairline-strong); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-5); }
+.dbEntradaGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); margin: var(--space-3) 0; }
+.dbEntradaCard { border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); padding: var(--space-3); border-left: 2px solid var(--color-accent-primary); }
+.dbEntradaCard .dbK { color: var(--color-text-muted); font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+.dbEntradaCard .dbV { font-family: var(--font-mono); font-size: 17px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+.dbPenetracaoBaixa { color: var(--color-critical); }
+.dbPenetracaoOk { color: var(--color-success); }
+
+@media (max-width: 768px) {
+  .dbField { min-width: 130px; }
+  .dbKpiGridPrimary { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .dbKpiGridPrimary, .dbPlanGrid, .dbEntradaGrid { grid-template-columns: 1fr; }
+}
