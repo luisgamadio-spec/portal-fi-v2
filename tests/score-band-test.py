@@ -76,14 +76,21 @@ def main():
             ok = label == expected
             results.append((f"representative {score} -> {expected}", ok, label))
 
-        # the real NaN-producing fixture must not receive a valid band either
+        # PORTAL-NEXT-07.7C: the fixture that used to produce a NaN Score
+        # (receitaSPF absent) is now normalized to 0 at the adapter
+        # boundary (see assets/js/adapters/score.adapter.js) -- it must
+        # produce a real, finite, business-safe Score and band end to
+        # end, computed live (not hardcoded) via the real adapter +
+        # classifier. See docs/SCORE-RECEITA-SPF-NONFINITE-07-7C.md.
         fixtures = page.evaluate("() => fetch('tests/fixtures/score-fixtures.json').then(r => r.json())")
         case = [c for c in fixtures["cases"] if c["id"] == "missing_optional_data"][0]
         rows = page.evaluate("(c) => window.NX_SCORE_ADAPTER.compute(c.sales, c.fins)", case)
-        nan_row = rows[0]
-        band = page.evaluate("(s) => window.NX_SCORE_PAGE.classifyScoreBand(s)", nan_row["score"])
-        ok = band is None
-        results.append((f"real NaN fixture (score={nan_row['score']!r}) -> None", ok, band))
+        row = rows[0]
+        score = row["score"]
+        band = page.evaluate("(s) => window.NX_SCORE_PAGE.classifyScoreBand(s)", score)
+        label = band["label"] if band else None
+        ok = isinstance(score, (int, float)) and math.isfinite(score) and score == 431 and label == "DESENVOLVIMENTO"
+        results.append((f"formerly-NaN fixture now finite (score={score!r}) -> DESENVOLVIMENTO", ok, label))
 
         passed = sum(1 for _, ok, _ in results if ok)
         for desc, ok, actual in results:

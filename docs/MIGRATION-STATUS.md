@@ -34,7 +34,7 @@ parity, never substitute for it (Skill's Human Approval Gate).
 |---|---|---|
 | Landing | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-04, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6, see `docs/HUMAN-UAT-RESPONSIVE-REMEDIATION.md`) | 1 |
 | Portal Shell / MASTER Admin | NOT_MIGRATED | 0 |
-| Score | BUSINESS **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) · RESPONSIVE **HUMAN_APPROVED/FROZEN** (granted PORTAL-NEXT-07.7B, Gate 34) · SCORE BAND BUSINESS RULE **HUMAN_APPROVED** (PORTAL-NEXT-07.7B, Option 1 from `docs/SCORE-BAND-DISCOVERY-07-7A.md`) · SCORE BAND VISUAL **UAT_PENDING** — see `docs/SCORE-BAND-NORMATIVE-07-7B.md` | 2 |
+| Score | BUSINESS **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`; **eligible for final closure** per PORTAL-NEXT-07.7C Gate 34, subject to human confirmation of `docs/SCORE-RECEITA-SPF-NONFINITE-07-7C.md` — not self-promoted) · RESPONSIVE **HUMAN_APPROVED/FROZEN** (granted PORTAL-NEXT-07.7B, reaffirmed PORTAL-NEXT-07.7C) · SCORE BAND BUSINESS RULE **HUMAN_APPROVED/FROZEN** (PORTAL-NEXT-07.7B, Option 1 from `docs/SCORE-BAND-DISCOVERY-07-7A.md`, reaffirmed PORTAL-NEXT-07.7C) · SCORE BAND VISUAL **HUMAN_APPROVED/FROZEN** (granted PORTAL-NEXT-07.7C, per human visual UAT of PORTAL-NEXT-07.7B) · RECEITA SPF NON-FINITE DEFECT **FIXED** (PORTAL-NEXT-07.7C — see `docs/SCORE-RECEITA-SPF-NONFINITE-07-7C.md`) | 2 |
 | Coparticipado | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 3 |
 | Gestão | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 4 |
 | Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | BUSINESS **HUMAN_APPROVED** (reconciled PORTAL-NEXT-07.6.1, cc3a296) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6.2 found and fixed a real readability defect in the same narrow-width presentation 07.6.1 had reconciled as approved — see the PORTAL-NEXT-07.6.2 addendum below, `docs/HUMAN-UAT-RESPONSIVE-REMEDIATION.md`) | 5 |
@@ -957,6 +957,58 @@ prior approval message existed). Score Band Business Rule (the
 threshold numbers themselves) is `HUMAN_APPROVED`. Score Band Visual
 (this concrete implementation) stays `UAT_PENDING` pending a human
 look — the module as a whole is not marked frozen.
+
+## PORTAL-NEXT-07.7C addendum
+
+The human confirmed PORTAL-NEXT-07.7B's visual UAT (Score Band Business
+Rule, Score Band Visual, and Score Responsive all promoted to
+`HUMAN_APPROVED/FROZEN` by the brief's own explicit statement — the
+same "brief-as-approval-channel" pattern as PORTAL-NEXT-07.6.1's
+"Aprovado." and PORTAL-NEXT-07.7B's own Gate 34). This Wave then fixed
+the pre-existing `receitaSPF`-driven `NaN` Score defect that
+PORTAL-NEXT-07.7A discovered and PORTAL-NEXT-07.7B intentionally left
+untouched.
+
+**Root cause**: `calcScores()`'s `o.retorno += f.retorno +
+f.receitaSPF` has no fallback for a missing `receitaSPF`, unlike the
+adjacent `spfQtd += f.spfQtd || 0`. Traced conclusively (not assumed)
+to production's own `processFins()` (read from a locally-saved
+`origin/main` copy, `PORTAL-NEXT-04/.source/score-origin-main.html` —
+zero live production connection) building `receitaSPF` via
+`.reduce((s,r)=>...,0)` — a numeric-seeded reduce that can never itself
+produce `undefined`, meaning real production data can never trigger
+this path. Missing `receitaSPF` at the adapter boundary is therefore
+conclusively a "no SPF revenue" (zero) case, not an "unknown" one.
+
+**Fix**: a normalization boundary in `assets/js/adapters/
+score.adapter.js`, using production's own byte-identical `asNumber()`
+parser, applied to `fins[].receitaSPF` **before** the still-untouched
+`calcScores()` is called — `calcScores()`'s own extracted lines remain
+byte-for-byte unmodified (verified via `git diff`), preserving the
+"no cleanup drift" rule established for this file. Full missing-value
+matrix (13 cases, including `0` correctly preserved, not miscoerced)
+verified live via the adapter's own exported `normalizeFinInput()`.
+
+**Regression**: `tests/score-parity-test.py`: 11/12 exact byte-match
+against the untouched production reference — the 1 intentional
+divergence (`missing_optional_data`) is the fix itself (that fixture
+now returns a real, finite score where the unmodified reference still
+returns `NaN`, by design — see `docs/SCORE-RECEITA-SPF-NONFINITE-
+07-7C.md`). `tests/score-band-test.py`: 24/24 (one assertion updated to
+reflect the fixture's corrected, finite result — the classifier's own
+invalid-input contract is unchanged and separately covered). New
+`tests/score-spf-defect-test.py`: 16/16 (live before/after proof + the
+full missing-value matrix + a dedicated Gate-13 zero-preservation
+check). Other modules (Landing/Coparticipado/Gestão/Dashbi): 0 diff.
+Score formula weights/thresholds: unchanged.
+
+**Status**: Score Band Business Rule, Score Band Visual, and Score
+Responsive: all `HUMAN_APPROVED/FROZEN`. Score Business/Functional
+remains `UAT_PENDING` as its own separate, older status (open since
+PORTAL-NEXT-04, unrelated to Band/Responsive/this defect) — marked
+**eligible for final closure** per this Wave's own Gate 34 wording, but
+not self-promoted to `HUMAN_APPROVED` here; that remains a human
+decision.
 
 ## Standing blockers carried forward (not resolved this phase)
 

@@ -52,10 +52,13 @@
   //
   // Invalid/non-finite Score contract (Gate 5): a NaN/Infinity/-Infinity/
   // null/undefined Score returns `null` — it is NEVER classified into a
-  // real band. This is a presentation-layer safety net, NOT a fix to
-  // the underlying NaN defect documented in PORTAL-NEXT-07.7A's Gate 19
-  // (missing receitaSPF fallback) — that defect is intentionally left
-  // untouched this Wave (docs/SCORE-BAND-DISCOVERY-07-7A.md).
+  // real band. This is a presentation-layer safety net; it stays in
+  // place even though the specific receitaSPF-driven NaN defect
+  // documented in PORTAL-NEXT-07.7A's Gate 19 was subsequently fixed at
+  // the adapter boundary (PORTAL-NEXT-07.7C, see
+  // docs/SCORE-RECEITA-SPF-NONFINITE-07-7C.md) — any other genuinely
+  // invalid/non-finite Score must still resolve to no band, not a
+  // fabricated one.
   var SCORE_BANDS = [
     { min: 900, max: 1000, label: 'ELITE', cls: 'scBandElite' },
     { min: 750, max: 899, label: 'ALTA PERFORMANCE', cls: 'scBandAlta' },
