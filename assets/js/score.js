@@ -38,6 +38,44 @@
     return Math.max(0, Math.min(100, (score / SCORE_SCALE_MAX) * 100));
   }
 
+  // PORTAL-NEXT-07.7B — the ONE authoritative Score Band classifier
+  // (Gate 2), consumed identically by the desktop and mobile renderers
+  // below (Gate 9 — no duplicated threshold logic). HUMAN-APPROVED
+  // absolute boundaries (PORTAL-NEXT-07.7A Option 1, selected by human
+  // decision — see docs/SCORE-BAND-DISCOVERY-07-7A.md and
+  // docs/SCORE-BAND-NORMATIVE-07-7B.md): fixed on the FINAL 0-1000
+  // score, never relative to the current seller population/period.
+  // Descending-order checks make the ranges mutually exclusive without
+  // needing upper-bound comparisons; the final `null` covers anything
+  // that isn't a finite score in [0,1000] (negative, which the engine's
+  // own clamp already prevents, but guarded here defensively too).
+  //
+  // Invalid/non-finite Score contract (Gate 5): a NaN/Infinity/-Infinity/
+  // null/undefined Score returns `null` — it is NEVER classified into a
+  // real band. This is a presentation-layer safety net, NOT a fix to
+  // the underlying NaN defect documented in PORTAL-NEXT-07.7A's Gate 19
+  // (missing receitaSPF fallback) — that defect is intentionally left
+  // untouched this Wave (docs/SCORE-BAND-DISCOVERY-07-7A.md).
+  var SCORE_BANDS = [
+    { min: 900, max: 1000, label: 'ELITE', cls: 'scBandElite' },
+    { min: 750, max: 899, label: 'ALTA PERFORMANCE', cls: 'scBandAlta' },
+    { min: 550, max: 749, label: 'PERFORMANCE', cls: 'scBandPerformance' },
+    { min: 300, max: 549, label: 'DESENVOLVIMENTO', cls: 'scBandDesenvolvimento' },
+    { min: 0, max: 299, label: 'CRÍTICO', cls: 'scBandCritico' }
+  ];
+  function classifyScoreBand(score) {
+    if (typeof score !== 'number' || !isFinite(score)) return null;
+    for (var i = 0; i < SCORE_BANDS.length; i++) {
+      if (score >= SCORE_BANDS[i].min) return SCORE_BANDS[i];
+    }
+    return null; // score < 0 -- outside every defined band
+  }
+  function scoreBandHtml(score, extraClass) {
+    var band = classifyScoreBand(score);
+    if (!band) return '';
+    return '<span class="scBand ' + band.cls + (extraClass ? ' ' + extraClass : '') + '">' + esc(band.label) + '</span>';
+  }
+
   // PORTAL-NEXT-07.6.4 — human UAT rejected the 07.6/07.6.2 approach of
   // transforming the desktop <table> itself into a mobile layout (via
   // CSS, however deterministic) three times in a row. Replaced with two
@@ -58,8 +96,9 @@
         '<td class="scNameCell"><span class="scNameText" title="' + esc(r.vendedor) + '">' + esc(r.vendedor) + '</span></td>' +
         '<td>' + esc(r.loja) + '</td>' +
         '<td>' + esc(r.dept) + '</td>' +
-        '<td class="scNumCol"><span class="scScoreCell">' + scoreMeterHtml(r) +
-          '<span>' + r.score + '</span>' +
+        '<td class="scNumCol"><span class="scScoreCell">' +
+          '<span class="scScoreValueRow">' + scoreMeterHtml(r) + '<span>' + r.score + '</span></span>' +
+          scoreBandHtml(r.score) +
           '</span></td>' +
         '<td class="scNumCol">' + (r.fin || 0) + '</td>' +
         '</tr>';
@@ -77,7 +116,9 @@
         '<div class="scMobileSub">' + esc(r.loja) + ' · ' + esc(r.dept) + '</div>' +
         '<div class="scMobileScoreBlock">' +
           '<div class="scMobileLabel">Score</div>' +
-          '<div class="scMobileScoreRow"><span class="scMobileScoreValue">' + r.score + '</span>' + scoreMeterHtml(r) + '</div>' +
+          '<div class="scMobileScoreValue">' + r.score + '</div>' +
+          scoreBandHtml(r.score, 'scMobileBand') +
+          '<div class="scMobileScoreRow">' + scoreMeterHtml(r) + '</div>' +
         '</div>' +
         '<div class="scMobileField"><div class="scMobileLabel">Financ.</div><div class="scMobileValue">' + (r.fin || 0) + '</div></div>' +
         '</div>';
@@ -157,6 +198,13 @@
   }
 
   window.NX_SCORE_PAGE = {
+    // PORTAL-NEXT-07.7B — exposed read-only for deterministic band
+    // boundary/invalid-input testing (tests/score-band-test.py), same
+    // pattern already used for window.NX_SCORE_ADAPTER's business
+    // functions. Returns {min,max,label,cls} or null -- never a bare
+    // string -- so a test can assert on `.label` explicitly rather
+    // than guessing a return shape.
+    classifyScoreBand: classifyScoreBand,
     render: function (outlet) {
       return loadFixtures().then(function () {
         currentDetailKey = null;

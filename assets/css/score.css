@@ -103,17 +103,39 @@
    'score-list' component status:APPROVED. Track size (80x4, radius 3)
    and the literal #232325 track background are copied AS-IS from that
    frozen reference — not tokenized here, since that's the approved
-   value, not this Wave's to "fix". ONE deliberate adaptation:
-   band-derived fill color (ALTO/BOM/BAIXO -> success/info/critical)
-   is NOT reused — production has no band, so the fill uses a single
-   --color-accent-primary, same as the criteria breakdown meters,
-   per Gate 11 ("não codificar qualidade do vendedor por cor se
-   produção não possui essa semântica"). No fill animation exists in
-   the reference (checked directly) -- none added here either. */
-.scScoreCell { display: flex; align-items: center; gap: var(--space-2); justify-content: flex-end; }
+   value, not this Wave's to "fix". The BAR ITSELF still does not carry
+   quality-coded color (fill stays --color-accent-primary, unchanged) —
+   PORTAL-NEXT-07.7B's new .scBand element below is a SEPARATE,
+   additive interpretation layer above the score/bar (docs/SCORE-BAND-
+   NORMATIVE-07-7B.md), not a recoloring of the bar; the bar's own
+   mathematical fill relationship (Gate 13) is untouched. No fill
+   animation exists in the reference (checked directly) -- none added
+   here either. */
+.scScoreCell { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.scScoreValueRow { display: flex; align-items: center; gap: var(--space-2); }
 .scMeterTrack { width: 80px; height: 4px; border-radius: 3px; background: #232325; overflow: hidden; flex-shrink: 0; }
 .scMeterFill { display: block; height: 100%; border-radius: 3px; background: var(--color-accent-primary); }
 @media (max-width: 480px) { .scMeterTrack { width: 48px; } }
+
+/* PORTAL-NEXT-07.7B — HUMAN-APPROVED executive Score Band (docs/
+   SCORE-BAND-NORMATIVE-07-7B.md): the textual label is authoritative
+   (Gate 14 — never color-only). Colors below are a restrained,
+   documented reuse of existing Design System semantic tokens
+   (design-system-2/tokens.css) — 4 tokens exist (success/warning/
+   critical/info) for 5 bands, so a naive 1:1 mapping doesn't cleanly
+   work (Gate 12); PERFORMANCE (the "meets expectations" baseline
+   band) deliberately stays neutral/unmarked rather than forcing a 5th
+   hue, and ELITE reuses --color-success (same as ALTA PERFORMANCE)
+   distinguished by weight + a subtle border rather than inventing a
+   new color — the same "position/weight, not just hue" principle
+   already used for Dashbi's Share/Receita Total emphasis (PORTAL-
+   NEXT-07.5). No red/orange/yellow/green/gold rainbow was assumed. */
+.scBand { font-family: var(--font-mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.scBandCritico { color: var(--color-critical); }
+.scBandDesenvolvimento { color: var(--color-warning); }
+.scBandPerformance { color: var(--color-text-secondary); }
+.scBandAlta { color: var(--color-success); }
+.scBandElite { color: var(--color-success); font-weight: 700; padding: 1px 6px; border: 1px solid var(--color-success); border-radius: var(--radius-sm); }
 .scTable .scNameCell {
   position: sticky;
   left: 0;
@@ -214,6 +236,10 @@
 .scMobileScoreBlock { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-hairline-strong); border-radius: var(--radius-sm); }
 .scMobileScoreRow { display: flex; align-items: center; gap: var(--space-3); margin-top: 4px; }
 .scMobileScoreValue { font-family: var(--font-mono); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* PORTAL-NEXT-07.7B — mobile hierarchy matches the approved executive
+   order (Gate 6): number, then band, then bar. .scBand's own base
+   rule handles color/weight; only position/spacing added here. */
+.scMobileBand { display: inline-block; margin-top: 4px; }
 /* overrides the base .scMeterTrack's flex-shrink:0 (correct for the
    desktop table, where the track has a small fixed budget alongside
    the number) — here the track is the one flexible element in the row

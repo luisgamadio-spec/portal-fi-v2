@@ -34,7 +34,7 @@ parity, never substitute for it (Skill's Human Approval Gate).
 |---|---|---|
 | Landing | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-04, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6, see `docs/HUMAN-UAT-RESPONSIVE-REMEDIATION.md`) | 1 |
 | Portal Shell / MASTER Admin | NOT_MIGRATED | 0 |
-| Score | BUSINESS **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`; PORTAL-NEXT-07.6's own brief assumed this was already HUMAN_APPROVED/FROZEN — it is NOT, per this same registry; flagged, not silently corrected) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 2 |
+| Score | BUSINESS **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) · RESPONSIVE **HUMAN_APPROVED/FROZEN** (granted PORTAL-NEXT-07.7B, Gate 34) · SCORE BAND BUSINESS RULE **HUMAN_APPROVED** (PORTAL-NEXT-07.7B, Option 1 from `docs/SCORE-BAND-DISCOVERY-07-7A.md`) · SCORE BAND VISUAL **UAT_PENDING** — see `docs/SCORE-BAND-NORMATIVE-07-7B.md` | 2 |
 | Coparticipado | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 3 |
 | Gestão | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 4 |
 | Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | BUSINESS **HUMAN_APPROVED** (reconciled PORTAL-NEXT-07.6.1, cc3a296) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6.2 found and fixed a real readability defect in the same narrow-width presentation 07.6.1 had reconciled as approved — see the PORTAL-NEXT-07.6.2 addendum below, `docs/HUMAN-UAT-RESPONSIVE-REMEDIATION.md`) | 5 |
@@ -906,6 +906,57 @@ untouched. Dashbi business stays `HUMAN_APPROVED/FROZEN` (unaffected —
 only presentation reopened); responsive stays `UAT_PENDING` pending a
 fresh human visual pass on this specific, structurally different
 mobile-card presentation.
+
+## PORTAL-NEXT-07.7B addendum
+
+Implements the human-approved Score Band model discovered/recommended
+in PORTAL-NEXT-07.7A (that investigation document is preserved as-is,
+not rewritten — this addendum records that its Option 1 was
+subsequently selected). Full contract: `docs/SCORE-BAND-NORMATIVE-
+07-7B.md`.
+
+**Design System conflict resolved**: `design-system-2.1/references/
+score.md`'s old ALTO/BOM/BAIXO requirement (never numerically defined
+normatively — the only concrete thresholds ever existed in the
+facelift prototype's own throwaway mock data, on an incompatible
+~0-100 scale) is superseded by the new 5-band CRÍTICO/DESENVOLVIMENTO/
+PERFORMANCE/ALTA PERFORMANCE/ELITE model, absolute thresholds 0-299/
+300-549/550-749/750-899/900-1000 on the real 0-1000 engine scale.
+
+**Architecture**: one authoritative classifier
+(`classifyScoreBand()`, `assets/js/score.js`), consumed identically by
+both the desktop table and the mobile card (PORTAL-NEXT-07.6.4's
+dual-renderer, untouched architecturally) — 0 duplicated threshold
+logic. Operates purely on the already-computed final Score; the
+underlying engine (`score.adapter.js`) has 0 diff, hash-verified
+unchanged. Invalid/non-finite Score (the NaN defect documented in
+07.7A) returns no band at all — verified against the real fixture that
+actually produces it, not just a synthetic NaN literal.
+
+**Colors**: reuses existing semantic tokens (critical/warning/
+success), with PERFORMANCE deliberately left neutral and ELITE
+distinguished from ALTA PERFORMANCE by weight/border rather than a new
+hue — no arbitrary rainbow invented, 4 tokens honestly don't map 1:1
+to 5 bands and that gap is documented, not hidden.
+
+**0 business-logic change to the Score engine itself**: 12/12 golden
+fixtures unchanged. New `tests/score-band-test.py` (24/24): all 10
+required boundary values, 6 invalid-input cases (NaN/Infinity/
+-Infinity/null/undefined/negative), 7 representative real fixture
+scores, and the real NaN-producing fixture. No-horizontal-scroll
+re-verified at all 7 viewports; long band labels (ALTA PERFORMANCE,
+DESENVOLVIMENTO) confirmed wrapping by word only, even at 320px.
+Desktop fidelity preserved — the band is additive inside the existing
+Score cell, 0 new table column, 0 row-count change. Other modules
+(Landing/Coparticipado/Gestão/Dashbi): 0 diff.
+
+**Status**: Score Business/Functional stays `UAT_PENDING`. Score
+Responsive is set to `HUMAN_APPROVED/FROZEN` this Wave (per this
+brief's own explicit Gate 34 instruction — not a claim that a separate
+prior approval message existed). Score Band Business Rule (the
+threshold numbers themselves) is `HUMAN_APPROVED`. Score Band Visual
+(this concrete implementation) stays `UAT_PENDING` pending a human
+look — the module as a whole is not marked frozen.
 
 ## Standing blockers carried forward (not resolved this phase)
 
