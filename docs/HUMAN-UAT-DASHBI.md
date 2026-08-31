@@ -1,6 +1,15 @@
-# Human UAT — Análise Geral do Grupo (Dashbi) V2 (PORTAL-NEXT-07.3)
+# Human UAT — Análise Geral do Grupo (Dashbi) V2 (PORTAL-NEXT-07.4)
 
-**Technical status: TECHNICALLY GREEN** (26/26 golden-fixture parity — 25 unchanged + 1 new — 0 console/page errors, 0 backend network calls, 0 page-level horizontal overflow at 6 breakpoints, Landing/Score/Coparticipado/Análise F&I freeze re-verified byte-identical). PORTAL-NEXT-07.2's selective navigation is unchanged — this round only restores columns/metrics inside the Análise por Modelos panel.
+**Technical status: TECHNICALLY GREEN** (26/26 golden-fixture parity — unchanged from 07.3 — 0 console/page errors, 0 backend network calls, 0 horizontal scrollbar anywhere in Dashbi at all 6 required viewports, Landing/Score/Coparticipado/Análise F&I freeze re-verified byte-identical). 07.3's business content (all restored metrics) is unchanged — only *how* wide tables present changed.
+
+## Se um controle parecer não estar funcionando
+
+Antes de reportar como bug: dê um **hard refresh** (Ctrl+Shift+R). Na rodada
+anterior, o botão "Análise por Modelos" pareceu não abrir — depois de um hard
+refresh funcionou normalmente. A causa foi um arquivo antigo (`dashbi.js`/
+`dashbi.css`) ainda em cache no navegador, não um problema de código. Isso não
+significa que bugs reais devam ser ignorados — só elimina cache local como
+primeira suspeita antes de investigar mais a fundo.
 
 ## How to open it
 
@@ -8,39 +17,49 @@
 cd C:\Projetos\PORTAL-FI-DESIGN-LAB
 python -m http.server 8700
 ```
-Then open: **http://localhost:8700/portal-next-v2/index.html#/dashbi**
+Then open (hard refresh recommended after any update): **http://localhost:8700/portal-next-v2/index.html#/dashbi**
 
 ## O que mudou desde a rodada anterior
 
-Você identificou que a Análise por Modelos estava sem colunas/métricas que existem no Portal atual — citou Balão Médio e Parcela Média como exemplos, mas avisou que não era a lista completa. Fizemos um levantamento completo (produção × V2, coluna por coluna) antes de mudar qualquer código, e restauramos tudo que estava faltando: um bloco de indicadores por família (13 métricas, novo), 8 colunas por modelo que não apareciam (Receita, Receita SPF, Prazo Médio, Parcela Média, Qtd Linear, Qtd Balão, Qtd Reversão, Balão Médio), e 4 tabelas de plano que não existiam (resumo da família, por loja, detalhe Coparticipado/Subsidiado/Reversão, e Inconsistências TRITON quando aplicável).
+Você rejeitou a tabela larga da Análise por Modelos da rodada 07.3 — ela precisava
+de rolagem lateral em qualquer tamanho de tela, até em telas grandes. Você definiu
+uma regra nova para todo o Portal V2: **nenhuma informação relevante pode exigir
+rolagem lateral**. Refizemos a Análise por Modelos (e toda tabela do Dashbi que
+também tinha esse problema) usando um padrão novo: **uma linha principal compacta
+por modelo, comparável lado a lado, mais um botão "+ Detalhes" que abre um painel
+vertical logo abaixo daquele modelo** com todas as métricas avançadas. Nenhuma
+métrica foi removida — tudo que estava na tabela larga continua acessível, a um
+clique de distância.
 
-**Uma decisão de apresentação que pedimos para você revisar especificamente**: o Portal atual mostra só 3 indicadores por modelo por padrão (Volume/Financiada/Penetração), com os outros 15 escondidos atrás de um botão "Ver Detalhes" que abre um modal — isso porque 18 colunas não cabem em nenhuma tela sem rolagem. A V2 **não replicou esse modal** — em vez disso, todas as 18 colunas ficam numa única tabela larga, com a coluna Modelo fixa e rolagem horizontal, agrupada por Volume/Financeiro/Retorno/Parcelamento/Entrada/Planos. Nenhuma métrica foi escondida atrás de cliques extras, mas a experiência de navegação é diferente da atual.
+## 8 passos
 
-## 6 passos
+1. Abra **Novos → Análise por Modelos**. Confirme que **não há barra de rolagem lateral** em nenhum lugar da tela.
+2. Compare os modelos pela linha principal (Volume, Financiamentos, Penetração — e, em telas largas, também Produção/Receita Total/Ticket Médio/Retorno Médio).
+3. Clique em **"+ Detalhes"** de um modelo — confirme que um painel abre logo abaixo daquele modelo, com Financeiro, Retorno, **Parcelamento (Prazo Médio, Parcela Média)**, **Entrada** e **Planos (Qtd Linear/Balão/Reversão, Balão Médio)**.
+4. Sem fechar o primeiro, clique em **"+ Detalhes"** de um SEGUNDO modelo. Confirme que os dois ficam abertos ao mesmo tempo e dá para comparar os dois lado a lado.
+5. Clique em **"− Detalhes"** de um dos dois — confirme que só aquele fecha, o outro continua aberto.
+6. Troque de família de veículo (Outlander/Triton/Eclipse Cross) — confirme que os detalhes fecham e a tela volta ao estado compacto.
+7. Role até as tabelas de plano (Resumo/Modelo/Loja) — confirme que também usam "+ Detalhes" e não têm rolagem lateral.
+8. Volte para **Ranking** e **Novos por Loja** — confirme que também não têm rolagem lateral e que os números continuam os mesmos de antes.
 
-1. Abra **Novos → Análise por Modelos**. Confirme o novo bloco de indicadores da família (Volume vendido, Financiamentos, Penetração, Produção, Receita, Receita SPF, Receita Total, Ticket médio, Média de retorno, Prazo médio, Média de parcela, Entrada média, % Entrada médio) logo abaixo do seletor de veículos.
-2. Role a tabela "Indicadores por modelo" na horizontal. Confirme que agora aparecem TODAS as colunas: Volume, Financiamentos, Penetração, Produção, Receita, Receita SPF, Receita Total, Ticket Médio, Retorno Médio, **Prazo Médio**, **Parcela Média**, Entrada Qtd, Entrada Média, Entrada %, **Qtd Linear**, **Qtd Balão**, **Qtd Reversão**, **Balão Médio**.
-3. Teste a fixture "model_analysis_parcelamento_completo" (seletor "DADOS DE TESTE") — ela tem dados reais de PMT, Quantidade de Parcelas e Balão PMT espalhados em 2 modelos (OUTLANDER HPE-S e OUTLANDER SIGNATURE), então Prazo Médio/Parcela Média/Balão Médio aparecem com valores diferentes de zero.
-4. Confirme as 4 tabelas de plano abaixo: "Resumo tipos de plano" (1 linha, total da família, com percentuais), "Quantidade por tipo de plano / Modelo" (com percentuais, não só contagem), "Quantidade por tipo de plano / Loja" (nova), "Detalhe Coparticipado / Subsidiado / Reversão" (nova).
-5. Teste a fixture "modelo_inconsistencia_triton" para ver a tabela condicional "Inconsistências TRITON" aparecer (ela só existe quando há dado real).
-6. Confirme que Ranking e Novos por Loja continuam exatamente como na rodada anterior — nenhuma mudança nesses dois.
+Teste a fixture "model_analysis_parcelamento_completo" (seletor "DADOS DE TESTE") para ver Prazo Médio/Parcela Média/Balão Médio com valores reais.
 
 Não é necessário revisar código.
 
-## As duas perguntas principais
+## As três perguntas principais
 
-**"Agora a Análise por Modelos da V2 possui todas as colunas e métricas que existem no Portal atual, sem perder a organização Red Precision?"**
+**"Agora a Análise por Modelos ficou fácil de comparar sem nenhuma barra de rolagem lateral, mantendo todas as informações através do + Detalhes?"**
 
-**"As métricas como Parcela Média, Média de Parcelas e Balão Médio estão apresentadas com o significado e a leitura que você esperava?"**
+**"O + Detalhes permite encontrar rapidamente Prazo Médio, Parcela Média, Balão Médio, Entrada e as demais métricas sem deixar a tabela principal carregada demais?"**
+
+**"Deixar dois ou mais modelos com os detalhes abertos ao mesmo tempo ajuda na comparação ou torna a tela visualmente pesada?"** (esta é especificamente uma pergunta de preferência — se a resposta for "pesada", podemos limitar a um modelo aberto por vez numa próxima rodada)
 
 ## O que você deve saber antes de avaliar
 
 - Os dados exibidos são **fixtures locais sintéticas**, não dados reais.
-- **Parcela Média** = valor médio da parcela em R$ (não a quantidade de parcelas).
-- **Prazo Médio** já é a "quantidade média de parcelas" — conferimos e a produção real não tem uma métrica separada com esse nome; são a mesma coisa, só que o rótulo em produção é "Prazo Médio" (formatado como "24,0x", por exemplo).
-- **Balão Médio** = valor médio do balão, calculado só entre os contratos que realmente têm balão (não dividido pelo total de financiamentos).
-- Nenhum número já homologado (Vendas/Financiamentos/Produção/Receita Total/Entrada/Entrada Média/Entrada %, Ranking, Novos por Loja) mudou nesta rodada — só a Análise por Modelos ganhou colunas novas.
-- A tabela larga de indicadores por modelo não é clicável por coluna para reordenar (mesma limitação já registrada para todos os módulos anteriores).
+- Nenhum número já homologado mudou — Vendas/Financiamentos/Produção/Receita/Entrada/Ranking/Novos por Loja calculam exatamente igual à rodada anterior. Só a apresentação das tabelas largas mudou.
+- Essa mesma regra de "sem rolagem lateral" **ainda não foi aplicada** aos módulos já aprovados (Landing, Score, Coparticipado, Análise F&I) — eles continuam como estavam, sem nenhuma mudança nesta rodada. Encontramos rolagem lateral em pelo menos uma tela de cada um deles e documentamos isso, mas não mexemos neles — são módulos já aprovados e travados, e só devem ser ajustados numa fase futura, com sua autorização explícita.
+- A tabela não é clicável por coluna para reordenar (mesma limitação já registrada para todos os módulos anteriores).
 
 ## O que acontece depois
 

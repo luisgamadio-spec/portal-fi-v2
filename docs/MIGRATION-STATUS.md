@@ -369,6 +369,50 @@ fixtures (25 + 1 new). Landing/Score/Coparticipado/Gestão re-verified byte-
 identical. 0 console/network errors across a full 26-fixture × 3-family sweep, 0
 page-level horizontal overflow at all 6 required breakpoints.
 
+## PORTAL-NEXT-07.4 addendum
+
+Dashbi stays `UAT_PENDING`. Two independent items this Wave:
+
+**Cache incident closed, no hotfix**: the human's earlier report that Análise por
+Modelos "wasn't opening" (after PORTAL-NEXT-07.3) was retested after a hard
+refresh and confirmed working — stale cached `dashbi.js`/`dashbi.css`, not a code
+regression (already exhaustively verified in the prior exchange: 0 changes to the
+click-handling code path between 07.2 and 07.3). No PORTAL-NEXT-07.3.1 hotfix was
+implemented, per explicit instruction not to modify working navigation code to fix
+an unproven bug.
+
+**New global human directive — no horizontal scrolling for material information**:
+superseding 07.3's own wide-table decision, which itself required horizontal
+scroll at every viewport including 1920px. Full audit
+(`docs/V2-HORIZONTAL-SCROLL-AUDIT.md`) found this affected every Dashbi table wide
+enough to need one (store/seller, Ranking, Novos por Loja, Model Analysis's wide
+table and 3 plan tables) plus, separately, at least one surface in **every**
+HUMAN_APPROVED/FROZEN module (Landing's mobile nav strip, Score's ranking table,
+Coparticipado's table — the most severe, scrolling even at 1920px — and multiple
+Gestão tables up to 768px). Frozen modules were **not modified** — reported as
+`FROZEN CONFLICT`, pending a dedicated remediation Wave the human must explicitly
+authorize after Dashbi's own approval (`docs/DS-CHANGE-PROPOSAL-NO-HORIZONTAL-
+SCROLL-01.md`).
+
+**Dashbi recomposed**: every table replaced with a shared "primary row + inline
+`+ Detalhes`" component (`docs/MODEL-ANALYSIS-NO-SCROLL-DESIGN.md`) — a compact,
+genuinely tabular comparison row plus a one-click vertical expansion for
+everything else, multiple rows expandable simultaneously per explicit human
+preference. Not a card grid (would violate `data-table.md`'s "table stays table"
+rule); not a modal (production's own current pattern, explicitly rejected in favor
+of inline vertical disclosure). Full completeness re-verified against the frozen
+07.3 production inventory (`docs/MODEL-ANALYSIS-PRIMARY-DETAIL-MAP.md`): 0
+unmapped, 0 inaccessible material items.
+
+**0 business-logic change**: `git diff` shows 0 lines changed in
+`dashbi.adapter.js`, `_dashbi-reference.js`, or `dashbi-fixtures.json` — this Wave
+touched only `dashbi.js`/`dashbi.css` (presentation). 26/26 golden fixtures
+unchanged. Landing/Score/Coparticipado/Gestão re-verified byte-identical
+(untouched, per the frozen-conflict reporting rule). Automated sweep: 48/48
+view×mode×viewport combinations pass with 0 horizontal overflow (detail panels
+open, worst case); full 26-fixture × 3-family sweep at 390px with every detail
+expanded: 0 overflow, 0 console errors.
+
 ## Standing blockers carried forward (not resolved this phase)
 
 - Gestão: commission-rule discrepancy (`PORTAL-NEXT-01.1/BLOCKER-

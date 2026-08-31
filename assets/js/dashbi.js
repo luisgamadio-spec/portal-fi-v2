@@ -108,9 +108,54 @@
   function row(cells) {
     return '<tr><td>' + esc(cells[0]) + '</td>' + cells.slice(1).map(function (c) { return '<td class="dbNumCol">' + esc(String(c)) + '</td>'; }).join('') + '</tr>';
   }
-  function tableHtml(headers, bodyRows, numericFrom) {
-    return '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' + headerRow(headers, numericFrom) + '</tr></thead>' +
+  function tableHtml(headers, bodyRows, numericFrom, wrapText) {
+    // wrapText (PORTAL-NEXT-07.4): for small text-only tables (e.g.
+    // Inconsistências TRITON) a "+ Detalhes" split isn't warranted — letting
+    // long values (long names) wrap onto multiple lines within their cell
+    // is simpler and satisfies the no-horizontal-scroll directive just as
+    // well as the primary/detail pattern used for comparison tables.
+    return '<div class="dbTableWrap"><table class="dbTable' + (wrapText ? ' dbTableWrapText' : '') + '"><thead><tr>' + headerRow(headers, numericFrom) + '</tr></thead>' +
       '<tbody>' + (bodyRows.length ? bodyRows.join('') : '<tr><td colspan="' + headers.length + '" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
+  }
+
+  // PORTAL-NEXT-07.4 — global no-horizontal-scroll directive: material
+  // information must never require horizontal scrolling to reach.
+  // Shared "primary row + inline vertical detail" component, reused by
+  // every Dashbi table wide enough to have needed a scrollbar (store/
+  // seller/Ranking/Novos-por-Loja/plan tables/Model Analysis). A row's
+  // "+ Detalhes" toggles a namespaced key in expandedKeys; render()
+  // rebuilds the whole panel on toggle (same pattern already used for
+  // every other interaction in this file), so expanded rows persist
+  // across period/fixture changes (fresh data, same open state) but are
+  // explicitly reset on family switch (Gate 16/44) via resetExpanded().
+  var expandedKeys = {};
+  function isExpanded(ns, key) { return !!(expandedKeys[ns] && expandedKeys[ns][String(key)]); }
+  function toggleExpanded(ns, key) {
+    if (!expandedKeys[ns]) expandedKeys[ns] = {};
+    var k = String(key);
+    if (expandedKeys[ns][k]) delete expandedKeys[ns][k];
+    else expandedKeys[ns][k] = true;
+  }
+  function resetExpanded(ns) { expandedKeys[ns] = {}; }
+
+  function detailDomId(ns, key) { return 'db-detail-' + ns + '-' + String(key).replace(/[^a-zA-Z0-9_-]/g, '_'); }
+
+  function detailToggleHtml(ns, key) {
+    var open = isExpanded(ns, key);
+    return '<button type="button" class="dbDetailToggle" data-detail-ns="' + esc(ns) + '" data-detail-key="' + esc(String(key)) +
+      '" aria-expanded="' + (open ? 'true' : 'false') + '" aria-controls="' + detailDomId(ns, key) + '">' + (open ? '− Detalhes' : '+ Detalhes') + '</button>';
+  }
+
+  // groups: [{label, items:[{label, value}]}] — value is pre-formatted HTML/text.
+  function detailRowHtml(ns, key, colspan, groups) {
+    if (!isExpanded(ns, key)) return '';
+    var body = groups.map(function (g) {
+      return '<div class="dbDetailGroup"><div class="dbDetailGroupLabel">' + esc(g.label) + '</div>' +
+        '<div class="dbDetailGroupItems">' + g.items.map(function (it) {
+          return '<div class="dbDetailItem"><span class="dbDetailK">' + esc(it.label) + '</span><span class="dbDetailV">' + it.value + '</span></div>';
+        }).join('') + '</div></div>';
+    }).join('');
+    return '<tr id="' + detailDomId(ns, key) + '" class="dbDetailRow"><td colspan="' + colspan + '"><div class="dbDetailPanel">' + body + '</div></td></tr>';
   }
 
   function kpiPrimary(label, value, hint) {
@@ -131,30 +176,58 @@
     return '<div class="dbPlanCard ' + cls + '"><div class="dbK">' + esc(tipo) + '</div><div class="dbV">' + (count || 0) + '</div></div>';
   }
 
+  // PORTAL-NEXT-07.4 — a primary row (identity + fast-comparison numeric
+  // columns + toggle) followed by its detail row when expanded. colspan
+  // covers the FULL primary column count (identity + numeric + toggle),
+  // so the detail panel spans the whole table width.
+  function expandableRow(ns, key, primaryCells, numericFrom, colspan, detailGroups) {
+    return '<tr><td>' + esc(String(primaryCells[0])) + '</td>' +
+      primaryCells.slice(1).map(function (c, i) { return '<td' + (i + 1 >= numericFrom ? ' class="dbNumCol"' : '') + '>' + esc(String(c)) + '</td>'; }).join('') +
+      '<td class="dbDetailToggleCell">' + detailToggleHtml(ns, key) + '</td></tr>' +
+      detailRowHtml(ns, key, colspan, detailGroups);
+  }
+
+  function expandableTableHtml(headers, numericFrom, bodyRowsHtml, colCount) {
+    return '<div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' + headerRow(headers.concat(['']), numericFrom) + '</tr></thead>' +
+      '<tbody>' + (bodyRowsHtml.length ? bodyRowsHtml.join('') : '<tr><td colspan="' + colCount + '" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
+  }
+
   function storeTableHtml(A, results) {
     var A_ = results.aggs;
     var lojas = Object.keys(A_.vendasLoja);
     var finLojaMap = A_.finLoja;
+    var ns = 'storeTable';
     var body = lojas.sort(function (a, b) { return (A_.vendasLoja[b].qtd || 0) - (A_.vendasLoja[a].qtd || 0); }).map(function (loja) {
       var v = A_.vendasLoja[loja] || { qtd: 0 };
       var f = finLojaMap[loja] || { qtd: 0, producao: 0, receita: 0 };
       var share = v.qtd ? f.qtd / v.qtd : 0;
-      return row([loja, v.qtd, f.qtd, A.pct(share), A.money(f.producao || 0), A.money(f.receita || 0)]);
+      return expandableRow(ns, loja, [loja, v.qtd, f.qtd, A.pct(share)], 1, 5, [
+        { label: 'Financeiro', items: [
+          { label: 'Produção', value: esc(A.money(f.producao || 0)) },
+          { label: 'Receita', value: esc(A.money(f.receita || 0)) }
+        ] }
+      ]);
     });
-    return tableHtml(['Loja', 'Vendas', 'Financiamentos', 'Share', 'Produção', 'Receita'], body);
+    return expandableTableHtml(['Loja', 'Vendas', 'Financiamentos', 'Share'], 1, body, 5);
   }
 
   function sellerTableHtml(A, results) {
     var A_ = results.aggs;
     var keys = Object.keys(A_.vendasVendDept);
+    var ns = 'sellerTable';
     var body = keys.sort(function (a, b) { return (A_.vendasVendDept[b].qtd || 0) - (A_.vendasVendDept[a].qtd || 0); }).map(function (key) {
       var parts = key.split(' | ');
       var v = A_.vendasVendDept[key] || { qtd: 0 };
       var f = A_.finVendDept[key] || { qtd: 0, producao: 0 };
       var share = v.qtd ? f.qtd / v.qtd : 0;
-      return row([parts[0], parts[1] || '', v.qtd, f.qtd, A.pct(share), A.money(f.producao || 0)]);
+      return expandableRow(ns, key, [parts[0], v.qtd, f.qtd, A.pct(share)], 1, 5, [
+        { label: 'Detalhe', items: [
+          { label: 'Depto', value: esc(parts[1] || '') },
+          { label: 'Produção', value: esc(A.money(f.producao || 0)) }
+        ] }
+      ]);
     });
-    return tableHtml(['Vendedor', 'Depto', 'Vendas', 'Financiamentos', 'Share', 'Produção'], body, 2);
+    return expandableTableHtml(['Vendedor', 'Vendas', 'Financiamentos', 'Share'], 1, body, 5);
   }
 
   var VEHICLE_IMAGES = {
@@ -225,28 +298,62 @@
     return '<span class="' + cls + '">' + esc(A.pct(v)) + '</span>';
   }
 
-  function modelWideTableHtml(A, modelRows) {
-    var dataCols = MODEL_TABLE_COLUMNS.slice(1);
-    var groups = [];
-    dataCols.forEach(function (c) {
-      var last = groups[groups.length - 1];
-      if (last && last.label === c.group) last.span++;
-      else groups.push({ label: c.group, span: 1 });
+  // PORTAL-NEXT-07.4 — the 07.3 wide table (18 columns, grouped headers)
+  // scrolled horizontally at EVERY viewport including 1920px — the human
+  // global no-horizontal-scroll directive rejects this. Recomposed as a
+  // compact primary comparison row (Volume/Financiamentos/Penetração
+  // always; Produção/Receita Total/Ticket Médio/Retorno Médio added at
+  // >=768px via CSS, .dbDesktopCol) + a "+ Detalhes" inline expansion
+  // covering every remaining field, grouped exactly as production's own
+  // family miniGrid groups them (Financeiro/Parcelamento/Entrada/Planos)
+  // — presentational grouping only, 0 change to any formula/population
+  // (see docs/MODEL-ANALYSIS-METRIC-CONTRACTS.md). The desktop-only
+  // columns are ALSO always present in the detail panel (small
+  // redundancy, not a completeness gap) so mobile users find every
+  // metric in exactly one place regardless of viewport.
+  var MODEL_PRIMARY_ALWAYS = ['volume', 'financiada', 'penetracao'];
+  var MODEL_PRIMARY_DESKTOP = ['producao', 'receitaTotal', 'ticket', 'retornoMedio'];
+
+  function modelCellHtml(A, c, r) {
+    var val = r[c.key];
+    return c.penetracao ? penetracaoCellHtml(A, val) : esc(String(c.f(A, val)));
+  }
+
+  function modelPrimaryDetailTableHtml(A, modelRows) {
+    var byKey = {};
+    MODEL_TABLE_COLUMNS.forEach(function (c) { byKey[c.key] = c; });
+    var alwaysCols = MODEL_PRIMARY_ALWAYS.map(function (k) { return byKey[k]; });
+    var desktopCols = MODEL_PRIMARY_DESKTOP.map(function (k) { return byKey[k]; });
+    var primaryKeys = MODEL_PRIMARY_ALWAYS.concat(MODEL_PRIMARY_DESKTOP);
+    var detailCols = MODEL_TABLE_COLUMNS.slice(1).filter(function (c) { return primaryKeys.indexOf(c.key) === -1; });
+    var detailGroupsByLabel = {};
+    var detailGroupOrder = [];
+    // Financeiro/Retorno detail also repeats the desktop-only primary
+    // columns, so they stay reachable via + Detalhes at every viewport.
+    desktopCols.concat(detailCols).forEach(function (c) {
+      if (!detailGroupsByLabel[c.group]) { detailGroupsByLabel[c.group] = []; detailGroupOrder.push(c.group); }
+      detailGroupsByLabel[c.group].push(c);
     });
-    var groupRow = '<th class="dbSticky" rowspan="2" scope="col">Modelo</th>' +
-      groups.map(function (g) { return '<th colspan="' + g.span + '" scope="colgroup" class="dbGroupHead">' + esc(g.label) + '</th>'; }).join('');
-    var labelRow = dataCols.map(function (c) { return '<th class="dbNumCol" scope="col">' + esc(c.label) + '</th>'; }).join('');
+
+    var headCells = '<th scope="col">Modelo</th>' +
+      alwaysCols.map(function (c) { return '<th class="dbNumCol" scope="col">' + esc(c.label) + '</th>'; }).join('') +
+      desktopCols.map(function (c) { return '<th class="dbNumCol dbDesktopCol" scope="col">' + esc(c.label) + '</th>'; }).join('') +
+      '<th scope="col"></th>';
+    var colspan = 1 + alwaysCols.length + desktopCols.length + 1;
+    var ns = 'modelIndicators';
     var body = modelRows.map(function (r) {
-      var cells = dataCols.map(function (c) {
-        var val = r[c.key];
-        var html = c.penetracao ? penetracaoCellHtml(A, val) : esc(String(c.f(A, val)));
-        return '<td class="dbNumCol">' + html + '</td>';
-      }).join('');
-      return '<tr><td class="dbSticky">' + esc(r.Modelo) + '</td>' + cells + '</tr>';
+      var key = r.Modelo;
+      var groups = detailGroupOrder.map(function (label) {
+        return { label: label, items: detailGroupsByLabel[label].map(function (c) { return { label: c.label, value: modelCellHtml(A, c, r) }; }) };
+      });
+      return '<tr><td>' + esc(r.Modelo) + '</td>' +
+        alwaysCols.map(function (c) { return '<td class="dbNumCol">' + modelCellHtml(A, c, r) + '</td>'; }).join('') +
+        desktopCols.map(function (c) { return '<td class="dbNumCol dbDesktopCol">' + modelCellHtml(A, c, r) + '</td>'; }).join('') +
+        '<td class="dbDetailToggleCell">' + detailToggleHtml(ns, key) + '</td></tr>' +
+        detailRowHtml(ns, key, colspan, groups);
     }).join('');
-    return '<div class="dbTableWrap"><table class="dbTable dbTableGrouped"><thead>' +
-      '<tr>' + groupRow + '</tr><tr>' + labelRow + '</tr>' +
-      '</thead><tbody>' + (body || '<tr><td colspan="' + (dataCols.length + 1) + '" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
+    return '<div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' + headCells + '</tr></thead>' +
+      '<tbody>' + (body || '<tr><td colspan="' + colspan + '" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
   }
 
   function familyMetricGridHtml(A, results, modelRows) {
@@ -276,16 +383,38 @@
       '</div>';
   }
 
-  function planPctRow(cells) {
-    // Loja/Modelo/Família label, then 5 pairs of (count, pct) columns —
-    // count and pct both numeric-aligned, matching production's own
-    // Linear/Linear%/Balão/Balão%/... column sequence exactly.
-    return '<tr><td>' + esc(cells[0]) + '</td>' + cells.slice(1).map(function (c) { return '<td class="dbNumCol">' + esc(String(c)) + '</td>'; }).join('') + '</tr>';
+  // PORTAL-NEXT-07.4 — plan-mix tables (12 fields: label + 5 pairs of
+  // count/%) scrolled horizontally up to 768px. Primary: label +
+  // Financiamentos + Linear + Balão (the 2 most common plan types);
+  // detail: every remaining count/% pair, 0 change to any value.
+  function planPctPrimaryHeaders(labelHeader) { return [labelHeader, 'Financiamentos', 'Linear', 'Balão', '']; }
+  function planPctBodyRow(A, ns, r, labelValue) {
+    var key = labelValue;
+    return '<tr><td>' + esc(labelValue) + '</td>' +
+      '<td class="dbNumCol">' + esc(String(r.Financiamentos)) + '</td>' +
+      '<td class="dbNumCol">' + esc(String(r.Linear)) + '</td>' +
+      '<td class="dbNumCol">' + esc(String(r.Balao)) + '</td>' +
+      '<td class="dbDetailToggleCell">' + detailToggleHtml(ns, key) + '</td></tr>' +
+      detailRowHtml(ns, key, 5, [
+        { label: 'Percentuais', items: [
+          { label: 'Linear %', value: esc(A.pct(r.LinearPct)) },
+          { label: 'Balão %', value: esc(A.pct(r.BalaoPct)) }
+        ] },
+        { label: 'Coparticipado / Subsidiado / Reversão', items: [
+          { label: 'Coparticipado', value: esc(String(r.Coparticipado)) },
+          { label: 'Coparticipado %', value: esc(A.pct(r.CoparticipadoPct)) },
+          { label: 'Subsidiado', value: esc(String(r.Subsidiado)) },
+          { label: 'Subsidiado %', value: esc(A.pct(r.SubsidiadoPct)) },
+          { label: 'Reversão', value: esc(String(r.Reversao)) },
+          { label: 'Reversão %', value: esc(A.pct(r.ReversaoPct)) }
+        ] }
+      ]);
   }
-  var PLAN_PCT_HEADERS = ['Financiamentos', 'Linear', 'Linear %', 'Balão', 'Balão %', 'Coparticipado', 'Coparticipado %', 'Subsidiado', 'Subsidiado %', 'Reversão', 'Reversão %'];
-  function planPctBodyRow(A, r) {
-    return planPctRow([r.__label, r.Financiamentos, r.Linear, A.pct(r.LinearPct), r.Balao, A.pct(r.BalaoPct),
-      r.Coparticipado, A.pct(r.CoparticipadoPct), r.Subsidiado, A.pct(r.SubsidiadoPct), r.Reversao, A.pct(r.ReversaoPct)]);
+  function planPctTableHtml(A, ns, labelHeader, rows, labelKey) {
+    var body = rows.map(function (r) { return planPctBodyRow(A, ns, r, r[labelKey]); }).join('');
+    return '<div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' +
+      headerRow(planPctPrimaryHeaders(labelHeader), 1) +
+      '</tr></thead><tbody>' + (body || '<tr><td colspan="5" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
   }
 
   function planClassificationHtml(A, counts) {
@@ -302,13 +431,18 @@
     var specialRows = A.specialPlanDetailRows(results, currentFamily);
     var tritonRows = A.inconsistenciaTritonRows(results);
 
-    var planTotalBody = planTotalRows.map(function (r) { r.__label = r['Família']; return planPctBodyRow(A, r); }).join('');
-    var planModelBody = planRows.map(function (r) { r.__label = r.Modelo; return planPctBodyRow(A, r); }).join('');
-    var planStoreBody = planStoreRows.map(function (r) { r.__label = r.Loja; return planPctBodyRow(A, r); }).join('');
-
-    var specialBody = specialRows.map(function (r) {
-      return '<tr><td>' + esc(r.Loja) + '</td><td>' + esc(r.Modelo) + '</td><td>' + esc(r.Plano) + '</td><td>' + esc(r.Cliente) +
-        '</td><td class="dbNumCol">' + esc(A.money(r.Producao)) + '</td><td class="dbNumCol">' + esc(A.money(r.Receita)) + '</td></tr>';
+    var specialNs = 'specialPlan';
+    var specialBody = specialRows.map(function (r, i) {
+      var key = r.Loja + '-' + r.Modelo + '-' + i;
+      return '<tr><td>' + esc(r.Loja) + '</td><td>' + esc(r.Modelo) + '</td><td>' + esc(r.Plano) + '</td>' +
+        '<td class="dbDetailToggleCell">' + detailToggleHtml(specialNs, key) + '</td></tr>' +
+        detailRowHtml(specialNs, key, 4, [
+          { label: 'Detalhe', items: [
+            { label: 'Cliente', value: esc(r.Cliente) },
+            { label: 'Produção', value: esc(A.money(r.Producao)) },
+            { label: 'Receita', value: esc(A.money(r.Receita)) }
+          ] }
+        ]);
     }).join('');
 
     var tritonHtml = '';
@@ -318,7 +452,7 @@
       }).join('');
       tritonHtml = '<h3 class="dbSubHeading">Inconsistências TRITON</h3>' +
         '<p class="dbMuted">Registros classificados como TRITON com o modelo original divergente entre as bases — sinalizado, não corrigido automaticamente.</p>' +
-        tableHtml(['Base', 'Cliente', 'Modelo original', 'Vendedor'], tritonBody ? [tritonBody] : []);
+        tableHtml(['Base', 'Cliente', 'Modelo original', 'Vendedor'], tritonBody ? [tritonBody] : [], 1, true);
     }
 
     return '<div class="dbModelSection">' +
@@ -328,21 +462,22 @@
       vehicleSelectorHtml() +
       familyMetricGridHtml(A, results, modelRows) +
       '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Indicadores por modelo</h3>' +
-      '<p class="dbMuted">Vendas/Financiamentos/Produção/Receita/Ticket/Retorno por modelo, mais os indicadores de Entrada e Parcelamento (Prazo Médio, Parcela Média) — nunca ocultos. Role a tabela na horizontal para ver todas as colunas.</p>' +
-      modelWideTableHtml(A, modelRows) +
+      '<p class="dbMuted">Volume/Financiamentos/Penetração por modelo — clique em "+ Detalhes" para abrir Produção/Receita/Ticket/Retorno/Parcelamento (Prazo Médio, Parcela Média)/Entrada/Planos (Qtd Linear/Balão/Reversão, Balão Médio). Nenhuma métrica fica escondida, sem rolagem lateral.</p>' +
+      modelPrimaryDetailTableHtml(A, modelRows) +
       tritonHtml +
       '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Resumo tipos de plano</h3>' +
-      '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' + headerRow(['Família'].concat(PLAN_PCT_HEADERS), 1) + '</tr></thead><tbody>' + (planTotalBody || '<tr><td colspan="12" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>' +
+      planPctTableHtml(A, 'planTotal', 'Família', planTotalRows, 'Família') +
       '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Quantidade por tipo de plano / Modelo</h3>' +
-      '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' + headerRow(['Modelo'].concat(PLAN_PCT_HEADERS), 1) + '</tr></thead><tbody>' + (planModelBody || '<tr><td colspan="12" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>' +
+      planPctTableHtml(A, 'planModel', 'Modelo', planRows, 'Modelo') +
       '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Quantidade por tipo de plano / Loja</h3>' +
-      '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' + headerRow(['Loja'].concat(PLAN_PCT_HEADERS), 1) + '</tr></thead><tbody>' + (planStoreBody || '<tr><td colspan="12" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>' +
+      planPctTableHtml(A, 'planStore', 'Loja', planStoreRows, 'Loja') +
       '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Detalhe Coparticipado / Subsidiado / Reversão</h3>' +
-      tableHtml(['Loja', 'Modelo', 'Plano', 'Cliente', 'Produção', 'Receita'], specialBody ? [specialBody] : [], 4) +
+      expandableTableHtml(['Loja', 'Modelo', 'Plano'], 3, specialBody ? [specialBody] : [], 4) +
       '</div>';
   }
 
   function rankingRowHtml(A, list, kind) {
+    var ns = 'ranking-' + kind;
     return list.map(function (r, i) {
       var nome = r.Nome, sub = '';
       if (kind === 'vendedor') {
@@ -350,21 +485,27 @@
         nome = parts[0] || r.Nome;
         sub = parts.length > 1 ? parts.slice(1).join(' · ') : '';
       }
+      var key = kind + '-' + i;
       return '<tr><td>' + (i + 1) + 'º</td><td>' + esc(nome) + (sub ? '<div class="dbTableSub">' + esc(sub) + '</div>' : '') + '</td>' +
         '<td class="dbNumCol">' + esc(String(r.vendas)) + '</td>' +
         '<td class="dbNumCol">' + esc(String(r.fin)) + '</td>' +
-        '<td class="dbNumCol">' + esc(A.pct(r.penetracao)) + '</td>' +
         '<td class="dbNumCol">' + esc(A.money(r.receitaTotal)) + '</td>' +
-        '<td class="dbNumCol">' + esc(A.money(r.producao)) + '</td>' +
-        '<td class="dbNumCol">' + esc(A.pct(r.retorno)) + '</td></tr>';
+        '<td class="dbDetailToggleCell">' + detailToggleHtml(ns, key) + '</td></tr>' +
+        detailRowHtml(ns, key, 6, [
+          { label: 'Detalhe', items: [
+            { label: 'Penetração', value: esc(A.pct(r.penetracao)) },
+            { label: 'Produção', value: esc(A.money(r.producao)) },
+            { label: 'Retorno', value: esc(A.pct(r.retorno)) }
+          ] }
+        ]);
     }).join('');
   }
 
   function rankingTableHtml(A, title, list, kind) {
     if (!list.length) return '<h3 class="dbSubHeading">' + esc(title) + '</h3><p class="dbMuted">Sem dados.</p>';
     return '<h3 class="dbSubHeading">' + esc(title) + '</h3>' +
-      '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' +
-      headerRow(['#', 'Nome', 'Vendas', 'Financiamentos', 'Penetração', 'Receita Total', 'Produção', 'Retorno'], 2) +
+      '<div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' +
+      headerRow(['#', 'Nome', 'Vendas', 'Financiamentos', 'Receita Total', ''], 2) +
       '</tr></thead><tbody>' + rankingRowHtml(A, list, kind) + '</tbody></table></div>';
   }
 
@@ -383,24 +524,31 @@
 
   function novosLojaHtml(A, out) {
     var rows = A.buildNovosLojaRows(out);
-    var body = rows.map(function (r) {
+    var ns = 'novosLoja';
+    var body = rows.map(function (r, i) {
       var cls = r._total ? ' class="dbTotalRow"' : '';
+      var key = r._total ? 'total' : (r.Loja + '-' + i);
       return '<tr' + cls + '><td>' + esc(r.Loja) + '</td>' +
         '<td class="dbNumCol">' + esc(String(r.Vendidos)) + '</td>' +
         '<td class="dbNumCol">' + esc(String(r.Financiados)) + '</td>' +
-        '<td class="dbNumCol">' + esc(String(r.Balao)) + '</td>' +
-        '<td class="dbNumCol">' + esc(A.pct(r.BalaoPct)) + '</td>' +
-        '<td class="dbNumCol">' + esc(String(r.Subsidiada)) + '</td>' +
-        '<td class="dbNumCol">' + esc(String(r.Coparticipada)) + '</td>' +
-        '<td class="dbNumCol">' + esc(String(r.Reversao)) + '</td>' +
-        '<td class="dbNumCol">' + esc(String(r.Linear)) + '</td>' +
-        '<td>' + esc(r.PlanoDestaque || '-') + '</td></tr>';
+        '<td>' + esc(r.PlanoDestaque || '-') + '</td>' +
+        '<td class="dbDetailToggleCell">' + detailToggleHtml(ns, key) + '</td></tr>' +
+        detailRowHtml(ns, key, 5, [
+          { label: 'Planos', items: [
+            { label: 'Balão', value: esc(String(r.Balao)) },
+            { label: '% Balão', value: esc(A.pct(r.BalaoPct)) },
+            { label: 'Subsidiada', value: esc(String(r.Subsidiada)) },
+            { label: 'Coparticipada', value: esc(String(r.Coparticipada)) },
+            { label: 'Reversão', value: esc(String(r.Reversao)) },
+            { label: 'Linear', value: esc(String(r.Linear)) }
+          ] }
+        ]);
     }).join('');
     return '<div class="dbNovosLojaSection">' +
       '<h2 style="margin-top:0">Novos por Loja</h2>' +
       '<p class="dbMuted">Leitura por loja/unidade considerando apenas veículos Novos, respeitando o período selecionado.</p>' +
-      '<div class="dbTableWrap"><table class="dbTable"><thead><tr>' +
-      headerRow(['Loja', 'Vendidos', 'Financiados', 'Balão', '% Balão', 'Subsidiada', 'Coparticipada', 'Reversão', 'Linear', 'Plano Destaque'], 1) +
+      '<div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' +
+      headerRow(['Loja', 'Vendidos', 'Financiados', 'Plano Destaque', ''], 1) +
       '</tr></thead><tbody>' + body + '</tbody></table></div>' +
       '</div>';
   }
@@ -516,6 +664,10 @@
       var btn = e.target.closest('.dbVehicleCard');
       if (!btn) return;
       currentFamily = btn.dataset.family;
+      // Gate 16/44 (PORTAL-NEXT-07.4): reset expanded model detail rows on
+      // family switch — a safe default, since no production/V2 authority
+      // supports persisting expansion across a different model set.
+      resetExpanded('modelIndicators');
       render();
     });
     // .dbModeBtn is re-created every render() too (its own available set
@@ -525,6 +677,14 @@
       var btn = e.target.closest('.dbModeBtn');
       if (!btn) return;
       currentMode = btn.dataset.mode;
+      render();
+    });
+    // PORTAL-NEXT-07.4 — shared "+ Detalhes" toggle, delegated (every
+    // detail button is re-created on each render()).
+    document.getElementById('dbPanel').addEventListener('click', function (e) {
+      var btn = e.target.closest('.dbDetailToggle');
+      if (!btn) return;
+      toggleExpanded(btn.dataset.detailNs, btn.dataset.detailKey);
       render();
     });
   }

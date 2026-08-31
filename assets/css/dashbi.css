@@ -83,17 +83,75 @@
 .dbTable thead th:first-child, .dbTable td:first-child { position: sticky; left: 0; background: var(--color-surface-1); }
 .dbTable thead th:first-child { background: var(--color-surface-2); z-index: 1; }
 
-/* Grouped-header wide table (PORTAL-NEXT-07.3, Model Analysis completeness
-   restoration) — sticky Modelo column + horizontal scroll instead of
-   production's own card+modal shape (data-table.md forbids cardifying
-   tabular data; see docs/MODEL-ANALYSIS-METRIC-CONTRACTS.md). Group
-   labels (Volume/Financeiro/Retorno/Parcelamento/Entrada/Planos) are
-   presentational only — each still maps 1:1 to one production column. */
-.dbTableGrouped thead tr:nth-child(2) th:first-child { position: static; left: auto; background: none; z-index: auto; }
-.dbTableGrouped thead th.dbSticky { position: sticky; left: 0; background: var(--color-surface-2); z-index: 2; text-align: left; }
-.dbTableGrouped tbody td.dbSticky { position: sticky; left: 0; background: var(--color-surface-1); font-weight: 500; }
-.dbTableGrouped thead tr:first-child th.dbGroupHead { text-align: center; background: var(--color-surface-2); border-bottom: 1px solid var(--color-hairline); font-size: 9.5px; }
-.dbTableGrouped thead tr:nth-child(2) th { border-bottom: 1px solid var(--color-hairline-strong); }
+/* Primary + inline detail (PORTAL-NEXT-07.4, global no-horizontal-scroll
+   directive) — replaces PORTAL-NEXT-07.3's grouped wide table, which
+   scrolled horizontally at every viewport including 1920px. Every
+   Dashbi table wide enough to need a scrollbar now shows a compact
+   primary row + a "+ Detalhes" toggle that expands a structured
+   label/value panel directly below that row — no card grid, no modal,
+   no horizontal movement, 0 change to any value or formula. */
+.dbTableExpandable thead th:first-child, .dbTableExpandable tbody td:first-child { position: static; }
+/* Root cause: with the table's default "auto" layout, a browser sizes the
+   whole <table> from the WIDEST cell's min-content across every row —
+   including the colspan'd detail <td>. .dbDetailPanel's grid/flex content
+   reported a min-content width that grew the table past its .dbTableWrap
+   container; the wrap's own overflow-x:auto then silently absorbed that
+   into a hidden component-level scrollbar — a document-level scrollWidth
+   check doesn't catch this, exactly what the no-scroll directive forbids.
+   table-layout:fixed is the fix that actually held up under testing —
+   column widths are set once from the primary row and never re-grown by a
+   later (detail) row, regardless of that row's own content. */
+.dbTableExpandable { table-layout: fixed; width: 100%; }
+/* Column headers (e.g. "FINANCIAMENTOS") are long uppercase mono-font
+   labels — under fixed layout's even default column division they don't
+   always fit one line either; the same overflow-into-scrollWidth issue as
+   the toggle button applies. Wrapping the label is the same fix, applied
+   to headers instead of body cells (data-table.md's own header style is
+   already uppercase/letter-spaced, unaffected by allowing a second line). */
+.dbTableExpandable thead th,
+.dbTableExpandable > tbody > tr:not(.dbDetailRow) > td { white-space: normal; overflow-wrap: break-word; word-break: break-word; }
+.dbTableWrapText { table-layout: fixed; width: 100%; }
+.dbTableWrapText td { white-space: normal; overflow-wrap: break-word; }
+/* No explicit width + white-space:normal (not nowrap) on both the cell and
+   the button: under table-layout:fixed, a narrow fixed-layout column still
+   lets its content overflow the cell's box visually if that content can't
+   wrap — that ink overflow bled into .dbTableWrap's scrollWidth the same
+   way the original bug did, just smaller (confirmed empirically: fixing
+   the detail-panel blowout alone left a ~28px residual from exactly this).
+   Letting the button's own text wrap removes that last source. */
+/* Giving the toggle column a guaranteed FIXED pixel width (not a share of
+   the auto-divided remainder) is what finally made this exact: any %-based
+   or even-share width is one sub-pixel rounding step away from being
+   slightly too small for "+ Detalhes"/"− Detalhes" at some viewport, which
+   then bleeds a few px of ink overflow into .dbTableWrap's scrollWidth —
+   confirmed repeatedly across several narrower attempts. A fixed px width
+   sidesteps that arithmetic entirely, at the cost of every table reserving
+   the same column width for its toggle regardless of its own column count. */
+.dbTableExpandable thead th:last-child { width: 86px; }
+/* Identity column (Modelo/Loja/Vendedor/Família/#+Nome) gets a floor share
+   too, otherwise it wraps character-by-character on narrow viewports once
+   the remaining numeric+toggle columns claim their own width — real names
+   like "ALPHAVILLE" or "MARIANA ALVES COSTA" need more than an even 1/N
+   split. This is a floor (min-width via width on a fixed-layout column),
+   not the earlier attempt's rigid 30% that itself caused a different
+   overflow when combined with the (since-fixed) toggle/header bugs. */
+.dbTableExpandable thead th:first-child { width: 34%; }
+.dbDetailToggleCell { white-space: normal; }
+.dbDetailToggle { box-sizing: border-box; max-width: 100%; background: none; border: 1px solid var(--color-hairline-strong); color: var(--color-text-secondary); font-family: var(--font-mono); font-size: 10.5px; padding: 3px 4px; border-radius: var(--radius-sm); cursor: pointer; white-space: normal; }
+.dbDetailToggle:hover { color: var(--color-text-primary); border-color: var(--color-text-secondary); }
+.dbDetailToggle:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+.dbDetailToggle[aria-expanded="true"] { color: var(--color-canvas); background: var(--color-text-primary); border-color: var(--color-text-primary); font-weight: 700; }
+.dbTable tr.dbDetailRow td { background: var(--color-surface-2); padding: var(--space-3); border-bottom: 1px solid var(--color-hairline); white-space: normal; }
+.dbDetailPanel { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 160px)); gap: var(--space-4); }
+.dbDetailGroupLabel { color: var(--color-text-muted); font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: var(--space-2); padding-bottom: 3px; border-bottom: 1px solid var(--color-hairline); }
+.dbDetailGroupItems { display: flex; flex-direction: column; gap: 5px; }
+.dbDetailItem { display: flex; justify-content: space-between; gap: var(--space-3); font-size: 12.5px; }
+.dbDetailK { color: var(--color-text-muted); }
+.dbDetailV { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+@media (max-width: 767px) {
+  .dbDesktopCol { display: none; }
+}
 
 .dbFamilyMetricGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-2); margin: var(--space-3) 0 var(--space-4); }
 .dbFamilyMetricBox { border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
