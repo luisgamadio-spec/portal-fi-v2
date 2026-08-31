@@ -450,40 +450,6 @@
       '</div>';
   }
 
-  // PORTAL-NEXT-07.4 — plan-mix tables (12 fields: label + 5 pairs of
-  // count/%) scrolled horizontally up to 768px. Primary: label +
-  // Financiamentos + Linear + Balão (the 2 most common plan types);
-  // detail: every remaining count/% pair, 0 change to any value.
-  function planPctPrimaryHeaders(labelHeader) { return [labelHeader, 'Financiamentos', 'Linear', 'Balão', '']; }
-  function planPctBodyRow(A, ns, r, labelValue) {
-    var key = labelValue;
-    return '<tr><td>' + esc(labelValue) + '</td>' +
-      '<td class="dbNumCol">' + esc(String(r.Financiamentos)) + '</td>' +
-      '<td class="dbNumCol">' + esc(String(r.Linear)) + '</td>' +
-      '<td class="dbNumCol">' + esc(String(r.Balao)) + '</td>' +
-      '<td class="dbDetailToggleCell">' + detailToggleHtml(ns, key) + '</td></tr>' +
-      detailRowHtml(ns, key, 5, [
-        { label: 'Percentuais', items: [
-          { label: 'Linear %', value: esc(A.pct(r.LinearPct)) },
-          { label: 'Balão %', value: esc(A.pct(r.BalaoPct)) }
-        ] },
-        { label: 'Coparticipado / Subsidiado / Reversão', items: [
-          { label: 'Coparticipado', value: esc(String(r.Coparticipado)) },
-          { label: 'Coparticipado %', value: esc(A.pct(r.CoparticipadoPct)) },
-          { label: 'Subsidiado', value: esc(String(r.Subsidiado)) },
-          { label: 'Subsidiado %', value: esc(A.pct(r.SubsidiadoPct)) },
-          { label: 'Reversão', value: esc(String(r.Reversao)) },
-          { label: 'Reversão %', value: esc(A.pct(r.ReversaoPct)) }
-        ] }
-      ]);
-  }
-  function planPctTableHtml(A, ns, labelHeader, rows, labelKey) {
-    var body = rows.map(function (r) { return planPctBodyRow(A, ns, r, r[labelKey]); }).join('');
-    return '<div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' +
-      headerRow(planPctPrimaryHeaders(labelHeader), 1) +
-      '</tr></thead><tbody>' + (body || '<tr><td colspan="5" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
-  }
-
   function planClassificationHtml(A, counts) {
     return '<h2 style="margin-top:0">Classificação dos Planos</h2>' +
       '<div class="dbPlanGrid">' + ['SUBSIDIADO', 'REVERSÃO', 'COPARTICIPADO', 'BALÃO', 'LINEAR'].map(function (t) { return planCardHtml(A, t, counts[t]); }).join('') + '</div>' +
@@ -499,8 +465,11 @@
     // group can show all 5 categories. Presentation-only merge — neither
     // function's own output is altered, no new calculation introduced. A
     // model with no matching planRows entry (not in FAMILY_MODELS' static
-    // list) gets 0 for both, consistent with how that model already has no
-    // row at all in the "Quantidade por tipo de plano / Modelo" table.
+    // list) gets 0 for both. PORTAL-NEXT-07.5.1 removed this family's own
+    // "Quantidade por tipo de plano / Modelo" table (redundant with this
+    // same merge, per explicit human decision — see
+    // docs/MODEL-ANALYSIS-REDUNDANT-SECTIONS-REMOVAL.md); planRows/
+    // planRowsByModel itself stays, still required by this merge.
     var planByModelo = {};
     planRows.forEach(function (r) { planByModelo[r.Modelo] = r; });
     modelRows.forEach(function (r) {
@@ -508,24 +477,7 @@
       r.subsidiadoQtd = p ? p.Subsidiado : 0;
       r.coparticipadoQtd = p ? p.Coparticipado : 0;
     });
-    var planTotalRows = A.planTotalRowsForFamily(results, currentFamily);
-    var planStoreRows = A.planRowsByStoreForFamily(results, currentFamily);
-    var specialRows = A.specialPlanDetailRows(results, currentFamily);
     var tritonRows = A.inconsistenciaTritonRows(results);
-
-    var specialNs = 'specialPlan';
-    var specialBody = specialRows.map(function (r, i) {
-      var key = r.Loja + '-' + r.Modelo + '-' + i;
-      return '<tr><td>' + esc(r.Loja) + '</td><td>' + esc(r.Modelo) + '</td><td>' + esc(r.Plano) + '</td>' +
-        '<td class="dbDetailToggleCell">' + detailToggleHtml(specialNs, key) + '</td></tr>' +
-        detailRowHtml(specialNs, key, 4, [
-          { label: 'Detalhe', items: [
-            { label: 'Cliente', value: esc(r.Cliente) },
-            { label: 'Produção', value: esc(A.money(r.Producao)) },
-            { label: 'Receita', value: esc(A.money(r.Receita)) }
-          ] }
-        ]);
-    }).join('');
 
     var tritonHtml = '';
     if (tritonRows.length) {
@@ -547,14 +499,6 @@
       '<p class="dbMuted">Volume/Financiamentos/Penetração por modelo — clique em "+ Detalhes" para abrir Produção/Receita/Ticket/Retorno/Parcelamento (Prazo Médio, Parcela Média)/Entrada/Planos (Qtd Linear/Balão/Reversão, Balão Médio). Nenhuma métrica fica escondida, sem rolagem lateral.</p>' +
       modelPrimaryDetailTableHtml(A, modelRows) +
       tritonHtml +
-      '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Resumo tipos de plano</h3>' +
-      planPctTableHtml(A, 'planTotal', 'Família', planTotalRows, 'Família') +
-      '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Quantidade por tipo de plano / Modelo</h3>' +
-      planPctTableHtml(A, 'planModel', 'Modelo', planRows, 'Modelo') +
-      '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Quantidade por tipo de plano / Loja</h3>' +
-      planPctTableHtml(A, 'planStore', 'Loja', planStoreRows, 'Loja') +
-      '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Detalhe Coparticipado / Subsidiado / Reversão</h3>' +
-      expandableTableHtml(['Loja', 'Modelo', 'Plano'], 3, specialBody ? [specialBody] : [], 4) +
       '</div>';
   }
 

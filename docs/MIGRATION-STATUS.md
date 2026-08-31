@@ -37,7 +37,7 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Score | **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`) | 2 |
 | Coparticipado | **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1 — human decision recorded) | 3 |
 | Gestão | **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1 — human decision recorded) | 4 |
-| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07.5 — primary KPI hierarchy rework, awaiting UAT, see `docs/HUMAN-UAT-DASHBI.md`) | 5 |
+| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07.5.1 — redundant Model Analysis plan tables removed, awaiting UAT, see `docs/HUMAN-UAT-DASHBI.md`) | 5 |
 | Simulador Novos | NOT_MIGRATED | 6 |
 | Simulador Seminovos | NOT_MIGRATED | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
@@ -527,6 +527,60 @@ parity suites, which stayed green). Isolation baseline
 `.baseline-portalnext0741-after.txt` across all ~30 sibling worktrees;
 `origin/main` SHA re-confirmed unchanged
 (`2f17eb2341c5cc14aa8710aa044103002ca572a9`).
+
+## PORTAL-NEXT-07.5.1 addendum
+
+Dashbi stays `UAT_PENDING`. One final human-directed presentation
+adjustment before UAT: removed 4 redundant Análise por Modelos
+sections — "Resumo tipos de plano", "Quantidade por tipo de plano /
+Modelo", "Quantidade por tipo de plano / Loja", "Detalhe Coparticipado
+/ Subsidiado / Reversão" — per explicit human decision that they now
+duplicate what the approved per-model `+ Detalhes` (07.4/07.4.1)
+already shows. Presentation-only; Model Analysis's own compact table
+and `+ Detalhes` (family/model selector, primary metrics, Financeiro/
+Retorno/Parcelamento/Entrada/Planos groups, multiple-open behavior)
+untouched. See `docs/MODEL-ANALYSIS-REDUNDANT-SECTIONS-REMOVAL.md`.
+
+**Reuse traced before deleting anything (Gate 1)**: `planRows` (from
+`A.planRowsByModel()`) feeds BOTH the removed "Quantidade por tipo de
+plano / Modelo" table AND the approved `+ Detalhes` Planos group's
+`subsidiadoQtd`/`coparticipadoQtd` merge — only the redundant
+*rendering* call was removed, `planRows`/`planRowsByModel()`/the merge
+itself stay. The other 3 removed sections' data sources
+(`planTotalRowsForFamily`, `planRowsByStoreForFamily`,
+`specialPlanDetailRows`) had no other caller — their adapter functions
+remain intact (unused by any V2 renderer now, still exported, 0
+business logic deleted). 3 now-fully-dead V2 rendering helpers
+(`planPctTableHtml`/`planPctBodyRow`/`planPctPrimaryHeaders`, 0
+remaining callers) were removed along with their call sites.
+
+**Information-retention audit, reported honestly, not converted to
+false PASS**: family-level plan-type percentages, per-model plan-type
+percentages, per-loja plan-type breakdown, and per-record
+Cliente/Produção/Receita drill-down for Coparticipado/Subsidiado/
+Reversão financings are genuinely no longer shown anywhere (marked
+REVIEW, not AVAILABLE) — only the raw per-model plan quantities
+survive, via the already-approved `+ Detalhes` Planos group. Per
+explicit human instruction, no replacement UI was added to preserve
+these — full table in
+`docs/MODEL-ANALYSIS-REDUNDANT-SECTIONS-REMOVAL.md`.
+
+**0 business-logic change**: `dashbi.adapter.js`/`_dashbi-reference.js`/
+`dashbi-fixtures.json` — 0 diff. 26/26 golden fixtures pass unchanged.
+Verified in a real browser: all 4 removed section headings — 0
+occurrences in rendered Análise por Modelos; "Inconsistências TRITON"
+(not in the removal list) untouched; the family's Planos `+ Detalhes`
+group still shows all 5 quantities, reconciling exactly to the family
+totals; multiple rows still expand simultaneously; no orphan headings,
+empty shells, or blank gaps where the 4 sections used to be — the
+section ends naturally right after the model table. No-horizontal-
+scroll re-verified clean at all 6 required viewports (document- and
+component-level, a detail row expanded). Other Dashbi surfaces (Visão
+Geral KPI grid, Ranking) spot-checked unchanged. 0 console/page errors,
+0 network calls. Isolation baseline
+(`.baseline-portalnext0751-after.txt`) 0-line diff against
+`.baseline-portalnext075-after.txt`; `origin/main` SHA re-confirmed
+unchanged (`2f17eb2341c5cc14aa8710aa044103002ca572a9`).
 
 ## Standing blockers carried forward (not resolved this phase)
 

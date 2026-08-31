@@ -1,19 +1,30 @@
-# Human UAT — Análise Geral do Grupo (Dashbi) V2 (PORTAL-NEXT-07.5)
+# Human UAT — Análise Geral do Grupo (Dashbi) V2 (PORTAL-NEXT-07.5.1)
 
 **Technical status: TECHNICALLY GREEN** (26/26 golden-fixture parity, 0
 console/page errors, 0 backend network calls, 0 horizontal scrollbar
 anywhere in Dashbi at all 6 required viewports with detail panels open,
-Landing/Score/Coparticipado/Gestão freeze untouched). Esta rodada NÃO
-mexe na Análise por Modelos (já finalizada na rodada 07.4.1) — o foco é
-Visão Geral, Ranking, Lojas, Vendedores e Novos por Loja.
+Landing/Score/Coparticipado/Gestão freeze untouched).
 
-## O que mudou desde a rodada anterior
+## O que mudou desde a rodada anterior (07.5.1)
+
+Você pediu a remoção de 4 blocos da Análise por Modelos que ficaram
+redundantes depois que o "+ Detalhes" por modelo passou a mostrar as
+mesmas quantidades de plano: **"Resumo tipos de plano"**, **"Quantidade
+por tipo de plano / Modelo"**, **"Quantidade por tipo de plano /
+Loja"** e **"Detalhe Coparticipado / Subsidiado / Reversão"**. Os
+quatro foram removidos da tela — nada de novo foi adicionado no lugar.
+O restante da Análise por Modelos (seletor de família/veículo, tabela
+compacta por modelo, "+ Detalhes" com todos os grupos — Financeiro,
+Retorno, Parcelamento, Entrada, Planos) continua exatamente igual à
+rodada 07.4.1.
+
+## O que mudou na rodada anterior (07.5, para referência)
 
 Você apontou que, embora a experiência de linha principal + "+
 Detalhes" da rodada 07.4 tenha sido bem aprovada, ela escondia
 informação importante demais: em "Vendas e Financiamentos por Loja", por
 exemplo, Produção e Receita Total só apareciam dentro de "+ Detalhes".
-Esta rodada resolve isso em toda a tela:
+Aquela rodada resolveu isso em toda a tela:
 
 1. **5 métricas principais agora ficam sempre visíveis, sem clicar em
    nada**: Vendas, Financiamentos, Share, Produção Total e Receita
@@ -50,31 +61,39 @@ Then open (hard refresh recommended after any update): **http://localhost:8700/p
 
 ## Passos
 
-1. Na **Visão Geral** (view "Grupo"), confirme que os 5 cartões
-   principais aparecem lado a lado: Vendas, Financiamentos, Share
+1. Troque para **Novos** e abra **Análise por Modelos**. Confirme que a
+   tela termina logo depois da tabela "Indicadores por modelo" (mais
+   "Inconsistências TRITON" quando existir) — **sem** os 4 blocos
+   removidos ("Resumo tipos de plano", "Quantidade por tipo de plano /
+   Modelo", "Quantidade por tipo de plano / Loja", "Detalhe
+   Coparticipado / Subsidiado / Reversão") e sem nenhum espaço vazio ou
+   título órfão onde eles estavam.
+2. Clique em **"+ Detalhes"** de um ou mais modelos (teste a fixture
+   "model_analysis_parcelamento_completo") e confirme que o grupo
+   **Planos** continua mostrando as 5 quantidades (Subsidiado, Reversão,
+   Coparticipado, Balão, Linear) — mesmos valores de sempre, mais de um
+   modelo pode ficar aberto ao mesmo tempo.
+3. Na **Visão Geral** (view "Grupo"), confirme que os 5 cartões
+   principais continuam lado a lado: Vendas, Financiamentos, Share
    (com destaque verde/laranja), Produção Total, Receita Total (com
    destaque azul em negrito) — sem precisar clicar em nada.
-2. Clique em **"+ Detalhes"** abaixo dos cartões e confirme que Receita
-   (sem SPF), Receita SPF e Retorno Médio aparecem ali.
-3. Em **"Vendas e Financiamentos por Loja"** e **"...por Vendedor"**,
-   confirme que Share, Produção Total e Receita Total agora aparecem
-   direto na linha principal (não mais escondidos em "+ Detalhes").
-4. Troque para **Novos** e abra **Ranking** — confirme que Vendedores,
-   Lojas e Departamentos mostram Share e Produção Total na linha
-   principal, além de Vendas/Financiamentos/Receita Total que já
-   apareciam antes.
-5. Abra **Novos por Loja** — confirme que agora existe uma coluna
-   Share.
-6. Volte para **Análise por Modelos** e confirme que continua
-   exatamente como na rodada 07.4.1 (nada deveria ter mudado ali).
-7. Reduza a janela do navegador (ou abra no celular) e confirme que
-   nenhuma tabela fica com rolagem lateral, e que as 5 métricas
-   principais continuam visíveis mesmo na tela pequena (agora em
-   blocos verticais, não mais em colunas apertadas).
+4. Em **"Vendas e Financiamentos por Loja"** e **"...por Vendedor"**,
+   confirme que Share, Produção Total e Receita Total continuam na
+   linha principal.
+5. Abra **Ranking** e **Novos por Loja** — confirme que continuam como
+   na rodada anterior.
+6. Reduza a janela do navegador (ou abra no celular) e confirme que
+   nenhuma tabela fica com rolagem lateral.
 
 Não é necessário revisar código.
 
-## As perguntas principais
+## A pergunta principal desta rodada
+
+**"A Análise por Modelos ficou mais limpa agora, mantendo somente as
+informações úteis no modelo e no + Detalhes, sem os quatro blocos
+repetitivos no final?"**
+
+## Perguntas da rodada anterior (07.5, ainda válidas)
 
 1. **"Agora as tabelas principais deixam claro de imediato o que
    realmente importa — Vendas, Financiamentos, Share, Produção Total e
@@ -86,6 +105,17 @@ Não é necessário revisar código.
 
 ## O que você deve saber antes de avaliar
 
+- **Sobre os 4 blocos removidos**: as quantidades por modelo (Qtd
+  Subsidiado/Reversão/Coparticipado/Balão/Linear) continuam disponíveis
+  no "+ Detalhes" de cada modelo. Mas alguns detalhes mais específicos
+  que só existiam nesses 4 blocos deixaram de aparecer em qualquer
+  lugar — percentuais por tipo de plano (nível família e nível modelo),
+  a quebra por Loja, e o detalhe por cliente/registro dos financiamentos
+  Coparticipado/Subsidiado/Reversão (com Produção/Receita de cada um).
+  Nada foi recriado para substituir isso, conforme sua instrução
+  explícita — a lista completa está em
+  `docs/MODEL-ANALYSIS-REDUNDANT-SECTIONS-REMOVAL.md`, caso queira
+  revisar antes de confirmar.
 - Os dados exibidos são **fixtures locais sintéticas**, não dados reais.
 - Nenhum número já homologado mudou — Vendas/Financiamentos/Produção/
   Receita/Entrada/Ranking/Novos por Loja calculam exatamente igual à
