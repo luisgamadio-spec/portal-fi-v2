@@ -166,17 +166,68 @@ Console/page errors across all 4 routes:                                        
 Network calls (supabase/api/openai):                                                  0
 ```
 
-## Honestly scoped, not exhaustively automated this Wave
+## Evidence type per check (Gate 18, PORTAL-NEXT-07.6.1)
 
-Keyboard/focus/touch-target behavior for Score's clickable rows and
-every module's filters/buttons was **not** independently re-tested live
-this Wave — verified instead by code-diff audit: no `:focus-visible`,
-`tabindex`, `aria-*`, or interactive JS handler was touched in any of the
-7 changed files (only `table-layout`, `white-space`/`overflow-wrap`,
-`flex-wrap`, a `<colgroup>`, and `data-th` attributes were added/changed).
-200% zoom, continuous resize, and device orientation were not
-independently exercised as literal browser interactions this Wave;
-confidence instead comes from the same 7-viewport measurement passing
-cleanly, which is the direct proxy for "does the layout have a hard
-breakpoint that could snap or overflow under zoom/resize" — flagged here
-rather than silently claimed as PASS, per Gate 82's own honesty rule.
+```
+CODE AUDIT        — verified by reading the diff, not by running anything
+AUTOMATED TEST     — a script asserts a result (golden fixtures, registry
+                    structure) without a human or live-browser interaction
+                    loop
+REAL BROWSER TEST      — a real Chromium session actually performed the
+                        interaction/measurement (Playwright)
+HUMAN UAT                  — a person visually reviewed it
+```
+
+```
+Overflow audit (320-1920px, 320-430-768-1366-1920,
+document + component scrollWidth):                          REAL BROWSER TEST
+Score/Coparticipado/Gestão/Landing/Dashbi
+golden & structural regression suites:                          AUTOMATED TEST
+Dashbi/adapter file hashes:                                          AUTOMATED TEST
+Isolation baseline / remote SHA guard:                                  AUTOMATED TEST
+Desktop-fidelity screenshots (1366/1920):                                    REAL BROWSER TEST
+Mobile-stacking screenshots (long-name/long-content
+fixtures):                                                                       REAL BROWSER TEST
+200% zoom (halved-viewport method), portrait/landscape
+orientation, continuous resize sweep:                                               REAL BROWSER TEST
+                                                                                     (PORTAL-NEXT-07.6.1
+                                                                                     — see
+                                                                                     docs/RESPONSIVE-TEST-
+                                                                                     EVIDENCE-07-6-1.md;
+                                                                                     PORTAL-NEXT-07.6 itself
+                                                                                     had only inferred this
+                                                                                     from the static
+                                                                                     viewport measurement,
+                                                                                     disclosed as such, not
+                                                                                     claimed as REAL BROWSER
+                                                                                     TEST at the time)
+Keyboard reachability + activation + visible
+computed-style focus outline:                                                           REAL BROWSER TEST
+                                                                                         (PORTAL-NEXT-07.6.1
+                                                                                         — PORTAL-NEXT-07.6
+                                                                                         itself had this as
+                                                                                         CODE AUDIT only:
+                                                                                         "no interactive/
+                                                                                         focus code was
+                                                                                         touched", not a live
+                                                                                         retest)
+Visual approval of the responsive result:                                                   HUMAN UAT
+                                                                                             (PENDING —
+                                                                                             docs/HUMAN-UAT-
+                                                                                             RESPONSIVE-
+                                                                                             REMEDIATION.md)
+```
+
+**Result summary (full detail in `docs/RESPONSIVE-TEST-EVIDENCE-07-6-1.md`)**:
+Score, Coparticipado, and Gestão pass every literal 200%-zoom/
+orientation/continuous-resize/keyboard/focus check with 0 qualification.
+Landing's zoom/orientation/resize checks report the same pre-existing,
+already-documented, non-visible `.fCanvasInner` 18px bleed (contained by
+`.fCanvas{overflow:hidden}`, 0 real page-level scroll in all 94 Landing
+measurements) — recorded as a measured FAIL against the strict
+"0 elements overflow" criterion rather than silently converted to PASS,
+with the functional (0 visible/functional scroll) read stated
+separately; not treated as requiring a fix, since it isn't a new finding
+and fixing it would only shrink an intentional, already-approved
+hover-bleed visual. Landing's keyboard/focus check passes with 0
+qualification.

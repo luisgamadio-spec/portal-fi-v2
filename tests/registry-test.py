@@ -23,15 +23,19 @@ def main():
     print(f"[PASS] {len(modules)} modules found in registry" if modules else "[FAIL] 0 modules found")
     if not modules:
         errors.append("registry has 0 modules")
-    # Expected status per module as of PORTAL-NEXT-07 (Gate 139: Landing/
-    # Score/Coparticipado/Gestão are now HUMAN_APPROVED; Dashbi must stop
-    # at UAT_PENDING, never auto-promoted).
+    # Expected status per module (Gate 139: no module may self-promote to
+    # HUMAN_APPROVED without an explicit human decision on record — see
+    # each module's own "humanApprovalNote" in module-registry.json for
+    # that record. Dashbi allowed HUMAN_APPROVED as of PORTAL-NEXT-07.6.1,
+    # which reconciled a human approval ("Aprovado.") given after
+    # PORTAL-NEXT-07.5.2's report that this test's own history had not
+    # yet captured — not an auto-promotion, the record it guards against).
     EXPECTED_STATUS = {
         "landing": {"HUMAN_APPROVED"},
         "score": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "HUMAN_APPROVED"},
         "coparticipado": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
         "gestao": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
-        "dashbi": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS"},
+        "dashbi": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
     }
 
     for m in modules:

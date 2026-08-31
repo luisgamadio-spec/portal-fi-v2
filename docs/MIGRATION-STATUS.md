@@ -37,7 +37,7 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Score | BUSINESS **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`; PORTAL-NEXT-07.6's own brief assumed this was already HUMAN_APPROVED/FROZEN — it is NOT, per this same registry; flagged, not silently corrected) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 2 |
 | Coparticipado | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 3 |
 | Gestão | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 4 |
-| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | **UAT_PENDING** (PORTAL-NEXT-07.5.2 — Ranking Departamentos removed, awaiting UAT, see `docs/HUMAN-UAT-DASHBI.md`; PORTAL-NEXT-07.6's own brief assumed this was already HUMAN_APPROVED/FROZEN — it is NOT; not modified this Wave regardless, per that brief's own separate explicit instruction) | 5 |
+| Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | BUSINESS **HUMAN_APPROVED** · RESPONSIVE **HUMAN_APPROVED** (PORTAL-NEXT-07.6.1 — status reconciled: human approved at commit cc3a296 after PORTAL-NEXT-07.5.2's report, this record had gone stale through PORTAL-NEXT-07.6; see the PORTAL-NEXT-07.6.1 addendum below) | 5 |
 | Simulador Novos | NOT_MIGRATED | 6 |
 | Simulador Seminovos | NOT_MIGRATED | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
@@ -684,6 +684,49 @@ re-testing; 200% zoom, continuous resize, and device orientation were
 not independently exercised as literal browser interactions this Wave —
 see `docs/FROZEN-MODULE-NO-SCROLL-REMEDIATION.md`'s closing section for
 exactly what was and wasn't tested.
+
+## PORTAL-NEXT-07.6.1 addendum
+
+Not a design/remediation Wave — two reconciliation actions only, no
+visual or business change.
+
+**Dashbi status reconciled**: PORTAL-NEXT-07.5.2 (commit `cc3a296`) had
+reported 26/26 goldens, 0 business diff, Ranking = Vendedores + Lojas,
+Model Analysis unchanged, no-horizontal-scroll PASS. The human then
+explicitly responded "Aprovado." — a fact this session's own record
+never captured, so it stayed `UAT_PENDING` through PORTAL-NEXT-07.6
+(which correctly flagged the staleness rather than silently trusting its
+own brief's assumption that Dashbi was already approved). Corrected now:
+Dashbi is `HUMAN_APPROVED / FROZEN` for both business and responsive —
+this is a reconciliation of an already-issued approval, not a new one;
+`dashbi.js`/`dashbi.css`/`dashbi.adapter.js` were not touched (re-hashed,
+0 diff) and PORTAL-NEXT-07.6.1 did not re-review Dashbi's business
+logic. See `config/module-registry.json`'s own `humanApprovalNote` on
+the `dashbi` entry for the full record.
+
+**Score explicitly NOT promoted**: no equivalent approval record exists
+for Score. It stays `UAT_PENDING` for both business and responsive — its
+own Design System score-band conflict (`docs/SCORE-ENGINE-AUDIT.md`)
+remains unresolved and was not touched this Wave. Successful responsive
+testing (below) does not change Score's business status — that boundary
+was explicit in this Wave's own brief and is respected here.
+
+**Literal responsive/accessibility tests executed** (previously
+disclosed as code-audit-only in PORTAL-NEXT-07.6): 200% zoom, portrait/
+landscape orientation, continuous resize sweep, and live keyboard/focus
+interaction — for Landing, Score, Coparticipado, and Gestão. Full
+results, method, and evidence in
+`docs/FROZEN-MODULE-NO-SCROLL-REMEDIATION.md`'s updated test-evidence
+section (each entry now labeled CODE AUDIT / AUTOMATED TEST / REAL
+BROWSER TEST, so the two categories are never conflated again) and
+`docs/RESPONSIVE-TEST-EVIDENCE-07-6-1.md`.
+
+**0 business/visual change**: no test failure was found requiring a
+fix, so no presentation code was touched this Wave. Score/Coparticipado/
+Gestão/Dashbi golden suites re-run fresh and unchanged. Responsive
+status for Landing/Score/Coparticipado/Gestão remains `UAT_PENDING` —
+technical testing passing does not substitute for human visual approval
+(Gate 19 of this Wave's own brief).
 
 ## Standing blockers carried forward (not resolved this phase)
 
