@@ -202,24 +202,33 @@
     return '<div class="dbMobileOnly">' + cards.join('') + '</div>';
   }
 
+  // Wave 3A: top-tier KPI grid migrated to the shared module-system.css
+  // primitives (.modKpiCard/.modKpiLabel/.modKpiValue/.modKpiHint +
+  // semantic modifiers) — visual result unchanged (same border/padding/
+  // type scale the old .dbKpiCardPrimary/.dbK/.dbV/.dbHint rules already
+  // produced), only the class vocabulary is now shared. Every OTHER
+  // dashbi.css class (.dbPlanCard, .dbEntradaCard, .dbFamilyMetricBox,
+  // tables, mobile cards, Model Analysis, etc.) is untouched — these 3
+  // functions are the only callers of dbKpiCardPrimary/dbK/dbV/dbHint,
+  // confirmed via grep before this edit.
   function kpiPrimary(label, value, hint) {
-    return '<div class="dbKpiCardPrimary"><div class="dbK">' + esc(label) + '</div><div class="dbV">' + value + '</div>' + (hint ? '<div class="dbHint">' + hint + '</div>' : '') + '</div>';
+    return '<div class="modKpiCard"><div class="modKpiLabel">' + esc(label) + '</div><div class="modKpiValue">' + value + '</div>' + (hint ? '<div class="modKpiHint">' + hint + '</div>' : '') + '</div>';
   }
 
   // PORTAL-NEXT-07.5 — Share/Penetração threshold reconfirmed against the
   // current production authority (pctPenetracao, origin/main lines
   // 2788-2794, docs/DASHBI-KPI-CONTRACT.md): v<0.40 -> baixa, else ok. Not
   // assumed from a prior wave — re-checked against source this Wave.
-  function shareEmphasisClass(v) { return v < 0.40 ? 'dbShareBaixa' : 'dbShareOk'; }
+  function shareEmphasisClass(v) { return v < 0.40 ? 'modKpiCardCritical' : 'modKpiCardSuccess'; }
 
   function kpiShareCardHtml(A, v) {
     var cls = shareEmphasisClass(v);
     var statusLabel = v < 0.40 ? 'Abaixo da meta (40%)' : 'Dentro da meta';
-    return '<div class="dbKpiCardPrimary dbKpiCardShare ' + cls + '"><div class="dbK">Share</div><div class="dbV">' + esc(A.pct(v)) + '</div><div class="dbHint">' + esc(statusLabel) + '</div></div>';
+    return '<div class="modKpiCard ' + cls + '"><div class="modKpiLabel">Share</div><div class="modKpiValue">' + esc(A.pct(v)) + '</div><div class="modKpiHint">' + esc(statusLabel) + '</div></div>';
   }
 
   function kpiReceitaTotalCardHtml(A, v) {
-    return '<div class="dbKpiCardPrimary dbKpiCardReceitaTotal"><div class="dbK">Receita Total</div><div class="dbV">' + esc(A.money(v)) + '</div></div>';
+    return '<div class="modKpiCard modKpiCardInfo"><div class="modKpiLabel">Receita Total</div><div class="modKpiValue">' + esc(A.money(v)) + '</div></div>';
   }
 
   function buildFixtureInput(id) {
@@ -720,7 +729,7 @@
     else complementaryHtml = '<p class="dbMuted dbModeHint">Selecione uma análise complementar acima (Análise por Modelos, Ranking ou Novos por Loja) para abrir seus indicadores.</p>';
 
     var html =
-      '<div class="dbKpiGridPrimary">' +
+      '<div class="modKpiGrid">' +
       kpiPrimary('Vendas', kpi.vendas, currentDeptView) +
       kpiPrimary('Financiamentos', kpi.fins) +
       kpiShareCardHtml(A, kpi.share) +
@@ -823,23 +832,23 @@
         var fixtureOptions = fixturesData.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === currentFixtureId ? ' selected' : '') + '>' + esc(c.id) + '</option>'; }).join('');
         outlet.innerHTML =
           '<div class="dbPage">' +
-          '<div class="dbHeader"><div><h1>Análise Geral do Grupo</h1><p>Visão analítica geral do Grupo Brabus Mitsubishi.</p></div></div>' +
-          '<div class="dbFixtureBar"><span class="dbFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
+          '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise Geral do Grupo</h1><p class="modSubtitle">Visão analítica geral do Grupo Brabus Mitsubishi.</p></div></div>' +
+          '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
           '<label for="dbFixtureSelect">fixture:</label><select id="dbFixtureSelect">' + fixtureOptions + '</select></div>' +
-          '<div class="dbFilters">' +
-          '<div class="dbField"><label>Visão</label><div class="dbViewGroup">' +
+          '<div class="modFilters">' +
+          '<div class="modField"><label>Visão</label><div class="dbViewGroup">' +
           '<button type="button" class="dbBtn dbViewBtn dbBtnActive" data-view="Grupo">Grupo</button>' +
           '<button type="button" class="dbBtn dbViewBtn" data-view="Novos">Novos</button>' +
           '<button type="button" class="dbBtn dbViewBtn" data-view="Seminovos">Seminovos</button>' +
           '</div></div>' +
-          '<div class="dbField"><label>Período rápido</label><div class="dbPresetGroup">' +
+          '<div class="modField"><label>Período rápido</label><div class="dbPresetGroup">' +
           '<button type="button" class="dbBtn dbPresetBtn" data-preset="currentMonth">Mês atual</button>' +
           '<button type="button" class="dbBtn dbPresetBtn" data-preset="lastMonth">Mês anterior</button>' +
           '<button type="button" class="dbBtn dbPresetBtn" data-preset="last6">Últimos 6 meses</button>' +
           '<button type="button" class="dbBtn dbPresetBtn" data-preset="lastYear">Último ano</button>' +
           '</div></div>' +
-          '<div class="dbField"><label for="dbDateStart">Data inicial</label><input id="dbDateStart" type="date" value="' + currentDateStart + '"></div>' +
-          '<div class="dbField"><label for="dbDateEnd">Data final</label><input id="dbDateEnd" type="date" value="' + currentDateEnd + '"></div>' +
+          '<div class="modField"><label for="dbDateStart">Data inicial</label><input id="dbDateStart" type="date" value="' + currentDateStart + '"></div>' +
+          '<div class="modField"><label for="dbDateEnd">Data final</label><input id="dbDateEnd" type="date" value="' + currentDateEnd + '"></div>' +
           '</div>' +
           '<div id="dbPanel"></div>' +
           '</div>';
