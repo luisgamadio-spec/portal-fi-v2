@@ -20,9 +20,13 @@
 
 <div id="nxRoot">
   <div class="pShell">
+    <div class="pNavBackdrop" id="pNavBackdrop" hidden></div>
     <nav class="pGlobalNav" id="pGlobalNav" aria-label="Navegação principal"></nav>
     <div class="pMain">
       <div class="pTopBar">
+        <button type="button" class="pNavTrigger" id="pNavTrigger" aria-expanded="false" aria-controls="pGlobalNav" aria-label="Abrir navegação">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 6h14"/><path d="M3 10h14"/><path d="M3 14h14"/></svg>
+        </button>
         <img class="pHeaderLogo" src="assets/images/brabus-logo.png" alt="Grupo Brabus Mitsubishi">
         <span class="pBreadcrumb" id="pBreadcrumb"></span>
         <div class="pUserArea" id="pUserArea"></div>

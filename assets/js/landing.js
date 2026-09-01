@@ -144,7 +144,7 @@
         '<div class="pUserChip">' +
           '<span class="pUserAvatar" aria-hidden="true">' + esc(userInitials(MOCK_USER.name)) + '</span>' +
           '<span class="pUserInfo">' +
-            '<span class="pUserName">' + esc(MOCK_USER.name) + '<span class="pUserBadge">' + esc(MOCK_USER.profile) + '</span></span>' +
+            '<span class="pUserName"><span class="pUserNameText">' + esc(MOCK_USER.name) + '</span><span class="pUserBadge">' + esc(MOCK_USER.profile) + '</span></span>' +
             '<span class="pUserContext">' + esc(MOCK_USER.store) + ' · ' + esc(MOCK_USER.department) + '</span>' +
           '</span>' +
         '</div>';

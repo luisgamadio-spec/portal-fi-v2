@@ -163,8 +163,60 @@
     });
   }
 
+  /* ---------- Shell Wave 2B: tablet/mobile navigation drawer.
+     Same #pGlobalNav DOM/data (renderGlobalNav in landing.js) as
+     desktop -- this only toggles a body-level state class that CSS
+     uses to slide the SAME sidebar in as an overlay. No second nav
+     list, no duplicated module/group data. Listeners are attached once
+     at boot to the stable #pGlobalNav/#pNavTrigger/#pNavBackdrop
+     elements (event delegation for nav-item clicks), so they keep
+     working across renderGlobalNav's per-route innerHTML rebuilds. */
+  function setupNavDrawer() {
+    var trigger = document.getElementById('pNavTrigger');
+    var nav = document.getElementById('pGlobalNav');
+    var backdrop = document.getElementById('pNavBackdrop');
+    if (!trigger || !nav || !backdrop) return;
+
+    function isOpen() { return document.body.classList.contains('nav-drawer-open'); }
+
+    function openDrawer() {
+      document.body.classList.add('nav-drawer-open');
+      trigger.setAttribute('aria-expanded', 'true');
+      backdrop.hidden = false;
+      document.body.style.overflow = 'hidden';
+    }
+    function closeDrawer(returnFocus) {
+      document.body.classList.remove('nav-drawer-open');
+      trigger.setAttribute('aria-expanded', 'false');
+      backdrop.hidden = true;
+      document.body.style.overflow = '';
+      if (returnFocus) trigger.focus();
+    }
+
+    trigger.addEventListener('click', function () {
+      if (isOpen()) closeDrawer(true);
+      else openDrawer();
+    });
+    backdrop.addEventListener('click', function () { closeDrawer(false); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && isOpen()) closeDrawer(true);
+    });
+    // A nav-item selection already navigates via its href/hashchange —
+    // just close the drawer so the destination is visible underneath.
+    nav.addEventListener('click', function (e) {
+      var link = e.target.closest('.pNavItem, .pBrand');
+      if (link && isOpen()) closeDrawer(false);
+    });
+    // Growing back to desktop width with the drawer open would leave a
+    // stale open state (and the scroll lock) behind otherwise.
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 1279 && isOpen()) closeDrawer(false);
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     setupDevBadge();
+    setupNavDrawer();
     window.NX_REGISTRY.load().then(function () {
       window.NX_ROUTER.onChange(onRouteChange);
       if (!window.NX_ROUTER.currentRouteId()) {

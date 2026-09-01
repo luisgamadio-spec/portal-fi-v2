@@ -82,9 +82,6 @@ body.landing-active #nxContentOutlet{padding:0;max-width:none;flex:none}
 @media(max-width:1000px){
   .fNav{width:46%;padding-left:32px}
   .fCanvas{padding:60px 32px}
-  .pGlobalNav{width:100%;height:auto;flex-direction:row;position:sticky;padding:8px 12px;overflow-x:auto;gap:10px}
-  .pShell{flex-direction:column}
-  .pContent{padding:18px 16px 90px}
 }
 @media(max-width:900px){ .ctxBeam{top:auto;left:0} }
 @media(max-width:768px){
@@ -148,7 +145,64 @@ body.landing-active #nxContentOutlet{padding:0;max-width:none;flex:none}
 .pBreadcrumbSep{color:var(--color-hairline-strong);margin:0 10px;font-size:13px;font-weight:300}
 .pBreadcrumbCurrent{font-family:var(--font-ui);font-size:14px;font-weight:500;letter-spacing:-.005em;color:var(--color-text-primary)}
 
-.pUserInfo{display:flex;flex-direction:column;gap:1px;line-height:1.25}
-.pUserName{display:flex;align-items:center;gap:6px;color:var(--color-text-primary);font-size:12.5px;font-weight:500}
-.pUserBadge{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.05em;color:var(--color-accent-primary);border:1px solid rgba(238,75,87,.35);border-radius:var(--radius-sm);padding:1px 5px}
-.pUserContext{font-size:10.5px;color:var(--color-text-muted)}
+.pUserInfo{display:flex;flex-direction:column;gap:1px;line-height:1.25;min-width:0}
+.pUserName{display:flex;align-items:center;gap:6px;color:var(--color-text-primary);font-size:12.5px;font-weight:500;min-width:0}
+.pUserNameText{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px}
+.pUserBadge{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.05em;color:var(--color-accent-primary);border:1px solid rgba(238,75,87,.35);border-radius:var(--radius-sm);padding:1px 5px;flex-shrink:0}
+.pUserContext{font-size:10.5px;color:var(--color-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ============================================================
+   Shell Wave 2B — responsive drawer (tablet/mobile)
+   ============================================================
+   Desktop (>=1280px) is frozen (Wave 2A.1 contract, 7c7bba0) — nothing
+   in this section applies above that width. Below it, the SAME
+   #pGlobalNav element (identical markup from renderGlobalNav, same
+   groups/icons/active/deferred treatment) becomes a fixed off-canvas
+   drawer instead of a persistent column: 0 duplicated navigation data,
+   only position/visibility differ. Open/close JS lives in shell.js
+   setupNavDrawer(). */
+.pNavTrigger{display:none;align-items:center;justify-content:center;width:34px;height:34px;flex-shrink:0;border-radius:var(--radius-sm);background:none;border:1px solid transparent;color:var(--color-text-secondary);cursor:pointer}
+.pNavTrigger:hover{color:var(--color-text-primary);background:rgba(255,255,255,.04)}
+.pNavTrigger:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+
+.pNavBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55;display:none}
+body.nav-drawer-open .pNavBackdrop{display:block}
+
+@media(max-width:1279px){
+  .pNavTrigger{display:flex}
+  .pGlobalNav{
+    position:fixed;top:0;left:0;height:100vh;z-index:60;
+    transform:translateX(-100%);
+    box-shadow:var(--shadow-elevated);
+  }
+  @media(prefers-reduced-motion:no-preference){
+    .pGlobalNav{transition:transform var(--duration-fast) var(--ease-precise)}
+  }
+  body.nav-drawer-open .pGlobalNav{transform:translateX(0)}
+  .pContent{padding:20px 24px 90px}
+  .pBreadcrumb{min-width:0;overflow:hidden;display:flex;align-items:center}
+  .pBreadcrumbCurrent{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+
+/* Top-bar priority compaction (Gate 6): 1 nav access, 2 BRABUS
+   identity, 3 current module, 4 essential user context, 5 secondary
+   user metadata -- the LAST priority is the first to compact. */
+@media(max-width:600px){
+  .pUserContext{display:none}
+  .pUserNameText{max-width:110px}
+}
+@media(max-width:480px){
+  /* User context (priority 5, then 4) compacts further HERE, at the
+     same breakpoint the breadcrumb tag/separator drop -- freeing space
+     for the higher-priority current-module text (priority 3) instead
+     of letting it starve down to an unreadable 1-2 character ellipsis. */
+  .pBreadcrumbTag,.pBreadcrumbSep{display:none}
+  .pUserNameText{max-width:64px}
+  .pUserBadge{padding:1px 4px}
+  .pHeaderLogo{height:17px}
+  .pTopBar{padding:0 12px;gap:8px}
+  .pContent{padding:16px 14px 72px}
+}
+@media(max-width:340px){
+  .pUserNameText{display:none}
+}
