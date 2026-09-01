@@ -10,6 +10,10 @@
 
 .scPage { max-width: 1100px; }
 
+/* Wave 3D — page header and fixture banner migrated to the shared
+   module-system.css primitives (.modPageHeader/.modFixtureBanner).
+   Rules below superseded, 0 remaining reference (grep-verified before
+   editing), kept for history same as prior Waves' dead-rule discipline. */
 .scHeader {
   display: flex;
   align-items: baseline;
@@ -62,13 +66,23 @@
 .scFixtureBar select:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
 
 /* ---------- ranking table (HIGH density -- data-table.md pattern) ---------- */
-/* PORTAL-NEXT-07.6 — overflow-x:auto kept only as a defensive safety
-   net (never meant to trigger, same convention as Dashbi's
-   .dbTableWrap); table-layout:fixed + wrapping below is what actually
-   guarantees 0 horizontal scroll now (root cause was auto-layout
-   sizing every column to its widest un-wrapped content, confirmed via
-   real DOM scrollWidth measurement: .scTableWrap overflowed by up to
-   174px at 320-430px). */
+/* Wave 3D — desktop table base (.scTableWrap/.scTable's own box model,
+   typography) is superseded by the shared .modTableWrap/.modTable, 0
+   remaining reference. table-layout:fixed + wrapping is NOT superseded
+   (same reasoning/convention as Waves 3B/3C's own widest-table
+   overrides): the shared .modTable's default white-space:nowrap isn't
+   what keeps this table at 0 horizontal scroll — this module's own
+   PORTAL-NEXT-07.6 fix (fixed layout + wrapping) is, so it's
+   re-declared as a module-specific override. */
+.scPage .modTable { table-layout: fixed; }
+.scPage .modTable thead th, .scPage .modTable td { white-space: normal; overflow-wrap: break-word; }
+/* the shared .modTable's own generic first-child sticky rule would
+   stick the RANK column (#) — this table deliberately keeps the NAME
+   column (2nd child, .scNameCell below) sticky instead, since that's
+   the more useful anchor while scrolling; cancel the shared rule on
+   the actual first column so the two don't both try to pin to left:0. */
+.scPage .modTable thead th:first-child, .scPage .modTable td:first-child { position: static; background: none; }
+
 .scTableWrap { overflow-x: auto; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); }
 .scTable { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
 .scTable thead th {
@@ -94,6 +108,8 @@
 .scTable tbody tr:hover,
 .scTable tbody tr:focus-visible { background: rgba(255,255,255,.028); }
 .scTable tbody tr:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
+/* Wave 3D — superseded by shared .modNumCol (identical rule), 0
+   remaining reference. */
 .scTable .scNumCol { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ---------- Score linear meter (Gate 3: TRANSPLANTED from the Human

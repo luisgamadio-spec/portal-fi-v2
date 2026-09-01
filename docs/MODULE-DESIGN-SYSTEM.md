@@ -269,3 +269,35 @@ wide-table mobile migration**:
   forces that message to overflow its column. `white-space` is
   inherited per-element, so overriding it directly on the fallback's
   own span (not the cell) fixes it without touching the numeric case.
+
+## Fourth migration — Análise de Score Vendedores (Wave 3D)
+
+Migrated to the shared system: page header, fixture banner. A shared
+`.modEmptyState` was also added for the (currently untested-by-fixture)
+zero-record case, matching the same pattern other modules already use.
+
+**Deliberately NOT migrated** — this module has more already-approved,
+bespoke UI than any other migrated so far, and none of it was touched:
+the score band classifier/labels (`.scBand` + 5 variants — human-
+approved normative colors, PORTAL-NEXT-07.7B), the score meter
+(`.scMeterTrack`/`.scMeterFill` — transplanted byte-for-byte from an
+Approved Executable Reference), the dual-renderer responsive strategy
+(`renderDesktopTable()`/`renderMobileCards()`, both fed by the same
+computed rows — a *different*, equally valid pattern from Coparticipado's
+CSS-only table-to-card transform, chosen after human UAT rejected the
+CSS-transform approach specifically for this module three times), and
+the detail/breakdown drill-down panel (`.scDetail`/`.scCriterion` — no
+shared parallel exists; its heading isn't a pixel match for
+`.modSectionTitle`, unlike Gestão/Coparticipado's headings).
+
+**Caution for the next module with a non-name-first table** — the
+shared `.modTable`'s own first-child sticky rule assumes the first
+column is the one worth pinning while scrolling. Score's table leads
+with a narrow rank column (`#`) but deliberately keeps the *second*
+column (seller name) sticky instead. Migrating it naively would have
+produced two competing `position:sticky; left:0` columns. Fix: cancel
+the shared rule on the actual first column
+(`.scPage .modTable td:first-child { position: static; background: none; }`)
+and keep the module's own sticky rule on its real anchor column. Check
+which column a migrating module actually wants pinned before assuming
+it's the first one.

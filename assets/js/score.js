@@ -99,14 +99,14 @@
         '<td class="scNameCell"><span class="scNameText" title="' + esc(r.vendedor) + '">' + esc(r.vendedor) + '</span></td>' +
         '<td>' + esc(r.loja) + '</td>' +
         '<td>' + esc(r.dept) + '</td>' +
-        '<td class="scNumCol"><span class="scScoreCell">' +
+        '<td class="modNumCol"><span class="scScoreCell">' +
           '<span class="scScoreValueRow">' + scoreMeterHtml(r) + '<span>' + r.score + '</span></span>' +
           scoreBandHtml(r.score) +
           '</span></td>' +
-        '<td class="scNumCol">' + (r.fin || 0) + '</td>' +
+        '<td class="modNumCol">' + (r.fin || 0) + '</td>' +
         '</tr>';
     }).join('');
-    return '<div class="scDesktopOnly"><div class="scTableWrap"><table class="scTable">' +
+    return '<div class="scDesktopOnly"><div class="modTableWrap"><table class="modTable scTable">' +
       '<thead><tr><th scope="col">#</th><th scope="col">Vendedor</th><th scope="col">Loja</th><th scope="col">Depto</th><th scope="col">Score</th><th scope="col">Financ.</th></tr></thead>' +
       '<tbody>' + body + '</tbody></table></div></div>';
   }
@@ -130,6 +130,9 @@
   }
 
   function renderTable(rows) {
+    if (!rows.length) {
+      return '<div class="modEmptyState"><div class="modStateTitle">Nenhum vendedor encontrado</div>Nenhum registro disponível para o cenário atual.</div>';
+    }
     return renderDesktopTable(rows) + renderMobileCards(rows);
   }
 
@@ -214,8 +217,8 @@
         var options = FIXTURE_IDS.map(function (id) { return '<option value="' + id + '">' + id + '</option>'; }).join('');
         outlet.innerHTML =
           '<div class="scPage">' +
-          '<div class="scHeader"><div><h1>Análise de Score Vendedores</h1><p>Ranking de performance F&amp;I por vendedor.</p></div></div>' +
-          '<div class="scFixtureBar"><span class="scFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
+          '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise de Score Vendedores</h1><p class="modSubtitle">Ranking de performance F&amp;I por vendedor.</p></div></div>' +
+          '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
           '<label for="scFixtureSelect">fixture:</label>' +
           '<select id="scFixtureSelect">' + options + '</select></div>' +
           '<div id="scTableRegion"></div>' +
