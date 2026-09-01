@@ -290,7 +290,68 @@ the detail/breakdown drill-down panel (`.scDetail`/`.scCriterion` — no
 shared parallel exists; its heading isn't a pixel match for
 `.modSectionTitle`, unlike Gestão/Coparticipado's headings).
 
-**Caution for the next module with a non-name-first table** — the
+## Fifth migration — Simulador de Novos (Wave 3E) — TRANSACTIONAL MODULE CONTRACT
+
+The first migrated module that isn't an analytical dataset — it's a
+financial WORKFLOW (input → condition → calculate → result), and the
+migration scope was governed by one hard architectural constraint that
+didn't exist for any analytical module:
+
+**`assets/js/simuladores-shared.js`'s `window.NX_SIM_UI` helper (the
+`.field`/`.input`/`.select`/`.inputAffix`/`.segmented`/`.btn*`/
+`.kpiLabel`/`.emptyState`/`.errorState`/`.resultHero`/
+`.resultSecondaryGrid` markup builders) is consumed by BOTH Simulador
+de Novos and Simulador de Seminovos.** Changing anything it emits
+changes both simulators at once — and Seminovos is explicitly frozen
+this Wave. So is every Novos-owned class name that Seminovos'
+*separate* `render()` also happens to reuse (`.smHeader`,
+`.smModeNav`/`.smModeBtn`, `.smGrid`/`.smFormCard`/`.smResultCard`,
+`.smPlanRegular`/`.smPlanSpecial` balloon story, `.smClassBadge`,
+`.smTable`, `.smFootnote` — verified one by one against
+`simulador-seminovos.js` before touching anything, not assumed).
+
+**What was actually safe to migrate**: only where Novos' own `render()`
+emits a class Seminovos' *own*, textually separate `render()` also
+happens to use, swapping Novos' copy to a shared primitive is safe
+*only if the old CSS rule is left fully intact* (Seminovos still reads
+it). Migrated: the page header (`.modPageHeader`/`.modTitle`/
+`.modSubtitle` — pixel-identical to `.smHeader`'s own values) and the
+form/result panels (`.modPanelForm`/`.modPanelResult` — these were
+*already* extracted from `.smFormCard`/`.smResultCard` in Wave 3A and
+had never had a real consumer until now; pixel-identical, confirmed
+before switching). The form region keeps `.smFormCard` as a second,
+redundant class alongside `.modPanelForm`, because a `.smGridStacked
+.smFormCard` descendant rule (Subsidiadas mode) still targets it by
+name — dropping it would have silently broken that rule for Novos
+while leaving the (harmless, identical) shared class doing nothing.
+
+**Deliberately NOT migrated — genuinely already correct, not
+avoidable-only-by-caution**: everything the shared `NX_SIM_UI` helper
+renders (money/percent/date/segmented fields, buttons, the empty/error
+states, the result hero and secondary grid) is untouchable by
+construction (shared with Seminovos) — but it's also *already* the
+literal source `.modBtn`/`.modField`/`.modEmptyState`/`.modErrorState`
+were extracted from in Wave 3A, so it already reads as the same
+product without a single class changing. The mode-nav (grouped by
+Financiamento/Campanhas/Ferramentas), the balloon payment-structure
+story, the schedule block, the Subsidiadas comparison card grid, and
+the Cash Conversion classification badge are all Novos-specific
+transactional compositions with no existing shared-system parallel —
+left as-is, already restrained and Red-Precision-compliant (no medals,
+no gradients, no marketing cards) per their own PORTAL-NEXT-08.2/.3/.4
+UAT history.
+
+**Transactional flow contract** (already satisfied by the existing
+implementation, not newly built this Wave — recorded here because it's
+the pattern a Seminovos migration, or any future transactional module,
+should reproduce): mode-nav grouped by category → one form region
+containing every input AND the primary CTA together (input and action
+are never separated into different panels) → a separate result region
+beside the form at ≥900px, stacked below it at <900px → the principal
+output (the installment, or the classification for tools like Cash
+Conversion) gets the largest single typographic treatment on the page,
+everything else renders in a quieter secondary grid beneath it. No
+change was needed to reach this — the module already had it.
 shared `.modTable`'s own first-child sticky rule assumes the first
 column is the one worth pinning while scrolling. Score's table leads
 with a narrow rank column (`#`) but deliberately keeps the *second*
