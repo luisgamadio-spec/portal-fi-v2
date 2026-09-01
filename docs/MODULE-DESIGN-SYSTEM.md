@@ -211,3 +211,61 @@ Wave 3A's single-module proof:
   `<=768px` data-th mobile override from the module's old table class
   to `.modTable`/`.modTableWrap`. Don't assume the shared default fits
   every column count — measure.
+
+## Third migration — Gestão de Coparticipados & Subsidiados (Wave 3C)
+
+Migrated to the shared system: page header, fixture banner (with
+selector, same as Dashbi/F&I), filter field wrappers, the
+Coparticipados/Subsidiados view switcher (the first real consumer of
+`.modTabGroup`/`.modTab` — a genuine single-active-region switch, not a
+filter), Subsidiados' 3-stat summary (`.modKpiGrid` +
+`.modKpiCardSecondary`), and the table foundation for both of this
+module's tables (13 and 11 columns — the widest in V2). Verified via a
+DOM-level presentation-parity test
+(`tests/coparticipado-presentation-parity-test.py`) that derives
+expected values live from `window.NX_COPARTICIPADO_ADAPTER.compute()`
+and compares every rendered field, across 5 fixture scenarios × 2
+views — 0 hardcoded expected value, 0 business-logic touched.
+
+**Deliberately NOT migrated**: the section heading (`.cpPanel h2`) —
+already pixel-identical to `.modSectionTitle`'s type values, but kept
+local because only one heading renders per view here (no top-gap
+needed, unlike Gestão's many stacked sections).
+
+**New this Wave**: `.modBadgeNeutral` — a badge-shaped chip with no
+color semantic, for a status/reference value that has no authoritative
+good/bad mapping (Coparticipado's raw backend "Situação" string).
+Reuses the same shape as `.modBadgeSuccess`/`-Warning`/`-Critical`/
+`-Info` without inventing a color meaning that isn't there.
+
+**Responsive record composition** (the objective-B refinement,
+authorized specifically for this module): below 900px, a wide
+analytical table recomposes into a grouped card instead of one flat
+column of label/value pairs — primary identity (first field) full-width
+and bold with its label hidden, a status badge on its own line, then
+metadata/financial/reference bands each on their own visual line
+(divider = `border-top` + `margin-top` on the band's first cell),
+still in the table's original DOM/reading order (no `order`-based
+visual reordering — WCAG meaningful-sequence: a screen reader's
+reading order must still match what's visually grouped). One concrete
+financial "headline" field (this module's `Coparticipação`) may take a
+small mobile-only weight/size bump — only when the module truly has a
+single decisive output value; don't invent one where several fields
+are peers (Subsidiados has none).
+
+**Two real bugs found and fixed while building this, both proven with
+this Wave's own regression matrix, worth remembering for the next
+wide-table mobile migration**:
+- A `<tr>` restyled to `display:grid` (not `display:flex`) inside a
+  `table-layout:auto` table, with a `<colgroup>` still present in the
+  DOM, made Chromium size the `<table>` by the colgroup's pixel widths
+  regardless of the grid content — 647px of overflow at a 430px
+  viewport. Fix: explicitly hide `colgroup`/`col` at that breakpoint
+  (or don't use `display:grid` for this transform; `display:flex` with
+  explicit `flex-basis` percentages doesn't hit this).
+- A cell carrying a numeric-column class (`.modNumCol`, which sets
+  `white-space:nowrap`) can still be showing a non-numeric fallback
+  message (a "not found" warning) instead of a real value — the nowrap
+  forces that message to overflow its column. `white-space` is
+  inherited per-element, so overriding it directly on the fallback's
+  own span (not the cell) fixes it without touching the numeric case.

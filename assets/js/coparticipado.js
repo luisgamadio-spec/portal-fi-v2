@@ -110,6 +110,16 @@
   // come from one list — same order, same wording, nothing renamed.
   var CP_COPART_HEADERS = ['Cliente', 'Vendedor', 'Loja', 'Modelo Base', 'Modelo Taxa', 'Valor Financiado', 'Rebate Total', 'Parte Brabus', 'Valor Rebate Total', 'Coparticipação', 'Situação', 'Data', 'Chassi'];
   var CP_SUBS_HEADERS = ['Cliente', 'Vendedor', 'Loja', 'Departamento', 'Modelo', 'Valor Financiado', 'Retorno', 'SPF Extra', 'Situação', 'Data', 'Chassi'];
+  // Wave 3C — presentation-only metadata, parallel to *_HEADERS (same
+  // index = same column). Drives the <=900px responsive card grouping
+  // (module-system.css) via a data-group attribute per cell; 0 effect
+  // on cell content, order, or count. "primary"/"status" are styled by
+  // attribute selector (table-shape-independent); the commercial/
+  // vehicle/financial/reference band dividers use nth-child, scoped by
+  // the .cpTableCopart/.cpTableSubs modifier class below (column counts
+  // differ between the two tables, so their divider positions do too).
+  var CP_COPART_GROUPS = ['primary', 'commercial', 'commercial', 'vehicle', 'vehicle', 'financial', 'financial', 'financial', 'financial', 'financial', 'status', 'reference', 'reference'];
+  var CP_SUBS_GROUPS = ['primary', 'commercial', 'commercial', 'commercial', 'vehicle', 'financial', 'financial', 'financial', 'status', 'reference', 'reference'];
   // PORTAL-NEXT-07.6 — atomic values (currency/percentage/date/chassi)
   // must never break mid-token (Gate 26/56); table-layout:fixed only
   // reads column widths from the FIRST row's cells, so a <colgroup>
@@ -127,30 +137,30 @@
   function renderCoparticipadosTable(fins) {
     var A = window.NX_COPARTICIPADO_ADAPTER;
     var rows = fins.filter(function (r) { return r.plano === 'COPARTICIPADO'; });
-    var h = CP_COPART_HEADERS;
+    var h = CP_COPART_HEADERS, g = CP_COPART_GROUPS;
     var body = rows.map(function (r) {
       var c = r.coparticipacaoDetalhe || A.calcCoparticipacaoDetalhe(r);
       return '<tr>' +
-        '<td data-th="' + h[0] + '">' + esc(r.cliente) + '</td>' +
-        '<td data-th="' + h[1] + '">' + esc(r.vendedor) + '</td>' +
-        '<td data-th="' + h[2] + '">' + esc(r.loja) + '</td>' +
-        '<td data-th="' + h[3] + '">' + esc(r.modelo) + '</td>' +
-        '<td data-th="' + h[4] + '">' + (c.modeloTabela ? esc(c.modeloTabela) : '<span class="cpWarn">Não encontrado</span>') + '</td>' +
-        '<td class="cpNumCol" data-th="' + h[5] + '">' + A.money(r.valorFinanciado) + '</td>' +
-        '<td class="cpNumCol" data-th="' + h[6] + '">' + (c.ok ? A.pct(c.rebateTotal) : '<span class="cpWarn">—</span>') + '</td>' +
-        '<td class="cpNumCol" data-th="' + h[7] + '">' + (c.ok ? A.pct(c.parteBrabus) : '<span class="cpWarn">—</span>') + '</td>' +
-        '<td class="cpNumCol" data-th="' + h[8] + '">' + (c.ok ? A.money(c.valorRebateTotal) : '<span class="cpWarn">—</span>') + '</td>' +
-        '<td class="cpNumCol" data-th="' + h[9] + '">' + (c.ok ? A.money(c.coparticipacao) : '<span class="cpWarn">Modelo não encontrado</span>') + '</td>' +
-        '<td data-th="' + h[10] + '">' + esc(r.situacaoB3 || '') + '</td>' +
-        '<td class="cpNumCol" data-th="' + h[11] + '">' + esc(A.iso(r.data)) + '</td>' +
-        '<td class="cpAtomic" data-th="' + h[12] + '">' + esc(r.chassi) + '</td>' +
+        '<td data-th="' + h[0] + '" data-group="' + g[0] + '">' + esc(r.cliente) + '</td>' +
+        '<td data-th="' + h[1] + '" data-group="' + g[1] + '">' + esc(r.vendedor) + '</td>' +
+        '<td data-th="' + h[2] + '" data-group="' + g[2] + '">' + esc(r.loja) + '</td>' +
+        '<td data-th="' + h[3] + '" data-group="' + g[3] + '">' + esc(r.modelo) + '</td>' +
+        '<td data-th="' + h[4] + '" data-group="' + g[4] + '">' + (c.modeloTabela ? esc(c.modeloTabela) : '<span class="cpWarn">Não encontrado</span>') + '</td>' +
+        '<td class="modNumCol" data-th="' + h[5] + '" data-group="' + g[5] + '">' + A.money(r.valorFinanciado) + '</td>' +
+        '<td class="modNumCol" data-th="' + h[6] + '" data-group="' + g[6] + '">' + (c.ok ? A.pct(c.rebateTotal) : '<span class="cpWarn">—</span>') + '</td>' +
+        '<td class="modNumCol" data-th="' + h[7] + '" data-group="' + g[7] + '">' + (c.ok ? A.pct(c.parteBrabus) : '<span class="cpWarn">—</span>') + '</td>' +
+        '<td class="modNumCol" data-th="' + h[8] + '" data-group="' + g[8] + '">' + (c.ok ? A.money(c.valorRebateTotal) : '<span class="cpWarn">—</span>') + '</td>' +
+        '<td class="modNumCol cpHeadlineFin" data-th="' + h[9] + '" data-group="' + g[9] + '">' + (c.ok ? A.money(c.coparticipacao) : '<span class="cpWarn">Modelo não encontrado</span>') + '</td>' +
+        '<td data-th="' + h[10] + '" data-group="' + g[10] + '"><span class="modBadge modBadgeNeutral">' + esc(r.situacaoB3 || '') + '</span></td>' +
+        '<td class="modNumCol" data-th="' + h[11] + '" data-group="' + g[11] + '">' + esc(A.iso(r.data)) + '</td>' +
+        '<td class="cpAtomic" data-th="' + h[12] + '" data-group="' + g[12] + '">' + esc(r.chassi) + '</td>' +
         '</tr>';
     }).join('');
     return '<h2>Planos Coparticipados</h2>' +
-      '<p class="cpMuted">Coparticipação calculada pela tabela <b>taxa coparticipado.xlsx</b>: Modelo × Rebate Total × Rebate Parte Brabus.</p>' +
-      '<div class="cpTableWrap"><table class="cpTable">' + cpColGroup(h) +
+      '<p class="modMuted">Coparticipação calculada pela tabela <b>taxa coparticipado.xlsx</b>: Modelo × Rebate Total × Rebate Parte Brabus.</p>' +
+      '<div class="modTableWrap"><table class="modTable cpTableCopart">' + cpColGroup(h) +
       '<thead>' + cpHeadRow(h) + '</thead>' +
-      '<tbody>' + (body || '<tr><td colspan="13" class="cpMuted">Nenhum coparticipado encontrado no filtro atual.</td></tr>') + '</tbody></table></div>';
+      '<tbody>' + (body || '<tr><td colspan="13" class="modMuted">Nenhum coparticipado encontrado no filtro atual.</td></tr>') + '</tbody></table></div>';
   }
 
   function renderSubsidiadosTable(fins) {
@@ -158,32 +168,32 @@
     var rows = fins.filter(function (r) { return r.plano === 'SUBSIDIADO'; });
     var lojas = {}, vendedores = {};
     rows.forEach(function (r) { lojas[r.loja] = 1; vendedores[r.vendedor] = 1; });
-    var h = CP_SUBS_HEADERS;
+    var h = CP_SUBS_HEADERS, g = CP_SUBS_GROUPS;
     var body = rows.map(function (r) {
       return '<tr>' +
-        '<td data-th="' + h[0] + '">' + esc(r.cliente) + '</td>' +
-        '<td data-th="' + h[1] + '">' + esc(r.vendedor) + '</td>' +
-        '<td data-th="' + h[2] + '">' + esc(r.loja) + '</td>' +
-        '<td data-th="' + h[3] + '">' + esc(r.dept) + '</td>' +
-        '<td data-th="' + h[4] + '">' + esc(r.modelo) + '</td>' +
-        '<td class="cpNumCol" data-th="' + h[5] + '">' + A.money(r.valorFinanciado) + '</td>' +
-        '<td class="cpNumCol" data-th="' + h[6] + '">' + A.money(r.retorno) + '</td>' +
-        '<td class="cpNumCol" data-th="' + h[7] + '">' + A.money(r.receitaSPF) + '</td>' +
-        '<td data-th="' + h[8] + '">' + esc(r.situacaoB3 || '') + '</td>' +
-        '<td class="cpNumCol" data-th="' + h[9] + '">' + esc(A.iso(r.data)) + '</td>' +
-        '<td class="cpAtomic" data-th="' + h[10] + '">' + esc(r.chassi) + '</td>' +
+        '<td data-th="' + h[0] + '" data-group="' + g[0] + '">' + esc(r.cliente) + '</td>' +
+        '<td data-th="' + h[1] + '" data-group="' + g[1] + '">' + esc(r.vendedor) + '</td>' +
+        '<td data-th="' + h[2] + '" data-group="' + g[2] + '">' + esc(r.loja) + '</td>' +
+        '<td data-th="' + h[3] + '" data-group="' + g[3] + '">' + esc(r.dept) + '</td>' +
+        '<td data-th="' + h[4] + '" data-group="' + g[4] + '">' + esc(r.modelo) + '</td>' +
+        '<td class="modNumCol" data-th="' + h[5] + '" data-group="' + g[5] + '">' + A.money(r.valorFinanciado) + '</td>' +
+        '<td class="modNumCol" data-th="' + h[6] + '" data-group="' + g[6] + '">' + A.money(r.retorno) + '</td>' +
+        '<td class="modNumCol" data-th="' + h[7] + '" data-group="' + g[7] + '">' + A.money(r.receitaSPF) + '</td>' +
+        '<td data-th="' + h[8] + '" data-group="' + g[8] + '"><span class="modBadge modBadgeNeutral">' + esc(r.situacaoB3 || '') + '</span></td>' +
+        '<td class="modNumCol" data-th="' + h[9] + '" data-group="' + g[9] + '">' + esc(A.iso(r.data)) + '</td>' +
+        '<td class="cpAtomic" data-th="' + h[10] + '" data-group="' + g[10] + '">' + esc(r.chassi) + '</td>' +
         '</tr>';
     }).join('');
     return '<h2>Planos Subsidiados</h2>' +
-      '<p class="cpMuted">Todas as operações classificadas como <b>SUBSIDIADO</b> no período (mesma regra oficial já usada nos indicadores do Portal: código IF = 999 ou "SUBSIDIADO" na Base 03).</p>' +
-      '<div class="cpSummary">' +
-      '<div class="cpSummaryItem"><div class="cpK">Operações</div><div class="cpV">' + A.num(rows.length) + '</div></div>' +
-      '<div class="cpSummaryItem"><div class="cpK">Lojas</div><div class="cpV">' + A.num(Object.keys(lojas).length) + '</div></div>' +
-      '<div class="cpSummaryItem"><div class="cpK">Vendedores</div><div class="cpV">' + A.num(Object.keys(vendedores).length) + '</div></div>' +
+      '<p class="modMuted">Todas as operações classificadas como <b>SUBSIDIADO</b> no período (mesma regra oficial já usada nos indicadores do Portal: código IF = 999 ou "SUBSIDIADO" na Base 03).</p>' +
+      '<div class="modKpiGrid">' +
+      '<div class="modKpiCard modKpiCardSecondary"><div class="modKpiLabel">Operações</div><div class="modKpiValue">' + A.num(rows.length) + '</div></div>' +
+      '<div class="modKpiCard modKpiCardSecondary"><div class="modKpiLabel">Lojas</div><div class="modKpiValue">' + A.num(Object.keys(lojas).length) + '</div></div>' +
+      '<div class="modKpiCard modKpiCardSecondary"><div class="modKpiLabel">Vendedores</div><div class="modKpiValue">' + A.num(Object.keys(vendedores).length) + '</div></div>' +
       '</div>' +
-      '<div class="cpTableWrap"><table class="cpTable">' + cpColGroup(h) +
+      '<div class="modTableWrap"><table class="modTable cpTableSubs">' + cpColGroup(h) +
       '<thead>' + cpHeadRow(h) + '</thead>' +
-      '<tbody>' + (body || '<tr><td colspan="11" class="cpMuted">Nenhum subsidiado encontrado no filtro atual.</td></tr>') + '</tbody></table></div>';
+      '<tbody>' + (body || '<tr><td colspan="11" class="modMuted">Nenhum subsidiado encontrado no filtro atual.</td></tr>') + '</tbody></table></div>';
   }
 
   function populateStoreOptions(fins, sales) {
@@ -206,9 +216,9 @@
     populateStoreOptions(result.fins, result.sales);
 
     var switcherHtml =
-      '<div class="cpViewSwitcher" role="tablist" aria-label="Visão">' +
-      '<button type="button" class="cpTab' + (currentView === 'COPARTICIPADO' ? ' cpTabActive' : '') + '" role="tab" aria-selected="' + (currentView === 'COPARTICIPADO') + '" id="cpTabCopart">Visão Coparticipados</button>' +
-      '<button type="button" class="cpTab' + (currentView === 'SUBSIDIADO' ? ' cpTabActive' : '') + '" role="tab" aria-selected="' + (currentView === 'SUBSIDIADO') + '" id="cpTabSubs">Visão Subsidiados</button>' +
+      '<div class="modTabGroup" role="tablist" aria-label="Visão">' +
+      '<button type="button" class="modTab' + (currentView === 'COPARTICIPADO' ? ' modTabActive' : '') + '" role="tab" aria-selected="' + (currentView === 'COPARTICIPADO') + '" id="cpTabCopart">Visão Coparticipados</button>' +
+      '<button type="button" class="modTab' + (currentView === 'SUBSIDIADO' ? ' modTabActive' : '') + '" role="tab" aria-selected="' + (currentView === 'SUBSIDIADO') + '" id="cpTabSubs">Visão Subsidiados</button>' +
       '</div>';
 
     var bodyHtml = currentView === 'SUBSIDIADO' ? renderSubsidiadosTable(filteredFins) : renderCoparticipadosTable(filteredFins);
@@ -250,16 +260,16 @@
         ).join('');
         outlet.innerHTML =
           '<div class="cpPage">' +
-          '<div class="cpHeader"><div><h1>Gestão de Coparticipados &amp; Subsidiados</h1><p>Módulo financeiro · Portal F&amp;I Grupo Brabus Mitsubishi</p></div></div>' +
-          '<div class="cpFixtureBar"><span class="cpFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
+          '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Gestão de Coparticipados &amp; Subsidiados</h1><p class="modSubtitle">Módulo financeiro · Portal F&amp;I Grupo Brabus Mitsubishi</p></div></div>' +
+          '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
           '<label for="cpFixtureSelect">fixture:</label>' +
           '<select id="cpFixtureSelect">' + options + '</select></div>' +
-          '<div class="cpFilters">' +
-          '<div class="cpField"><label for="cpStoreFilter">Loja</label><select id="cpStoreFilter"><option value="">Todas as lojas</option></select></div>' +
-          '<div class="cpField"><label for="cpDeptFilter">Departamento</label><select id="cpDeptFilter">' +
+          '<div class="modFilters">' +
+          '<div class="modField"><label for="cpStoreFilter">Loja</label><select id="cpStoreFilter"><option value="">Todas as lojas</option></select></div>' +
+          '<div class="modField"><label for="cpDeptFilter">Departamento</label><select id="cpDeptFilter">' +
           '<option value="Grupo" selected>Grupo</option><option value="Novos">Novos</option><option value="Seminovos">Seminovos</option></select></div>' +
-          '<div class="cpField"><label for="cpDateStart">Data inicial</label><input id="cpDateStart" type="date"></div>' +
-          '<div class="cpField"><label for="cpDateEnd">Data final</label><input id="cpDateEnd" type="date" value="2026-12-31"></div>' +
+          '<div class="modField"><label for="cpDateStart">Data inicial</label><input id="cpDateStart" type="date"></div>' +
+          '<div class="modField"><label for="cpDateEnd">Data final</label><input id="cpDateEnd" type="date" value="2026-12-31"></div>' +
           '</div>' +
           '<div class="cpPanel" id="cpPanel"></div>' +
           '</div>';

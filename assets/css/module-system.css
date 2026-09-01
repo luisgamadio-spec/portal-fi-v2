@@ -215,3 +215,8 @@
 .modBadgeWarning{color:var(--mod-warning);border:1px solid var(--mod-warning)}
 .modBadgeCritical{color:var(--mod-critical);border:1px solid var(--mod-critical)}
 .modBadgeInfo{color:var(--mod-info);border:1px solid var(--mod-info)}
+/* Wave 3C — a status/reference value with no established business color
+   semantic (e.g. a raw backend status string with no authoritative
+   good/bad mapping) still benefits from the badge SHAPE for scannability
+   without inventing a color meaning that isn't there. */
+.modBadgeNeutral{color:var(--mod-muted);border:1px solid var(--mod-border-strong)}
