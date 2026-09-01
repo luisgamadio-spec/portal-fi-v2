@@ -157,6 +157,63 @@
 
 .smGrid { display: grid; grid-template-columns: 360px 1fr; gap: 28px; align-items: start; }
 @media (max-width: 900px) { .smGrid { grid-template-columns: 1fr; } }
+/* PORTAL-NEXT-08.3 Gate 24 -- Simulador Novos, Taxas Subsidiadas mode
+   only (applied via JS as an additive modifier class; the base .smGrid
+   rule above is untouched, so Seminovos -- which never sets this
+   class -- is unaffected). Stacks input above a full-width comparison
+   grid instead of squeezing 3-4 cards into a 1fr column beside a
+   fixed 360px rail. */
+.smGrid.smGridStacked { grid-template-columns: 1fr; }
+.smGrid.smGridStacked .smFormCard { max-width: 480px; }
+
+/* ---------- PORTAL-NEXT-08.3 Change 2/3: reusable schedule block
+   (Semestral/Anual, Parcela Única, Semestral Triton). Markers are
+   informational timeline markers, not buttons (Gate 33). ---------- */
+.smSchedule { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-hairline); }
+.smScheduleRow { display: flex; flex-wrap: wrap; gap: var(--space-5); margin: var(--space-2) 0 var(--space-3); }
+.smScheduleItem { display: flex; flex-direction: column; gap: 4px; }
+.smScheduleItem strong { font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+.smScheduleLabel { font-size: 11px; color: var(--color-text-secondary); }
+.smScheduleMarkersLabel { font-size: 11px; color: var(--color-text-muted); margin: 0 0 var(--space-2); }
+.smScheduleMarkers { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.smScheduleMarker {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 34px; height: 34px; padding: 0 8px;
+  border: 1px solid var(--color-hairline-strong); border-radius: var(--radius-sm);
+  background: var(--color-surface-2); color: var(--color-text-secondary);
+  font-family: var(--font-mono); font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+
+/* ---------- PORTAL-NEXT-08.3 Change 4: Coparticipado emphasis pair
+   (Gates 14/15) -- financial-metric cards, not marketing banners. ---------- */
+.smEmphasisPair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: var(--space-4) 0; }
+@media (max-width: 480px) { .smEmphasisPair { grid-template-columns: 1fr; } }
+.smEmphasisCard {
+  background: var(--color-surface-2); border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius-md); padding: var(--space-4);
+}
+.smEmphasisCardPrimary { border-color: var(--color-accent-primary); background: rgba(238, 75, 87, .07); }
+.smEmphasisValue { font-family: var(--font-mono); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; margin: 4px 0 0; word-break: break-word; }
+.smEmphasisValuePrimary { font-size: 26px; color: #ffecec; }
+
+/* ---------- PORTAL-NEXT-08.3 Change 5: Taxas Subsidiadas comparison
+   card grid (Gates 16-22), replacing the vertically-stacked rows. ---------- */
+.smSubsidiadaGroups { display: flex; flex-direction: column; gap: var(--space-5); }
+.smSubsidiadaGroupHead { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); margin: 0 0 var(--space-2); }
+.smSubsidiadaGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--space-3); }
+.smSubsidiadaCard {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--color-surface-2); border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius-md); padding: var(--space-3) var(--space-4);
+}
+.smSubsidiadaCard.best { border-color: var(--color-accent-primary); background: rgba(238, 75, 87, .06); }
+.smSubsidiadaCardHead { display: flex; justify-content: space-between; align-items: baseline; }
+.smSubsidiadaCardPrazo { font-family: var(--font-mono); font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.smSubsidiadaCardTaxa { font-family: var(--font-mono); font-size: 11.5px; color: var(--color-text-muted); }
+.smSubsidiadaCardPill { margin: -2px 0 2px; }
+.smSubsidiadaCardRow { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); font-size: 13px; padding-top: 4px; border-top: 1px solid var(--color-hairline); }
+.smSubsidiadaCardRow strong { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.smSubsidiadaCardRow.smSubsidiadaCardRowEmphasis strong { font-size: 14.5px; color: var(--color-text-primary); }
 
 .smFormCard, .smResultCard {
   background: var(--color-surface-1);

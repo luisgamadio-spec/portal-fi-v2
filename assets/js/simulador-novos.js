@@ -18,7 +18,7 @@
     { id: 'periodico', group: 'Financiamento', label: 'Semestral / Anual' },
     { id: 'parcelaunica', group: 'Financiamento', label: 'Parcela Única' },
     { id: 'linear', group: 'Financiamento', label: 'Financiamento Linear' },
-    { id: 'campanha', group: 'Campanhas', label: 'Financiamento Campanha' },
+    { id: 'campanha', group: 'Campanhas', label: 'Plano Coparticipado' },
     { id: 'subsidiadas', group: 'Campanhas', label: 'Taxas Subsidiadas' },
     { id: 'triton', group: 'Campanhas', label: 'Semestral Triton / Outlander' },
     { id: 'descobridor', group: 'Ferramentas', label: 'Descobridor de Taxa' },
@@ -30,7 +30,7 @@
     periodico: 'Parcelas semestrais ou anuais — entrada mínima varia por prazo.',
     parcelaunica: 'Uma única parcela no mês 25, após 24 meses de carência — entrada mínima de 50%.',
     linear: 'Parcela mensal fixa, todos os prazos calculados automaticamente.',
-    campanha: 'Condições especiais por modelo — entrada mínima de 60% do valor de venda.',
+    campanha: 'Plano Coparticipado — condições especiais por modelo, entrada mínima de 60% do valor de venda.',
     subsidiadas: 'Comparação de taxas subsidiadas por prazo — entrada mínima de 50%.',
     triton: 'Campanha Taxa 0% — entrada fixa por modelo, sem alteração manual.',
     descobridor: 'Estima a taxa efetiva a partir do valor financiado, prazo e parcela.',
@@ -115,6 +115,14 @@
   function renderModeArea() {
     disconnectTermGridObservers();
     document.getElementById('smModeDesc').textContent = MODE_DESC[currentMode] || '';
+    // PORTAL-NEXT-08.3 Gate 24: Subsidiadas' comparison grid needs the
+    // full page width to show 3-4 cards per row without feeling
+    // cramped next to a 360px input rail -- a mode-scoped modifier
+    // class, not a change to the shared .smGrid rule itself (Seminovos
+    // never gets this class, since it never sets currentMode to
+    // 'subsidiadas' -- that mode doesn't exist in its own MODES list).
+    var mainGrid = document.getElementById('smMainGrid');
+    if (mainGrid) mainGrid.classList.toggle('smGridStacked', currentMode === 'subsidiadas');
     var formRegion = document.getElementById('smFormRegion');
     var resultRegion = document.getElementById('smResultRegion');
     formRegion.innerHTML = formHtml(currentMode);
@@ -330,6 +338,30 @@
     return html;
   }
 
+  /* ---------- PORTAL-NEXT-08.3 Change 2/3: reusable, presentation-only
+     schedule block (Gate 6) — every value passed in comes from the
+     frozen engine's own output (r.meses, r.plano.prazo, or the shared
+     S.SEMESTRAL_TRITON_MESES constant); this function performs 0
+     calculation. Markers are non-interactive (role="list", not
+     buttons) — they inform, they don't select. ---------- */
+  function scheduleBlockHtml(config) {
+    // config: {prazoTotal, periodicidade (optional), meses: [...],
+    //          specialLabel (optional, defaults to "parcela(s) especial(is)")}
+    var meses = config.meses || [];
+    var specialLabel = config.specialLabel || (meses.length === 1 ? 'parcela especial' : 'parcelas especiais');
+    return '<div class="smSchedule">' +
+      '<p class="kpiLabel">Cronograma do plano</p>' +
+      '<div class="smScheduleRow">' +
+      '<div class="smScheduleItem"><span class="smScheduleLabel">Prazo total</span><strong>' + config.prazoTotal + ' meses</strong></div>' +
+      (config.periodicidade ? '<div class="smScheduleItem"><span class="smScheduleLabel">Periodicidade</span><strong>' + UI.esc(config.periodicidade) + '</strong></div>' : '') +
+      '<div class="smScheduleItem"><span class="smScheduleLabel">' + UI.esc(meses.length + ' ' + specialLabel) + '</span></div>' +
+      '</div>' +
+      '<p class="smScheduleMarkersLabel">Ocorrem na' + (meses.length === 1 ? '' : 's') + ' parcela' + (meses.length === 1 ? '' : 's') + ':</p>' +
+      '<div class="smScheduleMarkers" role="list" aria-label="Parcelas em que ocorrem os pagamentos especiais">' +
+      meses.map(function (m) { return '<span class="smScheduleMarker" role="listitem">' + m + '</span>'; }).join('') +
+      '</div></div>';
+  }
+
   /* ---------- calculations (adapter calls only) ---------- */
   function calcTradicional() {
     var validBaloes = balloons.filter(function (b) { return b.mes && b.valor; }).map(function (b) { return { mes: b.mes, valor: b.valor }; });
@@ -353,16 +385,35 @@
     var r = N.calcularPeriodico({ bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'), prazo: Number(UI.getSegmentedValue('nPrazo')), tipo: UI.getSegmentedValue('nTipo') });
     if (r.empty) { setResult(UI.emptyBlock('Preencha os campos e clique em Calcular.')); return; }
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error) + (r.minEntrada != null ? ' Mínimo: ' + UI.pct1(r.minEntrada) + '.' : ''))); return; }
-    var html = UI.resultHero('Parcela ' + (UI.getSegmentedValue('nTipo') === 'semestral' ? 'semestral' : 'anual'), r.parcela);
-    html += UI.secondaryGrid([{ label: 'Entrada', value: UI.pct1(r.pe) }, { label: 'Taxa aplicada', value: UI.pct2(r.taxa) }, { label: 'Nº de parcelas', value: String(r.meses.length) }]);
+    var tipo = UI.getSegmentedValue('nTipo');
+    var prazo = Number(UI.getSegmentedValue('nPrazo'));
+    var html = UI.resultHero('Parcela ' + (tipo === 'semestral' ? 'semestral' : 'anual'), r.parcela);
+    html += UI.secondaryGrid([{ label: 'Entrada', value: UI.pct1(r.pe) }, { label: 'Taxa aplicada', value: UI.pct2(r.taxa) }]);
+    // PORTAL-NEXT-08.3 Change 2/3: explicit schedule -- r.meses is the
+    // frozen engine's own computed list of installment numbers
+    // (Gate 3/4/7), not re-derived or hardcoded here.
+    html += scheduleBlockHtml({ prazoTotal: prazo, periodicidade: tipo === 'semestral' ? 'Semestral' : 'Anual', meses: r.meses });
     setResult(html);
   }
   function runParcelaUnica() {
     var r = N.calcularParcelaUnica({ bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada') });
     if (r.empty) { setResult(UI.emptyBlock('Preencha os campos e clique em Calcular.')); return; }
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error) + (r.minEntrada != null ? ' Mínimo: ' + UI.pct1(r.minEntrada) + '.' : ''))); return; }
-    var html = UI.resultHero('Parcela única (mês 25)', r.parcela);
-    html += UI.secondaryGrid([{ label: 'Entrada', value: UI.pct1(r.pe) }, { label: 'Financiado', value: UI.brl(r.fin) }, { label: 'Coeficiente', value: r.coef.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) }]);
+    var html = UI.resultHero('Parcela única (mês ' + r.plano.prazo + ')', r.parcela);
+    // PORTAL-NEXT-08.3 Change 3 (Gate 11-13): coefficient hidden;
+    // "Taxa da tabela" shown instead -- r.taxa is the engine's own
+    // authoritative table rate (tabelaParcelaUnica.taxa), a real field
+    // distinct from coef, not derived from it. No period suffix
+    // ("a.m."): production's own UI (uTaxa, PORTAL-NEXT-04/.source)
+    // labels this identically as "Taxa da tabela" with a bare
+    // percentage, never claiming a monthly/annual period for this
+    // specific flat-coefficient plan -- verified from source, not
+    // guessed (Gate 13).
+    html += UI.secondaryGrid([{ label: 'Entrada', value: UI.pct1(r.pe) }, { label: 'Financiado', value: UI.brl(r.fin) }, { label: 'Taxa da tabela', value: UI.pct2(r.taxa) }]);
+    // Gate 8: explicit prazo total + single special month, derived
+    // from r.plano.prazo (the engine's own authoritative value) --
+    // never hardcoded.
+    html += scheduleBlockHtml({ prazoTotal: r.plano.prazo, meses: [r.plano.prazo], specialLabel: 'parcela única' });
     setResult(html);
   }
   function calcLinear() {
@@ -377,36 +428,57 @@
   function calcCampanha() {
     var r = CAMP.compute({ model: UI.textVal('nModelo'), saleValue: UI.moneyVal('nSale'), entryValue: UI.moneyVal('nEntry') });
     if (!r.valid) { setResult(UI.errorBlock('A entrada informada é menor que o mínimo exigido para este modelo (' + UI.pct1(r.minValue / (r.sale || 1)) + ' do valor de venda).')); return; }
-    var html = UI.termGrid(r.terms.map(function (t) { return { prazo: t.prazo, payment: t.payment, rate: t.rate, best: false }; }));
+    // PORTAL-NEXT-08.3 Change 4 (Gate 14/15): hierarchy reordered --
+    // parcela-per-prazo is supporting context first, then Rebate
+    // Brabus + Valor Final de Venda get a dedicated emphasized block
+    // (visual only; the values themselves are untouched engine output).
+    var html = '<p class="kpiLabel" style="margin-bottom:12px">Parcela por prazo</p>' +
+      UI.termGrid(r.terms.map(function (t) { return { prazo: t.prazo, payment: t.payment, rate: t.rate, best: false }; }));
+    html += '<div class="smEmphasisPair">' +
+      '<div class="smEmphasisCard"><p class="kpiLabel">Rebate Brabus</p><p class="smEmphasisValue">' + UI.brl(r.rebateBrabus) + '</p></div>' +
+      '<div class="smEmphasisCard smEmphasisCardPrimary"><p class="kpiLabel">Valor final de venda</p><p class="smEmphasisValue smEmphasisValuePrimary">' + UI.brl(r.finalSale) + '</p></div>' +
+      '</div>';
     html += UI.secondaryGrid([
       { label: 'Financiado', value: UI.brl(r.financed) },
       { label: 'Rebate total — custo comercial da taxa', value: UI.brl(r.rebateTotal) },
-      { label: 'Rebate Brabus', value: UI.brl(r.rebateBrabus) },
-      { label: 'Rebate HPE', value: UI.brl(r.rebateHpe) },
-      { label: 'Valor final de venda', value: UI.brl(r.finalSale) }
+      { label: 'Rebate HPE', value: UI.brl(r.rebateHpe) }
     ]);
-    setResult('<p class="kpiLabel" style="margin-bottom:12px">Parcela por prazo</p>' + html);
+    setResult(html);
   }
   function calcSubsidiadas() {
     var r = N.calcularSubsidiadas({ bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'), minVenda: UI.moneyVal('nMinVenda') });
     if (r.empty) { setResult(UI.emptyBlock('Preencha os campos e clique em Calcular.')); return; }
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error))); return; }
+    // PORTAL-NEXT-08.3 Change 5 (Gates 16-22): replaced the large
+    // vertically-stacked rows with a compact comparison card grid.
+    // PRESENTATION ONLY (Gate 27) -- every card uses the exact frozen
+    // r.rows entry for that taxa/prazo condition, no new sort/score;
+    // row.melhor is the engine's own pre-existing field (PORTAL-NEXT-08
+    // extraction of production's own montaDadosSubsidiadas ranking),
+    // not a badge invented in this Wave (Gate 19).
     var byTaxa = {};
     r.rows.forEach(function (row) { (byTaxa[row.taxa] = byTaxa[row.taxa] || []).push(row); });
     var groupsHtml = Object.keys(byTaxa).sort(function (a, b) { return Number(a) - Number(b); }).map(function (taxa) {
-      var rows = byTaxa[taxa].sort(function (a, b) { return a.prazo - b.prazo; }).map(function (row) {
-        var pillCls = row.melhor ? 'excellent' : (r.minVenda > 0 ? (row.viavel ? 'good' : 'bad') : 'neutral');
-        var status = row.melhor ? 'Melhor opção' : (r.minVenda > 0 ? (row.viavel ? 'Dentro do mínimo' : 'Abaixo do mínimo') : 'Simulado');
-        return '<div class="smCompareRow' + (row.melhor ? ' best' : '') + '">' +
-          '<div><span class="lbl">Prazo</span><span class="v">' + row.prazo + 'x</span></div>' +
-          '<div><span class="lbl">Parcela</span><span class="v">' + UI.brl(row.parcela) + '</span></div>' +
-          '<div><span class="lbl">Rebate — custo comercial</span><span class="v">' + UI.brl(row.rebateValor) + '</span></div>' +
-          '<div><span class="lbl">Valor final de venda</span><span class="v">' + UI.brl(row.valorFinalVenda) + '</span></div>' +
-          '<span class="smPill ' + pillCls + '">' + status + '</span></div>';
+      var cards = byTaxa[taxa].sort(function (a, b) { return a.prazo - b.prazo; }).map(function (row) {
+        // Gate 20: "Simulado" (shown identically on every card when no
+        // minVenda is set) carried 0 differentiating information --
+        // removed. A pill now appears ONLY when it conveys something
+        // real: the engine's own "melhor" signal, or a genuine
+        // viability verdict once a minVenda is provided.
+        var pill = '';
+        if (row.melhor) pill = '<span class="smPill excellent">Melhor opção</span>';
+        else if (r.minVenda > 0) pill = '<span class="smPill ' + (row.viavel ? 'good' : 'bad') + '">' + (row.viavel ? 'Dentro do mínimo' : 'Abaixo do mínimo') + '</span>';
+        return '<div class="smSubsidiadaCard' + (row.melhor ? ' best' : '') + '">' +
+          '<div class="smSubsidiadaCardHead"><span class="smSubsidiadaCardPrazo">' + row.prazo + 'x</span><span class="smSubsidiadaCardTaxa">' + UI.pct2(row.taxa) + '</span></div>' +
+          (pill ? '<div class="smSubsidiadaCardPill">' + pill + '</div>' : '') +
+          '<div class="smSubsidiadaCardRow"><span class="kpiLabel">Parcela</span><strong>' + UI.brl(row.parcela) + '</strong></div>' +
+          '<div class="smSubsidiadaCardRow smSubsidiadaCardRowEmphasis"><span class="kpiLabel">Rebate — custo comercial</span><strong>' + UI.brl(row.rebateValor) + '</strong></div>' +
+          '<div class="smSubsidiadaCardRow smSubsidiadaCardRowEmphasis"><span class="kpiLabel">Valor final de venda</span><strong>' + UI.brl(row.valorFinalVenda) + '</strong></div>' +
+          '</div>';
       }).join('');
-      return '<div class="smCompareGroup"><div class="smCompareGroupHead"><strong>Taxa ' + UI.pct2(Number(taxa)) + '</strong></div>' + rows + '</div>';
+      return '<div class="smSubsidiadaGroup"><p class="smSubsidiadaGroupHead">Taxa ' + UI.pct2(Number(taxa)) + '</p><div class="smSubsidiadaGrid">' + cards + '</div></div>';
     }).join('');
-    setResult('<div class="smCompareGroups">' + groupsHtml + '</div>' +
+    setResult('<div class="smSubsidiadaGroups">' + groupsHtml + '</div>' +
       '<p class="smFootnote">Rebate é o custo comercial da taxa subsidiada — nunca um desconto concedido ao cliente. Valor final de venda já considera o valor líquido para a loja.</p>');
   }
   function calcTriton() {
@@ -421,6 +493,13 @@
       { label: 'Rebate HPE', value: UI.brl(r.rebateHpe) },
       { label: 'Valor final de venda', value: UI.brl(r.valorFinalVenda) }
     ]);
+    // Gate 9: Triton's own schedule -- S.SEMESTRAL_TRITON_MESES is the
+    // frozen shared constant both engines' formulas are built on
+    // (PORTAL-NEXT-08 Gate 49), not assumed identical to generic
+    // Semestral/Anual; prazoTotal is derived from it (its own max), not
+    // a separate hardcoded number.
+    var tritonMeses = S.SEMESTRAL_TRITON_MESES;
+    html += scheduleBlockHtml({ prazoTotal: Math.max.apply(null, tritonMeses), periodicidade: 'Semestral', meses: tritonMeses });
     setResult(html + '<p class="smFootnote">Entrada fixa por modelo — não permite alteração manual.</p>');
   }
   function calcDescobridor() {
@@ -477,7 +556,7 @@
         '<div class="smHeader"><div><h1>Simulador de Financiamento — Novos</h1><p>Motores extraídos e verificados (PORTAL-NEXT-08) — 0 recálculo de fórmula nesta interface.</p></div></div>' +
         '<div id="smModeNavRegion">' + modeNavHtml() + '</div>' +
         '<p class="smModeDesc" id="smModeDesc"></p>' +
-        '<div class="smGrid"><div class="smFormCard" id="smFormRegion"></div><div class="smResultCard" id="smResultRegion" aria-live="polite" aria-atomic="true"></div></div>' +
+        '<div class="smGrid" id="smMainGrid"><div class="smFormCard" id="smFormRegion"></div><div class="smResultCard" id="smResultRegion" aria-live="polite" aria-atomic="true"></div></div>' +
         '</div>';
       wireModeNav();
       renderModeArea();

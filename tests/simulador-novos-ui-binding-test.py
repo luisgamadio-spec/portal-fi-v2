@@ -267,7 +267,8 @@ def main():
             if c.get("expect_error"):
                 ok = has_error_state() and adapter_r.get("error") is not None
             else:
-                ui_rows = page.evaluate("document.querySelectorAll('.smCompareRow').length")
+                # PORTAL-NEXT-08.3 Change 5: rows -> comparison cards.
+                ui_rows = page.evaluate("document.querySelectorAll('.smSubsidiadaCard').length")
                 ok = not has_error_state() and ui_rows == len(adapter_r["rows"]) == 32
             results.append((f"Subsidiadas/{c['id']}", ok))
 
