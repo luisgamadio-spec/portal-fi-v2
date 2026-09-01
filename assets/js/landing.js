@@ -22,6 +22,30 @@
     'simulador-seminovos': 'SM', 'brabus-intelligence': 'AI', 'shell-admin': 'AU'
   };
 
+  /* ---------- Shell Wave 2A: sidebar information architecture ----------
+     Human-approved grouping (PORTAL V2 SHELL WAVE 2A, Decision 1) —
+     deliberately DIFFERENT from config/landing-groups.json's own
+     category grammar (Landing is frozen, unrelated taxonomy; do not
+     conflate the two). Painel do Analista F&I / Central de Atendimento
+     F&I are explicitly NOT added yet (recorded as a future decision,
+     see docs). brabus-intelligence is not part of the approved groups
+     for this Wave and is intentionally omitted from the sidebar. */
+  var NAV_GROUPS = [
+    { label: 'Visão Geral', moduleIds: ['dashbi', 'gestao'] },
+    { label: 'Remuneração', moduleIds: ['score', 'coparticipado', 'salarios-comissoes'] },
+    { label: 'Simuladores', moduleIds: ['simulador-novos', 'simulador-seminovos'] },
+    { label: 'Administração', moduleIds: ['shell-admin'] }
+  ];
+
+  /* ---------- Shell Wave 2A: local-only mock user for the header's
+     user-context area. Presentation only — feeds no authorization
+     decision anywhere (same discipline as Wave 2's fixture provider).
+     A multi-profile switcher is explicitly deferred to Wave 2C. */
+  var MOCK_USER = { name: 'Marina Ferreira', profile: 'ANALISTA', store: 'Barra Funda', department: 'Novos + Seminovos' };
+  function userInitials(name) {
+    return String(name || '').split(' ').filter(Boolean).slice(0, 2).map(function (p) { return p[0]; }).join('').toUpperCase();
+  }
+
   var landingGroups = null;
   var landingAmbientMount = null;
   var lastRoute = null;
@@ -39,22 +63,58 @@
     });
   }
 
-  /* ---------- persistent chrome (Gate 7: only what Landing needs) ---------- */
+  /* ---------- persistent chrome (Shell Wave 2A: grouped sidebar + user area) ---------- */
+  function navItemHtml(id, activeRouteId) {
+    var m = window.NX_REGISTRY.byId(id);
+    if (!m) return '';
+    var code = NAV_ICONS[id] || id.slice(0, 2).toUpperCase();
+    var label = esc(m.landingTitle || m.name);
+    if (m.migrationStatus === 'NOT_MIGRATED') {
+      // Gate 3: visible so the information architecture reads as
+      // complete, but explicitly non-navigable — never implies
+      // functionality that does not exist yet.
+      return '<span class="pNavItem pNavItemDeferred" aria-disabled="true">' +
+        '<span class="pNavIcon">' + code + '</span><span class="pNavLabel">' + label + '</span>' +
+        '<span class="pNavSoon">Em breve</span></span>';
+    }
+    var active = activeRouteId === id;
+    return '<a href="#/' + id + '" class="pNavItem' + (active ? ' active' : '') + '"' + (active ? ' aria-current="page"' : '') + '>' +
+      '<span class="pNavIcon">' + code + '</span><span class="pNavLabel">' + label + '</span></a>';
+  }
+
   function renderGlobalNav(activeRouteId) {
-    var modules = window.NX_REGISTRY.modules;
-    var html = '<div class="brandMark" title="Brabus F&amp;I">B</div>' +
-      '<a href="#/landing" class="gNavBtn' + (activeRouteId === 'landing' ? ' active' : '') + '" aria-label="Landing">' + NAV_ICONS.landing + '</a>';
-    modules.forEach(function (m) {
-      if (m.id === 'landing') return;
-      var code = NAV_ICONS[m.id] || m.id.slice(0, 2).toUpperCase();
-      html += '<a href="#/' + m.id + '" class="gNavBtn' + (activeRouteId === m.id ? ' active' : '') + '" aria-label="' + esc(m.name) + '" title="' + esc(m.name) + '">' + code + '</a>';
-    });
+    var groupsHtml = NAV_GROUPS.map(function (g) {
+      var itemsHtml = g.moduleIds.map(function (id) { return navItemHtml(id, activeRouteId); }).join('');
+      if (!itemsHtml) return '';
+      return '<div class="pNavGroup"><div class="pNavGroupLabel">' + esc(g.label) + '</div>' + itemsHtml + '</div>';
+    }).join('');
+    var html =
+      '<a href="#/landing" class="pBrand" aria-label="Portal F&amp;I — início">' +
+        '<span class="brandMark" aria-hidden="true">B</span><span class="pBrandWord">Portal F&amp;I</span>' +
+      '</a>' +
+      '<div class="pNavGroups">' + groupsHtml + '</div>';
     document.getElementById('pGlobalNav').innerHTML = html;
   }
 
   function renderTopBar(entry) {
     var bc = document.getElementById('pBreadcrumb');
-    if (bc) bc.innerHTML = 'Portal F&amp;I <span style="margin:0 6px">/</span> <b>' + esc(entry ? entry.name : 'Landing') + '</b>';
+    // landingTitle (same clean display name used in the sidebar/Landing
+    // cards) reads better here than the registry's raw `name`, which
+    // sometimes carries a technical suffix (e.g. "Gestão (analise-fi-grupo)").
+    if (bc) bc.innerHTML = 'Portal F&amp;I <span style="margin:0 6px">/</span> <b>' + esc(entry ? (entry.landingTitle || entry.name) : 'Landing') + '</b>';
+    var userArea = document.getElementById('pUserArea');
+    // Rendered once — this is static local mock context, not per-route data.
+    if (userArea && !userArea.dataset.rendered) {
+      userArea.innerHTML =
+        '<div class="pUserChip">' +
+          '<span class="pUserAvatar" aria-hidden="true">' + esc(userInitials(MOCK_USER.name)) + '</span>' +
+          '<span class="pUserInfo">' +
+            '<span class="pUserName">' + esc(MOCK_USER.name) + '<span class="pUserBadge">' + esc(MOCK_USER.profile) + '</span></span>' +
+            '<span class="pUserContext">' + esc(MOCK_USER.store) + ' · ' + esc(MOCK_USER.department) + '</span>' +
+          '</span>' +
+        '</div>';
+      userArea.dataset.rendered = '1';
+    }
   }
 
   /* ---------- Landing HTML (transplanted from pages.js pageLanding/landingModuleBlockHtml) ---------- */
@@ -166,6 +226,14 @@
 
       if (routeId === 'landing') {
         return loadGroups().then(function (groups) {
+          // Shell Wave 2A fix: landing's own fetch can resolve AFTER a
+          // newer navigation has already started (e.g. the default cold
+          // boot route is 'landing', and the user/a deep link navigates
+          // elsewhere before config/landing-groups.json returns) —
+          // without this guard, this stale resolution would overwrite
+          // whatever the newer route already rendered into the shared
+          // outlet. Route id is the router's own source of truth.
+          if (window.NX_ROUTER.currentRouteId() !== routeId) return;
           document.getElementById('nxContentOutlet').innerHTML = landingHtml(groups);
           mountLandingAmbient();
           wireLanding(groups);

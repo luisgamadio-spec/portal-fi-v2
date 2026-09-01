@@ -86,7 +86,72 @@ html, body {
   border: 1px solid var(--color-hairline-strong);
   border-radius: var(--radius-sm);
   padding: 2px var(--space-2);
+  margin-bottom: var(--space-3);
 }
+.nxStatusTagError {
+  color: var(--color-critical);
+  border-color: var(--color-critical);
+}
+
+/* ---------- Shell Wave 2A Gate 14: deferred/not-migrated state ---------- */
+.nxDeferredState .nxMetaDetails {
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--color-hairline);
+  padding-top: var(--space-4);
+}
+.nxDeferredState .nxMetaDetails summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--color-text-muted);
+}
+.nxDeferredState .nxMetaDetails summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+.nxDeferredState .nxMeta {
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+}
+.nxDeferredState .nxMeta dt { color: var(--color-text-muted); }
+.nxDeferredState .nxMeta dd { margin: 0; color: var(--color-text-secondary); }
+.nxDeferredHome {
+  display: inline-block;
+  margin-top: var(--space-3);
+  color: var(--color-accent-primary);
+  font-size: 13px;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.nxDeferredHome:hover { border-bottom-color: var(--color-accent-primary); }
+.nxDeferredHome:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+/* ---------- Shell Wave 2A Gate 12: module loading state (static, no
+   animation — Gate 17 defers motion/polish to a later pass) ---------- */
+.nxModuleLoading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  padding: var(--space-4) 0;
+}
+.nxModuleLoadingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  flex-shrink: 0;
+}
+
+/* ---------- Shell Wave 2A Gate 13: module error state ---------- */
+.nxModuleError { max-width: 640px; }
 
 /* ---------- overlay / modal roots (Gate 10) ---------- */
 #nxOverlayRoot,

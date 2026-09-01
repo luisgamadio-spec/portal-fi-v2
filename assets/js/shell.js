@@ -32,87 +32,121 @@
     }
   };
 
+  /* ---------- Shell Wave 2A Gate 9/22 fix: move focus to the outlet on
+     a real navigation (Gate 24 accessibility requirement, pre-existing)
+     WITHOUT the browser's default scroll-into-view, which does not
+     account for the sticky top bar and was scrolling exactly the top
+     bar's height, tucking the new module's first paint under it. Scroll
+     to the top explicitly instead — the correct behavior for a fresh
+     route render regardless of where the previous module had scrolled to. */
+  function focusOutletForNavigation(outlet) {
+    outlet.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------- Shell Wave 2A Gate 14: not-migrated / deferred state.
+     Leads with a calm, human-readable message; keeps the diagnostic
+     metadata (useful for development) but demoted into a <details> so
+     it doesn't read as a developer-only dump. */
   function renderPlaceholder(entry, routeId, moveFocus) {
     var outlet = document.getElementById('nxContentOutlet');
     if (!entry) {
       outlet.innerHTML =
-        '<div class="nxPlaceholder"><h1>Route not found</h1>' +
-        '<p><span class="nxStatusTag">#/' + routeId + '</span> is not in the module registry.</p></div>';
+        '<div class="nxPlaceholder"><h1>Página não encontrada</h1>' +
+        '<p><span class="nxStatusTag">#/' + routeId + '</span> não existe no registro de módulos.</p></div>';
+      if (moveFocus) focusOutletForNavigation(outlet);
       return;
     }
     outlet.innerHTML =
-      '<div class="nxPlaceholder">' +
-      '<h1>' + entry.name + '</h1>' +
-      '<p>' + entry.title + '</p>' +
-      '<span class="nxStatusTag">' + entry.migrationStatus + '</span>' +
+      '<div class="nxPlaceholder nxDeferredState">' +
+      '<span class="nxStatusTag">Em breve</span>' +
+      '<h1>' + (entry.landingTitle || entry.name) + '</h1>' +
+      '<p>Em preparação para o Portal V2. Esta área ainda não está disponível — volte em breve.</p>' +
+      '<a class="nxDeferredHome" href="#/landing">Voltar para o início</a>' +
+      '<details class="nxMetaDetails"><summary>Detalhes técnicos</summary>' +
       '<dl class="nxMeta">' +
-      '<dt>route</dt><dd>#/' + entry.id + '</dd>' +
-      '<dt>density</dt><dd>' + entry.density + '</dd>' +
-      '<dt>auth</dt><dd>' + entry.authRequirement + '</dd>' +
-      '<dt>design pattern</dt><dd>' + entry.designPattern + '</dd>' +
-      '<dt>migration wave</dt><dd>' + entry.migrationWave + '</dd>' +
-      '</dl>' +
+      '<dt>rota</dt><dd>#/' + entry.id + '</dd>' +
+      '<dt>status</dt><dd>' + entry.migrationStatus + '</dd>' +
+      '<dt>densidade</dt><dd>' + entry.density + '</dd>' +
+      '<dt>autenticação</dt><dd>' + entry.authRequirement + '</dd>' +
+      '<dt>padrão de design</dt><dd>' + entry.designPattern + '</dd>' +
+      '<dt>wave</dt><dd>' + entry.migrationWave + '</dd>' +
+      '</dl></details>' +
       '</div>';
-    // Move focus to the outlet only on a REAL navigation (user clicked
-    // a nav item / changed the hash) — never on the very first render
-    // during boot, which would steal focus away from the page's
-    // natural top-of-DOM tab order (the skip link must be tab stop 1
-    // on cold load, per Gate 24).
     if (moveFocus) outlet.focus();
   }
 
+  /* ---------- Shell Wave 2A Gate 12: subtle, static loading state.
+     No animation (Gate 17 — no motion/polish this Wave); reuses the
+     same "Carregando…" language already established by index.html's
+     own cold-load placeholder (Gate 15 — no new pattern invented). */
+  function showModuleLoading(outlet) {
+    outlet.innerHTML = '<div class="nxModuleLoading"><span class="nxModuleLoadingDot" aria-hidden="true"></span>Carregando módulo…</div>';
+  }
+
+  /* ---------- Shell Wave 2A Gate 13: structural module-load failure
+     state. NOT backend/RPC error handling — this only covers the
+     module's own render() promise rejecting. */
+  function renderModuleError(outlet, entry, err) {
+    var name = entry ? entry.name : 'este módulo';
+    outlet.innerHTML =
+      '<div class="nxPlaceholder nxModuleError">' +
+      '<span class="nxStatusTag nxStatusTagError">Falha ao carregar</span>' +
+      '<h1>Não foi possível abrir ' + name + '</h1>' +
+      '<p>Ocorreu um erro ao carregar este módulo. Você pode tentar novamente ou voltar para o início.</p>' +
+      '<a class="nxDeferredHome" href="#/landing">Voltar para o início</a>' +
+      '</div>';
+    console.error('[shell] module render failed for route', entry && entry.id, err);
+  }
+
+  /* ---------- Shell Wave 2A Gate 7: data-driven module dispatch.
+     Replaces the prior hand-written if/else-if chain (one clause per
+     migrated module) with a small declarative map from route id to the
+     page global it registers — still explicit (module globals don't
+     follow one predictable naming rule), but adding a module is now a
+     one-line registration instead of a new branch, and every module
+     gets the same loading/error handling for free. */
+  var MODULE_PAGES = {
+    score: 'NX_SCORE_PAGE',
+    coparticipado: 'NX_COPARTICIPADO_PAGE',
+    gestao: 'NX_GESTAO_PAGE',
+    dashbi: 'NX_DASHBI_PAGE',
+    'simulador-novos': 'NX_SIMULADOR_NOVOS_PAGE',
+    'simulador-seminovos': 'NX_SIMULADOR_SEMINOVOS_PAGE'
+  };
+
   var hasRenderedOnce = false;
+  function dispatchModule(routeId, entry) {
+    var pageGlobalName = MODULE_PAGES[routeId];
+    var page = pageGlobalName && window[pageGlobalName];
+    var outlet = document.getElementById('nxContentOutlet');
+    if (!page) {
+      renderPlaceholder(entry, routeId, hasRenderedOnce);
+      return Promise.resolve();
+    }
+    showModuleLoading(outlet);
+    return page.render(outlet).then(function () {
+      if (hasRenderedOnce) focusOutletForNavigation(outlet);
+    }).catch(function (err) {
+      renderModuleError(outlet, entry, err);
+    });
+  }
+
+  // Defense in depth alongside landing.js's own currentRouteId() guard:
+  // if a newer route dispatch has started before this one's async chain
+  // finishes, skip its remaining side effects (module dispatch, design
+  // trace) rather than letting a stale navigation act after the fact.
+  var routeToken = 0;
   function onRouteChange(routeId) {
+    var myToken = ++routeToken;
     var entry = window.NX_REGISTRY.byId(routeId);
     window.NX_LANDING.renderRoute(routeId, entry).then(function () {
+      if (myToken !== routeToken) return;
       if (!window.NX_LANDING.isLandingRoute(routeId)) {
-        if (routeId === 'score' && window.NX_SCORE_PAGE) {
-          // Gate 26/27: real Score route, shell/outlet unchanged —
-          // NX_SCORE_PAGE only renders INTO the same #nxContentOutlet
-          // every other route already uses.
-          var outlet = document.getElementById('nxContentOutlet');
-          window.NX_SCORE_PAGE.render(outlet).then(function () {
-            if (hasRenderedOnce) outlet.focus();
-          });
-        } else if (routeId === 'coparticipado' && window.NX_COPARTICIPADO_PAGE) {
-          // PORTAL-NEXT-05 Gate 28: real Coparticipado route, same
-          // outlet-only rendering contract as Score.
-          var cpOutlet = document.getElementById('nxContentOutlet');
-          window.NX_COPARTICIPADO_PAGE.render(cpOutlet).then(function () {
-            if (hasRenderedOnce) cpOutlet.focus();
-          });
-        } else if (routeId === 'gestao' && window.NX_GESTAO_PAGE) {
-          // PORTAL-NEXT-06 Gate 40: real Gestão route, same outlet-only
-          // rendering contract as Score/Coparticipado.
-          var geOutlet = document.getElementById('nxContentOutlet');
-          window.NX_GESTAO_PAGE.render(geOutlet).then(function () {
-            if (hasRenderedOnce) geOutlet.focus();
-          });
-        } else if (routeId === 'dashbi' && window.NX_DASHBI_PAGE) {
-          // PORTAL-NEXT-07 Gate 99: real Dashbi route, same outlet-only
-          // rendering contract as every prior module.
-          var dbOutlet = document.getElementById('nxContentOutlet');
-          window.NX_DASHBI_PAGE.render(dbOutlet).then(function () {
-            if (hasRenderedOnce) dbOutlet.focus();
-          });
-        } else if (routeId === 'simulador-novos' && window.NX_SIMULADOR_NOVOS_PAGE) {
-          // PORTAL-NEXT-08.1: real Simulador Novos route, same
-          // outlet-only rendering contract as every prior module.
-          var snOutlet = document.getElementById('nxContentOutlet');
-          window.NX_SIMULADOR_NOVOS_PAGE.render(snOutlet).then(function () {
-            if (hasRenderedOnce) snOutlet.focus();
-          });
-        } else if (routeId === 'simulador-seminovos' && window.NX_SIMULADOR_SEMINOVOS_PAGE) {
-          // PORTAL-NEXT-08.1: real Simulador Seminovos route, same
-          // outlet-only rendering contract as every prior module.
-          var ssOutlet = document.getElementById('nxContentOutlet');
-          window.NX_SIMULADOR_SEMINOVOS_PAGE.render(ssOutlet).then(function () {
-            if (hasRenderedOnce) ssOutlet.focus();
-          });
-        } else {
-          renderPlaceholder(entry, routeId, hasRenderedOnce);
-        }
+        return dispatchModule(routeId, entry);
       }
+    }).then(function () {
+      if (myToken !== routeToken) return;
       window.NX_DESIGN_TRACE.render(entry, routeId);
       hasRenderedOnce = true;
     });

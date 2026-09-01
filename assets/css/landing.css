@@ -109,3 +109,34 @@ body.landing-active #nxContentOutlet{padding:0;max-width:none;flex:none}
    not present in the reference's own fictional prototype, which used a
    text "B" brandMark only) ---------- */
 .pHeaderLogo{height:20px;width:auto;display:block}
+
+/* ---------- Shell Wave 2A: grouped sidebar + top-bar user area ----------
+   V2-SPECIFIC ADDITION, beyond the flat reference's icon-only rail —
+   the reference had no grouping/label concept to transplant here. Every
+   value is still a var() from tokens.css; no new hex/radius/shadow
+   introduced (Gate 15). .pGlobalNav's width/alignment are intentionally
+   overridden below (documented deviation, same discipline as the
+   body.landing-active override above) because a labeled, grouped nav
+   cannot fit a 64px icon-only rail. .pUserArea/.pUserChip/.pUserAvatar
+   above are reused as-is; only their inner sub-elements are new. */
+.pGlobalNav{width:232px;align-items:stretch;padding:20px 0;gap:0;overflow-y:auto}
+.pBrand{display:flex;align-items:center;gap:10px;padding:0 16px;margin:0 8px 22px;text-decoration:none;color:var(--color-text-primary)}
+.pBrand:focus-visible{outline:var(--focus-ring);outline-offset:2px;border-radius:var(--radius-sm)}
+.pBrandWord{font-family:var(--font-ui);font-size:13px;font-weight:500;letter-spacing:-.01em}
+.pNavGroups{display:flex;flex-direction:column}
+.pNavGroup + .pNavGroup{margin-top:16px}
+.pNavGroupLabel{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-muted);padding:0 16px;margin:0 8px 6px}
+.pGlobalNav .pNavItem{display:flex;align-items:center;gap:10px;padding:8px 14px;margin:0 8px 2px;border-radius:var(--radius-sm);color:var(--color-text-muted);text-decoration:none;font-family:var(--font-ui);font-size:12.5px;border-left:2px solid transparent}
+.pGlobalNav .pNavItem:hover{color:var(--color-text-secondary);background:rgba(255,255,255,.04)}
+.pGlobalNav .pNavItem.active{color:var(--color-text-primary);border-left-color:var(--color-accent-primary);background:rgba(238,75,87,.08)}
+.pGlobalNav .pNavItem:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+.pGlobalNav .pNavItem .pNavIcon{font-family:var(--font-mono);font-size:9.5px;color:inherit;width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;background:var(--color-surface-2);flex-shrink:0}
+.pGlobalNav .pNavItem.active .pNavIcon{color:var(--color-accent-primary)}
+.pNavLabel{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pGlobalNav .pNavItemDeferred{display:flex;align-items:center;gap:10px;padding:8px 14px;margin:0 8px 2px;border-radius:var(--radius-sm);color:var(--color-text-muted);opacity:.5;cursor:default;border-left:2px solid transparent}
+.pNavSoon{font-family:var(--font-mono);font-size:8px;letter-spacing:.05em;text-transform:uppercase;color:var(--color-text-muted);border:1px solid var(--color-hairline-strong);border-radius:var(--radius-sm);padding:1px 5px;flex-shrink:0}
+
+.pUserInfo{display:flex;flex-direction:column;gap:1px;line-height:1.25}
+.pUserName{display:flex;align-items:center;gap:6px;color:var(--color-text-primary);font-size:12.5px;font-weight:500}
+.pUserBadge{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.05em;color:var(--color-accent-primary);border:1px solid rgba(238,75,87,.35);border-radius:var(--radius-sm);padding:1px 5px}
+.pUserContext{font-size:10.5px;color:var(--color-text-muted)}
