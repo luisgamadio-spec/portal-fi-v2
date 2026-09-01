@@ -1,0 +1,1087 @@
+{
+  "note": "Synthetic, deterministic sample data mirroring the operational_fandi_dashboard RPC response shape (Wave 1 contract proof). No production/customer data. store field always uses canonical short codes.",
+  "master": {
+    "scope": {
+      "profile": "MASTER",
+      "store": null,
+      "departments": [
+        "NOVOS",
+        "SEMINOVOS"
+      ]
+    },
+    "period": {
+      "start": "2026-01-01",
+      "end": "2026-06-30"
+    },
+    "filters": {
+      "store": null,
+      "department": null
+    },
+    "source": {
+      "latest_validated_batch": "00000000-0000-4000-8000-000000000001"
+    },
+    "summary": {
+      "operational_quantity": 141,
+      "total_financed": 10980000
+    },
+    "stores": [
+      {
+        "store": "BANDEIRANTES",
+        "quantity": 30,
+        "new_quantity": 18,
+        "used_quantity": 12,
+        "new_average_financed": 90000,
+        "used_average_financed": 60000,
+        "new_average_installment": 2200,
+        "used_average_installment": 1600,
+        "balloon_quantity": 4,
+        "average_balloon": 15000,
+        "total_financed": 2340000
+      },
+      {
+        "store": "NACOES",
+        "quantity": 22,
+        "new_quantity": 13,
+        "used_quantity": 9,
+        "new_average_financed": 90000,
+        "used_average_financed": 60000,
+        "new_average_installment": 2200,
+        "used_average_installment": 1600,
+        "balloon_quantity": 3,
+        "average_balloon": 15000,
+        "total_financed": 1710000
+      },
+      {
+        "store": "BARRA FUNDA",
+        "quantity": 20,
+        "new_quantity": 12,
+        "used_quantity": 8,
+        "new_average_financed": 90000,
+        "used_average_financed": 60000,
+        "new_average_installment": 2200,
+        "used_average_installment": 1600,
+        "balloon_quantity": 3,
+        "average_balloon": 15000,
+        "total_financed": 1560000
+      },
+      {
+        "store": "ALPHAVILLE",
+        "quantity": 18,
+        "new_quantity": 11,
+        "used_quantity": 7,
+        "new_average_financed": 90000,
+        "used_average_financed": 60000,
+        "new_average_installment": 2200,
+        "used_average_installment": 1600,
+        "balloon_quantity": 3,
+        "average_balloon": 15000,
+        "total_financed": 1410000
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "quantity": 15,
+        "new_quantity": 9,
+        "used_quantity": 6,
+        "new_average_financed": 90000,
+        "used_average_financed": 60000,
+        "new_average_installment": 2200,
+        "used_average_installment": 1600,
+        "balloon_quantity": 2,
+        "average_balloon": 15000,
+        "total_financed": 1170000
+      },
+      {
+        "store": "GASTAO",
+        "quantity": 14,
+        "new_quantity": 8,
+        "used_quantity": 6,
+        "new_average_financed": 90000,
+        "used_average_financed": 60000,
+        "new_average_installment": 2200,
+        "used_average_installment": 1600,
+        "balloon_quantity": 2,
+        "average_balloon": 15000,
+        "total_financed": 1080000
+      },
+      {
+        "store": "ABC",
+        "quantity": 12,
+        "new_quantity": 7,
+        "used_quantity": 5,
+        "new_average_financed": 90000,
+        "used_average_financed": 60000,
+        "new_average_installment": 2200,
+        "used_average_installment": 1600,
+        "balloon_quantity": 2,
+        "average_balloon": 15000,
+        "total_financed": 930000
+      },
+      {
+        "store": "EUROPA",
+        "quantity": 10,
+        "new_quantity": 6,
+        "used_quantity": 4,
+        "new_average_financed": 90000,
+        "used_average_financed": 60000,
+        "new_average_installment": 2200,
+        "used_average_installment": 1600,
+        "balloon_quantity": 2,
+        "average_balloon": 15000,
+        "total_financed": 780000
+      }
+    ],
+    "banks": [
+      {
+        "bank": "BANCO A",
+        "quantity": 57,
+        "total_financed": 4410000.0,
+        "average_financed": 77368.42,
+        "new_financed": 2970000.0,
+        "used_financed": 1440000.0
+      },
+      {
+        "bank": "BANCO B",
+        "quantity": 50,
+        "total_financed": 3900000.0,
+        "average_financed": 78000.0,
+        "new_financed": 2700000.0,
+        "used_financed": 1200000.0
+      },
+      {
+        "bank": "BANCO C",
+        "quantity": 34,
+        "total_financed": 2640000.0,
+        "average_financed": 77647.06,
+        "new_financed": 1800000.0,
+        "used_financed": 840000.0
+      }
+    ],
+    "status_by_store": [
+      {
+        "store": "ABC",
+        "status": "AG. FATURAMENTO",
+        "quantity": 1,
+        "financed_value": 77500.0
+      },
+      {
+        "store": "ABC",
+        "status": "FATURADA",
+        "quantity": 4,
+        "financed_value": 310000.0
+      },
+      {
+        "store": "ABC",
+        "status": "PAGA",
+        "quantity": 7,
+        "financed_value": 542500.0
+      },
+      {
+        "store": "ALPHAVILLE",
+        "status": "AG. FATURAMENTO",
+        "quantity": 2,
+        "financed_value": 156666.67
+      },
+      {
+        "store": "ALPHAVILLE",
+        "status": "FATURADA",
+        "quantity": 5,
+        "financed_value": 391666.67
+      },
+      {
+        "store": "ALPHAVILLE",
+        "status": "PAGA",
+        "quantity": 11,
+        "financed_value": 861666.67
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "status": "AG. FATURAMENTO",
+        "quantity": 1,
+        "financed_value": 78000.0
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "status": "FATURADA",
+        "quantity": 5,
+        "financed_value": 390000.0
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "status": "PAGA",
+        "quantity": 9,
+        "financed_value": 702000.0
+      },
+      {
+        "store": "BANDEIRANTES",
+        "status": "AG. FATURAMENTO",
+        "quantity": 3,
+        "financed_value": 234000.0
+      },
+      {
+        "store": "BANDEIRANTES",
+        "status": "FATURADA",
+        "quantity": 9,
+        "financed_value": 702000.0
+      },
+      {
+        "store": "BANDEIRANTES",
+        "status": "PAGA",
+        "quantity": 18,
+        "financed_value": 1404000.0
+      },
+      {
+        "store": "BARRA FUNDA",
+        "status": "AG. FATURAMENTO",
+        "quantity": 2,
+        "financed_value": 156000.0
+      },
+      {
+        "store": "BARRA FUNDA",
+        "status": "FATURADA",
+        "quantity": 6,
+        "financed_value": 468000.0
+      },
+      {
+        "store": "BARRA FUNDA",
+        "status": "PAGA",
+        "quantity": 12,
+        "financed_value": 936000.0
+      },
+      {
+        "store": "EUROPA",
+        "status": "AG. FATURAMENTO",
+        "quantity": 1,
+        "financed_value": 78000.0
+      },
+      {
+        "store": "EUROPA",
+        "status": "FATURADA",
+        "quantity": 3,
+        "financed_value": 234000.0
+      },
+      {
+        "store": "EUROPA",
+        "status": "PAGA",
+        "quantity": 6,
+        "financed_value": 468000.0
+      },
+      {
+        "store": "GASTAO",
+        "status": "AG. FATURAMENTO",
+        "quantity": 1,
+        "financed_value": 77142.86
+      },
+      {
+        "store": "GASTAO",
+        "status": "FATURADA",
+        "quantity": 4,
+        "financed_value": 308571.43
+      },
+      {
+        "store": "GASTAO",
+        "status": "PAGA",
+        "quantity": 9,
+        "financed_value": 694285.71
+      },
+      {
+        "store": "NACOES",
+        "status": "AG. FATURAMENTO",
+        "quantity": 2,
+        "financed_value": 155454.55
+      },
+      {
+        "store": "NACOES",
+        "status": "FATURADA",
+        "quantity": 7,
+        "financed_value": 544090.91
+      },
+      {
+        "store": "NACOES",
+        "status": "PAGA",
+        "quantity": 13,
+        "financed_value": 1010454.55
+      }
+    ],
+    "status_by_bank": [
+      {
+        "bank": "BANCO A",
+        "status": "AG. FATURAMENTO",
+        "quantity": 4,
+        "financed_value": 280520.97
+      },
+      {
+        "bank": "BANCO A",
+        "status": "FATURADA",
+        "quantity": 18,
+        "financed_value": 1353909.04
+      },
+      {
+        "bank": "BANCO A",
+        "status": "PAGA",
+        "quantity": 34,
+        "financed_value": 2676053.05
+      },
+      {
+        "bank": "BANCO B",
+        "status": "AG. FATURAMENTO",
+        "quantity": 4,
+        "financed_value": 249151.15
+      },
+      {
+        "bank": "BANCO B",
+        "status": "FATURADA",
+        "quantity": 15,
+        "financed_value": 1186744.21
+      },
+      {
+        "bank": "BANCO B",
+        "status": "PAGA",
+        "quantity": 30,
+        "financed_value": 2347052.75
+      },
+      {
+        "bank": "BANCO C",
+        "status": "AG. FATURAMENTO",
+        "quantity": 2,
+        "financed_value": 98118.52
+      },
+      {
+        "bank": "BANCO C",
+        "status": "FATURADA",
+        "quantity": 11,
+        "financed_value": 807675.78
+      },
+      {
+        "bank": "BANCO C",
+        "status": "PAGA",
+        "quantity": 20,
+        "financed_value": 1595801.12
+      }
+    ],
+    "plans": [
+      {
+        "plan_type": "SUBSIDIADO",
+        "quantity": 9,
+        "financed_value": 810000.0
+      },
+      {
+        "plan_type": "REVERSÃO",
+        "quantity": 14,
+        "financed_value": 1050000.0
+      },
+      {
+        "plan_type": "COPARTICIPADO",
+        "quantity": 11,
+        "financed_value": 990000.0
+      },
+      {
+        "plan_type": "BALÃO",
+        "quantity": 28,
+        "financed_value": 2160000.0
+      },
+      {
+        "plan_type": "LINEAR",
+        "quantity": 79,
+        "financed_value": 5970000.0
+      }
+    ],
+    "plans_by_store_department": [
+      {
+        "store": "ABC",
+        "department": "NOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 1
+      },
+      {
+        "store": "ABC",
+        "department": "NOVOS",
+        "plan_type": "COPARTICIPADO",
+        "quantity": 1
+      },
+      {
+        "store": "ABC",
+        "department": "NOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 3
+      },
+      {
+        "store": "ABC",
+        "department": "NOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "ABC",
+        "department": "NOVOS",
+        "plan_type": "SUBSIDIADO",
+        "quantity": 1
+      },
+      {
+        "store": "ABC",
+        "department": "SEMINOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 1
+      },
+      {
+        "store": "ABC",
+        "department": "SEMINOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 3
+      },
+      {
+        "store": "ABC",
+        "department": "SEMINOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "NOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 2
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "NOVOS",
+        "plan_type": "COPARTICIPADO",
+        "quantity": 1
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "NOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 6
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "NOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "NOVOS",
+        "plan_type": "SUBSIDIADO",
+        "quantity": 1
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "SEMINOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 1
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "SEMINOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 5
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "SEMINOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "NOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 2
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "NOVOS",
+        "plan_type": "COPARTICIPADO",
+        "quantity": 1
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "NOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 4
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "NOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "NOVOS",
+        "plan_type": "SUBSIDIADO",
+        "quantity": 1
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "SEMINOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 1
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "SEMINOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 4
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "SEMINOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "NOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 4
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "NOVOS",
+        "plan_type": "COPARTICIPADO",
+        "quantity": 2
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "NOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 9
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "NOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "NOVOS",
+        "plan_type": "SUBSIDIADO",
+        "quantity": 2
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "SEMINOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 3
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "SEMINOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 8
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "SEMINOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "NOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 2
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "NOVOS",
+        "plan_type": "COPARTICIPADO",
+        "quantity": 2
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "NOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 6
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "NOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "NOVOS",
+        "plan_type": "SUBSIDIADO",
+        "quantity": 1
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "SEMINOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 2
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "SEMINOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 5
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "SEMINOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "EUROPA",
+        "department": "NOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 1
+      },
+      {
+        "store": "EUROPA",
+        "department": "NOVOS",
+        "plan_type": "COPARTICIPADO",
+        "quantity": 1
+      },
+      {
+        "store": "EUROPA",
+        "department": "NOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 3
+      },
+      {
+        "store": "EUROPA",
+        "department": "NOVOS",
+        "plan_type": "SUBSIDIADO",
+        "quantity": 1
+      },
+      {
+        "store": "EUROPA",
+        "department": "SEMINOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 1
+      },
+      {
+        "store": "EUROPA",
+        "department": "SEMINOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 3
+      },
+      {
+        "store": "GASTAO",
+        "department": "NOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 1
+      },
+      {
+        "store": "GASTAO",
+        "department": "NOVOS",
+        "plan_type": "COPARTICIPADO",
+        "quantity": 1
+      },
+      {
+        "store": "GASTAO",
+        "department": "NOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 4
+      },
+      {
+        "store": "GASTAO",
+        "department": "NOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "GASTAO",
+        "department": "NOVOS",
+        "plan_type": "SUBSIDIADO",
+        "quantity": 1
+      },
+      {
+        "store": "GASTAO",
+        "department": "SEMINOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 1
+      },
+      {
+        "store": "GASTAO",
+        "department": "SEMINOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 4
+      },
+      {
+        "store": "GASTAO",
+        "department": "SEMINOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "NACOES",
+        "department": "NOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 3
+      },
+      {
+        "store": "NACOES",
+        "department": "NOVOS",
+        "plan_type": "COPARTICIPADO",
+        "quantity": 2
+      },
+      {
+        "store": "NACOES",
+        "department": "NOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 6
+      },
+      {
+        "store": "NACOES",
+        "department": "NOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      },
+      {
+        "store": "NACOES",
+        "department": "NOVOS",
+        "plan_type": "SUBSIDIADO",
+        "quantity": 1
+      },
+      {
+        "store": "NACOES",
+        "department": "SEMINOVOS",
+        "plan_type": "BALÃO",
+        "quantity": 2
+      },
+      {
+        "store": "NACOES",
+        "department": "SEMINOVOS",
+        "plan_type": "LINEAR",
+        "quantity": 6
+      },
+      {
+        "store": "NACOES",
+        "department": "SEMINOVOS",
+        "plan_type": "REVERSÃO",
+        "quantity": 1
+      }
+    ],
+    "spf_extra": [
+      {
+        "store": "ABC",
+        "department": "NOVOS",
+        "spf_value": 5600,
+        "spf_70_value": 3920.0
+      },
+      {
+        "store": "ABC",
+        "department": "SEMINOVOS",
+        "spf_value": 2500,
+        "spf_70_value": 1750.0
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "NOVOS",
+        "spf_value": 8800,
+        "spf_70_value": 6160.0
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "SEMINOVOS",
+        "spf_value": 3500,
+        "spf_70_value": 2450.0
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "NOVOS",
+        "spf_value": 7200,
+        "spf_70_value": 5040.0
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "SEMINOVOS",
+        "spf_value": 3000,
+        "spf_70_value": 2100.0
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "NOVOS",
+        "spf_value": 14400,
+        "spf_70_value": 10080.0
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "SEMINOVOS",
+        "spf_value": 6000,
+        "spf_70_value": 4200.0
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "NOVOS",
+        "spf_value": 9600,
+        "spf_70_value": 6720.0
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "SEMINOVOS",
+        "spf_value": 4000,
+        "spf_70_value": 2800.0
+      },
+      {
+        "store": "EUROPA",
+        "department": "NOVOS",
+        "spf_value": 4800,
+        "spf_70_value": 3360.0
+      },
+      {
+        "store": "EUROPA",
+        "department": "SEMINOVOS",
+        "spf_value": 2000,
+        "spf_70_value": 1400.0
+      },
+      {
+        "store": "GASTAO",
+        "department": "NOVOS",
+        "spf_value": 6400,
+        "spf_70_value": 4480.0
+      },
+      {
+        "store": "GASTAO",
+        "department": "SEMINOVOS",
+        "spf_value": 3000,
+        "spf_70_value": 2100.0
+      },
+      {
+        "store": "NACOES",
+        "department": "NOVOS",
+        "spf_value": 10400,
+        "spf_70_value": 7280.0
+      },
+      {
+        "store": "NACOES",
+        "department": "SEMINOVOS",
+        "spf_value": 4500,
+        "spf_70_value": 3150.0
+      }
+    ],
+    "proposal_outcomes": [
+      {
+        "store": "ABC",
+        "department": "NOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 90000
+      },
+      {
+        "store": "ABC",
+        "department": "NOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 2,
+        "financed_value": 180000
+      },
+      {
+        "store": "ABC",
+        "department": "SEMINOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 60000
+      },
+      {
+        "store": "ABC",
+        "department": "SEMINOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 1,
+        "financed_value": 60000
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "NOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 90000
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "NOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 3,
+        "financed_value": 270000
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "SEMINOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 60000
+      },
+      {
+        "store": "ALPHAVILLE",
+        "department": "SEMINOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 2,
+        "financed_value": 120000
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "NOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 90000
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "NOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 2,
+        "financed_value": 180000
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "SEMINOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 60000
+      },
+      {
+        "store": "ANALIA FRANCO",
+        "department": "SEMINOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 2,
+        "financed_value": 120000
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "NOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 90000
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "NOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 4,
+        "financed_value": 360000
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "SEMINOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 60000
+      },
+      {
+        "store": "BANDEIRANTES",
+        "department": "SEMINOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 3,
+        "financed_value": 180000
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "NOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 90000
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "NOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 3,
+        "financed_value": 270000
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "SEMINOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 60000
+      },
+      {
+        "store": "BARRA FUNDA",
+        "department": "SEMINOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 2,
+        "financed_value": 120000
+      },
+      {
+        "store": "EUROPA",
+        "department": "NOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 90000
+      },
+      {
+        "store": "EUROPA",
+        "department": "NOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 2,
+        "financed_value": 180000
+      },
+      {
+        "store": "EUROPA",
+        "department": "SEMINOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 60000
+      },
+      {
+        "store": "EUROPA",
+        "department": "SEMINOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 1,
+        "financed_value": 60000
+      },
+      {
+        "store": "GASTAO",
+        "department": "NOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 90000
+      },
+      {
+        "store": "GASTAO",
+        "department": "NOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 2,
+        "financed_value": 180000
+      },
+      {
+        "store": "GASTAO",
+        "department": "SEMINOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 60000
+      },
+      {
+        "store": "GASTAO",
+        "department": "SEMINOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 2,
+        "financed_value": 120000
+      },
+      {
+        "store": "NACOES",
+        "department": "NOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 90000
+      },
+      {
+        "store": "NACOES",
+        "department": "NOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 3,
+        "financed_value": 270000
+      },
+      {
+        "store": "NACOES",
+        "department": "SEMINOVOS",
+        "outcome": "APROVADA",
+        "quantity": 1,
+        "financed_value": 60000
+      },
+      {
+        "store": "NACOES",
+        "department": "SEMINOVOS",
+        "outcome": "RECUSADA",
+        "quantity": 2,
+        "financed_value": 120000
+      }
+    ]
+  }
+}

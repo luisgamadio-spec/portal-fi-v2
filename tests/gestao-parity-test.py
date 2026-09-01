@@ -2,12 +2,24 @@
 """
 Gates 27-28 -- Gestão (Análise F&I do Grupo) Parity Harness.
 
+HISTORICAL RECORD ONLY since Wave 2 (RPC-shaped local contract
+reconciliation): the client-side upload/classification engine this
+test validates was retired from the active render path -- see
+assets/js/adapters/_gestao-legacy-upload-engine.js's header. The
+active adapter (assets/js/adapters/gestao.adapter.js) is now a thin
+response-shaping layer with no classification logic to hold parity
+against; store/business-rule authority moved to the production RPC
+(operational_fandi_dashboard, proven in Wave 1's backend contract
+proof). This test still runs, against the retired engine's own
+harness, to keep the hard-won parity proof intact as a historical
+record -- it says nothing about the current active Gestão surface.
+
 Compares PRODUCTION Gestão logic (an independently re-extracted copy at
 tests/fixtures/_gestao-reference.js, built directly from
 `git show origin/main:modules/analise-fi-grupo.html` via a SEPARATE
-extraction script/algorithm/wrapper than the one that assembled
-assets/js/adapters/gestao.adapter.js -- see docs/GESTAO-ENGINE-AUDIT.md
-and docs/GESTAO-FUNCTION-MAP.md) against V2's adapter across all 26
+extraction script/algorithm/wrapper than the one that assembled the
+retired engine -- see docs/GESTAO-ENGINE-AUDIT.md and docs/
+GESTAO-FUNCTION-MAP.md) against that retired engine across all 26
 golden fixtures in tests/fixtures/gestao-fixtures.json.
 
 Exact equality required (no floating tolerance) -- production's own
@@ -59,7 +71,7 @@ def main():
         adapter_page = browser.new_page()
         adapter_errors = []
         adapter_page.on("pageerror", lambda e: adapter_errors.append(str(e)))
-        adapter_page.goto("http://localhost:8700/portal-next-v2/tests/fixtures/_gestao-adapter-harness.html")
+        adapter_page.goto("http://localhost:8700/portal-next-v2/tests/fixtures/_gestao-legacy-upload-engine-harness.html")
         if adapter_errors:
             print("[FATAL] adapter page errors:", adapter_errors)
             sys.exit(1)
@@ -67,7 +79,7 @@ def main():
         results = []
         for case in fixtures:
             v2_result = adapter_page.evaluate(
-                "(fixture) => window.NX_GESTAO_ADAPTER.compute(fixture)",
+                "(fixture) => window.NX_GESTAO_LEGACY_UPLOAD_ENGINE.compute(fixture)",
                 {"rows": case["rows"], "start": case["start"], "end": case["end"],
                  "store": case["store"], "vehicle": case["vehicle"]},
             )

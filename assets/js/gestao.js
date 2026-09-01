@@ -1,68 +1,39 @@
 /* PORTAL-NEXT V2 -- Gestão (Análise F&I do Grupo) module UI.
-   Business logic: assets/js/adapters/gestao.adapter.js (byte-identical
-   extraction -- see docs/GESTAO-ENGINE-AUDIT.md and docs/GESTAO-
-   FUNCTION-MAP.md). This file only renders.
+   Wave 2: RPC-shaped local contract reconciliation.
 
-   Real production surface migrated (verified by direct source read of
-   origin/main:modules/analise-fi-grupo.html render(), lines 2310-2455):
-     - Produção Paga/Faturada/Ag.Faturamento/Total (4 KPI cards)
-     - Executive KPIs: Valor de Produção Total / Propostas Perdidas /
-       Propostas em Aberto
-     - Classificação dos Planos (5 cards)
-     - Planos por Loja e Departamento (2 tables, Novos 5-type / Seminovos
-       3-type -- exact real column scope, see GESTAO-KPI-CONTRACT.md)
-     - SPF EXTRA (Total + Comissão Líquida = Total x 70%, fixed/non-
-       configurable per the human's PORTAL-NEXT-06.1 decision -- see
-       docs/GESTAO-COMMISSION-DECISION.md; same byte-identical 0.70
-       computation extracted since PORTAL-NEXT-06, no new formula)
-     - Support KPIs (Visão/Tipo/Período/Total geral/PMT médio/Balão)
-     - Financiamentos por Loja, Status por Unidade, Status por Banco
-     - Propostas Recusadas Válidas / Aprovadas Válidas por Loja
-     - Filters: Loja, Tipo de veículo (Todos/Novos/Seminovos), período
-       (3 presets + manual dates)
+   Business logic: NONE in this file (render only). Data source:
+   assets/js/adapters/gestao-fixture-provider.js (local-only, RPC-
+   shaped simulation -- see that file's header). Response shaping:
+   assets/js/adapters/gestao.adapter.js (thin: formatting + safe
+   defaulting only). Store display names: assets/js/lookups/
+   store-display.js (presentation only -- store IDENTITY everywhere in
+   this file is the backend's canonical short code).
 
-   NOT migrated (Gate 137 deferred, real reasons -- see
-   docs/GESTAO-FUNCTION-MAP.md):
-     - Excel/CSV upload + the live secure-API path (0 backend/0 file
-       I/O this Wave)
-     - Model Analysis, Seller Analysis, FECHAMENTO, charts, export --
-       CONFIRMED ABSENT from this specific production module (not a
-       migration gap -- see docs/GESTAO-KPI-CONTRACT.md's N/A section) */
+   This Wave intentionally does NOT connect to Supabase (Decision in
+   the Wave 2 brief) -- when real backend integration happens, only
+   gestao-fixture-provider.js's loadGestaoFixture() gets replaced with
+   a real `operational_fandi_dashboard` RPC call; this file and the
+   adapter do not need to change, because both already consume the
+   RPC's own response shape.
+
+   No ANALISTA/GERENTE/VENDEDOR/MASTER/DIRETOR concept exists anywhere
+   in this file -- store and department are plain filter parameters,
+   exactly like the real RPC treats them for a caller whose scope
+   already permits the request. Authorization remains 100%
+   backend-owned. */
 (function () {
   'use strict';
 
-  var STORES = ['ABC', 'ALPHAVILLE', 'ANÁLIA FRANCO', 'BARRA FUNDA', 'BANDEIRANTES', 'EUROPA', 'GASTÃO VIDIGAL', 'NAÇÕES UNIDAS'];
-
-  var fixturesData = null;
-  var currentFixtureId = 'ALL';
   var currentStore = 'ALL';
-  var currentVehicle = 'TODOS';
+  var currentDepartment = 'ALL';
   var currentPreset = 'CUSTOM';
   var currentDateStart = '2026-01-01';
-  var currentDateEnd = '2026-12-31';
+  var currentDateEnd = '2026-06-30';
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c;
     });
-  }
-
-  function loadFixtures() {
-    if (fixturesData) return Promise.resolve(fixturesData);
-    return fetch('tests/fixtures/gestao-fixtures.json')
-      .then(function (r) { return r.json(); })
-      .then(function (data) { fixturesData = data.cases; return fixturesData; });
-  }
-
-  function buildFixtureInput(id) {
-    var rows;
-    if (id !== 'ALL') {
-      rows = fixturesData.filter(function (c) { return c.id === id; })[0].rows;
-    } else {
-      rows = [];
-      fixturesData.forEach(function (c) { rows = rows.concat(c.rows); });
-    }
-    return { rows: rows, start: currentDateStart, end: currentDateEnd, store: currentStore, vehicle: currentVehicle };
   }
 
   function kpiPrimary(label, value, splitHtml) {
@@ -76,70 +47,17 @@
     return '<div class="geKpiCardSecondary"><div class="geK">' + esc(label) + '</div><div class="geV">' + esc(String(value)) + '</div><div class="geHint">' + esc(hint) + '</div></div>';
   }
 
-  function productionCardHtml(A, title, data, filtered) {
-    if (filtered) {
-      return '<div class="geKpiCardPrimary"><div class="geK">' + esc(title) + '</div><div class="geV">' + data.qtd + '</div>' +
-        '<div class="geSplit">' + A.money(data.valor) + '</div></div>';
-    }
-    return kpiPrimary(title, data.qtd,
-      '<span>Novos <b>' + data.novos + '</b> · ' + A.money(data.valorNovos) + '</span>' +
-      '<span>Seminovos <b>' + data.seminovos + '</b> · ' + A.money(data.valorSeminovos) + '</span>');
-  }
-
   function planCardHtml(A, tipo, data) {
     var cls = { 'LINEAR': 'planLinear', 'BALÃO': 'planBalao', 'SUBSIDIADO': 'planSubsidiado', 'REVERSÃO': 'planReversao', 'COPARTICIPADO': 'planCoparticipado' }[tipo] || '';
-    return '<div class="gePlanCard ' + cls + '"><div class="geK">' + esc(tipo) + '</div><div class="geV">' + data.qtd + '</div><div class="geHint">' + A.money(data.valor) + '</div></div>';
+    return '<div class="gePlanCard ' + cls + '"><div class="geK">' + esc(tipo) + '</div><div class="geV">' + data.quantity + '</div><div class="geHint">' + A.money(data.financed_value) + '</div></div>';
   }
 
-  function planStoreDeptTableHtml(rows, dept) {
-    var isNovos = dept === 'Novos';
-    var headers = isNovos
-      ? ['Loja', 'Linear', 'Balão', 'Subsidiado', 'Reversão', 'Coparticipado', 'Total']
-      : ['Loja', 'Linear', 'Balão', 'Reversão', 'Total'];
-    var body = rows.filter(function (r) { return isNovos ? r.novos.total > 0 : r.seminovos.total > 0; }).map(function (r) {
-      var b = isNovos ? r.novos : r.seminovos;
-      var cells = isNovos
-        ? [b.LINEAR, b['BALÃO'], b.SUBSIDIADO, b['REVERSÃO'], b.COPARTICIPADO, b.total]
-        : [b.LINEAR, b['BALÃO'], b['REVERSÃO'], b.total];
-      return '<tr><td data-th="' + esc(headers[0]) + '">' + esc(r.loja) + '</td>' + cells.map(function (c, i) { return '<td class="geNumCol" data-th="' + esc(headers[i + 1]) + '">' + c + '</td>'; }).join('') + '</tr>';
-    }).join('');
-    return '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
-      '<tbody>' + (body || '<tr><td colspan="' + headers.length + '" class="geMuted">Nenhuma loja encontrada.</td></tr>') + '</tbody></table></div>';
-  }
-
-  function dynamicStoreTableHtml(A, store, vehicle) {
-    var headers, body;
-    if (vehicle === 'Novos') {
-      headers = ['Loja', 'Qtd Novos', 'Fin. médio Novos', 'Parcela média Novos', 'Qtd Balão', 'Parcela média Balão'];
-      body = store.map(function (r) { return row([r.loja, r.qtd, A.money(r.finNovos), A.money(r.pmtNovos), r.qtdBalao, A.money(r.balaoMedio)], headers); });
-    } else if (vehicle === 'Seminovos') {
-      headers = ['Loja', 'Qtd Seminovos', 'Fin. médio Seminovos', 'Parcela média Seminovos', 'Qtd Balão', 'Parcela média Balão'];
-      body = store.map(function (r) { return row([r.loja, r.qtd, A.money(r.finSemis), A.money(r.pmtSemis), r.qtdBalao, A.money(r.balaoMedio)], headers); });
-    } else {
-      headers = ['Loja', 'Qtd Total', 'Novos', 'Seminovos', 'Fin. médio Novos', 'Fin. médio Seminovos', 'Parcela média Novos', 'Parcela média Seminovos', 'Qtd Balão', 'Parcela média Balão'];
-      body = store.map(function (r) { return row([r.loja, r.qtd, r.novos, r.seminovos, A.money(r.finNovos), A.money(r.finSemis), A.money(r.pmtNovos), A.money(r.pmtSemis), r.qtdBalao, A.money(r.balaoMedio)], headers); });
-    }
-    return tableHtml(headers, body);
-  }
-
-  // Shared column-alignment contract (Gate 8-10): a numeric column's
-  // header and its values share ONE axis -- both get .geNumCol
-  // (text-align:right + tabular-nums, assets/css/gestao.css), never a
-  // per-cell offset. `numericFrom` is the index where numeric columns
-  // begin (every Gestão table is "N leading text columns, then numeric
-  // to the end" -- default 1, since every table here has exactly one
-  // leading text column (Loja/Unidade/Banco), except the SPF Extra
-  // detail table, which has two (Loja, Departamento)).
   function headerRow(headers, numericFrom) {
     numericFrom = numericFrom == null ? 1 : numericFrom;
     return headers.map(function (h, i) {
       return '<th' + (i >= numericFrom ? ' class="geNumCol"' : '') + '>' + esc(h) + '</th>';
     }).join('');
   }
-  // PORTAL-NEXT-07.6 — headers (optional) stamps each <td> with a
-  // data-th label, consumed only by the mobile stacking recomposition
-  // in gestao.css (<=768px); omitted, markup is byte-identical to
-  // before.
   function row(cells, headers) {
     function th(i) { return headers ? ' data-th="' + esc(headers[i]) + '"' : ''; }
     return '<tr><td' + th(0) + '>' + esc(cells[0]) + '</td>' + cells.slice(1).map(function (c, i) { return '<td class="geNumCol"' + th(i + 1) + '>' + esc(String(c)) + '</td>'; }).join('') + '</tr>';
@@ -149,120 +67,240 @@
       '<tbody>' + (bodyRows.length ? bodyRows.join('') : '<tr><td colspan="' + headers.length + '" class="geMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
   }
 
-  function statusTableHtml(A, rows, keyField) {
-    var headers = [keyField === 'loja' ? 'Unidade' : 'Banco', 'Pago Qtd', 'Pago Valor', 'Faturado Qtd', 'Faturado Valor', 'AG. Fat. Qtd', 'AG. Fat. Valor', 'Total Qtd', 'Total Valor'];
-    var body = rows.map(function (r) {
-      return row([r[keyField], r.pagaQtd, A.money(r.pagaValor), r.fatQtd, A.money(r.fatValor), r.agQtd, A.money(r.agValor), r.totalQtd, A.money(r.totalValor)], headers);
-    });
-    return tableHtml(headers, body);
-  }
+  function displayStore(code) { return window.NX_STORE_DISPLAY.storeDisplayName(code); }
 
-  function cpfTableHtml(A, items, vehicle) {
+  // ---- presentation projections (Gate 11/12): the canonical model
+  // stays long-format (RPC shape); these only reshape it for a
+  // specific table's columns, at render time, never as stored state.
+
+  function dynamicStoreTableHtml(A, stores, department) {
     var headers, body;
-    if (vehicle === 'Novos') {
-      headers = ['Loja', 'Qtd CPFs Novos', 'Valor Novos', 'Valor Médio por CPF'];
-      body = items.map(function (r) { return row([r.loja, r.novosQtd, A.money(r.novosValor), A.money(r.novosQtd ? r.novosValor / r.novosQtd : 0)], headers); });
-    } else if (vehicle === 'Seminovos') {
-      headers = ['Loja', 'Qtd CPFs Seminovos', 'Valor Seminovos', 'Valor Médio por CPF'];
-      body = items.map(function (r) { return row([r.loja, r.seminovosQtd, A.money(r.seminovosValor), A.money(r.seminovosQtd ? r.seminovosValor / r.seminovosQtd : 0)], headers); });
+    if (department === 'NOVOS') {
+      headers = ['Loja', 'Qtd Novos', 'Fin. médio Novos', 'Parcela média Novos', 'Qtd Balão', 'Parcela média Balão'];
+      body = stores.map(function (r) { return row([displayStore(r.store), r.quantity, A.money(r.new_average_financed), A.money(r.new_average_installment), r.balloon_quantity, A.money(r.average_balloon)], headers); });
+    } else if (department === 'SEMINOVOS') {
+      headers = ['Loja', 'Qtd Seminovos', 'Fin. médio Seminovos', 'Parcela média Seminovos', 'Qtd Balão', 'Parcela média Balão'];
+      body = stores.map(function (r) { return row([displayStore(r.store), r.quantity, A.money(r.used_average_financed), A.money(r.used_average_installment), r.balloon_quantity, A.money(r.average_balloon)], headers); });
     } else {
-      headers = ['Loja', 'Novos Qtd', 'Novos Valor', 'Seminovos Qtd', 'Seminovos Valor', 'Total CPFs', 'Valor Total', 'Valor Médio por CPF'];
-      body = items.map(function (r) { return row([r.loja, r.novosQtd, A.money(r.novosValor), r.seminovosQtd, A.money(r.seminovosValor), r.qtd, A.money(r.valor), A.money(r.qtd ? r.valor / r.qtd : 0)], headers); });
+      headers = ['Loja', 'Qtd Total', 'Novos', 'Seminovos', 'Fin. médio Novos', 'Fin. médio Seminovos', 'Parcela média Novos', 'Parcela média Seminovos', 'Qtd Balão', 'Parcela média Balão'];
+      body = stores.map(function (r) { return row([displayStore(r.store), r.quantity, r.new_quantity, r.used_quantity, A.money(r.new_average_financed), A.money(r.used_average_financed), A.money(r.new_average_installment), A.money(r.used_average_installment), r.balloon_quantity, A.money(r.average_balloon)], headers); });
     }
     return tableHtml(headers, body);
   }
 
+  // Pivots the canonical long-format status_by_store/status_by_bank
+  // array into the wide table this section has always shown -- a pure
+  // render-time projection (Gate 11), the array itself stays long.
+  function pivotStatusLong(rows, keyField) {
+    var byKey = {};
+    var order = [];
+    rows.forEach(function (r) {
+      var k = r[keyField];
+      if (!byKey[k]) { byKey[k] = { key: k, pagaQtd: 0, pagaValor: 0, fatQtd: 0, fatValor: 0, agQtd: 0, agValor: 0, totalQtd: 0, totalValor: 0 }; order.push(k); }
+      var b = byKey[k];
+      if (r.status === 'PAGA') { b.pagaQtd += r.quantity; b.pagaValor += r.financed_value; }
+      else if (r.status === 'FATURADA') { b.fatQtd += r.quantity; b.fatValor += r.financed_value; }
+      else if (r.status === 'AG. FATURAMENTO') { b.agQtd += r.quantity; b.agValor += r.financed_value; }
+      b.totalQtd += r.quantity; b.totalValor += r.financed_value;
+    });
+    return order.map(function (k) { return byKey[k]; }).sort(function (a, b) { return b.totalValor - a.totalValor; });
+  }
+
+  function statusTableHtml(A, rows, keyField, isStore) {
+    var headers = [isStore ? 'Unidade' : 'Banco', 'Pago Qtd', 'Pago Valor', 'Faturado Qtd', 'Faturado Valor', 'AG. Fat. Qtd', 'AG. Fat. Valor', 'Total Qtd', 'Total Valor'];
+    var pivoted = pivotStatusLong(rows, keyField);
+    var body = pivoted.map(function (r) {
+      return row([isStore ? displayStore(r.key) : r.key, r.pagaQtd, A.money(r.pagaValor), r.fatQtd, A.money(r.fatValor), r.agQtd, A.money(r.agValor), r.totalQtd, A.money(r.totalValor)], headers);
+    });
+    return tableHtml(headers, body);
+  }
+
+  // Pivots plans_by_store_department (long: store/department/plan_type/
+  // quantity) into the per-department matrix table -- canonical array
+  // stays long, only this render helper projects it (Gate 12).
+  function planStoreDeptTableHtml(rows, dept) {
+    var isNovos = dept === 'NOVOS';
+    var types = isNovos ? ['LINEAR', 'BALÃO', 'SUBSIDIADO', 'REVERSÃO', 'COPARTICIPADO'] : ['LINEAR', 'BALÃO', 'REVERSÃO'];
+    var headers = isNovos
+      ? ['Loja', 'Linear', 'Balão', 'Subsidiado', 'Reversão', 'Coparticipado', 'Total']
+      : ['Loja', 'Linear', 'Balão', 'Reversão', 'Total'];
+    var byStore = {};
+    var order = [];
+    rows.filter(function (r) { return r.department === dept; }).forEach(function (r) {
+      if (!byStore[r.store]) { byStore[r.store] = { store: r.store, total: 0 }; order.push(r.store); }
+      byStore[r.store][r.plan_type] = (byStore[r.store][r.plan_type] || 0) + r.quantity;
+      byStore[r.store].total += r.quantity;
+    });
+    var body = order.map(function (s) {
+      var b = byStore[s];
+      var cells = types.map(function (t) { return b[t] || 0; }).concat([b.total]);
+      return '<tr><td data-th="' + esc(headers[0]) + '">' + esc(displayStore(s)) + '</td>' + cells.map(function (c, i) { return '<td class="geNumCol" data-th="' + esc(headers[i + 1]) + '">' + c + '</td>'; }).join('') + '</tr>';
+    });
+    return '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
+      '<tbody>' + (body.length ? body.join('') : '<tr><td colspan="' + headers.length + '" class="geMuted">Nenhuma loja encontrada.</td></tr>') + '</tbody></table></div>';
+  }
+
+  // proposal_outcomes (long: store/department/outcome/quantity/
+  // financed_value) grouped per store for one outcome (Gate 13:
+  // production contract is the source of truth, no CPF-dedup
+  // algorithm involved at all).
+  function outcomeTableHtml(A, rows, outcome, department) {
+    var filtered = rows.filter(function (r) { return r.outcome === outcome; });
+    var byStore = {};
+    var order = [];
+    filtered.forEach(function (r) {
+      if (!byStore[r.store]) { byStore[r.store] = { store: r.store, novosQtd: 0, novosValor: 0, seminovosQtd: 0, seminovosValor: 0, qtd: 0, valor: 0 }; order.push(r.store); }
+      var b = byStore[r.store];
+      if (r.department === 'SEMINOVOS') { b.seminovosQtd += r.quantity; b.seminovosValor += r.financed_value; }
+      else { b.novosQtd += r.quantity; b.novosValor += r.financed_value; }
+      b.qtd += r.quantity; b.valor += r.financed_value;
+    });
+    var items = order.map(function (s) { return byStore[s]; }).sort(function (a, b) { return b.qtd - a.qtd || b.valor - a.valor; });
+
+    var headers, body;
+    if (department === 'NOVOS') {
+      headers = ['Loja', 'Qtd CPFs Novos', 'Valor Novos', 'Valor Médio por CPF'];
+      body = items.map(function (r) { return row([displayStore(r.store), r.novosQtd, A.money(r.novosValor), A.money(r.novosQtd ? r.novosValor / r.novosQtd : 0)], headers); });
+    } else if (department === 'SEMINOVOS') {
+      headers = ['Loja', 'Qtd CPFs Seminovos', 'Valor Seminovos', 'Valor Médio por CPF'];
+      body = items.map(function (r) { return row([displayStore(r.store), r.seminovosQtd, A.money(r.seminovosValor), A.money(r.seminovosQtd ? r.seminovosValor / r.seminovosQtd : 0)], headers); });
+    } else {
+      headers = ['Loja', 'Novos Qtd', 'Novos Valor', 'Seminovos Qtd', 'Seminovos Valor', 'Total CPFs', 'Valor Total', 'Valor Médio por CPF'];
+      body = items.map(function (r) { return row([displayStore(r.store), r.novosQtd, A.money(r.novosValor), r.seminovosQtd, A.money(r.seminovosValor), r.qtd, A.money(r.valor), A.money(r.qtd ? r.valor / r.qtd : 0)], headers); });
+    }
+    return { items: items, html: tableHtml(headers, body) };
+  }
+
   function render() {
     var A = window.NX_GESTAO_ADAPTER;
-    var input = buildFixtureInput(currentFixtureId);
-    var out = A.compute(input);
-    var periodo = (currentDateStart || 'Início') + ' a ' + (currentDateEnd || 'Fim');
-    var visaoLoja = currentStore !== 'ALL' ? currentStore : 'Todas as lojas';
-    var visaoTipo = currentVehicle !== 'TODOS' ? currentVehicle : 'Todos os veículos';
-    var filtered = currentVehicle !== 'TODOS';
+    var department = currentDepartment === 'ALL' ? null : currentDepartment;
+    var store = currentStore === 'ALL' ? null : currentStore;
 
-    var pmtMedio = out.operacional.length ? (function () {
-      var vals = out.operacional.map(function (r) { return r.pmt; }).filter(function (v) { return v > 0; });
-      return vals.length ? vals.reduce(function (s, v) { return s + v; }, 0) / vals.length : 0;
-    })() : 0;
-    var comBalao = out.operacional.filter(function (r) { return r.balao > 0; });
-    var balaoMedio = comBalao.length ? comBalao.reduce(function (s, r) { return s + r.balao; }, 0) / comBalao.length : 0;
+    return window.NX_GESTAO_FIXTURE_PROVIDER.loadGestaoFixture({
+      start: currentDateStart, end: currentDateEnd, store: store, department: department
+    }).then(function (raw) {
+      var out = A.normalizeResponse(raw);
+      var periodo = (currentDateStart || 'Início') + ' a ' + (currentDateEnd || 'Fim');
+      var visaoLoja = displayStore(currentStore === 'ALL' ? null : currentStore);
+      var visaoTipo = currentDepartment === 'ALL' ? 'Todos os veículos' : (currentDepartment === 'NOVOS' ? 'Novos' : 'Seminovos');
+      var filtered = currentDepartment !== 'ALL';
 
-    var planoMap = {};
-    out.planos.forEach(function (p) { planoMap[p.tipo] = p; });
-    var planCards = ['SUBSIDIADO', 'REVERSÃO', 'COPARTICIPADO', 'BALÃO', 'LINEAR'].map(function (t) {
-      return planCardHtml(A, t, planoMap[t] || { qtd: 0, valor: 0 });
-    }).join('');
+      // Per-status totals: the RPC's status_by_store carries no
+      // department dimension, so (unlike "Produção Total" below) these
+      // 3 cards show qtd+valor only -- the Novos/Seminovos split isn't
+      // part of this contract field, so it isn't fabricated here.
+      function statusTotal(status) {
+        return out.status_by_store.filter(function (r) { return r.status === status; })
+          .reduce(function (acc, r) { acc.qtd += r.quantity; acc.valor += r.financed_value; return acc; }, { qtd: 0, valor: 0 });
+      }
+      var pagaTotal = statusTotal('PAGA');
+      var fatTotal = statusTotal('FATURADA');
+      var agTotal = statusTotal('AG. FATURAMENTO');
+      var novosTotal = out.stores.reduce(function (s, r) { return s + r.new_quantity; }, 0);
+      var semisTotal = out.stores.reduce(function (s, r) { return s + r.used_quantity; }, 0);
+      var novosValorTotal = out.stores.reduce(function (s, r) { return s + r.new_quantity * r.new_average_financed; }, 0);
+      var semisValorTotal = out.stores.reduce(function (s, r) { return s + r.used_quantity * r.used_average_financed; }, 0);
 
-    var spfExtra = out.spfExtra || { detalhes: [], total: 0, comissao: 0 };
-    var spfDetailRows = spfExtra.detalhes.map(function (r) {
-      return '<tr><td data-th="Loja">' + esc(r.loja) + '</td><td data-th="Departamento">' + esc(r.departamento) + '</td><td class="geNumCol" data-th="SPF Total">' + A.money(r.valor) + '</td><td class="geNumCol" data-th="Comissão Líquida 70%">' + A.money(r.comissao) + '</td></tr>';
+      function productionCardHtml(title, qtd, valor, novos, seminovos, valorNovos, valorSeminovos) {
+        if (filtered || novos == null) {
+          return '<div class="geKpiCardPrimary"><div class="geK">' + esc(title) + '</div><div class="geV">' + qtd + '</div>' +
+            '<div class="geSplit">' + A.money(valor) + '</div></div>';
+        }
+        return kpiPrimary(title, qtd,
+          '<span>Novos <b>' + novos + '</b> · ' + A.money(valorNovos) + '</span>' +
+          '<span>Seminovos <b>' + seminovos + '</b> · ' + A.money(valorSeminovos) + '</span>');
+      }
+
+      var planoMap = {};
+      out.plans.forEach(function (p) { planoMap[p.plan_type] = p; });
+      var planCards = ['SUBSIDIADO', 'REVERSÃO', 'COPARTICIPADO', 'BALÃO', 'LINEAR'].map(function (t) {
+        return planCardHtml(A, t, planoMap[t] || { quantity: 0, financed_value: 0 });
+      }).join('');
+
+      var spfTotal = out.spf_extra.reduce(function (s, r) { return s + r.spf_value; }, 0);
+      var spfComissao = out.spf_extra.reduce(function (s, r) { return s + r.spf_70_value; }, 0);
+      var spfDetailRows = out.spf_extra.map(function (r) {
+        return '<tr><td data-th="Loja">' + esc(displayStore(r.store)) + '</td><td data-th="Departamento">' + esc(r.department) + '</td><td class="geNumCol" data-th="SPF Total">' + A.money(r.spf_value) + '</td><td class="geNumCol" data-th="Comissão Líquida 70%">' + A.money(r.spf_70_value) + '</td></tr>';
+      });
+
+      var perdidas = out.proposal_outcomes.filter(function (r) { return r.outcome === 'RECUSADA'; }).reduce(function (s, r) { return s + r.financed_value; }, 0);
+      var abertas = out.proposal_outcomes.filter(function (r) { return r.outcome === 'APROVADA'; }).reduce(function (s, r) { return s + r.financed_value; }, 0);
+
+      var totalGeralQtd = out.summary.operational_quantity;
+      var pmtWeightedSum = out.stores.reduce(function (s, r) { return s + r.new_average_installment * r.new_quantity + r.used_average_installment * r.used_quantity; }, 0);
+      var pmtMedio = totalGeralQtd ? pmtWeightedSum / totalGeralQtd : 0;
+      var balaoQtdTotal = out.stores.reduce(function (s, r) { return s + r.balloon_quantity; }, 0);
+      var balaoValorSum = out.stores.reduce(function (s, r) { return s + r.average_balloon * r.balloon_quantity; }, 0);
+      var balaoMedio = balaoQtdTotal ? balaoValorSum / balaoQtdTotal : 0;
+
+      var recusadas = outcomeTableHtml(A, out.proposal_outcomes, 'RECUSADA', department);
+      var aprovadas = outcomeTableHtml(A, out.proposal_outcomes, 'APROVADA', department);
+
+      var html =
+        '<div class="geKpiGridPrimary">' +
+        productionCardHtml('Produção Paga', pagaTotal.qtd, pagaTotal.valor) +
+        productionCardHtml('Produção Faturada', fatTotal.qtd, fatTotal.valor) +
+        productionCardHtml('Produção Ag. Faturamento', agTotal.qtd, agTotal.valor) +
+        productionCardHtml('Produção Total', totalGeralQtd, out.summary.total_financed, novosTotal, semisTotal, novosValorTotal, semisValorTotal) +
+        '</div>' +
+
+        '<div class="geKpiGridExec">' +
+        kpiExec('Valor de Produção Total', A.money(out.summary.total_financed), 'Paga + Faturada + Ag. Faturamento • ' + visaoTipo) +
+        kpiExec('Valor Total de Propostas Perdidas', A.money(perdidas), 'Recusadas • ' + visaoTipo) +
+        kpiExec('Valor de Propostas em Aberto', A.money(abertas), 'Aprovadas • ' + visaoTipo) +
+        '</div>' +
+
+        '<h2>Classificação dos Planos</h2>' +
+        '<div class="gePlanGrid">' + planCards + '</div>' +
+        '<p class="geMuted">Classificação e escopo de elegibilidade definidos pela RPC operational_fandi_dashboard (produção): SUBSIDIADO &gt; REVERSÃO &gt; COPARTICIPADO &gt; BALÃO &gt; LINEAR.</p>' +
+
+        '<h2>Planos por Loja e Departamento</h2>' +
+        '<p class="geMuted">Novos (5 tipos) e Seminovos (3 tipos), mesmo escopo do contrato de produção.</p>' +
+        planStoreDeptTableHtml(out.plans_by_store_department, 'NOVOS') +
+        planStoreDeptTableHtml(out.plans_by_store_department, 'SEMINOVOS') +
+
+        '<h2>SPF EXTRA</h2>' +
+        '<div class="geKpiGridExec">' +
+        kpiExec('Total SPF EXTRA', A.money(spfTotal), 'Valor total de opcionais SPF EXTRA') +
+        kpiExec('Comissão Líquida SPF EXTRA', A.money(spfComissao), 'Soma de spf_70_value (contrato do backend, regra 70% não recalculada em V2)') +
+        '</div>' +
+        '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(['Loja', 'Departamento', 'SPF Total', 'Comissão Líquida 70%'], 2) + '</tr></thead>' +
+        '<tbody>' + (spfDetailRows.length ? spfDetailRows.join('') : '<tr><td colspan="4" class="geMuted">Nenhum SPF Extra encontrado.</td></tr>') + '</tbody></table></div>' +
+
+        '<h2>Indicadores de Apoio</h2>' +
+        '<div class="geKpiGridSecondary">' +
+        kpiSecondary('Visão', visaoLoja, currentStore !== 'ALL' ? 'unidade filtrada' : 'consolidado geral') +
+        kpiSecondary('Tipo de veículo', visaoTipo, filtered ? 'filtro aplicado' : 'novos + seminovos') +
+        kpiSecondary('Período analisado', periodo, 'faturamento ou pagamento no período') +
+        kpiSecondary('Total geral (3 status)', totalGeralQtd, 'Paga + Faturada + Ag. Faturamento') +
+        kpiSecondary('Parcela média (PMT)', A.money(pmtMedio), 'média geral ponderada') +
+        kpiSecondary('Operações com balão', balaoQtdTotal, 'parcela média ' + A.money(balaoMedio)) +
+        '</div>' +
+
+        '<h2>Financiamentos por Loja</h2>' + dynamicStoreTableHtml(A, out.stores, currentDepartment === 'ALL' ? null : currentDepartment) +
+
+        '<h2>Pagos, Faturados e AG. Faturamento por Unidade</h2>' + statusTableHtml(A, out.status_by_store, 'store', true) +
+
+        '<h2>Pagos, Faturados e AG. Faturamento por Banco</h2>' + statusTableHtml(A, out.status_by_bank, 'bank', false) +
+
+        '<h2>Propostas Recusadas Válidas por Loja</h2>' +
+        '<div class="geKpiGridSecondary">' +
+        kpiSecondary('Lojas com recusadas', recusadas.items.length, 'agregado por loja') +
+        kpiSecondary('CPFs com recusa líquida', recusadas.items.reduce(function (s, r) { return s + r.qtd; }, 0), 'contrato proposal_outcomes') +
+        kpiSecondary('Valor recusado', A.money(recusadas.items.reduce(function (s, r) { return s + r.valor; }, 0)), 'soma financed_value') +
+        kpiSecondary('Maior loja', recusadas.items[0] ? displayStore(recusadas.items[0].store) : '-', (recusadas.items[0] ? recusadas.items[0].qtd : 0) + ' CPFs') +
+        '</div>' + recusadas.html +
+
+        '<h2>Propostas Aprovadas Válidas por Loja</h2>' +
+        '<div class="geKpiGridSecondary">' +
+        kpiSecondary('Lojas com aprovadas', aprovadas.items.length, 'agregado por loja') +
+        kpiSecondary('CPFs aprovados válidos', aprovadas.items.reduce(function (s, r) { return s + r.qtd; }, 0), 'contrato proposal_outcomes') +
+        kpiSecondary('Valor aprovado', A.money(aprovadas.items.reduce(function (s, r) { return s + r.valor; }, 0)), 'soma financed_value') +
+        kpiSecondary('Maior loja', aprovadas.items[0] ? displayStore(aprovadas.items[0].store) : '-', (aprovadas.items[0] ? aprovadas.items[0].qtd : 0) + ' CPFs') +
+        '</div>' + aprovadas.html;
+
+      document.getElementById('gePanel').innerHTML = html;
     });
-
-    var html =
-      '<div class="geKpiGridPrimary">' +
-      productionCardHtml(A, 'Produção Paga', out.pagaResumo, filtered) +
-      productionCardHtml(A, 'Produção Faturada', out.fatResumo, filtered) +
-      productionCardHtml(A, 'Produção Ag. Faturamento', out.agResumo, filtered) +
-      productionCardHtml(A, 'Produção Total', out.totalPagoFatResumo, filtered) +
-      '</div>' +
-
-      '<div class="geKpiGridExec">' +
-      kpiExec('Valor de Produção Total', A.money(out.totalPagoFatResumo.valor), 'Paga + Faturada • ' + visaoTipo) +
-      kpiExec('Valor Total de Propostas Perdidas', A.money((out.cpf.recusadas || []).reduce(function (s, r) { return s + r.valor; }, 0)), 'Recusadas • ' + visaoTipo) +
-      kpiExec('Valor de Propostas em Aberto', A.money((out.cpf.aprovadas || []).reduce(function (s, r) { return s + r.valor; }, 0)), 'Aprovadas • ' + visaoTipo) +
-      '</div>' +
-
-      '<h2>Classificação dos Planos</h2>' +
-      '<div class="gePlanGrid">' + planCards + '</div>' +
-      '<p class="geMuted">Classificação oficial por proposta, após o filtro obrigatório Op - Modalidade = FANDI: Código IF 999 ou SUBSIDIADO; Código IF 777 ou REVERSÃO; TC Devolvida 1 ou COPARTICIPADO; PMT Balão ou Valor Balão maior que zero; demais propostas = LINEAR.</p>' +
-
-      '<h2>Planos por Loja e Departamento</h2>' +
-      '<p class="geMuted">Novos (5 tipos) e Seminovos (3 tipos — Subsidiado/Coparticipado não são apurados para Seminovos nesta análise, mesmo escopo real de produção).</p>' +
-      planStoreDeptTableHtml(out.planosLojaDept, 'Novos') +
-      planStoreDeptTableHtml(out.planosLojaDept, 'Seminovos') +
-
-      '<h2>SPF EXTRA</h2>' +
-      '<div class="geKpiGridExec">' +
-      kpiExec('Total SPF EXTRA', A.money(spfExtra.total), 'Valor total de opcionais SPF EXTRA') +
-      kpiExec('Comissão Líquida SPF EXTRA', A.money(spfExtra.comissao), '70% sobre o total SPF EXTRA (regra fixa, não configurável — docs/GESTAO-COMMISSION-DECISION.md)') +
-      '</div>' +
-      '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(['Loja', 'Departamento', 'SPF Total', 'Comissão Líquida 70%'], 2) + '</tr></thead>' +
-      '<tbody>' + (spfDetailRows.length ? spfDetailRows.join('') : '<tr><td colspan="4" class="geMuted">Nenhum SPF Extra encontrado.</td></tr>') + '</tbody></table></div>' +
-
-      '<h2>Indicadores de Apoio</h2>' +
-      '<div class="geKpiGridSecondary">' +
-      kpiSecondary('Visão', visaoLoja, currentStore !== 'ALL' ? 'unidade filtrada' : 'consolidado geral') +
-      kpiSecondary('Tipo de veículo', visaoTipo, filtered ? 'filtro aplicado' : 'novos + seminovos') +
-      kpiSecondary('Período analisado', periodo, 'faturamento ou pagamento no período') +
-      kpiSecondary('Total geral (3 status)', out.operacional.length, 'Paga + Faturada + Ag. Faturamento') +
-      kpiSecondary('Parcela média (PMT)', A.money(pmtMedio), 'média geral ponderada') +
-      kpiSecondary('Operações com balão', comBalao.length, 'parcela média ' + A.money(balaoMedio)) +
-      '</div>' +
-
-      '<h2>Financiamentos por Loja</h2>' + dynamicStoreTableHtml(A, out.store, currentVehicle) +
-
-      '<h2>Pagos, Faturados e AG. Faturamento por Unidade</h2>' + statusTableHtml(A, out.statusStore, 'loja') +
-
-      '<h2>Pagos, Faturados e AG. Faturamento por Banco</h2>' + statusTableHtml(A, out.statusBank, 'banco') +
-
-      '<h2>Propostas Recusadas Válidas por Loja</h2>' +
-      '<div class="geKpiGridSecondary">' +
-      kpiSecondary('Lojas com recusadas', out.cpf.recusadas.length, 'CPF único por loja') +
-      kpiSecondary('CPFs com recusa líquida', out.cpf.recusadas.reduce(function (s, r) { return s + r.qtd; }, 0), 'cada CPF conta 1 vez') +
-      kpiSecondary('Valor recusado', A.money(out.cpf.recusadas.reduce(function (s, r) { return s + r.valor; }, 0)), 'maior valor único por CPF válido') +
-      kpiSecondary('Maior loja', out.cpf.recusadas[0] ? out.cpf.recusadas[0].loja : '-', (out.cpf.recusadas[0] ? out.cpf.recusadas[0].qtd : 0) + ' CPFs') +
-      '</div>' + cpfTableHtml(A, out.cpf.recusadas, currentVehicle) +
-
-      '<h2>Propostas Aprovadas Válidas por Loja</h2>' +
-      '<div class="geKpiGridSecondary">' +
-      kpiSecondary('Lojas com aprovadas', out.cpf.aprovadas.length, 'CPF único por loja') +
-      kpiSecondary('CPFs aprovados válidos', out.cpf.aprovadas.reduce(function (s, r) { return s + r.qtd; }, 0), 'cada CPF conta 1 vez') +
-      kpiSecondary('Valor aprovado', A.money(out.cpf.aprovadas.reduce(function (s, r) { return s + r.valor; }, 0)), 'maior valor único por CPF válido') +
-      kpiSecondary('Maior loja', out.cpf.aprovadas[0] ? out.cpf.aprovadas[0].loja : '-', (out.cpf.aprovadas[0] ? out.cpf.aprovadas[0].qtd : 0) + ' CPFs') +
-      '</div>' + cpfTableHtml(A, out.cpf.aprovadas, currentVehicle);
-
-    document.getElementById('gePanel').innerHTML = html;
   }
 
   function applyPresetAndRender(preset) {
@@ -282,7 +320,6 @@
   }
 
   function wireEvents() {
-    document.getElementById('geFixtureSelect').addEventListener('change', function (e) { currentFixtureId = e.target.value; render(); });
     document.getElementById('geStoreFilter').addEventListener('change', function (e) { currentStore = e.target.value; render(); });
     document.getElementById('geDateStart').addEventListener('change', function (e) { currentDateStart = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.gePresetBtn').forEach(function (b) { b.classList.remove('gePresetActive'); }); render(); });
     document.getElementById('geDateEnd').addEventListener('change', function (e) { currentDateEnd = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.gePresetBtn').forEach(function (b) { b.classList.remove('gePresetActive'); }); render(); });
@@ -291,7 +328,7 @@
     });
     document.querySelectorAll('.geVehicleBtn').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        currentVehicle = btn.dataset.vehicle;
+        currentDepartment = btn.dataset.department;
         document.querySelectorAll('.geVehicleBtn').forEach(function (b) { b.classList.toggle('geVehicleActive', b === btn); });
         render();
       });
@@ -300,38 +337,37 @@
 
   window.NX_GESTAO_PAGE = {
     render: function (outlet) {
-      return loadFixtures().then(function () {
-        var fixtureOptions = ['<option value="ALL">combinado (todos os cenários)</option>'].concat(
-          fixturesData.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.id) + '</option>'; })
-        ).join('');
-        var storeOptions = ['<option value="ALL">Todas as lojas</option>'].concat(
-          STORES.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; })
-        ).join('');
-        outlet.innerHTML =
-          '<div class="gePage">' +
-          '<div class="geHeader"><div><h1>Análise F&amp;I do Grupo</h1><p>Análise operacional F&amp;I/FANDI consolidada do Grupo.</p></div></div>' +
-          '<div class="geFixtureBar"><span class="geFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
-          '<label for="geFixtureSelect">fixture:</label><select id="geFixtureSelect">' + fixtureOptions + '</select></div>' +
-          '<div class="geFilters">' +
-          '<div class="geField"><label for="geStoreFilter">Loja / Unidade</label><select id="geStoreFilter">' + storeOptions + '</select></div>' +
-          '<div class="geField"><label>Período rápido</label><div class="gePresetGroup">' +
-          '<button type="button" class="gePresetBtn" data-preset="CURRENT_MONTH">Mês atual</button>' +
-          '<button type="button" class="gePresetBtn" data-preset="PREVIOUS_MONTH">Mês anterior</button>' +
-          '<button type="button" class="gePresetBtn" data-preset="LAST_6_MONTHS">Últimos 6 meses</button>' +
-          '</div></div>' +
-          '<div class="geField"><label for="geDateStart">Data inicial</label><input id="geDateStart" type="date" value="' + currentDateStart + '"></div>' +
-          '<div class="geField"><label for="geDateEnd">Data final</label><input id="geDateEnd" type="date" value="' + currentDateEnd + '"></div>' +
-          '</div>' +
-          '<div class="geField" style="margin-bottom:var(--space-4)"><label>Tipo de veículo</label><div class="geVehicleGroup">' +
-          '<button type="button" class="geVehicleBtn geVehicleActive" data-vehicle="TODOS">Todos</button>' +
-          '<button type="button" class="geVehicleBtn" data-vehicle="Novos">Novos</button>' +
-          '<button type="button" class="geVehicleBtn" data-vehicle="Seminovos">Seminovos</button>' +
-          '</div></div>' +
-          '<div id="gePanel"></div>' +
-          '</div>';
-        wireEvents();
-        render();
-      });
+      var D = window.NX_STORE_DISPLAY;
+      // value = canonical code (Wave 2 Gate 6): selector value, RPC
+      // request param, and RPC response `store` field are always the
+      // same string -- 0 translation anywhere in identity/comparison
+      // logic. Display label comes only from storeDisplayName().
+      var storeOptions = ['<option value="ALL">' + esc(D.storeDisplayName('ALL')) + '</option>'].concat(
+        D.CANONICAL_STORES.map(function (code) { return '<option value="' + esc(code) + '">' + esc(D.storeDisplayName(code)) + '</option>'; })
+      ).join('');
+      outlet.innerHTML =
+        '<div class="gePage">' +
+        '<div class="geHeader"><div><h1>Análise F&amp;I do Grupo</h1><p>Análise operacional F&amp;I/FANDI consolidada do Grupo.</p></div></div>' +
+        '<div class="geFixtureBar"><span class="geFixtureLabel">DADOS LOCAIS (FIXTURE RPC-SHAPED, NEXT_LOCAL)</span></div>' +
+        '<div class="geFilters">' +
+        '<div class="geField"><label for="geStoreFilter">Loja / Unidade</label><select id="geStoreFilter">' + storeOptions + '</select></div>' +
+        '<div class="geField"><label>Período rápido</label><div class="gePresetGroup">' +
+        '<button type="button" class="gePresetBtn" data-preset="CURRENT_MONTH">Mês atual</button>' +
+        '<button type="button" class="gePresetBtn" data-preset="PREVIOUS_MONTH">Mês anterior</button>' +
+        '<button type="button" class="gePresetBtn" data-preset="LAST_6_MONTHS">Últimos 6 meses</button>' +
+        '</div></div>' +
+        '<div class="geField"><label for="geDateStart">Data inicial</label><input id="geDateStart" type="date" value="' + currentDateStart + '"></div>' +
+        '<div class="geField"><label for="geDateEnd">Data final</label><input id="geDateEnd" type="date" value="' + currentDateEnd + '"></div>' +
+        '</div>' +
+        '<div class="geField" style="margin-bottom:var(--space-4)"><label>Tipo de veículo</label><div class="geVehicleGroup">' +
+        '<button type="button" class="geVehicleBtn geVehicleActive" data-department="ALL">Todos</button>' +
+        '<button type="button" class="geVehicleBtn" data-department="NOVOS">Novos</button>' +
+        '<button type="button" class="geVehicleBtn" data-department="SEMINOVOS">Seminovos</button>' +
+        '</div></div>' +
+        '<div id="gePanel"></div>' +
+        '</div>';
+      wireEvents();
+      return render();
     }
   };
 })();
