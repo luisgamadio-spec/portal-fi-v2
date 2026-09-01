@@ -1,45 +1,59 @@
-/* PORTAL-NEXT V2 — Simulador Seminovos page (PORTAL-NEXT-08.1).
-   Consumes the frozen PORTAL-NEXT-08 engines exclusively
-   (window.NX_SIMULADOR_SEMINOVOS_ADAPTER / NX_SIMULADOR_SHARED /
-   NX_CAMPANHA_ADAPTER / NX_CASH_CONVERSION_ADAPTER). Zero business
-   math is duplicated here. Dead-code Gate 47: the top-level
-   "Financiamento Linear" (calcularLinear) and "Taxas Subsidiadas"
-   (calcularSubsidiadas) engines exist in the adapter for Gate 3
-   completeness but are DELIBERATELY NOT exposed as modes below —
-   confirmed dead/unreachable in real production (0 matching DOM
-   markup), see docs/SIMULATOR-ENGINE-DISCOVERY-08.md Gate 33. */
+/* PORTAL-NEXT V2 — Simulador Seminovos page (PORTAL-NEXT-08.1, aligned
+   PORTAL-NEXT-08.4). Consumes the frozen PORTAL-NEXT-08 engines
+   exclusively (window.NX_SIMULADOR_SEMINOVOS_ADAPTER /
+   NX_SIMULADOR_SHARED / NX_CASH_CONVERSION_ADAPTER). Zero business
+   math is duplicated here.
+
+   PORTAL-NEXT-08.4 Gate 5-8/21/22/34 — navigation scope, re-audited
+   against real production (git show origin/main:modules/
+   simulador-seminovos.html): the top-level menu
+   (.premium-menu-grid-v2) contains exactly 5 reachable buttons —
+   openLinear, openBalaoSafra, openDescobridorTaxa, openAntecipacao,
+   openCashConversion. Three features this page previously exposed are
+   NOT reachable in production, confirmed by the same standard already
+   used for the pre-existing dead top-level Linear tab/Taxas
+   Subsidiadas (Gate 33 of docs/SIMULATOR-ENGINE-DISCOVERY-08.md):
+     - Semestral/Anual (#periodico): full real markup exists inside
+       the reachable simulatorScreen, but its only <div class="tabs">
+       contains ONE button (data-tab="tradicional") -- no tab ever
+       activates #periodico.
+     - Financiamento Campanha/Coparticipado (#campaignScreen): the
+       screen exists, but its entry button id="openFinanciamentoCampanha"
+       does not exist anywhere in the HTML (same silent-no-op guard
+       pattern, `if(openCampaign) openCampaign.addEventListener(...)`).
+     - Semestral Triton (#semestralCopartScreen): same -- entry button
+       id="openSemestralCopart" does not exist.
+   Human decision (this Wave): match production exactly. All three
+   removed from this page. calcularPeriodico/calcularSemestralTriton
+   remain in the adapter (Gate 3 completeness, correct formulas) but
+   are deliberately not called by this page -- same treatment already
+   established for calcularLinear/calcularSubsidiadas.
+   The reachable "Linear" experience is exclusively the nested
+   RATE_TABLE engine (calcularLinearRateTable), labeled "Linear" here
+   to match production's own "FINANCIAMENTO LINEAR" menu card. */
 (function () {
   'use strict';
 
   var UI = window.NX_SIM_UI;
   var S = window.NX_SIMULADOR_SHARED;
   var SN = window.NX_SIMULADOR_SEMINOVOS_ADAPTER;
-  var CAMP = window.NX_CAMPANHA_ADAPTER;
   var CC = window.NX_CASH_CONVERSION_ADAPTER;
 
   var MODES = [
     { id: 'tradicional', group: 'Financiamento', label: 'Tradicional (Balão)' },
-    { id: 'periodico', group: 'Financiamento', label: 'Semestral / Anual' },
-    { id: 'ratetable', group: 'Financiamento', label: 'Financiamento Seminovos' },
-    { id: 'campanha', group: 'Campanhas', label: 'Financiamento Campanha' },
-    { id: 'triton', group: 'Campanhas', label: 'Semestral Triton' },
+    { id: 'ratetable', group: 'Financiamento', label: 'Linear' },
     { id: 'descobridor', group: 'Ferramentas', label: 'Descobridor de Taxa' },
     { id: 'antecipacao', group: 'Ferramentas', label: 'Antecipação de Parcelas' },
     { id: 'cashconversion', group: 'Ferramentas', label: 'Cash Conversion' }
   ];
   var MODE_DESC = {
     tradicional: 'Financiamento tradicional com balão opcional — a taxa depende do ano do veículo e da entrada.',
-    periodico: 'Parcelas semestrais ou anuais — entrada mínima varia por prazo.',
     ratetable: 'Condições próprias por ano do veículo e faixa de entrada — inclui prazo de 50x.',
-    campanha: 'Condições especiais por modelo — entrada mínima de 60% do valor de venda.',
-    triton: 'Campanha Taxa 0% — entrada fixa de 60% para todos os modelos, sem alteração manual.',
     descobridor: 'Estima a taxa efetiva a partir do valor financiado, prazo e parcela.',
     antecipacao: 'Calcula o valor com desconto para antecipação de parcelas.',
     cashconversion: 'Compara o custo do financiamento com o rendimento de manter o capital aplicado.'
   };
   var TRAD_TERMS = [12, 24, 30, 36, 40, 42, 48];
-  var PERIOD_TERMS = [24, 36, 48];
-  var TRITON_MODELS = ['TRITON HPE', 'TRITON HPE-S', 'TRITON KATANA', 'TRITON SAVANA', 'TRITON TERRA'];
 
   var ERROR_MSG = {
     ENTRADA_MINIMA_10PCT: 'A entrada mínima permitida para este plano é de 10%.',
@@ -51,7 +65,6 @@
     BALAO_VALOR_INVALIDO: 'Informe valor válido para todos os balões.',
     BALOES_ACIMA_DO_LIMITE: 'A soma dos balões ultrapassa o valor máximo permitido, calculado sobre o valor financiado.',
     BALOES_ALTOS_DEMAIS: 'Os balões escolhidos são altos demais para gerar uma parcela mensal válida.',
-    ENTRADA_ABAIXO_DO_MINIMO: 'A entrada mínima permitida para este plano não foi atingida.',
     BEM_INVALIDO: 'Informe um Valor do Bem válido.',
     PRAZO_INVALIDO: 'Informe um prazo válido entre 1 e 60 meses.',
     PARCELA_INVALIDA: 'Informe uma parcela maior que zero.',
@@ -68,13 +81,101 @@
   var currentMode = MODES[0].id;
   var balloons = [];
 
-  function switchMode(id) { currentMode = id; balloons = []; renderModeArea(); }
+  /* ---------- Grouped-button mode nav, mirroring Novos' 08.2 pattern
+     (approved by human UAT) -- independent copy, Seminovos' own
+     smaller MODES list, no Novos file touched. ---------- */
+  function modeGroups() {
+    var groups = {}, order = [];
+    MODES.forEach(function (m) {
+      if (!groups[m.group]) { groups[m.group] = []; order.push(m.group); }
+      groups[m.group].push(m);
+    });
+    return order.map(function (g) { return { name: g, items: groups[g] }; });
+  }
+  function modeNavHtml() {
+    return '<nav class="smModeNav" aria-label="Modalidade de financiamento">' +
+      modeGroups().map(function (g) {
+        return '<div class="smModeGroup">' +
+          '<span class="smModeGroupLabel">' + UI.esc(g.name) + '</span>' +
+          '<div class="smModeButtons" role="group" aria-label="' + UI.esc(g.name) + '">' +
+          g.items.map(function (m) {
+            var active = m.id === currentMode;
+            return '<button type="button" class="smModeBtn' + (active ? ' active' : '') + '" data-mode="' + m.id + '"' + (active ? ' aria-current="true"' : '') + '>' + UI.esc(m.label) + '</button>';
+          }).join('') +
+          '</div></div>';
+      }).join('') +
+      '</nav>';
+  }
+  function wireModeNav() {
+    document.querySelectorAll('.smModeBtn').forEach(function (btn) {
+      btn.addEventListener('click', function () { switchMode(btn.getAttribute('data-mode')); });
+    });
+  }
+
+  function switchMode(id) {
+    currentMode = id;
+    balloons = [];
+    document.getElementById('smModeNavRegion').innerHTML = modeNavHtml();
+    wireModeNav();
+    renderModeArea();
+  }
 
   function renderModeArea() {
+    disconnectTermGridObservers();
     document.getElementById('smModeDesc').textContent = MODE_DESC[currentMode] || '';
     document.getElementById('smFormRegion').innerHTML = formHtml(currentMode);
     document.getElementById('smResultRegion').innerHTML = UI.emptyBlock('Preencha os campos e clique em Calcular.');
     wireForm(currentMode);
+  }
+
+  /* ---------- Balanced term grid, mirroring Novos' 08.2 pattern
+     (approved by human UAT) -- independent copy, pure presentation,
+     0 dependency on Novos' file. Only Tradicional (Balão) has a term
+     SELECTOR here; Linear/RATE_TABLE shows every term as a RESULT row
+     (Gate 9/10), no selector needed. ---------- */
+  function balancedColumns(containerWidth, itemMinWidth, n) {
+    if (n <= 1) return 1;
+    var maxFit = Math.max(1, Math.floor(containerWidth / itemMinWidth));
+    var cap = Math.min(maxFit, n);
+    if (cap >= n) return n;
+    var c;
+    for (c = cap; c >= 2; c--) { var rem = n % c; if (rem === 0 || rem >= 2) return c; }
+    for (c = cap + 1; c <= n; c++) { var rem2 = n % c; if (rem2 === 0 || rem2 >= 2) return c; }
+    return cap;
+  }
+  function termGridFieldHtml(id, label, terms, activeValue) {
+    var buttons = terms.map(function (t) {
+      return '<button type="button" data-v="' + t + '" class="' + (String(t) === String(activeValue) ? 'active' : '') + '">' + t + 'x</button>';
+    }).join('');
+    return '<div class="field"><label id="' + id + 'Label">' + UI.esc(label) + '</label>' +
+      '<div class="smTermSelectGrid" id="' + id + '" role="group" aria-labelledby="' + id + 'Label">' + buttons + '</div></div>';
+  }
+  var termGridObservers = [];
+  function wireTermGrid(id, termCount) {
+    var container = document.getElementById(id);
+    if (!container) return;
+    function recompute() {
+      var w = container.clientWidth || container.parentElement.clientWidth;
+      container.style.setProperty('--term-cols', String(balancedColumns(w, 60, termCount)));
+    }
+    recompute();
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(recompute);
+      ro.observe(container);
+      termGridObservers.push(ro);
+    } else {
+      window.addEventListener('resize', recompute);
+    }
+    container.querySelectorAll('button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        container.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      });
+    });
+  }
+  function disconnectTermGridObservers() {
+    termGridObservers.forEach(function (ro) { ro.disconnect(); });
+    termGridObservers = [];
   }
 
   function formHtml(mode) {
@@ -83,29 +184,14 @@
         return UI.moneyField('sBem', 'Valor do bem', 'R$ 80.000,00') +
           UI.moneyField('sEntrada', 'Entrada', 'R$ 16.000,00') +
           UI.numberField('sAno', 'Ano do veículo', 2022, { min: 1900, max: 2099, hint: 'Tabelas cadastradas para 2017–2024 e 2025–2099.' }) +
-          UI.segmentedField('sPrazo', 'Prazo', TRAD_TERMS.map(function (t) { return { value: t, label: t + 'x' }; }), 24) +
+          termGridFieldHtml('sPrazo', 'Prazo', TRAD_TERMS, 24) +
           '<div class="field"><label>Balões</label><div class="smBalloonList" id="sBaloesList"></div>' +
           '<button type="button" class="btn btn-secondary btn-sm" id="sAddBalao">+ Adicionar balão</button></div>' +
-          '<button type="button" class="btn btn-primary" id="sCalc" style="width:100%;margin-top:6px">Calcular</button>';
-      case 'periodico':
-        return UI.moneyField('sBem', 'Valor do bem', 'R$ 80.000,00') +
-          UI.moneyField('sEntrada', 'Entrada', 'R$ 20.000,00') +
-          UI.segmentedField('sPrazo', 'Prazo', PERIOD_TERMS.map(function (t) { return { value: t, label: t + 'x' }; }), 48) +
-          UI.segmentedField('sTipo', 'Periodicidade', [{ value: 'semestral', label: 'Semestral' }, { value: 'anual', label: 'Anual' }], 'semestral') +
           '<button type="button" class="btn btn-primary" id="sCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'ratetable':
         return UI.numberField('sAnoRT', 'Ano do veículo', 2020, { min: 2007, max: 2099, hint: 'Tabela cadastrada para 2007–2099.' }) +
           UI.moneyField('sValorRT', 'Valor do veículo', 'R$ 80.000,00') +
           UI.moneyField('sEntradaRT', 'Entrada', 'R$ 0,00', 'Entrada permitida a partir de 0%.') +
-          '<button type="button" class="btn btn-primary" id="sCalc" style="width:100%;margin-top:6px">Calcular</button>';
-      case 'campanha':
-        return UI.selectField('sModelo', 'Modelo', CAMP._internal.MODELS.map(function (m) { return { value: m.name, label: m.name }; }), 'ECLIPSE CROSS HPE-S S-AWC') +
-          UI.moneyField('sSale', 'Valor de venda', 'R$ 180.000,00') +
-          UI.moneyField('sEntry', 'Entrada', 'R$ 108.000,00') +
-          '<button type="button" class="btn btn-primary" id="sCalc" style="width:100%;margin-top:6px">Calcular</button>';
-      case 'triton':
-        return UI.selectField('sModelo', 'Modelo', TRITON_MODELS.map(function (m) { return { value: m, label: m }; }), 'TRITON HPE') +
-          UI.moneyField('sBem', 'Valor de venda', 'R$ 180.000,00', 'Entrada fixa de 60% — não editável.') +
           '<button type="button" class="btn btn-primary" id="sCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'descobridor':
         return UI.moneyField('sFinanciado', 'Valor financiado', 'R$ 70.000,00') +
@@ -165,18 +251,10 @@
     if (mode === 'tradicional') {
       renderBaloesList();
       document.getElementById('sAddBalao').addEventListener('click', function () { balloons.push({ mes: null, valor: 0, valorText: '' }); renderBaloesList(); });
-      UI.wireSegmented('sPrazo', function () {});
+      wireTermGrid('sPrazo', TRAD_TERMS.length);
       document.getElementById('sCalc').addEventListener('click', calcTradicional);
-    } else if (mode === 'periodico') {
-      UI.wireSegmented('sPrazo', function () {});
-      UI.wireSegmented('sTipo', function () {});
-      document.getElementById('sCalc').addEventListener('click', calcPeriodico);
     } else if (mode === 'ratetable') {
       document.getElementById('sCalc').addEventListener('click', calcRateTable);
-    } else if (mode === 'campanha') {
-      document.getElementById('sCalc').addEventListener('click', calcCampanha);
-    } else if (mode === 'triton') {
-      document.getElementById('sCalc').addEventListener('click', calcTriton);
     } else if (mode === 'descobridor') {
       document.getElementById('sCalc').addEventListener('click', calcDescobridor);
     } else if (mode === 'antecipacao') {
@@ -190,29 +268,51 @@
 
   function setResult(html) { document.getElementById('smResultRegion').innerHTML = html; }
 
+  /* ---------- Balloon payment-structure story, mirroring Novos' 08.2
+     pattern (approved by human UAT) -- PRESENTATION ONLY, derives
+     entirely from Seminovos' OWN calcularTradicional() r.parcela and
+     the already-validated balloon list. 0 math duplicated: Seminovos'
+     engine genuinely differs from Novos' (vehicle-year table, 1.0 vs
+     0.7 balloon-cap ratio -- see docs/SIMULATOR-ENGINE-DISCOVERY-08.md
+     Gate 49), but this summary function is generic pure presentation
+     over (prazo, parcela, baloes), identical shape in both. ---------- */
+  function balloonScheduleSummary(prazo, parcela, validBaloes) {
+    var specials = validBaloes.slice().sort(function (a, b) { return a.mes - b.mes; })
+      .map(function (b) { return { mes: b.mes, balao: b.valor, total: parcela + b.valor }; });
+    return { regularCount: prazo - specials.length, regularValue: parcela, specials: specials };
+  }
+  function renderBalloonStory(prazo, parcela, validBaloes) {
+    var s = balloonScheduleSummary(prazo, parcela, validBaloes);
+    var html = '<div class="resultHero"><p class="kpiLabel">Plano simulado</p>';
+    if (s.regularCount > 0) {
+      html += '<p class="smPlanRegular"><span class="smPlanRegularCount">' + s.regularCount + 'x</span> de <span class="resultValue smPlanRegularValue">' + UI.brl(s.regularValue) + '</span></p>';
+    }
+    html += '</div>';
+    html += '<div class="smPlanSpecials">' + s.specials.map(function (sp) {
+      return '<div class="smPlanSpecialRow"><span class="kpiLabel">Parcela ' + sp.mes + '</span><span class="smPlanSpecialValue">' + UI.brl(sp.total) + '</span>' +
+        '<span class="smPlanSpecialBreakdown">' + UI.brl(parcela) + ' (parcela) + ' + UI.brl(sp.balao) + ' (balão)</span></div>';
+    }).join('') + '</div>';
+    html += '<p class="smFootnote">Total de parcelas do plano: ' + prazo + '. Os meses com balão substituem o valor da parcela regular naquele mês por um valor especial (parcela + balão) — não são parcelas adicionais.</p>';
+    return html;
+  }
+
   function calcTradicional() {
+    var prazo = Number(UI.getSegmentedValue('sPrazo'));
+    var validBaloes = balloons.filter(function (b) { return b.mes && b.valor; }).map(function (b) { return { mes: b.mes, valor: b.valor }; });
     var r = SN.calcularTradicional({
-      bem: UI.moneyVal('sBem'), entrada: UI.moneyVal('sEntrada'), prazo: Number(UI.getSegmentedValue('sPrazo')),
+      bem: UI.moneyVal('sBem'), entrada: UI.moneyVal('sEntrada'), prazo: prazo,
       ano: UI.numVal('sAno'),
-      baloes: balloons.filter(function (b) { return b.mes || b.valor; }).map(function (b) { return { mes: b.mes, valor: b.valor }; })
+      baloes: validBaloes
     });
     if (r.empty) { setResult(UI.emptyBlock('Preencha os campos e clique em Calcular.')); return; }
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error))); return; }
-    var html = UI.resultHero('Parcela mensal', r.parcela);
-    html += UI.secondaryGrid([{ label: 'Entrada', value: UI.pct1(r.pe) }, { label: 'Taxa aplicada', value: UI.pct2(r.taxa) }, { label: 'Limite de balão', value: UI.brl(r.limite) }]);
-    if (r.totalBaloes) {
-      var rows = balloons.filter(function (b) { return b.mes && b.valor; }).sort(function (a, b) { return a.mes - b.mes; })
-        .map(function (b) { return '<tr><td>Parcela ' + b.mes + '</td><td class="num">' + UI.brl(b.valor) + '</td><td class="num">' + UI.brl(r.parcela + b.valor) + '</td></tr>'; }).join('');
-      html += '<div class="smTableWrap"><table class="smTable"><thead><tr><th>Mês do balão</th><th>Valor do balão</th><th>Total devido no mês</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    var secondary = [{ label: 'Entrada', value: UI.pct1(r.pe) }, { label: 'Taxa aplicada', value: UI.pct2(r.taxa) }, { label: 'Limite de balão', value: UI.brl(r.limite) }];
+    var html;
+    if (validBaloes.length > 0) {
+      html = renderBalloonStory(prazo, r.parcela, validBaloes) + UI.secondaryGrid(secondary);
+    } else {
+      html = UI.resultHero('Parcela mensal', r.parcela) + UI.secondaryGrid(secondary);
     }
-    setResult(html);
-  }
-  function calcPeriodico() {
-    var r = SN.calcularPeriodico({ bem: UI.moneyVal('sBem'), entrada: UI.moneyVal('sEntrada'), prazo: Number(UI.getSegmentedValue('sPrazo')), tipo: UI.getSegmentedValue('sTipo') });
-    if (r.empty) { setResult(UI.emptyBlock('Preencha os campos e clique em Calcular.')); return; }
-    if (r.error) { setResult(UI.errorBlock(errMsg(r.error) + (r.minEntrada != null ? ' Mínimo: ' + UI.pct1(r.minEntrada) + '.' : ''))); return; }
-    var html = UI.resultHero('Parcela ' + (UI.getSegmentedValue('sTipo') === 'semestral' ? 'semestral' : 'anual'), r.parcela);
-    html += UI.secondaryGrid([{ label: 'Entrada', value: UI.pct1(r.pe) }, { label: 'Taxa aplicada', value: UI.pct2(r.taxa) }, { label: 'Nº de parcelas', value: String(r.meses.length) }]);
     setResult(html);
   }
   function calcRateTable() {
@@ -221,33 +321,6 @@
     var html = UI.termGrid(r.terms.map(function (t) { return { prazo: t.prazo, payment: t.payment, rate: t.rate, best: false }; }));
     setResult('<p class="kpiLabel" style="margin-bottom:12px">Parcela por prazo — faixa ' + (r.band || '—') + ' · entrada ' + r.eBand + '%</p>' + html +
       '<p class="smFootnote">Financiado: ' + UI.brl(r.financiado) + '</p>');
-  }
-  function calcCampanha() {
-    var r = CAMP.compute({ model: UI.textVal('sModelo'), saleValue: UI.moneyVal('sSale'), entryValue: UI.moneyVal('sEntry') });
-    if (!r.valid) { setResult(UI.errorBlock('A entrada informada é menor que o mínimo exigido para este modelo (' + UI.pct1(r.minValue / (r.sale || 1)) + ' do valor de venda).')); return; }
-    var html = UI.termGrid(r.terms.map(function (t) { return { prazo: t.prazo, payment: t.payment, rate: t.rate, best: false }; }));
-    html += UI.secondaryGrid([
-      { label: 'Financiado', value: UI.brl(r.financed) },
-      { label: 'Rebate total — custo comercial da taxa', value: UI.brl(r.rebateTotal) },
-      { label: 'Rebate Brabus', value: UI.brl(r.rebateBrabus) },
-      { label: 'Rebate HPE', value: UI.brl(r.rebateHpe) },
-      { label: 'Valor final de venda', value: UI.brl(r.finalSale) }
-    ]);
-    setResult('<p class="kpiLabel" style="margin-bottom:12px">Parcela por prazo</p>' + html);
-  }
-  function calcTriton() {
-    var r = SN.calcularSemestralTriton({ bem: UI.moneyVal('sBem'), modelo: UI.textVal('sModelo') });
-    if (r.error) { setResult(UI.errorBlock('Informe o valor de venda para calcular a campanha.')); return; }
-    var html = UI.resultHero('Parcela (4x semestrais)', r.parcela);
-    html += UI.secondaryGrid([
-      { label: 'Entrada fixa (60%)', value: UI.brl(r.entrada) },
-      { label: 'Financiado', value: UI.brl(r.financiado) },
-      { label: 'Rebate total — custo comercial', value: UI.brl(r.rebateTotal) },
-      { label: 'Rebate Brabus', value: UI.brl(r.rebateBrabus) },
-      { label: 'Rebate HPE', value: UI.brl(r.rebateHpe) },
-      { label: 'Valor final de venda', value: UI.brl(r.valorFinalVenda) }
-    ]);
-    setResult(html + '<p class="smFootnote">Entrada fixa de 60% para todos os modelos — não permite alteração manual.</p>');
   }
   function calcDescobridor() {
     var r = SN.calcularDescobridor({ financiado: UI.moneyVal('sFinanciado'), prazo: UI.numVal('sPrazoNum'), parcela: UI.moneyVal('sParcela') });
@@ -292,22 +365,19 @@
     render: function (outlet) {
       currentMode = MODES[0].id;
       balloons = [];
-      var groups = {};
-      MODES.forEach(function (m) { (groups[m.group] = groups[m.group] || []).push(m); });
-      var optgroups = Object.keys(groups).map(function (g) {
-        return '<optgroup label="' + UI.esc(g) + '">' + groups[g].map(function (m) { return '<option value="' + m.id + '">' + UI.esc(m.label) + '</option>'; }).join('') + '</optgroup>';
-      }).join('');
       outlet.innerHTML =
         '<div class="smPage">' +
         '<span class="smProductBadge">Simulador · Seminovos</span>' +
         '<div class="smHeader"><div><h1>Simulador de Financiamento — Seminovos</h1><p>Motores extraídos e verificados (PORTAL-NEXT-08) — 0 recálculo de fórmula nesta interface.</p></div></div>' +
-        '<div class="smModeBar"><label for="smModeSelect">Modalidade</label><select class="select" id="smModeSelect">' + optgroups + '</select>' +
-        '<p class="smModeDesc" id="smModeDesc"></p></div>' +
-        '<div class="smGrid"><div class="smFormCard" id="smFormRegion"></div><div class="smResultCard" id="smResultRegion" aria-live="polite" aria-atomic="true"></div></div>' +
+        '<div id="smModeNavRegion">' + modeNavHtml() + '</div>' +
+        '<p class="smModeDesc" id="smModeDesc"></p>' +
+        '<div class="smGrid" id="smMainGrid"><div class="smFormCard" id="smFormRegion"></div><div class="smResultCard" id="smResultRegion" aria-live="polite" aria-atomic="true"></div></div>' +
         '</div>';
-      document.getElementById('smModeSelect').addEventListener('change', function (e) { switchMode(e.target.value); });
+      wireModeNav();
       renderModeArea();
       return Promise.resolve();
-    }
+    },
+    balloonScheduleSummary: balloonScheduleSummary,
+    balancedColumns: balancedColumns
   };
 })();

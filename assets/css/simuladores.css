@@ -214,6 +214,8 @@
 .smSubsidiadaCardRow { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); font-size: 13px; padding-top: 4px; border-top: 1px solid var(--color-hairline); }
 .smSubsidiadaCardRow strong { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
 .smSubsidiadaCardRow.smSubsidiadaCardRowEmphasis strong { font-size: 14.5px; color: var(--color-text-primary); }
+.smSubsidiadaCardValueStack { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.smSubsidiadaCardRebatePct { font-family: var(--font-mono); font-size: 10.5px; font-weight: 400; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 
 .smFormCard, .smResultCard {
   background: var(--color-surface-1);

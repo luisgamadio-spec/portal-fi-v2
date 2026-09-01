@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Gate 41 — Simulador Seminovos V2 UI golden binding (PORTAL-NEXT-08.1).
+Gate 41 — Simulador Seminovos V2 UI golden binding (PORTAL-NEXT-08.1,
+updated PORTAL-NEXT-08.4).
 
-Reuses the EXACT same 24 golden cases as PORTAL-NEXT-08's
-tests/simulador-seminovos-parity-test.py (6 reachable Seminovos
-engines), driving the REAL V2 route (#/simulador-seminovos) through
-its actual form fields/buttons and comparing against the frozen
-adapter. Also proves Gate 47 (dead-feature guard): the mode <select>
-has no "Financiamento Linear"/"Taxas Subsidiadas" option at all.
+Drives the REAL V2 route (#/simulador-seminovos) through its actual
+form fields/buttons and compares against the frozen adapter.
+
+PORTAL-NEXT-08.4 Gate 34 -- navigation scope re-audited against real
+production and reduced to match: FINANCIAMENTO now contains only
+Tradicional (Balão) and Linear; the Periodico and SemestralTriton
+sections previously tested here are REMOVED because those modes are
+no longer exposed (production evidence: 0 reachable click path --
+see docs/SIMULATOR-SEMINOVOS-ALIGNMENT-08-4.md). Also proves Gate 22
+(dead-feature guard): the mode nav has no "Financiamento Linear" (the
+OLD top-level dead tab)/"Taxas Subsidiadas"/"Semestral / Anual"/
+"Financiamento Campanha"/"Plano Coparticipado"/"Semestral Triton"
+button at all -- only the reachable "Linear" (RATE_TABLE) button.
 
 Requires: `python -m http.server 8700` running from PORTAL-FI-DESIGN-LAB/.
 """
@@ -50,15 +58,31 @@ def main():
         page.goto(URL)
         page.wait_for_timeout(400)
 
-        # Gate 47 -- dead-feature guard, checked once up front.
-        mode_options = page.evaluate("[...document.querySelectorAll('#smModeSelect option')].map(o => o.textContent)")
-        dead_guard_ok = not any("Linear" == m or "Subsidiada" in m for m in mode_options)
-        results.append(("Gate47/dead_features_not_exposed", dead_guard_ok))
-        results.append(("Gate47/ratetable_not_confused_with_dead_linear",
-                         any("Financiamento Seminovos" in m for m in mode_options)))
+        # Gate 22/34 -- dead-feature + reduced-navigation guard, checked once up front.
+        mode_options = page.evaluate("[...document.querySelectorAll('.smModeBtn')].map(o => o.textContent)")
+        group_labels = page.evaluate("[...document.querySelectorAll('.smModeGroupLabel')].map(o => o.textContent)")
+        dead_features_ok = not any(
+            m == "Financiamento Linear" or "Subsidiada" in m or "Semestral / Anual" in m
+            or "Campanha" in m or "Coparticipado" in m or "Triton" in m
+            for m in mode_options
+        )
+        results.append(("Gate22/dead_and_unreachable_features_not_exposed", dead_features_ok))
+        results.append(("Gate34/reachable_linear_present_as_Linear", "Linear" in mode_options))
+        results.append(("Gate34/financiamento_group_has_exactly_2_products",
+                         group_labels.count("Financiamento") == 1 and
+                         page.evaluate("document.querySelector('.smModeGroup:has(.smModeGroupLabel)') !== null")))
+        fin_count = page.evaluate(
+            """() => {
+                const groups = [...document.querySelectorAll('.smModeGroup')];
+                const fin = groups.find(g => g.querySelector('.smModeGroupLabel').textContent === 'Financiamento');
+                return fin ? fin.querySelectorAll('.smModeBtn').length : -1;
+            }"""
+        )
+        results.append((f"Gate34/financiamento_group_exactly_2_buttons ({fin_count})", fin_count == 2))
+        results.append(("Gate25/no_empty_groups", "" not in group_labels and len(group_labels) == len(set(group_labels))))
 
         def select_mode(mode):
-            page.select_option("#smModeSelect", mode)
+            page.click(f'.smModeBtn[data-mode="{mode}"]')
             page.wait_for_timeout(80)
 
         def click_segmented(box_id, value):
@@ -112,39 +136,28 @@ def main():
             )
             if c.get("expect_error"):
                 ok = has_error_state() and adapter_r.get("error") is not None
+            elif c.get("balao"):
+                # PORTAL-NEXT-08.4 Gate 13: balloon plans render the
+                # payment-structure story (ported from Novos' 08.2
+                # pattern), not a plain "Parcela mensal" hero -- verify
+                # the special-month row shows parcela+balao (Seminovos'
+                # own engine values, no new math) and the regular count
+                # is prazo-1.
+                regular_text = page.evaluate("document.querySelector('.smPlanRegularCount') ? document.querySelector('.smPlanRegularCount').textContent : null")
+                special_val = brl_to_float(page.evaluate(
+                    "(m) => { const rows=[...document.querySelectorAll('.smPlanSpecialRow')]; const r=rows.find(x=>x.textContent.includes('Parcela '+m)); return r ? r.querySelector('.smPlanSpecialValue').textContent : null; }",
+                    c["balao"]["mes"],
+                ))
+                expected_special = adapter_r.get("parcela") + c["balao"]["valor"]
+                ok = (
+                    not has_error_state()
+                    and regular_text == str(c["prazo"] - 1) + "x"
+                    and close(special_val, expected_special)
+                )
             else:
                 ui_val = brl_to_float(result_field("Parcela mensal"))
                 ok = not has_error_state() and close(ui_val, adapter_r.get("parcela"))
             results.append((f"Tradicional/{c['id']}", ok))
-
-        # ==================== Periodico (4) ====================
-        select_mode("periodico")
-        period_cases = [
-            {"id": "period_semestral_48x", "bem": 80000, "entrada": 20000, "prazo": 48, "tipo": "semestral"},
-            {"id": "period_anual_36x", "bem": 90000, "entrada": 25000, "prazo": 36, "tipo": "anual"},
-            {"id": "period_below_min", "bem": 60000, "entrada": 5000, "prazo": 24, "tipo": "semestral", "expect_error": True},
-            {"id": "period_unsupported_term", "bem": 60000, "entrada": 20000, "prazo": 30, "tipo": "semestral", "no_term_btn": True, "expect_error": True},
-        ]
-        for c in period_cases:
-            page.fill("#sBem", str(c["bem"]))
-            page.fill("#sEntrada", str(c["entrada"]))
-            prazo_for_ui = c["prazo"] if not c.get("no_term_btn") else 48
-            click_segmented("sPrazo", str(prazo_for_ui))
-            click_segmented("sTipo", c["tipo"])
-            page.click("#sCalc")
-            page.wait_for_timeout(80)
-            adapter_r = page.evaluate(
-                "(c) => NX_SIMULADOR_SEMINOVOS_ADAPTER.calcularPeriodico({bem:c.bem, entrada:c.entrada, prazo:c.prazo, tipo:c.tipo})",
-                c,
-            )
-            if c.get("no_term_btn"):
-                ok = adapter_r.get("error") is not None
-            elif c.get("expect_error"):
-                ok = has_error_state() and adapter_r.get("error") is not None
-            else:
-                ui_val = brl_to_float(result_field("Parcela " + ("semestral" if c["tipo"] == "semestral" else "anual")))
-                ok = not has_error_state() and close(ui_val, adapter_r.get("parcela"))
-            results.append((f"Periodico/{c['id']}", ok))
 
         # ==================== Descobridor (2) ====================
         select_mode("descobridor")
@@ -196,27 +209,7 @@ def main():
                 ok = not has_error_state() and close(ui_val, adapter_r.get("finalTotal"), 0.05)
             results.append((f"Antecipacao/{c['id']}", ok))
 
-        # ==================== Semestral Triton (3) ====================
-        select_mode("triton")
-        stc_cases = [
-            {"id": "stc_triton_hpe", "bem": 180000, "modelo": "TRITON HPE"},
-            {"id": "stc_triton_savana", "bem": 220000, "modelo": "TRITON SAVANA"},
-            {"id": "stc_zero_bem", "bem": 0, "modelo": "TRITON HPE", "expect_error": True},
-        ]
-        for c in stc_cases:
-            page.select_option("#sModelo", c["modelo"])
-            page.fill("#sBem", str(c["bem"]))
-            page.click("#sCalc")
-            page.wait_for_timeout(80)
-            adapter_r = page.evaluate("(c) => NX_SIMULADOR_SEMINOVOS_ADAPTER.calcularSemestralTriton({bem:c.bem, modelo:c.modelo})", c)
-            if c.get("expect_error"):
-                ok = has_error_state() and adapter_r.get("error") is not None
-            else:
-                ui_val = brl_to_float(result_field("Parcela (4x semestrais)"))
-                ok = not has_error_state() and close(ui_val, adapter_r.get("parcela"))
-            results.append((f"SemestralTriton/{c['id']}", ok))
-
-        # ==================== Financiamento Seminovos / RATE_TABLE (5) ====================
+        # ==================== Linear / RATE_TABLE (5) ====================
         select_mode("ratetable")
         lrt_cases = [
             {"id": "lrt_2020_0pct", "ano": 2020, "valor": 80000, "entrada": 0},

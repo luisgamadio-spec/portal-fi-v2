@@ -472,7 +472,14 @@
           '<div class="smSubsidiadaCardHead"><span class="smSubsidiadaCardPrazo">' + row.prazo + 'x</span><span class="smSubsidiadaCardTaxa">' + UI.pct2(row.taxa) + '</span></div>' +
           (pill ? '<div class="smSubsidiadaCardPill">' + pill + '</div>' : '') +
           '<div class="smSubsidiadaCardRow"><span class="kpiLabel">Parcela</span><strong>' + UI.brl(row.parcela) + '</strong></div>' +
-          '<div class="smSubsidiadaCardRow smSubsidiadaCardRowEmphasis"><span class="kpiLabel">Rebate — custo comercial</span><strong>' + UI.brl(row.rebateValor) + '</strong></div>' +
+          // Gate 1-3 (PORTAL-NEXT-08.4): row.rebate is the engine's own
+          // authoritative percentage field (RATE_TABLE tabelaRebates_FALLBACK),
+          // proven by rebateValor === financiado * row.rebate -- so the
+          // denominator is "financiado" (bem - entrada), NOT "valor do bem".
+          // Displayed as-is, no derivation, no new precision invented.
+          '<div class="smSubsidiadaCardRow smSubsidiadaCardRowEmphasis"><span class="kpiLabel">Rebate — custo comercial</span>' +
+          '<span class="smSubsidiadaCardValueStack"><strong>' + UI.brl(row.rebateValor) + '</strong>' +
+          '<span class="smSubsidiadaCardRebatePct">' + UI.pct2(row.rebate) + ' do valor financiado</span></span></div>' +
           '<div class="smSubsidiadaCardRow smSubsidiadaCardRowEmphasis"><span class="kpiLabel">Valor final de venda</span><strong>' + UI.brl(row.valorFinalVenda) + '</strong></div>' +
           '</div>';
       }).join('');

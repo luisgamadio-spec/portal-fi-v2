@@ -325,6 +325,54 @@ def main():
         )
         results.append(("subsidiadas: exactly 3 metric rows per card (Parcela/Rebate/Venda), 0 duplication", dup_check, None))
 
+        # ---- PORTAL-NEXT-08.4 Gate 1-3: Rebate % on every Subsidiadas card ----
+        # row.rebate is the engine's own authoritative field (RATE_TABLE),
+        # proven by rebateValor === financiado * row.rebate -- so the % shown
+        # must equal row.rebate exactly, not a value derived from valor do bem.
+        pct_data = page.evaluate(
+            """() => [...document.querySelectorAll('.smSubsidiadaCard')].map(c => ({
+                prazo: Number(c.querySelector('.smSubsidiadaCardPrazo').textContent.replace('x', '')),
+                taxa: c.querySelector('.smSubsidiadaCardTaxa').textContent,
+                pctText: c.querySelector('.smSubsidiadaCardRebatePct') ? c.querySelector('.smSubsidiadaCardRebatePct').textContent : null
+            }))"""
+        )
+        pct_mismatches = 0
+        for row in sub_r["rows"]:
+            match = next((c for c in pct_data if c["prazo"] == row["prazo"] and abs(float(c["taxa"].replace("%", "").replace(",", ".")) - row["taxa"] * 100) < 0.02), None)
+            expected_pct = round(row["rebate"] * 100, 2)
+            got = None
+            if match and match["pctText"]:
+                m = re.search(r"[\d.]+,\d+", match["pctText"])
+                got = float(m.group(0).replace(".", "").replace(",", ".")) if m else None
+            if got is None or abs(got - expected_pct) > 0.011:
+                pct_mismatches += 1
+        results.append((f"subsidiadas: Rebate % present and == row.rebate on all 32 cards (mismatches={pct_mismatches})", pct_mismatches == 0, pct_mismatches))
+        # Denominator proof: rebateValor == financiado * row.rebate for every row (engine-side, not a UI derivation).
+        denom_ok = all(close(row["rebateValor"], sub_r["financiado"] * row["rebate"], 0.02) for row in sub_r["rows"])
+        results.append(("subsidiadas: rebateValor == financiado * row.rebate (denominator is financiado, not bem)", denom_ok, None))
+        # Visual hierarchy: the % must render smaller than the emphasized monetary value beside it (Gate 2).
+        sizes = page.evaluate(
+            """() => {
+                const card = document.querySelector('.smSubsidiadaCard');
+                const amt = card.querySelector('.smSubsidiadaCardRow.smSubsidiadaCardRowEmphasis strong');
+                const pct = card.querySelector('.smSubsidiadaCardRebatePct');
+                return { amt: parseFloat(getComputedStyle(amt).fontSize), pct: parseFloat(getComputedStyle(pct).fontSize) };
+            }"""
+        )
+        results.append((f"subsidiadas: Rebate % font-size < Rebate amount font-size ({sizes['pct']}px < {sizes['amt']}px)", sizes["pct"] < sizes["amt"], sizes))
+        # Grid guard (Gate 4): adding the % must not push the card grid below 4 columns at 1366px desktop.
+        # (An earlier test in this suite resizes to a 390px mobile viewport and
+        # does not restore it -- explicitly reset before measuring columns.)
+        page.set_viewport_size({"width": 1366, "height": 900})
+        col_count = page.evaluate(
+            """() => {
+                const grid = document.querySelector('.smSubsidiadaGrid');
+                const cols = new Set([...grid.children].map(c => c.getBoundingClientRect().left));
+                return cols.size;
+            }"""
+        )
+        results.append((f"subsidiadas: grid still 4 columns wide at 1366px after adding Rebate % ({col_count})", col_count == 4, col_count))
+
         print("console/page errors:", errors)
         page.close()
         browser.close()
