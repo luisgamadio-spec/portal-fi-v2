@@ -12,16 +12,13 @@
 
 .smPage { max-width: 1180px; }
 
-/* Wave 3E — Simulador Novos' own page header now emits the shared
-   module-system.css primitives (.modPageHeader/.modTitle/.modSubtitle)
-   instead; .smHeader itself is STILL ACTIVE (not dead) — Seminovos
-   (assets/js/simulador-seminovos.js, a completely separate render()
-   that independently generates its own "<div class="smHeader">"
-   markup) still consumes this exact rule unchanged. This file is
-   shared between both simulators, so nothing here may be deleted or
-   modified — Novos migration is possible only because it's additive
-   (Novos' markup simply stopped requesting this class; Seminovos never
-   knew the difference). Same applies below for .smFormCard/.smResultCard. */
+/* Wave 3E migrated Novos' own page header to the shared module-system.css
+   primitives (.modPageHeader/.modTitle/.modSubtitle); Wave 3F did the
+   same for Seminovos. Both simulators' render() now request those
+   shared classes instead, so .smHeader itself is superseded — 0
+   remaining reference in either file (grep-verified before this
+   comment was written), kept for history same as every other Wave's
+   dead-rule discipline. Same applies below for .smResultCard. */
 .smHeader {
   display: flex;
   align-items: baseline;
@@ -227,16 +224,19 @@
 .smSubsidiadaCardValueStack { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
 .smSubsidiadaCardRebatePct { font-family: var(--font-mono); font-size: 10.5px; font-weight: 400; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 
-/* Wave 3E — Novos' result region now uses .modPanelResult (module-
-   system.css) instead of .smResultCard, and its form region carries
-   BOTH .modPanelForm and .smFormCard (kept for the .smGridStacked
-   .smFormCard descendant rule two blocks up, still exercised by the
-   Subsidiadas mode). Both rules stay ACTIVE — Seminovos' own separate
-   render() still emits .smFormCard/.smResultCard unchanged, and
+/* Wave 3E migrated Novos' result region to .modPanelResult and its
+   form region to .modPanelForm + .smFormCard (kept alongside, not
+   replaced — the .smGridStacked .smFormCard descendant rule below
+   still targets it by name, exercised by Novos' own Subsidiadas mode,
+   which Seminovos has no equivalent of). Wave 3F migrated Seminovos'
+   result AND form regions the same way, but Seminovos has no stacked
+   mode, so it drops .smFormCard/.smResultCard entirely rather than
+   keeping a redundant class. .smResultCard is now fully superseded — 0
+   remaining reference in either file. .smFormCard stays ACTIVE, but
+   ONLY because Novos still carries it as that one redundant class;
    .modPanelForm/.modPanelResult (module-system.css, Wave 3A) were
-   originally EXTRACTED from this exact rule, so the values are
-   pixel-identical: applying both classes to Novos' form region is
-   redundant, not conflicting. */
+   originally EXTRACTED from this exact rule, so the values remain
+   pixel-identical regardless of which class(es) apply. */
 .smFormCard, .smResultCard {
   background: var(--color-surface-1);
   border: 1px solid var(--color-hairline);

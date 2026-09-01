@@ -270,6 +270,49 @@ wide-table mobile migration**:
   inherited per-element, so overriding it directly on the fallback's
   own span (not the cell) fixes it without touching the numeric case.
 
+## Sixth migration — Simulador de Seminovos (Wave 3F) — SIMULATOR FAMILY CONCLUSION
+
+Migrated the same two elements Wave 3E migrated for Novos — page
+header (`.modPageHeader`/`.modTitle`/`.modSubtitle`) and the form/result
+panels (`.modPanelForm`/`.modPanelResult`) — closing out the simulator
+family. Unlike Novos, Seminovos has no `.smGridStacked`-equivalent mode
+(no Subsidiadas comparison grid), so its form region drops
+`.smFormCard` entirely rather than keeping it as a redundant safety
+class; Novos still needs to keep that one.
+
+**Net effect on the old shared rules**: `.smHeader` and `.smResultCard`
+are now fully superseded — 0 remaining reference in either simulator
+file. `.smFormCard` stays active, but only because Novos' own
+Subsidiadas-mode override (`.smGridStacked .smFormCard`) still targets
+it by name; nothing else needs it anymore.
+
+**The Transactional Module Contract required 0 changes to survive a
+second, structurally different consumer.** Confirms it as generalized,
+not Novos-shaped: mode-nav grouped by category (Seminovos has 2 groups
+and 5 modes vs. Novos' 3 groups and 10 — the contract doesn't care) →
+one form region with every input and the primary CTA together → a
+result region beside the form at ≥900px, stacked below it under 900px
+→ one dominant value with a quieter secondary grid. No new shared
+primitive was needed (Gate 27 expected zero, delivered zero).
+
+**Confirmed still genuinely module-specific, not merely deferred**:
+`window.NX_SIM_UI` (fields/buttons/states/result blocks — shared
+infrastructure, still untouched by either simulator's migration), the
+grouped mode-nav and balloon payment-structure story (independently
+duplicated in both files, proven safe to leave alone twice now), and
+the features that exist in only one simulator — Seminovos has no
+Campanhas group, no Subsidiadas grid, no Semestral Triton, no
+"Parcela Única"; it has its own vehicle-year field (`Ano do veículo`)
+and its own Linear rate-table engine that Novos has no equivalent of.
+None of that was copied in either direction — shared UI language,
+independent business capability, exactly as this Wave's brief required.
+
+**Simulator-family migration is now complete**: both Novos and
+Seminovos speak the same Red Precision transactional visual language
+(header, panels, mode-nav, field, button, and result grammar) while
+keeping 100% independent financial engines, field sets, and mode
+lists.
+
 ## Fourth migration — Análise de Score Vendedores (Wave 3D)
 
 Migrated to the shared system: page header, fixture banner. A shared

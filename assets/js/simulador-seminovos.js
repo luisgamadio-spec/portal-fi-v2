@@ -368,10 +368,10 @@
       outlet.innerHTML =
         '<div class="smPage">' +
         '<span class="smProductBadge">Simulador · Seminovos</span>' +
-        '<div class="smHeader"><div><h1>Simulador de Financiamento — Seminovos</h1><p>Motores extraídos e verificados (PORTAL-NEXT-08) — 0 recálculo de fórmula nesta interface.</p></div></div>' +
+        '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Simulador de Financiamento — Seminovos</h1><p class="modSubtitle">Motores extraídos e verificados (PORTAL-NEXT-08) — 0 recálculo de fórmula nesta interface.</p></div></div>' +
         '<div id="smModeNavRegion">' + modeNavHtml() + '</div>' +
         '<p class="smModeDesc" id="smModeDesc"></p>' +
-        '<div class="smGrid" id="smMainGrid"><div class="smFormCard" id="smFormRegion"></div><div class="smResultCard" id="smResultRegion" aria-live="polite" aria-atomic="true"></div></div>' +
+        '<div class="smGrid" id="smMainGrid"><div class="modPanelForm" id="smFormRegion"></div><div class="modPanelResult" id="smResultRegion" aria-live="polite" aria-atomic="true"></div></div>' +
         '</div>';
       wireModeNav();
       renderModeArea();
