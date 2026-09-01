@@ -36,6 +36,8 @@ def main():
         "coparticipado": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
         "gestao": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
         "dashbi": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
+        "simulador-novos": {"NOT_MIGRATED", "IN_PROGRESS", "VISUAL_PARITY_PENDING", "UAT_PENDING"},
+        "simulador-seminovos": {"NOT_MIGRATED", "IN_PROGRESS", "VISUAL_PARITY_PENDING", "UAT_PENDING"},
     }
 
     for m in modules:
@@ -57,7 +59,7 @@ def main():
     if dupes:
         errors.append(f"duplicate module ids: {dupes}")
 
-    print(f"[{'PASS' if not errors else 'FAIL'}] all modules have required contract fields and correct status discipline (landing=HUMAN_APPROVED, score/coparticipado=UAT_PENDING/VISUAL_PARITY_PENDING, all others=NOT_MIGRATED)")
+    print(f"[{'PASS' if not errors else 'FAIL'}] all modules have required contract fields and correct status discipline (landing=HUMAN_APPROVED, score/coparticipado/simulador-novos/simulador-seminovos=UAT_PENDING/VISUAL_PARITY_PENDING, all others=NOT_MIGRATED)")
     if errors:
         for e in errors:
             print("  -", e)

@@ -95,6 +95,20 @@
           window.NX_DASHBI_PAGE.render(dbOutlet).then(function () {
             if (hasRenderedOnce) dbOutlet.focus();
           });
+        } else if (routeId === 'simulador-novos' && window.NX_SIMULADOR_NOVOS_PAGE) {
+          // PORTAL-NEXT-08.1: real Simulador Novos route, same
+          // outlet-only rendering contract as every prior module.
+          var snOutlet = document.getElementById('nxContentOutlet');
+          window.NX_SIMULADOR_NOVOS_PAGE.render(snOutlet).then(function () {
+            if (hasRenderedOnce) snOutlet.focus();
+          });
+        } else if (routeId === 'simulador-seminovos' && window.NX_SIMULADOR_SEMINOVOS_PAGE) {
+          // PORTAL-NEXT-08.1: real Simulador Seminovos route, same
+          // outlet-only rendering contract as every prior module.
+          var ssOutlet = document.getElementById('nxContentOutlet');
+          window.NX_SIMULADOR_SEMINOVOS_PAGE.render(ssOutlet).then(function () {
+            if (hasRenderedOnce) ssOutlet.focus();
+          });
         } else {
           renderPlaceholder(entry, routeId, hasRenderedOnce);
         }
