@@ -173,3 +173,41 @@ Primitives validated at 1920/1366/1024/768/430/390px via the
 representative module — 0 horizontal scroll at every width (verified,
 not assumed). The Shell's own breakpoint architecture (drawer at
 ≤1279px, see `docs/` from Wave 2B) is unchanged.
+
+## Second migration — Análise F&I do Grupo (Wave 3B)
+
+Migrated to the shared system: page header, fixture banner, filter
+field wrappers, all KPI grids (production status, financial value,
+SPF Extra, and every "Indicadores"/support KPI group), and the table
+foundation (`Planos por Loja e Departamento`, `Financiamentos por
+Loja`, both status-by tables, both proposal-outcome tables — 7 tables
+total). Verified via a captured before/after data snapshot (28 KPI
+values, 5 plan-classification cards, 8 tables' full text) — byte-
+identical, 0 business-logic change.
+
+**Deliberately NOT migrated**: the 5-way plan classification cards
+(`.gePlanCard`/`.planSubsidiado`/etc.) — business-critical, already
+correct, distinct semantics the shared system's 4 generic modifiers
+don't map onto 1:1; segmented-control buttons (`.gePresetBtn`/
+`.geVehicleBtn`) — same JS-coupling reason as Dashbi's deferred
+`.dbBtn` family in Wave 3A.
+
+Two genuinely reusable rules this migration surfaced, not covered by
+Wave 3A's single-module proof:
+
+- **Financial semantic KPI accents**: an Exec-tier `.modKpiCard` can
+  take an existing semantic modifier (`.modKpiCardWarning`,
+  `.modKpiCardInfo`, ...) to distinguish cautionary/informational
+  metrics from a neutral total — reuses existing tokens, never invents
+  a new color. Applied to "Propostas Perdidas" (warning) and "Propostas
+  em Aberto" (info) alongside a plain "Valor de Produção Total".
+- **Wide analytical tables need a module-level override on
+  `.modTable`**: the shared table foundation's default is
+  `white-space: nowrap` (fine for narrower tables), but a table with
+  many columns (F&I's widest has 10) needs `table-layout: fixed` +
+  wrapping to hold 0 horizontal scroll — re-declare those two
+  properties scoped under the module's own page class (e.g. `.gePage
+  .modTable { table-layout: fixed; }`), and retarget any existing
+  `<=768px` data-th mobile override from the module's old table class
+  to `.modTable`/`.modTableWrap`. Don't assume the shared default fits
+  every column count — measure.

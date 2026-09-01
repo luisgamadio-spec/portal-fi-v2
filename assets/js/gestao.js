@@ -37,16 +37,21 @@
   }
 
   function kpiPrimary(label, value, splitHtml) {
-    return '<div class="geKpiCardPrimary"><div class="geK">' + esc(label) + '</div><div class="geV">' + value + '</div>' +
+    return '<div class="modKpiCard"><div class="modKpiLabel">' + esc(label) + '</div><div class="modKpiValue">' + value + '</div>' +
       (splitHtml ? '<div class="geSplit">' + splitHtml + '</div>' : '') + '</div>';
   }
-  function kpiExec(label, value, hint) {
-    return '<div class="geKpiCardExec"><div class="geK">' + esc(label) + '</div><div class="geV">' + value + '</div><div class="geHint">' + esc(hint) + '</div></div>';
+  function kpiExec(label, value, hint, accentCls) {
+    return '<div class="modKpiCard modKpiCardExec' + (accentCls ? ' ' + accentCls : '') + '"><div class="modKpiLabel">' + esc(label) + '</div><div class="modKpiValue">' + value + '</div><div class="modKpiHint">' + esc(hint) + '</div></div>';
   }
   function kpiSecondary(label, value, hint) {
-    return '<div class="geKpiCardSecondary"><div class="geK">' + esc(label) + '</div><div class="geV">' + esc(String(value)) + '</div><div class="geHint">' + esc(hint) + '</div></div>';
+    return '<div class="modKpiCard modKpiCardSecondary"><div class="modKpiLabel">' + esc(label) + '</div><div class="modKpiValue">' + esc(String(value)) + '</div><div class="modKpiHint">' + esc(hint) + '</div></div>';
   }
 
+  // Classificação dos Planos (Gate 9/10, CRITICAL): left untouched --
+  // own gePlanCard/planXxx visual language already carries the correct
+  // 5-way business-semantic distinction (border-left color + label),
+  // which the shared system's 4 generic modifiers (success/warning/
+  // critical/info) do not map onto 1:1. Not migrated, not risked.
   function planCardHtml(A, tipo, data) {
     var cls = { 'LINEAR': 'planLinear', 'BALÃO': 'planBalao', 'SUBSIDIADO': 'planSubsidiado', 'REVERSÃO': 'planReversao', 'COPARTICIPADO': 'planCoparticipado' }[tipo] || '';
     return '<div class="gePlanCard ' + cls + '"><div class="geK">' + esc(tipo) + '</div><div class="geV">' + data.quantity + '</div><div class="geHint">' + A.money(data.financed_value) + '</div></div>';
@@ -55,16 +60,16 @@
   function headerRow(headers, numericFrom) {
     numericFrom = numericFrom == null ? 1 : numericFrom;
     return headers.map(function (h, i) {
-      return '<th' + (i >= numericFrom ? ' class="geNumCol"' : '') + '>' + esc(h) + '</th>';
+      return '<th' + (i >= numericFrom ? ' class="modNumCol"' : '') + '>' + esc(h) + '</th>';
     }).join('');
   }
   function row(cells, headers) {
     function th(i) { return headers ? ' data-th="' + esc(headers[i]) + '"' : ''; }
-    return '<tr><td' + th(0) + '>' + esc(cells[0]) + '</td>' + cells.slice(1).map(function (c, i) { return '<td class="geNumCol"' + th(i + 1) + '>' + esc(String(c)) + '</td>'; }).join('') + '</tr>';
+    return '<tr><td' + th(0) + '>' + esc(cells[0]) + '</td>' + cells.slice(1).map(function (c, i) { return '<td class="modNumCol"' + th(i + 1) + '>' + esc(String(c)) + '</td>'; }).join('') + '</tr>';
   }
   function tableHtml(headers, bodyRows) {
-    return '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
-      '<tbody>' + (bodyRows.length ? bodyRows.join('') : '<tr><td colspan="' + headers.length + '" class="geMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
+    return '<div class="modTableWrap"><table class="modTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
+      '<tbody>' + (bodyRows.length ? bodyRows.join('') : '<tr><td colspan="' + headers.length + '" class="modMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
   }
 
   function displayStore(code) { return window.NX_STORE_DISPLAY.storeDisplayName(code); }
@@ -134,10 +139,10 @@
     var body = order.map(function (s) {
       var b = byStore[s];
       var cells = types.map(function (t) { return b[t] || 0; }).concat([b.total]);
-      return '<tr><td data-th="' + esc(headers[0]) + '">' + esc(displayStore(s)) + '</td>' + cells.map(function (c, i) { return '<td class="geNumCol" data-th="' + esc(headers[i + 1]) + '">' + c + '</td>'; }).join('') + '</tr>';
+      return '<tr><td data-th="' + esc(headers[0]) + '">' + esc(displayStore(s)) + '</td>' + cells.map(function (c, i) { return '<td class="modNumCol" data-th="' + esc(headers[i + 1]) + '">' + c + '</td>'; }).join('') + '</tr>';
     });
-    return '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
-      '<tbody>' + (body.length ? body.join('') : '<tr><td colspan="' + headers.length + '" class="geMuted">Nenhuma loja encontrada.</td></tr>') + '</tbody></table></div>';
+    return '<div class="modTableWrap"><table class="modTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
+      '<tbody>' + (body.length ? body.join('') : '<tr><td colspan="' + headers.length + '" class="modMuted">Nenhuma loja encontrada.</td></tr>') + '</tbody></table></div>';
   }
 
   // proposal_outcomes (long: store/department/outcome/quantity/
@@ -203,7 +208,7 @@
 
       function productionCardHtml(title, qtd, valor, novos, seminovos, valorNovos, valorSeminovos) {
         if (filtered || novos == null) {
-          return '<div class="geKpiCardPrimary"><div class="geK">' + esc(title) + '</div><div class="geV">' + qtd + '</div>' +
+          return '<div class="modKpiCard"><div class="modKpiLabel">' + esc(title) + '</div><div class="modKpiValue">' + qtd + '</div>' +
             '<div class="geSplit">' + A.money(valor) + '</div></div>';
         }
         return kpiPrimary(title, qtd,
@@ -220,7 +225,7 @@
       var spfTotal = out.spf_extra.reduce(function (s, r) { return s + r.spf_value; }, 0);
       var spfComissao = out.spf_extra.reduce(function (s, r) { return s + r.spf_70_value; }, 0);
       var spfDetailRows = out.spf_extra.map(function (r) {
-        return '<tr><td data-th="Loja">' + esc(displayStore(r.store)) + '</td><td data-th="Departamento">' + esc(r.department) + '</td><td class="geNumCol" data-th="SPF Total">' + A.money(r.spf_value) + '</td><td class="geNumCol" data-th="Comissão Líquida 70%">' + A.money(r.spf_70_value) + '</td></tr>';
+        return '<tr><td data-th="Loja">' + esc(displayStore(r.store)) + '</td><td data-th="Departamento">' + esc(r.department) + '</td><td class="modNumCol" data-th="SPF Total">' + A.money(r.spf_value) + '</td><td class="modNumCol" data-th="Comissão Líquida 70%">' + A.money(r.spf_70_value) + '</td></tr>';
       });
 
       var perdidas = out.proposal_outcomes.filter(function (r) { return r.outcome === 'RECUSADA'; }).reduce(function (s, r) { return s + r.financed_value; }, 0);
@@ -237,38 +242,38 @@
       var aprovadas = outcomeTableHtml(A, out.proposal_outcomes, 'APROVADA', department);
 
       var html =
-        '<div class="geKpiGridPrimary">' +
+        '<div class="modKpiGrid">' +
         productionCardHtml('Produção Paga', pagaTotal.qtd, pagaTotal.valor) +
         productionCardHtml('Produção Faturada', fatTotal.qtd, fatTotal.valor) +
         productionCardHtml('Produção Ag. Faturamento', agTotal.qtd, agTotal.valor) +
         productionCardHtml('Produção Total', totalGeralQtd, out.summary.total_financed, novosTotal, semisTotal, novosValorTotal, semisValorTotal) +
         '</div>' +
 
-        '<div class="geKpiGridExec">' +
+        '<div class="modKpiGrid">' +
         kpiExec('Valor de Produção Total', A.money(out.summary.total_financed), 'Paga + Faturada + Ag. Faturamento • ' + visaoTipo) +
-        kpiExec('Valor Total de Propostas Perdidas', A.money(perdidas), 'Recusadas • ' + visaoTipo) +
-        kpiExec('Valor de Propostas em Aberto', A.money(abertas), 'Aprovadas • ' + visaoTipo) +
+        kpiExec('Valor Total de Propostas Perdidas', A.money(perdidas), 'Recusadas • ' + visaoTipo, 'modKpiCardWarning') +
+        kpiExec('Valor de Propostas em Aberto', A.money(abertas), 'Aprovadas • ' + visaoTipo, 'modKpiCardInfo') +
         '</div>' +
 
         '<h2>Classificação dos Planos</h2>' +
         '<div class="gePlanGrid">' + planCards + '</div>' +
-        '<p class="geMuted">Classificação e escopo de elegibilidade definidos pela RPC operational_fandi_dashboard (produção): SUBSIDIADO &gt; REVERSÃO &gt; COPARTICIPADO &gt; BALÃO &gt; LINEAR.</p>' +
+        '<p class="modMuted">Classificação e escopo de elegibilidade definidos pela RPC operational_fandi_dashboard (produção): SUBSIDIADO &gt; REVERSÃO &gt; COPARTICIPADO &gt; BALÃO &gt; LINEAR.</p>' +
 
         '<h2>Planos por Loja e Departamento</h2>' +
-        '<p class="geMuted">Novos (5 tipos) e Seminovos (3 tipos), mesmo escopo do contrato de produção.</p>' +
+        '<p class="modMuted">Novos (5 tipos) e Seminovos (3 tipos), mesmo escopo do contrato de produção.</p>' +
         planStoreDeptTableHtml(out.plans_by_store_department, 'NOVOS') +
         planStoreDeptTableHtml(out.plans_by_store_department, 'SEMINOVOS') +
 
         '<h2>SPF EXTRA</h2>' +
-        '<div class="geKpiGridExec">' +
+        '<div class="modKpiGrid">' +
         kpiExec('Total SPF EXTRA', A.money(spfTotal), 'Valor total de opcionais SPF EXTRA') +
         kpiExec('Comissão Líquida SPF EXTRA', A.money(spfComissao), 'Soma de spf_70_value (contrato do backend, regra 70% não recalculada em V2)') +
         '</div>' +
-        '<div class="geTableWrap"><table class="geTable"><thead><tr>' + headerRow(['Loja', 'Departamento', 'SPF Total', 'Comissão Líquida 70%'], 2) + '</tr></thead>' +
-        '<tbody>' + (spfDetailRows.length ? spfDetailRows.join('') : '<tr><td colspan="4" class="geMuted">Nenhum SPF Extra encontrado.</td></tr>') + '</tbody></table></div>' +
+        '<div class="modTableWrap"><table class="modTable"><thead><tr>' + headerRow(['Loja', 'Departamento', 'SPF Total', 'Comissão Líquida 70%'], 2) + '</tr></thead>' +
+        '<tbody>' + (spfDetailRows.length ? spfDetailRows.join('') : '<tr><td colspan="4" class="modMuted">Nenhum SPF Extra encontrado.</td></tr>') + '</tbody></table></div>' +
 
         '<h2>Indicadores de Apoio</h2>' +
-        '<div class="geKpiGridSecondary">' +
+        '<div class="modKpiGrid">' +
         kpiSecondary('Visão', visaoLoja, currentStore !== 'ALL' ? 'unidade filtrada' : 'consolidado geral') +
         kpiSecondary('Tipo de veículo', visaoTipo, filtered ? 'filtro aplicado' : 'novos + seminovos') +
         kpiSecondary('Período analisado', periodo, 'faturamento ou pagamento no período') +
@@ -284,7 +289,7 @@
         '<h2>Pagos, Faturados e AG. Faturamento por Banco</h2>' + statusTableHtml(A, out.status_by_bank, 'bank', false) +
 
         '<h2>Propostas Recusadas Válidas por Loja</h2>' +
-        '<div class="geKpiGridSecondary">' +
+        '<div class="modKpiGrid">' +
         kpiSecondary('Lojas com recusadas', recusadas.items.length, 'agregado por loja') +
         kpiSecondary('CPFs com recusa líquida', recusadas.items.reduce(function (s, r) { return s + r.qtd; }, 0), 'contrato proposal_outcomes') +
         kpiSecondary('Valor recusado', A.money(recusadas.items.reduce(function (s, r) { return s + r.valor; }, 0)), 'soma financed_value') +
@@ -292,7 +297,7 @@
         '</div>' + recusadas.html +
 
         '<h2>Propostas Aprovadas Válidas por Loja</h2>' +
-        '<div class="geKpiGridSecondary">' +
+        '<div class="modKpiGrid">' +
         kpiSecondary('Lojas com aprovadas', aprovadas.items.length, 'agregado por loja') +
         kpiSecondary('CPFs aprovados válidos', aprovadas.items.reduce(function (s, r) { return s + r.qtd; }, 0), 'contrato proposal_outcomes') +
         kpiSecondary('Valor aprovado', A.money(aprovadas.items.reduce(function (s, r) { return s + r.valor; }, 0)), 'soma financed_value') +
@@ -347,19 +352,19 @@
       ).join('');
       outlet.innerHTML =
         '<div class="gePage">' +
-        '<div class="geHeader"><div><h1>Análise F&amp;I do Grupo</h1><p>Análise operacional F&amp;I/FANDI consolidada do Grupo.</p></div></div>' +
-        '<div class="geFixtureBar"><span class="geFixtureLabel">DADOS LOCAIS (FIXTURE RPC-SHAPED, NEXT_LOCAL)</span></div>' +
-        '<div class="geFilters">' +
-        '<div class="geField"><label for="geStoreFilter">Loja / Unidade</label><select id="geStoreFilter">' + storeOptions + '</select></div>' +
-        '<div class="geField"><label>Período rápido</label><div class="gePresetGroup">' +
+        '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise F&amp;I do Grupo</h1><p class="modSubtitle">Análise operacional F&amp;I/FANDI consolidada do Grupo.</p></div></div>' +
+        '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS LOCAIS (FIXTURE RPC-SHAPED, NEXT_LOCAL)</span></div>' +
+        '<div class="modFilters">' +
+        '<div class="modField"><label for="geStoreFilter">Loja / Unidade</label><select id="geStoreFilter">' + storeOptions + '</select></div>' +
+        '<div class="modField"><label>Período rápido</label><div class="gePresetGroup">' +
         '<button type="button" class="gePresetBtn" data-preset="CURRENT_MONTH">Mês atual</button>' +
         '<button type="button" class="gePresetBtn" data-preset="PREVIOUS_MONTH">Mês anterior</button>' +
         '<button type="button" class="gePresetBtn" data-preset="LAST_6_MONTHS">Últimos 6 meses</button>' +
         '</div></div>' +
-        '<div class="geField"><label for="geDateStart">Data inicial</label><input id="geDateStart" type="date" value="' + currentDateStart + '"></div>' +
-        '<div class="geField"><label for="geDateEnd">Data final</label><input id="geDateEnd" type="date" value="' + currentDateEnd + '"></div>' +
+        '<div class="modField"><label for="geDateStart">Data inicial</label><input id="geDateStart" type="date" value="' + currentDateStart + '"></div>' +
+        '<div class="modField"><label for="geDateEnd">Data final</label><input id="geDateEnd" type="date" value="' + currentDateEnd + '"></div>' +
         '</div>' +
-        '<div class="geField" style="margin-bottom:var(--space-4)"><label>Tipo de veículo</label><div class="geVehicleGroup">' +
+        '<div class="modField" style="margin-bottom:var(--space-4)"><label>Tipo de veículo</label><div class="geVehicleGroup">' +
         '<button type="button" class="geVehicleBtn geVehicleActive" data-department="ALL">Todos</button>' +
         '<button type="button" class="geVehicleBtn" data-department="NOVOS">Novos</button>' +
         '<button type="button" class="geVehicleBtn" data-department="SEMINOVOS">Seminovos</button>' +
