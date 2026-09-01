@@ -38,8 +38,8 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Coparticipado | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 3 |
 | Gestão | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 4 |
 | Dashbi ("Análise Geral do Grupo" — a DIFFERENT, larger sibling file, not to be confused with Gestão) | BUSINESS **HUMAN_APPROVED** (reconciled PORTAL-NEXT-07.6.1, cc3a296) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6.2 found and fixed a real readability defect in the same narrow-width presentation 07.6.1 had reconciled as approved — see the PORTAL-NEXT-07.6.2 addendum below, `docs/HUMAN-UAT-RESPONSIVE-REMEDIATION.md`) | 5 |
-| Simulador Novos | NOT_MIGRATED (UI) — ENGINE **PARITY_VERIFIED** (PORTAL-NEXT-08: 9 engines extracted, 40/40 parity — see `docs/SIMULATOR-ENGINE-DISCOVERY-08.md`) · BUSINESS UAT PENDING | 6 |
-| Simulador Seminovos | NOT_MIGRATED (UI) — ENGINE **PARITY_VERIFIED** (PORTAL-NEXT-08: 6 reachable engines extracted, 24/24 parity + 2 confirmed dead-code engines documented — see `docs/SIMULATOR-ENGINE-DISCOVERY-08.md`) · BUSINESS UAT PENDING | 6 |
+| Simulador Novos | BUSINESS **HUMAN_APPROVED/FROZEN** · UI **HUMAN_APPROVED/FROZEN** · RESPONSIVE **HUMAN_APPROVED/FROZEN** (all three, PORTAL-NEXT-08.5, Gate 1/2 — human approval "Fechamos os simuladores.", see `docs/SIMULATOR-HUMAN-UAT-CLOSURE-08-5.md`) — ENGINE **PARITY_VERIFIED/FROZEN**, unchanged, distinct designation (PORTAL-NEXT-08: 9 engines extracted, 40/40 parity — see `docs/SIMULATOR-ENGINE-DISCOVERY-08.md`) | 6 |
+| Simulador Seminovos | BUSINESS **HUMAN_APPROVED/FROZEN** · UI **HUMAN_APPROVED/FROZEN** · RESPONSIVE **HUMAN_APPROVED/FROZEN** (all three, PORTAL-NEXT-08.5, Gate 1/2 — human approval "Fechamos os simuladores.", see `docs/SIMULATOR-HUMAN-UAT-CLOSURE-08-5.md`) — ENGINE **PARITY_VERIFIED/FROZEN**, unchanged, distinct designation (PORTAL-NEXT-08: 6 reachable engines extracted, 24/24 parity + 2 confirmed dead-code engines documented, PORTAL-NEXT-08.4 confirmed 3 more unreachable — see `docs/SIMULATOR-ENGINE-DISCOVERY-08.md`) | 6 |
 | Salários/Comissões | NOT_MIGRATED | 4 |
 | Brabus Intelligence | NOT_MIGRATED | 7 |
 
@@ -1010,6 +1010,87 @@ PORTAL-NEXT-04, unrelated to Band/Responsive/this defect) — marked
 not self-promoted to `HUMAN_APPROVED` here; that remains a human
 decision.
 
+## PORTAL-NEXT-08.5 addendum
+
+Documentation-only closure Wave — 0 implementation change (hash-
+verified across every simulator adapter/page/shared-CSS file and every
+other frozen module). Purpose: record explicit human approval, freeze
+both Simulator UIs, and reconcile status documentation. Full record:
+`docs/SIMULATOR-HUMAN-UAT-CLOSURE-08-5.md`.
+
+**Approval authority**: the human's own statement, "Fechamos os
+simuladores." — not inferred from automated tests, screenshots, or
+technical-green reports (Gate 1). This closes the UAT cycle that ran
+across PORTAL-NEXT-08.1 (native V2 UI built on the frozen engines),
+08.2 (mode-nav/term-grid/balloon-input/balloon-story UAT refinement),
+08.3 (nomenclature/schedule/Parcela Única/Coparticipado/Subsidiadas
+refinement), and 08.4 (Novos Rebate %, Seminovos navigation re-audit
+and UX alignment).
+
+**Status change**: both `simulador-novos` and `simulador-seminovos`
+moved `VISUAL_PARITY_PENDING` → `HUMAN_APPROVED`, covering all 3
+dimensions (Business/Functional, UI, Responsive) individually, each
+`HUMAN_APPROVED/FROZEN`. The underlying extracted ENGINE keeps its own
+separate `PARITY_VERIFIED/FROZEN` designation — human approval of the
+migrated UI/business experience is a distinct claim from the engine's
+own mathematical-parity verification, and one was never casually
+rewritten as the other (Gate 3).
+
+**FROZEN, defined once here for both modules**: no future Wave may
+change Simulador Novos/Seminovos business logic, UI composition,
+responsive behavior, labels, navigation, or financial presentation as
+a side effect of unrelated work. Any further functional/visual change
+requires explicit new human authorization (Design System Change
+Proposal + approval — the same Freeze rule already applied to
+Landing/Coparticipado/Gestão/Dashbi). Named exception: a future,
+explicitly-authorized Visual Polish/Motion transversal Wave may touch
+simulator *presentation* only, and must preserve business rules,
+financial outputs, and the approved information hierarchy — no motion
+work was implemented this Wave.
+
+**Regression** (0 test modified to force a pass): Novos UI Goldens
+43/43, Novos Presentation 36/36, Seminovos UI Goldens 25/25, Seminovos
+Presentation 25/25, Novos Parity 40/40, Seminovos Parity 24/24,
+Campanha/Coparticipado engine parity 14/14, Cross-product 5/5, Cash
+Conversion 11/11. Landing/Score/Coparticipado/Gestão/Dashbi
+implementation files: 0 diff.
+
+**Registry reconciliation** (`config/module-registry.json`): both
+Simulator entries' `migrationStatus` updated; a new `humanApprovalNote`
+field added to each (mirroring the convention already used for
+Landing/Coparticipado/Gestão/Dashbi), documenting the approval
+authority, the 3-dimension breakdown, the distinct engine status, and
+the FROZEN rule. `engineExtractionNote`/`uiMigrationNote` (historical,
+written during PORTAL-NEXT-08/08.1) were not rewritten — a short
+superseding pointer was appended to `uiMigrationNote` where later
+Waves (08.2 for Novos' mode-nav; 08.4 for Seminovos' navigation
+reduction) changed what they originally described, without deleting
+the original text.
+
+**Discovery only (Gate 19) — remaining `NOT_MIGRATED` modules**, per
+the current authoritative registry, none implemented this Wave:
+
+```
+shell-admin           Portal Shell / MASTER Admin Panel   risk HIGH
+salarios-comissoes    Salários / Comissões                risk MEDIUM
+brabus-intelligence   Brabus F&I Intelligence (AI+Voice)   risk HIGH — UNSCHEDULABLE
+                                                            (3 named blockers open,
+                                                            see its own registry notes)
+```
+
+Also noted, not `NOT_MIGRATED` but not fully closed either: `score`
+remains `UAT_PENDING` for Business/Functional (open since
+PORTAL-NEXT-04, its own Design System score-band conflict never
+resolved — see `docs/SCORE-ENGINE-AUDIT.md`); its Responsive/Score
+Band Business Rule/Score Band Visual dimensions are separately already
+`HUMAN_APPROVED/FROZEN` (PORTAL-NEXT-07.7B/07.7C). Not touched this
+Wave.
+
+**Isolation**: sibling-worktree sweep 0-line diff against the
+PORTAL-NEXT-08.4 baseline; `origin/main` SHA re-confirmed unchanged
+(`2f17eb2341c5cc14aa8710aa044103002ca572a9`); 0 push, 0 deploy, 0
+backend/production calls.
+
 ## Standing blockers carried forward (not resolved this phase)
 
 - Gestão: commission-rule discrepancy (`PORTAL-NEXT-01.1/BLOCKER-
@@ -1024,14 +1105,19 @@ decision.
   confirming it exists and is unaffected by the Gestão decision above
   (explicitly not generalized to it); module itself remains untouched.
 - Simulador Novos / Seminovos: DOM-coupled loan-math extraction
-  (Blocker #5) — the extraction sub-project itself was executed in
-  PORTAL-NEXT-08 (engines extracted + parity-verified, see that Wave's
-  addendum below and `docs/SIMULATOR-ENGINE-DISCOVERY-08.md`). Blocker
-  #5 is therefore satisfied for its own stated scope ("a dedicated
-  extraction sub-project... verifies cent-accurate output equivalence,
-  which has not been attempted yet" — now attempted and green). UI
-  migration itself is explicitly NOT done — `migrationStatus` for both
-  modules stays `NOT_MIGRATED`.
+  (Blocker #5) — **RESOLVED AND CLOSED as of PORTAL-NEXT-08.5.** The
+  extraction sub-project was executed in PORTAL-NEXT-08 (engines
+  extracted + parity-verified — `docs/SIMULATOR-ENGINE-DISCOVERY-08.md`),
+  the native V2 UI was built and iteratively UAT-refined in
+  PORTAL-NEXT-08.1/08.2/08.3/08.4, and the human granted explicit final
+  approval ("Fechamos os simuladores.") in PORTAL-NEXT-08.5 — see the
+  PORTAL-NEXT-08.5 addendum below and
+  `docs/SIMULATOR-HUMAN-UAT-CLOSURE-08-5.md`. Both modules'
+  `migrationStatus` is now `HUMAN_APPROVED` (Business/Functional, UI,
+  and Responsive dimensions each individually FROZEN); the extracted
+  engines keep their own separate `PARITY_VERIFIED/FROZEN` designation,
+  never rewritten to `HUMAN_APPROVED` (Gate 3, PORTAL-NEXT-08.5). No
+  longer a standing blocker.
 - Brabus Intelligence: Voice Orb variant still PROVISIONAL/HUMAN
   SELECTION PENDING; a separately-tracked V1 issue (the AI kill-switch)
   — appears resolved in production since PORTAL-NEXT-01.1 (see
