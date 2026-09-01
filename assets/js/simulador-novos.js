@@ -71,13 +71,49 @@
   var currentMode = MODES[0].id;
   var balloons = []; // {mes, valor} for Tradicional
 
+  /* ---------- PORTAL-NEXT-08.2 Change 1: grouped button mode nav,
+     replacing the single <select> the human explicitly rejected.
+     Local to this file (Seminovos still uses its own unaffected
+     rendering; Gate: avoid touching shared primitives unless
+     unavoidable — this component isn't). ---------- */
+  function modeGroups() {
+    var groups = {}, order = [];
+    MODES.forEach(function (m) {
+      if (!groups[m.group]) { groups[m.group] = []; order.push(m.group); }
+      groups[m.group].push(m);
+    });
+    return order.map(function (g) { return { name: g, items: groups[g] }; });
+  }
+  function modeNavHtml() {
+    return '<nav class="smModeNav" aria-label="Modalidade de financiamento">' +
+      modeGroups().map(function (g) {
+        return '<div class="smModeGroup">' +
+          '<span class="smModeGroupLabel">' + UI.esc(g.name) + '</span>' +
+          '<div class="smModeButtons" role="group" aria-label="' + UI.esc(g.name) + '">' +
+          g.items.map(function (m) {
+            var active = m.id === currentMode;
+            return '<button type="button" class="smModeBtn' + (active ? ' active' : '') + '" data-mode="' + m.id + '"' + (active ? ' aria-current="true"' : '') + '>' + UI.esc(m.label) + '</button>';
+          }).join('') +
+          '</div></div>';
+      }).join('') +
+      '</nav>';
+  }
+  function wireModeNav() {
+    document.querySelectorAll('.smModeBtn').forEach(function (btn) {
+      btn.addEventListener('click', function () { switchMode(btn.getAttribute('data-mode')); });
+    });
+  }
+
   function switchMode(id) {
     currentMode = id;
     balloons = [];
+    document.getElementById('smModeNavRegion').innerHTML = modeNavHtml();
+    wireModeNav();
     renderModeArea();
   }
 
   function renderModeArea() {
+    disconnectTermGridObservers();
     document.getElementById('smModeDesc').textContent = MODE_DESC[currentMode] || '';
     var formRegion = document.getElementById('smFormRegion');
     var resultRegion = document.getElementById('smResultRegion');
@@ -86,13 +122,62 @@
     wireForm(currentMode);
   }
 
+  /* ---------- PORTAL-NEXT-08.2 Change 2: balanced term grid, replacing
+     .segmented's flex-wrap (which produced an accidental "6+1" isolated
+     last row). Reuses UI.getSegmentedValue/active-button convention —
+     only the layout/columns are new. ---------- */
+  function balancedColumns(containerWidth, itemMinWidth, n) {
+    if (n <= 1) return 1;
+    var maxFit = Math.max(1, Math.floor(containerWidth / itemMinWidth));
+    var cap = Math.min(maxFit, n);
+    if (cap >= n) return n;
+    var c;
+    for (c = cap; c >= 2; c--) { var rem = n % c; if (rem === 0 || rem >= 2) return c; }
+    for (c = cap + 1; c <= n; c++) { var rem2 = n % c; if (rem2 === 0 || rem2 >= 2) return c; }
+    return cap;
+  }
+  function termGridFieldHtml(id, label, terms, activeValue) {
+    var buttons = terms.map(function (t) {
+      return '<button type="button" data-v="' + t + '" class="' + (String(t) === String(activeValue) ? 'active' : '') + '">' + t + 'x</button>';
+    }).join('');
+    return '<div class="field"><label id="' + id + 'Label">' + UI.esc(label) + '</label>' +
+      '<div class="smTermSelectGrid" id="' + id + '" role="group" aria-labelledby="' + id + 'Label">' + buttons + '</div></div>';
+  }
+  var termGridObservers = [];
+  function wireTermGrid(id, termCount) {
+    var container = document.getElementById(id);
+    if (!container) return;
+    function recompute() {
+      var w = container.clientWidth || container.parentElement.clientWidth;
+      container.style.setProperty('--term-cols', String(balancedColumns(w, 60, termCount)));
+    }
+    recompute();
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(recompute);
+      ro.observe(container);
+      termGridObservers.push(ro);
+    } else {
+      window.addEventListener('resize', recompute);
+    }
+    container.querySelectorAll('button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        container.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      });
+    });
+  }
+  function disconnectTermGridObservers() {
+    termGridObservers.forEach(function (ro) { ro.disconnect(); });
+    termGridObservers = [];
+  }
+
   /* ---------- forms ---------- */
   function formHtml(mode) {
     switch (mode) {
       case 'tradicional':
         return UI.moneyField('nBem', 'Valor do bem', 'R$ 100.000,00') +
           UI.moneyField('nEntrada', 'Entrada', 'R$ 20.000,00') +
-          UI.segmentedField('nPrazo', 'Prazo', TRAD_TERMS.map(function (t) { return { value: t, label: t + 'x' }; }), 48) +
+          termGridFieldHtml('nPrazo', 'Prazo', TRAD_TERMS, 48) +
           '<div class="field"><label>Balões</label>' +
           '<div class="smBalloonList" id="nBaloesList"></div>' +
           '<button type="button" class="btn btn-secondary btn-sm" id="nAddBalao">+ Adicionar balão</button></div>' +
@@ -100,7 +185,7 @@
       case 'periodico':
         return UI.moneyField('nBem', 'Valor do bem', 'R$ 100.000,00') +
           UI.moneyField('nEntrada', 'Entrada', 'R$ 20.000,00') +
-          UI.segmentedField('nPrazo', 'Prazo', PERIOD_TERMS.map(function (t) { return { value: t, label: t + 'x' }; }), 48) +
+          termGridFieldHtml('nPrazo', 'Prazo', PERIOD_TERMS, 48) +
           UI.segmentedField('nTipo', 'Periodicidade', [{ value: 'semestral', label: 'Semestral' }, { value: 'anual', label: 'Anual' }], 'semestral') +
           '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'parcelaunica':
@@ -172,7 +257,7 @@
         else { balloons[idx].valorText = el.value; balloons[idx].valor = S.parseBRL(el.value); }
       });
       el.addEventListener('blur', function () {
-        if (el.getAttribute('data-bfield') === 'valor') el.value = UI.brl(S.parseBRL(el.value));
+        if (el.getAttribute('data-bfield') === 'valor') el.value = UI.brlDigits(S.parseBRL(el.value));
       });
     });
     list.querySelectorAll('[data-bremove]').forEach(function (el) {
@@ -184,10 +269,10 @@
     if (mode === 'tradicional') {
       renderBaloesList();
       document.getElementById('nAddBalao').addEventListener('click', function () { balloons.push({ mes: null, valor: 0, valorText: '' }); renderBaloesList(); });
-      UI.wireSegmented('nPrazo', function () {});
+      wireTermGrid('nPrazo', TRAD_TERMS.length);
       document.getElementById('nCalc').addEventListener('click', function () { calcTradicional(); });
     } else if (mode === 'periodico') {
-      UI.wireSegmented('nPrazo', function () {});
+      wireTermGrid('nPrazo', PERIOD_TERMS.length);
       UI.wireSegmented('nTipo', function () {});
       document.getElementById('nCalc').addEventListener('click', calcPeriodico);
     } else if (mode === 'parcelaunica') {
@@ -215,22 +300,52 @@
 
   function setResult(html) { document.getElementById('smResultRegion').innerHTML = html; }
 
+  /* ---------- PORTAL-NEXT-08.2 Change 4: balloon payment-structure
+     story. PRESENTATION ONLY — derives entirely from the frozen
+     engine's own already-computed r.parcela and the already-validated
+     balloon list; introduces no new financial math, no new rounding.
+     "Special month total" = r.parcela + that balloon's valor (Gate's
+     own required formula, using the engine's authoritative values).
+     Regular-payment count = prazo - (number of UNIQUE balloon months)
+     — correct for 1 final balloon, 1 intermediate balloon, or several,
+     because the engine's own validation (BALAO_DUPLICADO) already
+     guarantees every balloon month in a valid result is unique. ---------- */
+  function balloonScheduleSummary(prazo, parcela, validBaloes) {
+    var specials = validBaloes.slice().sort(function (a, b) { return a.mes - b.mes; })
+      .map(function (b) { return { mes: b.mes, balao: b.valor, total: parcela + b.valor }; });
+    return { regularCount: prazo - specials.length, regularValue: parcela, specials: specials };
+  }
+  function renderBalloonStory(prazo, parcela, validBaloes) {
+    var s = balloonScheduleSummary(prazo, parcela, validBaloes);
+    var html = '<div class="resultHero"><p class="kpiLabel">Plano simulado</p>';
+    if (s.regularCount > 0) {
+      html += '<p class="smPlanRegular"><span class="smPlanRegularCount">' + s.regularCount + 'x</span> de <span class="resultValue smPlanRegularValue">' + UI.brl(s.regularValue) + '</span></p>';
+    }
+    html += '</div>';
+    html += '<div class="smPlanSpecials">' + s.specials.map(function (sp) {
+      return '<div class="smPlanSpecialRow"><span class="kpiLabel">Parcela ' + sp.mes + '</span><span class="smPlanSpecialValue">' + UI.brl(sp.total) + '</span>' +
+        '<span class="smPlanSpecialBreakdown">' + UI.brl(parcela) + ' (parcela) + ' + UI.brl(sp.balao) + ' (balão)</span></div>';
+    }).join('') + '</div>';
+    html += '<p class="smFootnote">Total de parcelas do plano: ' + prazo + '. Os meses com balão substituem o valor da parcela regular naquele mês por um valor especial (parcela + balão) — não são parcelas adicionais.</p>';
+    return html;
+  }
+
   /* ---------- calculations (adapter calls only) ---------- */
   function calcTradicional() {
+    var validBaloes = balloons.filter(function (b) { return b.mes && b.valor; }).map(function (b) { return { mes: b.mes, valor: b.valor }; });
     var r = N.calcularTradicional({
       bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'),
       prazo: Number(UI.getSegmentedValue('nPrazo')),
-      baloes: balloons.filter(function (b) { return b.mes || b.valor; }).map(function (b) { return { mes: b.mes, valor: b.valor }; })
+      baloes: validBaloes
     });
     if (r.empty) { setResult(UI.emptyBlock('Preencha os campos e clique em Calcular.')); return; }
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error))); return; }
-    var html = UI.resultHero('Parcela mensal', r.parcela);
     var secondary = [{ label: 'Entrada', value: UI.pct1(r.pe) }, { label: 'Taxa aplicada', value: UI.pct2(r.taxa) }, { label: 'Limite de balão', value: UI.brl(r.limite) }];
-    html += UI.secondaryGrid(secondary);
-    if (r.totalBaloes) {
-      var rows = balloons.filter(function (b) { return b.mes && b.valor; }).sort(function (a, b) { return a.mes - b.mes; })
-        .map(function (b) { return '<tr><td>Parcela ' + b.mes + '</td><td class="num">' + UI.brl(b.valor) + '</td><td class="num">' + UI.brl(r.parcela + b.valor) + '</td></tr>'; }).join('');
-      html += '<div class="smTableWrap"><table class="smTable"><thead><tr><th>Mês do balão</th><th>Valor do balão</th><th>Total devido no mês</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    var html;
+    if (validBaloes.length > 0) {
+      html = renderBalloonStory(Number(UI.getSegmentedValue('nPrazo')), r.parcela, validBaloes) + UI.secondaryGrid(secondary);
+    } else {
+      html = UI.resultHero('Parcela mensal', r.parcela) + UI.secondaryGrid(secondary);
     }
     setResult(html);
   }
@@ -348,23 +463,23 @@
   }
 
   window.NX_SIMULADOR_NOVOS_PAGE = {
+    // Exposed read-only for deterministic presentation testing
+    // (tests/simulador-novos-presentation-test.py), same pattern
+    // already used for window.NX_SCORE_PAGE.classifyScoreBand.
+    balloonScheduleSummary: balloonScheduleSummary,
+    balancedColumns: balancedColumns,
     render: function (outlet) {
       currentMode = MODES[0].id;
       balloons = [];
-      var groups = {};
-      MODES.forEach(function (m) { (groups[m.group] = groups[m.group] || []).push(m); });
-      var optgroups = Object.keys(groups).map(function (g) {
-        return '<optgroup label="' + UI.esc(g) + '">' + groups[g].map(function (m) { return '<option value="' + m.id + '">' + UI.esc(m.label) + '</option>'; }).join('') + '</optgroup>';
-      }).join('');
       outlet.innerHTML =
         '<div class="smPage">' +
         '<span class="smProductBadge">Simulador · Novos</span>' +
         '<div class="smHeader"><div><h1>Simulador de Financiamento — Novos</h1><p>Motores extraídos e verificados (PORTAL-NEXT-08) — 0 recálculo de fórmula nesta interface.</p></div></div>' +
-        '<div class="smModeBar"><label for="smModeSelect">Modalidade</label><select class="select" id="smModeSelect">' + optgroups + '</select>' +
-        '<p class="smModeDesc" id="smModeDesc"></p></div>' +
+        '<div id="smModeNavRegion">' + modeNavHtml() + '</div>' +
+        '<p class="smModeDesc" id="smModeDesc"></p>' +
         '<div class="smGrid"><div class="smFormCard" id="smFormRegion"></div><div class="smResultCard" id="smResultRegion" aria-live="polite" aria-atomic="true"></div></div>' +
         '</div>';
-      document.getElementById('smModeSelect').addEventListener('change', function (e) { switchMode(e.target.value); });
+      wireModeNav();
       renderModeArea();
       return Promise.resolve();
     }

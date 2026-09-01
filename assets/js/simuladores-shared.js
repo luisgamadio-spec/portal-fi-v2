@@ -20,6 +20,16 @@
     if (n == null || !isFinite(n)) return '—';
     return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
+  // Digits-only currency formatting (no "R$"), for re-formatting the
+  // RAW VALUE of an .inputAffix input on blur -- the .prefix span
+  // already renders "R$" separately; writing brl()'s own "R$ ..." into
+  // the input's value produced a real, human-caught "R$ R$ ..." bug
+  // (PORTAL-NEXT-08.2 Change 3). Presentation only -- parseBRL's own
+  // parsing semantics are untouched.
+  function brlDigits(n) {
+    if (n == null || !isFinite(n)) return '';
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
   function pct1(n) {
     if (n == null || !isFinite(n)) return '—';
     return (n * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
@@ -96,7 +106,7 @@
   function wireMoneyMask(id, onInput) {
     var el = document.getElementById(id);
     if (!el) return;
-    el.addEventListener('blur', function () { el.value = brl(S.parseBRL(el.value)); if (onInput) onInput(); });
+    el.addEventListener('blur', function () { el.value = brlDigits(S.parseBRL(el.value)); if (onInput) onInput(); });
     el.addEventListener('input', function () { if (onInput) onInput(); });
   }
 
@@ -133,7 +143,7 @@
   }
 
   window.NX_SIM_UI = {
-    esc: esc, brl: brl, pct1: pct1, pct2: pct2,
+    esc: esc, brl: brl, brlDigits: brlDigits, pct1: pct1, pct2: pct2,
     moneyField: moneyField, numberField: numberField, percentField: percentField, dateField: dateField,
     segmentedField: segmentedField, selectField: selectField,
     getSegmentedValue: getSegmentedValue, wireSegmented: wireSegmented, wireMoneyMask: wireMoneyMask,

@@ -55,7 +55,9 @@ def main():
         page.wait_for_timeout(400)
 
         def select_mode(mode):
-            page.select_option("#smModeSelect", mode)
+            # PORTAL-NEXT-08.2 Change 1: the <select> mode switcher was
+            # replaced with grouped buttons per human UAT rejection.
+            page.click(f'.smModeBtn[data-mode="{mode}"]')
             page.wait_for_timeout(80)
 
         def click_segmented(box_id, value):
@@ -116,6 +118,23 @@ def main():
                 ok = has_empty_state() and adapter_r.get("empty") is True
             elif c.get("expect_error"):
                 ok = has_error_state() and adapter_r.get("error") is not None
+            elif c.get("balao"):
+                # PORTAL-NEXT-08.2 Change 4: balloon plans render the
+                # payment-structure story, not a plain "Parcela mensal"
+                # hero -- verify the special-month row shows
+                # parcela+balao (the engine's own authoritative values,
+                # no new math) and the regular count is prazo-1.
+                regular_text = page.evaluate("document.querySelector('.smPlanRegularCount') ? document.querySelector('.smPlanRegularCount').textContent : null")
+                special_val = brl_to_float(page.evaluate(
+                    "(m) => { const rows=[...document.querySelectorAll('.smPlanSpecialRow')]; const r=rows.find(x=>x.textContent.includes('Parcela '+m)); return r ? r.querySelector('.smPlanSpecialValue').textContent : null; }",
+                    c["balao"]["mes"],
+                ))
+                expected_special = adapter_r.get("parcela") + c["balao"]["valor"]
+                ok = (
+                    not has_error_state()
+                    and regular_text == str(c["prazo"] - 1) + "x"
+                    and close(special_val, expected_special)
+                )
             else:
                 ui_val = brl_to_float(result_field("Parcela mensal"))
                 ok = not has_error_state() and close(ui_val, adapter_r.get("parcela"))

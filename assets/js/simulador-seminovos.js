@@ -154,7 +154,7 @@
         if (field === 'mes') balloons[idx].mes = Number(el.value) || 0;
         else { balloons[idx].valorText = el.value; balloons[idx].valor = S.parseBRL(el.value); }
       });
-      el.addEventListener('blur', function () { if (el.getAttribute('data-bfield') === 'valor') el.value = UI.brl(S.parseBRL(el.value)); });
+      el.addEventListener('blur', function () { if (el.getAttribute('data-bfield') === 'valor') el.value = UI.brlDigits(S.parseBRL(el.value)); });
     });
     list.querySelectorAll('[data-bremove]').forEach(function (el) {
       el.addEventListener('click', function () { balloons.splice(Number(el.getAttribute('data-bremove')), 1); renderBaloesList(); });

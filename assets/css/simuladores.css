@@ -71,6 +71,90 @@
   margin: var(--space-1) 0 0;
 }
 
+/* ---------- PORTAL-NEXT-08.2 Change 1: grouped button mode nav
+   (Simulador Novos only — Seminovos keeps .smModeBar/<select> above,
+   untouched). Deliberately restrained: subtle surface + hairline
+   border when inactive, Red Precision accent treatment when active —
+   navigation, not marketing cards. ---------- */
+.smModeNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-hairline);
+}
+.smModeGroup { display: flex; flex-direction: column; gap: var(--space-2); flex: 1 1 220px; min-width: 200px; }
+.smModeGroupLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.smModeButtons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.smModeBtn {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.3;
+}
+.smModeBtn:hover { border-color: rgba(238, 75, 87, .4); color: var(--color-text-primary); }
+.smModeBtn.active { background: rgba(238, 75, 87, .14); border-color: var(--color-accent-primary); color: #ffecec; font-weight: 500; }
+.smModeBtn:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: 2px; }
+
+/* ---------- PORTAL-NEXT-08.2 Change 2: balanced term-select grid
+   (replaces .segmented's flex-wrap for prazo, which could leave an
+   isolated last-row button). --term-cols is computed in JS per the
+   actual term count and current container width. ---------- */
+.smTermSelectGrid {
+  display: grid;
+  grid-template-columns: repeat(var(--term-cols, 4), 1fr);
+  gap: 1px;
+  background: var(--color-hairline-strong);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.smTermSelectGrid button {
+  background: var(--color-surface-2);
+  border: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  padding: 9px 4px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.smTermSelectGrid button.active { background: rgba(238, 75, 87, .14); color: #ffecec; font-weight: 500; }
+.smTermSelectGrid button:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: -2px; z-index: 1; position: relative; }
+
+/* ---------- PORTAL-NEXT-08.2 Change 4: balloon payment-structure
+   story (Simulador Novos, Tradicional mode only). ---------- */
+.smPlanRegular { margin: 0; font-size: 15px; color: var(--color-text-secondary); }
+.smPlanRegularCount { font-family: var(--font-mono); font-weight: 500; color: var(--color-text-primary); }
+.smPlanRegularValue { display: inline; font-size: clamp(26px, 4.2vw, 38px) !important; }
+.smPlanSpecials { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-hairline); }
+.smPlanSpecialRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  padding: 10px 14px;
+  background: var(--color-surface-2);
+  border: 1px solid rgba(238, 75, 87, .3);
+  border-radius: var(--radius-sm);
+}
+.smPlanSpecialValue { font-family: var(--font-mono); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.smPlanSpecialBreakdown { font-size: 11px; color: var(--color-text-muted); flex-basis: 100%; }
+
 .smGrid { display: grid; grid-template-columns: 360px 1fr; gap: 28px; align-items: start; }
 @media (max-width: 900px) { .smGrid { grid-template-columns: 1fr; } }
 
@@ -132,8 +216,13 @@
 .btn:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: 2px; }
 
 .smBalloonList { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3); }
-.smBalloonRow { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--space-2); align-items: end; }
-.smBalloonRow .field { margin-bottom: 0; }
+/* Gate PORTAL-NEXT-08.2 Change 3: value field is the priority (must
+   comfortably show a realistic BRL balloon amount without clipping),
+   month is a short 1-2 digit field, remove is icon-sized -- an equal
+   1fr/1fr split starved the currency field of width. */
+.smBalloonRow { display: grid; grid-template-columns: 92px minmax(150px, 1fr) auto; gap: var(--space-3); align-items: end; }
+.smBalloonRow .field { margin-bottom: 0; min-width: 0; }
+.smBalloonRow .btn { white-space: nowrap; }
 
 .kpiLabel {
   font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
