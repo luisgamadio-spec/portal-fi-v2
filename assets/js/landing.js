@@ -16,11 +16,31 @@
 (function () {
   'use strict';
 
-  var NAV_ICONS = {
-    landing: 'PF', dashbi: 'AG', gestao: 'FI', coparticipado: 'CO',
-    score: 'SC', 'salarios-comissoes': 'SL', 'simulador-novos': 'NV',
-    'simulador-seminovos': 'SM', 'brabus-intelligence': 'AI', 'shell-admin': 'AU'
+  /* ---------- Shell Wave 2A.1: sidebar iconography ----------
+     One restrained, monochromatic line-icon family (20x20 viewBox,
+     stroke=currentColor, no fill, 1.6 stroke width, round caps/joins)
+     replacing the prior two-letter codes. Inline SVG, no external
+     icon dependency. Semantic pairing per the Wave 2A.1 brief: dashbi
+     = analytics bars, gestao = trend/financial line, score =
+     performance gauge, coparticipado = linked participation, the two
+     simulators = a shared car glyph (seminovos adds a small renewal
+     arrow to read as "usado/revenda" without a second, unrelated
+     pictogram), shell-admin = shield. */
+  var NAV_ICON_PATHS = {
+    dashbi: '<path d="M3 17V10"/><path d="M10 17V4"/><path d="M17 17V13"/>',
+    gestao: '<path d="M3 14l4-4 3 3 7-7"/><path d="M13 6h4v4"/>',
+    score: '<path d="M3 15a7 7 0 0 1 14 0"/><path d="M10 15l3.5-4.5"/><circle cx="10" cy="15" r="1"/>',
+    coparticipado: '<path d="M8.3 12a3 3 0 0 1 0-4.2l1.6-1.6a3 3 0 0 1 4.2 4.2l-.9.9"/><path d="M11.7 8a3 3 0 0 1 0 4.2l-1.6 1.6a3 3 0 0 1-4.2-4.2l.9-.9"/>',
+    'salarios-comissoes': '<path d="M8.3 12a3 3 0 0 1 0-4.2l1.6-1.6a3 3 0 0 1 4.2 4.2l-.9.9"/><path d="M11.7 8a3 3 0 0 1 0 4.2l-1.6 1.6a3 3 0 0 1-4.2-4.2l.9-.9"/>',
+    'simulador-novos': '<path d="M3 13.4l1.2-3.8A1.8 1.8 0 0 1 5.9 8.3h8.2a1.8 1.8 0 0 1 1.7 1.3l1.2 3.8"/><path d="M2.6 13.4h14.8v1.9a.8.8 0 0 1-.8.8h-1a1.1 1.1 0 0 1-1.1-1.1v-.3H5.5v.3a1.1 1.1 0 0 1-1.1 1.1h-1a.8.8 0 0 1-.8-.8v-1.9z"/><circle cx="6" cy="13.6" r="1"/><circle cx="14" cy="13.6" r="1"/>',
+    'simulador-seminovos': '<path d="M2.5 13.2l.9-2.9A1.5 1.5 0 0 1 4.8 9.2h5.5"/><path d="M2.2 13.2h9.3v1.5a.7.7 0 0 1-.7.7h-.7a1 1 0 0 1-1-1v-.2H4.9v.2a1 1 0 0 1-1 1h-.7a.7.7 0 0 1-.7-.7v-1.5z"/><circle cx="4.4" cy="13.4" r=".9"/><circle cx="9.4" cy="13.4" r=".9"/><path d="M14.2 6.3a2.8 2.8 0 1 1-2.5 4.2"/><path d="M14.2 4.4v1.9h-1.9"/>',
+    'shell-admin': '<path d="M10 3.2l5.5 1.8v4.4c0 3.6-2.3 5.9-5.5 6.4-3.2-.5-5.5-2.8-5.5-6.4V5l5.5-1.8z"/><path d="M7.4 10l1.8 1.8L13 7.8"/>'
   };
+  function navIconHtml(id) {
+    var inner = NAV_ICON_PATHS[id];
+    if (!inner) return '<span class="pNavIconFallback">' + esc((id || '').slice(0, 2).toUpperCase()) + '</span>';
+    return '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + inner + '</svg>';
+  }
 
   /* ---------- Shell Wave 2A: sidebar information architecture ----------
      Human-approved grouping (PORTAL V2 SHELL WAVE 2A, Decision 1) —
@@ -67,19 +87,19 @@
   function navItemHtml(id, activeRouteId) {
     var m = window.NX_REGISTRY.byId(id);
     if (!m) return '';
-    var code = NAV_ICONS[id] || id.slice(0, 2).toUpperCase();
+    var icon = navIconHtml(id);
     var label = esc(m.landingTitle || m.name);
     if (m.migrationStatus === 'NOT_MIGRATED') {
       // Gate 3: visible so the information architecture reads as
       // complete, but explicitly non-navigable — never implies
       // functionality that does not exist yet.
       return '<span class="pNavItem pNavItemDeferred" aria-disabled="true">' +
-        '<span class="pNavIcon">' + code + '</span><span class="pNavLabel">' + label + '</span>' +
+        '<span class="pNavIcon">' + icon + '</span><span class="pNavLabel">' + label + '</span>' +
         '<span class="pNavSoon">Em breve</span></span>';
     }
     var active = activeRouteId === id;
     return '<a href="#/' + id + '" class="pNavItem' + (active ? ' active' : '') + '"' + (active ? ' aria-current="page"' : '') + '>' +
-      '<span class="pNavIcon">' + code + '</span><span class="pNavLabel">' + label + '</span></a>';
+      '<span class="pNavIcon">' + icon + '</span><span class="pNavLabel">' + label + '</span></a>';
   }
 
   function renderGlobalNav(activeRouteId) {
@@ -88,9 +108,15 @@
       if (!itemsHtml) return '';
       return '<div class="pNavGroup"><div class="pNavGroupLabel">' + esc(g.label) + '</div>' + itemsHtml + '</div>';
     }).join('');
+    // Shell Wave 2A.1 Gate 2: the sidebar brand mark now reuses the SAME
+    // institutional logo asset the top bar shows (assets/images/
+    // brabus-logo.png), instead of a separate generic "B" badge that
+    // read as its own, unrelated brand mark. "Portal F&I" is kept but
+    // demoted to a small subordinate product label beside it.
     var html =
       '<a href="#/landing" class="pBrand" aria-label="Portal F&amp;I — início">' +
-        '<span class="brandMark" aria-hidden="true">B</span><span class="pBrandWord">Portal F&amp;I</span>' +
+        '<img class="pBrandLogo" src="assets/images/brabus-logo.png" alt="" aria-hidden="true">' +
+        '<span class="pBrandWord">Portal F&amp;I</span>' +
       '</a>' +
       '<div class="pNavGroups">' + groupsHtml + '</div>';
     document.getElementById('pGlobalNav').innerHTML = html;
@@ -98,10 +124,19 @@
 
   function renderTopBar(entry) {
     var bc = document.getElementById('pBreadcrumb');
-    // landingTitle (same clean display name used in the sidebar/Landing
-    // cards) reads better here than the registry's raw `name`, which
-    // sometimes carries a technical suffix (e.g. "Gestão (analise-fi-grupo)").
-    if (bc) bc.innerHTML = 'Portal F&amp;I <span style="margin:0 6px">/</span> <b>' + esc(entry ? (entry.landingTitle || entry.name) : 'Landing') + '</b>';
+    // Shell Wave 2A.1 Gate 3: "Portal F&I" demoted to a small system
+    // tag (it names the product, not the current location — repeating
+    // it at breadcrumb weight read as a developer path); the current
+    // module now carries the actual hierarchy. landingTitle (same clean
+    // display name used in the sidebar/Landing cards) reads better here
+    // than the registry's raw `name`, which sometimes carries a
+    // technical suffix (e.g. "Gestão (analise-fi-grupo)").
+    if (bc) {
+      bc.innerHTML =
+        '<span class="pBreadcrumbTag">Portal F&amp;I</span>' +
+        '<span class="pBreadcrumbSep" aria-hidden="true">›</span>' +
+        '<span class="pBreadcrumbCurrent">' + esc(entry ? (entry.landingTitle || entry.name) : 'Landing') + '</span>';
+    }
     var userArea = document.getElementById('pUserArea');
     // Rendered once — this is static local mock context, not per-route data.
     if (userArea && !userArea.dataset.rendered) {

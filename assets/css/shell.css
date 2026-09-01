@@ -164,28 +164,35 @@ html, body {
 #nxOverlayRoot:empty,
 #nxModalRoot:empty { display: none; }
 
-/* ---------- discreet dev indicator (Gate 5 — NOT a giant banner) ---------- */
+/* ---------- discreet dev indicator (Shell Wave 2A.1 Gate 5: further
+   quieted — no box/border/surface fill, small and low-opacity by
+   default so it never competes with navigation or reads as primary
+   product UI; brightens on hover/focus so it stays fully discoverable,
+   never removed). ---------- */
 .nxDevBadge {
   position: fixed;
-  left: var(--space-3);
-  bottom: var(--space-3);
+  left: var(--space-2);
+  bottom: var(--space-2);
   z-index: 150;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-hairline-strong);
-  border-radius: var(--radius-sm);
-  padding: 4px var(--space-2);
+  gap: 6px;
+  padding: 3px 5px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: .04em;
+  font-size: 9px;
+  letter-spacing: .03em;
   color: var(--color-text-muted);
+  opacity: .5;
   pointer-events: auto;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .nxDevBadge { transition: opacity var(--duration-fast) var(--ease-precise); }
+}
+.nxDevBadge:hover,
+.nxDevBadge:focus-within { opacity: 1; }
 .nxDevBadge .nxDevDot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--color-accent-primary);
   flex-shrink: 0;
@@ -193,9 +200,9 @@ html, body {
 .nxDevBadge button {
   background: none;
   border: none;
-  color: var(--color-text-muted);
+  color: inherit;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   cursor: pointer;
   padding: 0;
   text-decoration: underline;
