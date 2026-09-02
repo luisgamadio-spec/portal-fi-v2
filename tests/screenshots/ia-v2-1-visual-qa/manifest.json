@@ -1,0 +1,200 @@
+[
+  {
+    "file": "01-desktop-empty-1920.png",
+    "viewport": "1920x1080",
+    "scenario": "empty state",
+    "notes": ""
+  },
+  {
+    "file": "02-desktop-empty-1366.png",
+    "viewport": "1366x768",
+    "scenario": "empty state",
+    "notes": ""
+  },
+  {
+    "file": "03-desktop-basic-text.png",
+    "viewport": "1366x768",
+    "scenario": "plain text reply",
+    "notes": ""
+  },
+  {
+    "file": "04-desktop-metrics.png",
+    "viewport": "1366x768",
+    "scenario": "metrics block",
+    "notes": ""
+  },
+  {
+    "file": "05-desktop-comparison.png",
+    "viewport": "1366x768",
+    "scenario": "comparison block",
+    "notes": ""
+  },
+  {
+    "file": "06-desktop-ranking.png",
+    "viewport": "1366x768",
+    "scenario": "ranking block",
+    "notes": ""
+  },
+  {
+    "file": "07-desktop-empty-state.png",
+    "viewport": "1366x768",
+    "scenario": "empty state",
+    "notes": ""
+  },
+  {
+    "file": "08-desktop-operations.png",
+    "viewport": "1366x768",
+    "scenario": "operations block",
+    "notes": ""
+  },
+  {
+    "file": "09-desktop-score-breakdown.png",
+    "viewport": "1366x768",
+    "scenario": "score_breakdown block",
+    "notes": ""
+  },
+  {
+    "file": "10-desktop-score-ranking.png",
+    "viewport": "1366x768",
+    "scenario": "score_ranking block",
+    "notes": ""
+  },
+  {
+    "file": "11-desktop-cash-conversion.png",
+    "viewport": "1366x768",
+    "scenario": "Cash Conversion block",
+    "notes": ""
+  },
+  {
+    "file": "12-desktop-antecipacao.png",
+    "viewport": "1366x768",
+    "scenario": "Antecipação block",
+    "notes": ""
+  },
+  {
+    "file": "13-loading.png",
+    "viewport": "1366x768",
+    "scenario": "loading state (mid-flight)",
+    "notes": ""
+  },
+  {
+    "file": "14-401.png",
+    "viewport": "1366x768",
+    "scenario": "401 error state",
+    "notes": ""
+  },
+  {
+    "file": "15-403.png",
+    "viewport": "1366x768",
+    "scenario": "403 error state",
+    "notes": ""
+  },
+  {
+    "file": "16-upstream-error.png",
+    "viewport": "1366x768",
+    "scenario": "upstream error state",
+    "notes": ""
+  },
+  {
+    "file": "17-multiturn-before-reset.png",
+    "viewport": "1366x768",
+    "scenario": "multi-message conversation before Nova conversa",
+    "notes": ""
+  },
+  {
+    "file": "18-nova-conversa-after.png",
+    "viewport": "1366x768",
+    "scenario": "after Nova conversa",
+    "notes": ""
+  },
+  {
+    "file": "19-scenario-reset.png",
+    "viewport": "1366x768",
+    "scenario": "after scenario_reset",
+    "notes": ""
+  },
+  {
+    "file": "20-tablet-1024.png",
+    "viewport": "1024x768",
+    "scenario": "empty state",
+    "notes": ""
+  },
+  {
+    "file": "21-tablet-768.png",
+    "viewport": "768x1024",
+    "scenario": "empty state",
+    "notes": ""
+  },
+  {
+    "file": "22-mobile-empty-430.png",
+    "viewport": "430x932",
+    "scenario": "empty state",
+    "notes": ""
+  },
+  {
+    "file": "23-mobile-empty-390.png",
+    "viewport": "390x844",
+    "scenario": "empty state",
+    "notes": ""
+  },
+  {
+    "file": "24-mobile-metrics.png",
+    "viewport": "390x844",
+    "scenario": "metrics on mobile",
+    "notes": ""
+  },
+  {
+    "file": "25-mobile-comparison.png",
+    "viewport": "390x844",
+    "scenario": "comparison on mobile",
+    "notes": ""
+  },
+  {
+    "file": "26-mobile-ranking-table.png",
+    "viewport": "390x844",
+    "scenario": "ranking/table on mobile, local scroll",
+    "notes": ""
+  },
+  {
+    "file": "27-long-content-stress.png",
+    "viewport": "1366x768",
+    "scenario": "synthetic long-label/large-value stress block (not a committed fixture)",
+    "notes": ""
+  },
+  {
+    "file": "28-longest-fixture-option-mobile.png",
+    "viewport": "390x844",
+    "scenario": "fixture selector stress at narrowest width",
+    "notes": ""
+  },
+  {
+    "file": "29-mobile-drawer-intelligence.png",
+    "viewport": "1024x768",
+    "scenario": "tablet shell + Intelligence route",
+    "notes": ""
+  },
+  {
+    "file": "30-landing-regression.png",
+    "viewport": "1366x768",
+    "scenario": "Landing after Intelligence work",
+    "notes": ""
+  },
+  {
+    "file": "31-regression-dashbi.png",
+    "viewport": "1366x768",
+    "scenario": "Análise Geral regression reference",
+    "notes": ""
+  },
+  {
+    "file": "34-regression-score.png",
+    "viewport": "1366x768",
+    "scenario": "Score regression reference",
+    "notes": ""
+  },
+  {
+    "file": "35-regression-simulador-novos.png",
+    "viewport": "1366x768",
+    "scenario": "Simulador Novos regression reference",
+    "notes": ""
+  }
+]
