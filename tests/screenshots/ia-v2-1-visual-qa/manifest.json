@@ -38,7 +38,7 @@
   {
     "file": "07-desktop-empty-state.png",
     "viewport": "1366x768",
-    "scenario": "empty state",
+    "scenario": "empty state (no panel)",
     "notes": ""
   },
   {

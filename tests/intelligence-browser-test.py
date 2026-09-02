@@ -154,10 +154,15 @@ def main():
         check("network-guard has 0 flagged real-backend requests", page.evaluate("window.NX_NETWORK_GUARD.flaggedRequests.length") == 0)
 
         # ---------- Nova conversa ----------
+        # IA-V2-1-VISUAL-FIX-01 -- no empty-state panel by design
+        # (approved human visual UAT change): the clean state is the
+        # ABSENCE of .modEmptyState, not its presence.
         page.click("#baiNewChatBtn")
         page.wait_for_timeout(150)
-        check("Nova conversa: conversation cleared back to empty state", page.locator(".modEmptyState").count() > 0)
+        check("Nova conversa: conversation cleared, no empty-state panel (visually empty, not a placeholder card)", page.locator(".modEmptyState").count() == 0)
         check("Nova conversa: no lingering messages", page.locator(".baiMessage").count() == 0)
+        check("Nova conversa: no lingering structured blocks", page.locator(".baiBlockPanel").count() == 0)
+        check("Nova conversa: composer still present and usable", page.locator("#baiInput").is_visible())
 
         # ---------- Accessibility smoke ----------
         check("composer textarea has an accessible name", page.evaluate("document.getElementById('baiInput').getAttribute('aria-label')") not in (None, ""))

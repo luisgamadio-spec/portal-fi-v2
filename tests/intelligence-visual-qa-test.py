@@ -140,16 +140,21 @@ def main():
               page.locator(".modPageHeader, .modPanelResult, .modBtn").count() > 0)
 
         # =========================================================
-        # EMPTY STATE (Gate 7)
+        # EMPTY STATE (Gate 7) -- IA-V2-1-VISUAL-FIX-01: no panel,
+        # by explicit human visual UAT request. "Empty" now means
+        # visually empty (0 messages, 0 blocks, no placeholder card),
+        # not a bordered card announcing there's nothing yet.
         # =========================================================
         page.click("#baiNewChatBtn")
         page.wait_for_timeout(150)
-        check("empty state visible with guidance text", page.locator(".modEmptyState").count() > 0)
-        check("empty state guidance mentions concrete topics, no fake financial values", not re.search(r"R\$\s*[\d.,]+", page.locator(".modEmptyState").inner_text()))
+        check("no empty-state panel rendered (visually empty, not a placeholder card)", page.locator(".modEmptyState").count() == 0)
+        check("0 messages, 0 structured blocks before the first turn", page.locator(".baiMessage").count() == 0 and page.locator(".baiBlockPanel").count() == 0)
+        check("composer remains present and usable with nothing in the conversation yet", page.locator("#baiInput").is_visible())
+        check("fixture disclosure still present (unrelated to this fix)", page.locator(".modFixtureBanner").count() > 0)
         nova_box = page.locator("#baiNewChatBtn").bounding_box()
         send_box = page.locator("#baiSendBtn").bounding_box()
         check("Nova conversa not visually dominant vs Enviar (not larger)", nova_box["width"] * nova_box["height"] <= send_box["width"] * send_box["height"] * 3)
-        shot(page, "07-desktop-empty-state.png", "1366x768", "empty state")
+        shot(page, "07-desktop-empty-state.png", "1366x768", "empty state (no panel)")
 
         # =========================================================
         # BASIC TEXT (Gate 8)
@@ -286,7 +291,7 @@ def main():
         page.click("#baiNewChatBtn")
         page.wait_for_timeout(150)
         check("Nova conversa: conversation cleared", page.locator(".baiMessage").count() == 0)
-        check("Nova conversa: empty state returned", page.locator(".modEmptyState").count() > 0)
+        check("Nova conversa: clean state, no empty-state panel restored", page.locator(".modEmptyState").count() == 0)
         check("Nova conversa: no stale structured block remains", page.locator(".baiBlockPanel").count() == 0)
         active_el_after_nova = page.evaluate("document.activeElement.id")
         check("Nova conversa: focus moved to composer (reasonable focus behavior)", active_el_after_nova == "baiInput")

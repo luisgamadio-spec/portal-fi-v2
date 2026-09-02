@@ -137,20 +137,19 @@
       '<span class="modLoadingDot" aria-hidden="true"></span>Analisando os dados do Portal…</div></div>';
   }
 
-  function emptyStateHtml() {
-    return '<div class="modEmptyState"><div class="modStateTitle">Nenhuma pergunta ainda</div>' +
-      'Faça uma pergunta sobre financiamento, resultado, score ou condição financeira.</div>';
-  }
-
   function renderConversation() {
     var el = document.getElementById('baiConversation');
     if (!el) return;
     if (conversation.length === 0) {
-      el.innerHTML = emptyStateHtml();
+      // IA-V2-1-VISUAL-FIX-01 -- no empty-state panel, by explicit
+      // human visual UAT request ("like opening ChatGPT": empty means
+      // visually empty, not a bordered card announcing there's nothing
+      // yet). .baiConversation's own min-height keeps the composer from
+      // jumping up flush under the fixture banner; no other placeholder.
+      el.innerHTML = '';
       // Returning to the empty state (Nova conversa) should return the
       // page to the top too -- otherwise the window can be left scrolled
-      // to wherever the prior, now-cleared conversation had grown to,
-      // showing a blank area under the header instead of the empty state.
+      // to wherever the prior, now-cleared conversation had grown to.
       window.scrollTo(0, 0);
       return;
     }
