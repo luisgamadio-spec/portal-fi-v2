@@ -147,10 +147,20 @@
     if (!el) return;
     if (conversation.length === 0) {
       el.innerHTML = emptyStateHtml();
+      // Returning to the empty state (Nova conversa) should return the
+      // page to the top too -- otherwise the window can be left scrolled
+      // to wherever the prior, now-cleared conversation had grown to,
+      // showing a blank area under the header instead of the empty state.
+      window.scrollTo(0, 0);
       return;
     }
     el.innerHTML = conversation.map(messageHtml).join('') + (sending ? loadingHtml() : '');
-    el.scrollTop = el.scrollHeight;
+    // #baiConversation has no `overflow` of its own -- the whole page
+    // grows and the WINDOW scrolls, not this element, so `el.scrollTop`
+    // was a no-op (found live during IA-V2-1-VISUAL-QA-01's screenshot
+    // pass: several captures came back showing an empty viewport
+    // because the window hadn't followed new content into view).
+    window.scrollTo(0, document.documentElement.scrollHeight);
   }
 
   /* ============================================================
@@ -174,8 +184,13 @@
   function handleSend(text) {
     if (sending || !text) return;
     conversation.push({ role: 'user', content: text });
-    renderConversation();
+    // setSending BEFORE renderConversation -- renderConversation's own
+    // loading-bubble condition reads `sending`, so calling it first
+    // would render with sending still false and the bubble would never
+    // appear (found live during IA-V2-1-VISUAL-QA-01's loading-state
+    // pass).
     setSending(true);
+    renderConversation();
 
     // Model the real request contract even though nothing is sent over
     // the network -- proves the shape is correct without needing a

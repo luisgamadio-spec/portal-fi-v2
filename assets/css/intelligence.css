@@ -4,15 +4,22 @@
    stylesheets (index.html). Built entirely on shared --mod-* tokens
    and .mod* primitives — no new visual language invented (Gate 8 of
    IA-V2-1). A professional F&I workspace, not a consumer chatbot: no
-   giant avatars, no oversized bubbles, no gimmicks. Single centered
-   conversation column — the module has no second, independently
-   useful information source that would justify a side panel (Gate 15
-   of IA-V2-PLAN-01). */
+   giant avatars, no oversized bubbles, no gimmicks. Single, width-
+   capped conversation column — the module has no second,
+   independently useful information source that would justify a side
+   panel (Gate 15 of IA-V2-PLAN-01).
 
-.baiPage{max-width:820px;margin:0 auto}
+   The width cap applies ONLY to .baiWorkspace (the conversation/
+   composer), left-aligned, not to .baiPage as a whole -- an earlier
+   version capped+centered the whole page, which also shifted the
+   page HEADER ~120px right of every other module's (found live during
+   IA-V2-1-VISUAL-QA-01's Red Precision Fit pass, comparing left edges
+   against Dashbi/Score/Coparticipado/Simuladores). Header and fixture
+   banner now flow full-width like every other module; only the
+   reading column beneath them is capped, for comfortable line length. */
 
 /* ---------- Conversation surface ---------- */
-.baiWorkspace{display:flex;flex-direction:column;gap:var(--mod-space-control-gap)}
+.baiWorkspace{display:flex;flex-direction:column;gap:var(--mod-space-control-gap);max-width:820px}
 .baiConversation{display:flex;flex-direction:column;gap:var(--mod-space-card-gap);min-height:120px}
 
 .baiMessage{display:flex;flex-direction:column;gap:var(--mod-space-micro);max-width:100%}
@@ -24,6 +31,9 @@
 .baiBubble{border-radius:var(--radius-md);padding:10px 14px;font-size:var(--mod-body-size);line-height:1.5;max-width:640px;white-space:pre-wrap;overflow-wrap:break-word}
 .baiMessageUser .baiBubble{background:var(--mod-surface-active);border:1px solid rgba(238,75,87,.28)}
 .baiMessageAssistant .baiBubble{background:var(--mod-surface-panel-2);border:1px solid var(--mod-border)}
+/* border/color match module-system.css's own .modErrorState exactly
+   (also hardcoded there, no token exists for this shade) -- reusing
+   the established value, not inventing a new one. */
 .baiBubbleError{background:none;border:1px solid rgba(226,84,58,.4);color:#f3c7ba}
 .baiBubbleLoading{display:flex;align-items:center;gap:var(--mod-space-compact);color:var(--mod-muted);background:none;border:1px dashed var(--mod-border-strong)}
 
