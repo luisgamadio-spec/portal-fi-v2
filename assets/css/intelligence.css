@@ -37,6 +37,21 @@
 .baiBubbleError{background:none;border:1px solid rgba(226,84,58,.4);color:#f3c7ba}
 .baiBubbleLoading{display:flex;align-items:center;gap:var(--mod-space-compact);color:var(--mod-muted);background:none;border:1px dashed var(--mod-border-strong)}
 
+/* Assistant Markdown prose (HOTFIX-03) -- block content replaces the
+   plain pre-wrap text node, so the bubble itself stops pre-wrapping
+   raw newlines (paragraphs/lists carry their own spacing instead).
+   Density stays compact on purpose -- conversational replies, not an
+   article. */
+.baiBubbleMd{white-space:normal}
+.baiBubbleMd p{margin:0 0 var(--mod-space-micro)}
+.baiBubbleMd p:last-child{margin-bottom:0}
+.baiBubbleMd ul,.baiBubbleMd ol{margin:var(--mod-space-micro) 0;padding-left:1.2em;display:flex;flex-direction:column;gap:2px}
+.baiBubbleMd li{margin:0}
+.baiBubbleMd strong{font-weight:600}
+.baiBubbleMd em{font-style:italic}
+.baiBubbleMd code{font-family:var(--font-mono);background:var(--mod-surface-panel-2);border:1px solid var(--mod-border-strong);border-radius:var(--radius-sm);padding:0 4px;font-size:.92em}
+.baiBubbleMd .baiMdHeading{font-weight:600;font-size:var(--mod-body-size);margin:var(--mod-space-micro) 0 2px}
+
 /* ---------- Structured results ---------- */
 .baiStructuredRegion{display:flex;flex-direction:column;gap:var(--mod-space-card-gap);width:100%;max-width:640px}
 .baiBlockTitle{font-family:var(--font-ui);font-size:var(--mod-section-title-size);font-weight:400;margin:0 0 var(--mod-space-compact)}
