@@ -190,12 +190,16 @@
         reply: 'A parcela do Balão em 36x fica R$ 3.180,45, com balão de R$ 40.000,00 no último mês. Veja também como essa condição se compara a outros prazos.',
         blocks: [
           {
+            // Real ranking contract (IA-V2-2-STRUCTURED-BLOCK-FIX-01):
+            // items carry {position, name, <metric-named field>}, never
+            // {label,value,format} -- see buildBalaoOptimizeComparisonBlock
+            // in the authoritative source.
             type: 'ranking', title: 'Balão — comparação por prazo', period_label: 'Simulação — não é proposta nem aprovação de crédito',
-            dimension: 'term', metric: 'payment',
+            dimension: 'term_months', metric: 'sim_payment',
             items: [
-              { key: '30x', label: '30x', value: 3620.1, format: 'currency' },
-              { key: '36x', label: '36x', value: 3180.45, format: 'currency' },
-              { key: '42x', label: '42x', value: 2890.75, format: 'currency' }
+              { position: 1, name: '30x', sim_payment: 3620.1 },
+              { position: 2, name: '36x', sim_payment: 3180.45 },
+              { position: 3, name: '42x', sim_payment: 2890.75 }
             ]
           },
           {
@@ -239,11 +243,13 @@
       response: {
         reply: 'Para R$ 90.000,00 com entrada de R$ 50.000,00, há 2 opções de prazo disponíveis nas Taxas Subsidiadas.',
         blocks: [{
+          // Real shape -- see buildSubsidiadasRankingBlock in the
+          // authoritative source (dimension: "rate_term").
           type: 'ranking', title: 'Taxas Subsidiadas — todas as opções', period_label: 'Simulação — não é proposta nem aprovação de crédito',
-          dimension: 'term', metric: 'payment',
+          dimension: 'rate_term', metric: 'sim_payment',
           items: [
-            { key: '24x', label: '24x', value: 1920, format: 'currency' },
-            { key: '36x', label: '36x', value: 1440, format: 'currency' }
+            { position: 1, name: '24x', sim_payment: 1920 },
+            { position: 2, name: '36x', sim_payment: 1440 }
           ]
         }],
         request_id: 'fixture-subsidiado', scenario_reset: false
@@ -319,13 +325,20 @@
       response: {
         reply: 'O Score de Ana Paula Ribeiro no período fica em 87,4 pontos, banda "Alto Desempenho".',
         blocks: [{
+          // Real shape -- see buildScoreBreakdownBlock in the
+          // authoritative source: NO items array at all, flat identity/
+          // summary fields on the block itself + components[].
           type: 'score_breakdown', title: 'Score F&I — Ana Paula Ribeiro', period_label: 'competência atual',
-          items: [
-            { key: 'final_score', label: 'Score final', value: 87.4, format: 'int' },
-            { key: 'mix_planos', label: 'Mix de planos', value: 22.1, format: 'percent' },
-            { key: 'penetracao', label: 'Penetração F&I', value: 68.5, format: 'percent' },
-            { key: 'ticket_medio', label: 'Ticket médio SPF', value: 640, format: 'currency' }
-          ]
+          seller: 'Ana Paula Ribeiro', store: 'Barra Funda', department: 'NOVOS',
+          score: 87.4, classification: 'Alto Desempenho', rank: 1,
+          sales: 12, financed: 10,
+          penetration_percent: 68.5, average_return_percent: 3.2,
+          components: [
+            { label: 'Volume', value: 20, max: 25 },
+            { label: 'Penetração', value: 16, max: 20 },
+            { label: 'Mix de planos', value: 14, max: 20 }
+          ],
+          plan_mix: { LINEAR: 8, BALAO: 4 }, main_plan: 'LINEAR', family_count: 3
         }],
         request_id: 'fixture-score', scenario_reset: false
       }
@@ -378,12 +391,18 @@
       prompt: 'Tem operações especiais registradas neste período?',
       match: /opera[çc][õo]es especiais/i,
       response: {
-        reply: 'Encontrei 3 operações especiais no período, todas com dado de cliente mascarado por política de segurança.',
+        reply: 'Encontrei 2 operações especiais no período, todas com dado de cliente mascarado por política de segurança.',
         blocks: [{
+          // Real shape -- see buildOperationsBlock in the authoritative
+          // source: top-level totals + items:[{reference (masked),
+          // date, store, department, seller, model, financed_value,
+          // return_value}], never {label,value,format}. Rendered as
+          // cards, never a table (source's own explicit intent).
           type: 'operations', title: 'Operações especiais — período atual',
+          total_count: 2, total_financed_value: 404400, total_return_value: 20200, truncated: false, shown_count: 2,
           items: [
-            { key: 'op1', label: 'Loja Barra Funda · 12/08', value: 'Balão 4x, R$ 189.900,00', format: 'text' },
-            { key: 'op2', label: 'Loja Santo Amaro · 20/08', value: 'Coparticipado, R$ 214.500,00', format: 'text' }
+            { reference: '***4471', date: '2026-08-12', store: 'Barra Funda', department: 'NOVOS', seller: 'Ana Paula Ribeiro', model: 'PAJERO SPORT', financed_value: 189900, return_value: 9500 },
+            { reference: '***9903', date: '2026-08-20', store: 'Santo Amaro', department: 'NOVOS', seller: 'Bruno Alves', model: 'L200 TRITON', financed_value: 214500, return_value: 10700 }
           ]
         }],
         request_id: 'fixture-operations', scenario_reset: false
@@ -397,11 +416,15 @@
       response: {
         reply: 'O ranking de Score do período tem Ana Paula Ribeiro em primeiro lugar, com 87,4 pontos.',
         blocks: [{
+          // Real shape -- see buildScoreRankingBlock in the
+          // authoritative source: items:[{rank,seller,store,department,
+          // score,classification,sales,financed}], never
+          // {label,value,format}.
           type: 'score_ranking', title: 'Ranking Score F&I — período atual',
           items: [
-            { key: 'seller1', label: 'Ana Paula Ribeiro', value: 87.4, format: 'int' },
-            { key: 'seller2', label: 'Carlos Eduardo Souza', value: 81.9, format: 'int' },
-            { key: 'seller3', label: 'Bruno Kaminski', value: 76.2, format: 'int' }
+            { rank: 1, seller: 'Ana Paula Ribeiro', store: 'Barra Funda', department: 'NOVOS', score: 87.4, classification: 'Alto Desempenho', sales: 12, financed: 10 },
+            { rank: 2, seller: 'Carlos Eduardo Souza', store: 'Santo Amaro', department: 'NOVOS', score: 81.9, classification: 'Alto Desempenho', sales: 10, financed: 9 },
+            { rank: 3, seller: 'Bruno Kaminski', store: 'Barra Funda', department: 'SEMINOVOS', score: 76.2, classification: 'Médio Desempenho', sales: 8, financed: 6 }
           ]
         }],
         request_id: 'fixture-score-ranking', scenario_reset: false

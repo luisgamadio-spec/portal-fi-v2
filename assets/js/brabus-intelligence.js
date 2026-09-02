@@ -220,38 +220,204 @@
     return blockPanelHtml(block, '<div class="baiComparisonGrid">' + side(block.a) + side(block.b) + '</div>', true);
   }
 
+  /* ============================================================
+     STRUCTURED BLOCK FIELD CONTRACT (HOTFIX-05 --
+     IA-V2-2-STRUCTURED-BLOCK-FIX-01). ranking/score_ranking/
+     score_breakdown/operations do NOT use the {label,value,format}
+     shape metrics/comparison use -- rediscovered field-by-field from
+     the real, authoritative source
+     (supabase/functions/portal-ai-homolog/index.ts, every
+     `buildXBlock` function that returns one of these 4 types, ~8 call
+     sites). RANKING_FIELD_META/RANKING_DIMENSION_LABELS below mirror
+     the backend's OWN METRIC_LABELS/DIMENSION_LABELS constants (same
+     Portuguese labels, same keys) plus the additional field/dimension
+     identifiers this module's own real UAT observed -- every key here
+     traces to a real field the backend actually emits, none invented.
+     No financial formula lives here: this is presentation-label
+     lookup only, never a calculation. */
+  var RANKING_FIELD_META = {
+    sales: { label: 'Vendas', format: 'int' },
+    financed: { label: 'Financiamentos', format: 'int' },
+    share_percent: { label: 'Share', format: 'percent' },
+    production: { label: 'Produção', format: 'currency' },
+    return: { label: 'Retorno', format: 'currency' },
+    return_avg_percent: { label: 'Retorno Médio', format: 'percent' },
+    spf: { label: 'SPF', format: 'currency' },
+    profitability: { label: 'Rentabilidade', format: 'currency' },
+    sim_payment: { label: 'Parcela', format: 'currency' },
+    sim_financed: { label: 'Financiado', format: 'currency' },
+    sim_down_payment: { label: 'Entrada', format: 'currency' },
+    hist_count: { label: 'Operações', format: 'int' },
+    hist_avg_down_payment_percent: { label: 'Entrada Média', format: 'percent' },
+    hist_avg_installment_value: { label: 'Parcela Média', format: 'currency' },
+    hist_avg_term_months: { label: 'Prazo Médio (meses)', format: 'int' },
+    seller: { label: 'Vendedor', format: 'text' },
+    store: { label: 'Loja', format: 'text' },
+    department: { label: 'Departamento', format: 'text' },
+    classification: { label: 'Classificação', format: 'text' },
+    score: { label: 'Score', format: null },
+    penetration_percent: { label: 'Penetração', format: 'percent' },
+    average_return_percent: { label: 'Retorno Médio', format: 'percent' },
+    main_plan: { label: 'Plano Principal', format: 'text' },
+    family_count: { label: 'Famílias', format: 'int' },
+    reference: { label: 'Referência', format: 'text' },
+    date: { label: 'Data', format: 'date' },
+    model: { label: 'Modelo', format: 'text' },
+    financed_value: { label: 'Financiado', format: 'currency' },
+    return_value: { label: 'Retorno', format: 'currency' },
+    down_payment_value: { label: 'Entrada', format: 'currency' },
+    down_payment_percent: { label: 'Entrada (%)', format: 'percent' },
+    installment_value: { label: 'Parcela', format: 'currency' },
+    installments: { label: 'Parcelas', format: 'int' }
+  };
+  // Mirrors the backend's own DIMENSION_LABELS (store/seller/model/plan)
+  // plus the simulation/histórico dimension identifiers this module's
+  // real UAT observed on block.dimension (down_payment/term_months/
+  // rate_term/down_payment_bucket) -- same source, never invented.
+  var RANKING_DIMENSION_LABELS = {
+    store: 'Loja', seller: 'Vendedor', model: 'Modelo', plan: 'Plano',
+    down_payment: 'Entrada', term_months: 'Prazo', term: 'Prazo',
+    rate_term: 'Condição', down_payment_bucket: 'Faixa de Entrada'
+  };
+
+  function fieldMeta(key) {
+    return RANKING_FIELD_META[key] || { label: key, format: null };
+  }
+
+  function rankingValueCell(it, key) {
+    var meta = fieldMeta(key);
+    var f = A.formatValue(it[key], meta.format);
+    var colClass = meta.format === 'currency' ? 'modCurrencyCol' : (meta.format === 'percent' ? 'modPercentCol' : 'modNumCol');
+    return '<td class="' + colClass + '">' + esc(f.text) + '</td>';
+  }
+
+  // Real shape: {dimension, metric, items:[{position, name, ...one or
+  // more metric-named fields}]} -- NOT {label,value,format} per item.
+  // `name` is the row label and `metric` names which item field is the
+  // primary value in every producer this was checked against (Resultado
+  // ranking, Linear/Balão/Coparticipado/Subsidiado compare_down_payments,
+  // Histórico distributions). Any OTHER fields present on the item
+  // (e.g. Coparticipado's compare also carries sim_down_payment/
+  // sim_financed alongside sim_payment) render as their own columns
+  // too, so no real backend data is dropped -- gate: "Responsive
+  // transformation may change layout, never information."
   function renderRanking(block) {
-    var rows = (block.items || []).map(function (it) {
-      var f = A.formatValue(it.value, it.format);
-      var colClass = it.format === 'currency' ? 'modCurrencyCol' : (it.format === 'percent' ? 'modPercentCol' : 'modNumCol');
-      return '<tr><td>' + esc(it.label) + '</td><td class="' + colClass + '">' + esc(f.text) + '</td></tr>';
+    var items = block.items || [];
+    if (!items.length) return blockPanelHtml(block, '<p class="modMuted">Sem itens para exibir.</p>', true);
+    var keys = Object.keys(items[0]).filter(function (k) { return k !== 'position' && k !== 'name'; });
+    if (block.metric && keys.indexOf(block.metric) > 0) {
+      keys.splice(keys.indexOf(block.metric), 1);
+      keys.unshift(block.metric);
+    }
+    var nameHeader = RANKING_DIMENSION_LABELS[block.dimension] || 'Item';
+    var headerCells = '<th>#</th><th>' + esc(nameHeader) + '</th>' +
+      keys.map(function (k) { return '<th>' + esc(fieldMeta(k).label) + '</th>'; }).join('');
+    var rows = items.map(function (it, idx) {
+      var pos = (it.position !== undefined && it.position !== null) ? it.position : idx + 1;
+      return '<tr><td class="modNumCol">' + esc(String(pos)) + '</td><td>' + esc(it.name != null ? it.name : '') + '</td>' +
+        keys.map(function (k) { return rankingValueCell(it, k); }).join('') + '</tr>';
     }).join('');
-    var table = '<div class="modTableWrap"><table class="modTable"><thead><tr><th>' + esc(block.dimension || 'Item') + '</th><th>' + esc(block.metric || 'Valor') + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    var table = '<div class="modTableWrap"><table class="modTable"><thead><tr>' + headerCells + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
     return blockPanelHtml(block, table, true);
   }
 
+  // Real shape: top-level {..., total_count, total_financed_value,
+  // truncated, shown_count, items:[{reference, date, store, department,
+  // seller?, model, financed_value, return_value?, down_payment_value?,
+  // down_payment_percent?, installment_value?, installments?}]} -- two
+  // real variants exist (Coparticipado/Subsidiado operations vs.
+  // Histórico similar_operations), differing only in which optional
+  // fields are present; both handled by iterating whatever the item
+  // actually has. Rendered as CARDS, never a table -- the backend's own
+  // source comment is explicit: "cards com referência mascarada, nunca
+  // uma tabela (mobile-first)".
+  var OPERATIONS_CARD_TOP_FIELDS = ['reference', 'date', 'store', 'department', 'seller', 'model'];
+
+  function operationsCardHtml(it) {
+    var headerParts = [];
+    if (it.reference) headerParts.push('<span class="baiOpRef">' + esc(it.reference) + '</span>');
+    if (it.date) headerParts.push('<span class="modMuted">' + esc(A.formatValue(it.date, 'date').text) + '</span>');
+    var subtitleParts = [it.store, it.department, it.model, it.seller].filter(function (v) { return v; }).map(esc);
+    var dataKeys = Object.keys(it).filter(function (k) { return OPERATIONS_CARD_TOP_FIELDS.indexOf(k) === -1; });
+    var dataHtml = dataKeys.map(function (k) {
+      var meta = fieldMeta(k);
+      var f = A.formatValue(it[k], meta.format);
+      return '<div class="baiOperationRow"><span class="modMuted" style="margin:0">' + esc(meta.label) + '</span><span>' + esc(f.text) + '</span></div>';
+    }).join('');
+    return '<div class="baiOperationCard">' +
+      '<div class="baiOpCardHeader">' + headerParts.join(' · ') + '</div>' +
+      (subtitleParts.length ? '<p class="modMuted" style="margin:2px 0 6px">' + subtitleParts.join(' · ') + '</p>' : '') +
+      dataHtml + '</div>';
+  }
+
   function renderOperations(block) {
-    var rows = (block.items || []).map(function (it) {
-      var f = A.formatValue(it.value, it.format);
-      return '<div class="baiOperationRow"><span class="modMuted" style="margin:0">' + esc(it.label) + '</span><span>' + esc(f.text) + '</span></div>';
-    }).join('');
-    return blockPanelHtml(block, '<div class="baiOperationsList">' + rows + '</div>', true);
+    var items = block.items || [];
+    var cards = items.length ? items.map(operationsCardHtml).join('') : '<p class="modMuted">Sem operações no período.</p>';
+    var summaryBits = [];
+    if (block.total_count !== undefined && block.total_count !== null) summaryBits.push(block.total_count + ' operação(ões)');
+    if (block.total_financed_value !== undefined && block.total_financed_value !== null) summaryBits.push('financiado total ' + A.formatValue(block.total_financed_value, 'currency').text);
+    if (block.truncated) summaryBits.push('lista truncada — mostrando ' + (block.shown_count || items.length));
+    var summaryHtml = summaryBits.length ? '<p class="baiBlockPeriod">' + esc(summaryBits.join(' · ')) + '</p>' : '';
+    return blockPanelHtml(block, summaryHtml + '<div class="baiOperationsList">' + cards + '</div>', true);
   }
 
+  // Real shape: NO block.items at all -- identity/summary fields sit
+  // flat on the block itself (seller, store, department, score,
+  // classification, rank, sales, financed, penetration_percent,
+  // average_return_percent, plan_mix, main_plan, family_count), plus
+  // `components:[{label,value,max}]` for the score's own point
+  // breakdown (Volume/Penetração/Mix/SPF Extra/Retorno médio per the
+  // source's own comment) -- 100% backend-computed, never
+  // reconstructed or recalculated here.
   function renderScoreBreakdown(block) {
-    // Presentation-only, shared KPI primitive -- NEVER calls into
-    // score.adapter.js and NEVER recomputes a score (Gate 25 of
-    // IA-V2-1): this block is authoritative for this module as-is.
-    var items = (block.items || []).map(metricItemHtml).join('');
-    return blockPanelHtml(block, '<div class="baiMetricsGrid">' + items + '</div>');
+    var summaryItems = [];
+    function pushIfPresent(label, value, format) {
+      if (value === undefined || value === null) return;
+      summaryItems.push({ label: label, value: value, format: format });
+    }
+    pushIfPresent('Score', block.score, null);
+    pushIfPresent('Classificação', block.classification, 'text');
+    pushIfPresent('Posição', block.rank, 'int');
+    pushIfPresent('Vendas', block.sales, 'int');
+    pushIfPresent('Financiamentos', block.financed, 'int');
+    pushIfPresent('Penetração', block.penetration_percent, 'percent');
+    pushIfPresent('Retorno Médio', block.average_return_percent, 'percent');
+    var summaryHtml = '<div class="baiMetricsGrid">' + summaryItems.map(metricItemHtml).join('') + '</div>';
+
+    var components = Array.isArray(block.components) ? block.components : [];
+    var componentsHtml = components.length ? '<div class="baiOperationsList">' + components.map(function (c) {
+      var maxText = (c.max !== undefined && c.max !== null) ? ' / ' + esc(String(c.max)) : '';
+      return '<div class="baiOperationRow"><span class="modMuted" style="margin:0">' + esc(c.label) + '</span><span>' + esc(String(c.value)) + maxText + '</span></div>';
+    }).join('') + '</div>' : '';
+
+    var planMixHtml = '';
+    if (block.plan_mix && typeof block.plan_mix === 'object') {
+      var planEntries = Object.keys(block.plan_mix).map(function (k) { return esc(k) + ': ' + esc(String(block.plan_mix[k])); });
+      if (planEntries.length) planMixHtml = '<p class="baiBlockPeriod">Mix de planos — ' + planEntries.join(' · ') + '</p>';
+    }
+
+    return blockPanelHtml(block, summaryHtml + componentsHtml + planMixHtml);
   }
 
+  // Real shape: items:[{rank, seller, store, department, score,
+  // classification, sales, financed}] -- NOT {label,value,format}.
   function renderScoreRanking(block) {
-    var rows = (block.items || []).map(function (it, idx) {
-      var f = A.formatValue(it.value, it.format);
-      return '<tr><td class="modNumCol">' + (idx + 1) + '</td><td>' + esc(it.label) + '</td><td class="modNumCol">' + esc(f.text) + '</td></tr>';
+    var items = block.items || [];
+    if (!items.length) return blockPanelHtml(block, '<p class="modMuted">Sem itens para exibir.</p>', true);
+    var rows = items.map(function (it) {
+      var scoreF = A.formatValue(it.score, null);
+      var salesF = A.formatValue(it.sales, 'int');
+      var financedF = A.formatValue(it.financed, 'int');
+      return '<tr><td class="modNumCol">' + esc(it.rank != null ? String(it.rank) : '') + '</td>' +
+        '<td>' + esc(it.seller || '') + '</td>' +
+        '<td>' + esc(it.store || '') + '</td>' +
+        '<td>' + esc(it.department || '') + '</td>' +
+        '<td class="modNumCol">' + esc(scoreF.text) + '</td>' +
+        '<td>' + esc(it.classification || '') + '</td>' +
+        '<td class="modNumCol">' + esc(salesF.text) + '</td>' +
+        '<td class="modNumCol">' + esc(financedF.text) + '</td></tr>';
     }).join('');
-    var table = '<div class="modTableWrap"><table class="modTable"><thead><tr><th>#</th><th>Vendedor</th><th>Score</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    var table = '<div class="modTableWrap"><table class="modTable"><thead><tr><th>#</th><th>Vendedor</th><th>Loja</th><th>Depto</th><th>Score</th><th>Classificação</th><th>Vendas</th><th>Financ.</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
     return blockPanelHtml(block, table, true);
   }
 

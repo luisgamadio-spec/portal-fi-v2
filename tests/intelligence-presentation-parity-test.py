@@ -95,7 +95,7 @@ def main():
         html = render_block("operations")
         text = strip_tags(html)
         results.append(("operations: no fabricated customer PII (no CPF/chassis pattern)", not re.search(r"\d{3}\.\d{3}\.\d{3}-\d{2}", text)))
-        results.append(("operations: masked fixture text preserved verbatim", "Balão 4x" in text))
+        results.append(("operations: masked reference preserved verbatim", "***4471" in text))
 
         # ---------- score_breakdown ----------
         html = render_block("score")

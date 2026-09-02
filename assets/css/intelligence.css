@@ -70,6 +70,15 @@
 .baiOperationRow{display:flex;justify-content:space-between;gap:var(--mod-space-control-gap);padding:var(--mod-space-compact) 0;border-bottom:1px solid var(--mod-border)}
 .baiOperationRow:last-child{border-bottom:none}
 
+/* Operations block (HOTFIX-05) -- cards, not a table, per the backend
+   source's own intent ("nunca uma tabela — mobile-first"). Each card
+   reuses .baiOperationRow for its own data lines. */
+.baiOperationCard{border:1px solid var(--mod-border);border-radius:var(--radius-md);padding:var(--mod-space-compact) var(--mod-space-card-gap);margin-bottom:var(--mod-space-micro)}
+.baiOperationCard:last-child{margin-bottom:0}
+.baiOperationCard .baiOperationRow:last-child{border-bottom:none}
+.baiOpCardHeader{display:flex;gap:var(--mod-space-compact);align-items:baseline;font-weight:500}
+.baiOpRef{font-family:var(--font-mono);font-size:12.5px}
+
 /* ---------- Composer ---------- */
 .baiComposer{display:flex;gap:var(--mod-space-compact);align-items:flex-end;border-top:1px solid var(--mod-border);padding-top:var(--mod-space-control-gap)}
 .baiComposerInput{flex:1;resize:none;min-height:44px;max-height:160px;background:var(--mod-surface-panel-2);border:1px solid var(--mod-border-strong);color:var(--color-text-primary);font-family:var(--font-ui);font-size:13px;padding:10px 12px;border-radius:var(--radius-sm);line-height:1.4}

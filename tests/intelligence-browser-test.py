@@ -107,14 +107,14 @@ def main():
         shot(page, "05-desktop-ranking.png")
 
         send(page, "Tem operações especiais registradas neste período?")
-        check("operations block rendered", "Loja Barra Funda" in page.locator("#baiConversation").inner_text())
+        check("operations block rendered", "Barra Funda" in page.locator("#baiConversation").inner_text())
         shot(page, "06-desktop-operations.png")
 
         send(page, "Qual o score do vendedor Ana Paula Ribeiro neste período?")
         # .modKpiLabel is CSS text-transform:uppercase -- Playwright's
         # inner_text() reflects the rendered (uppercased) text, so match
         # case-insensitively rather than assuming the literal source case.
-        check("score_breakdown block rendered", "score final" in page.locator("#baiConversation").inner_text().lower())
+        check("score_breakdown block rendered", "alto desempenho" in page.locator("#baiConversation").inner_text().lower())
         shot(page, "07-desktop-score-breakdown.png")
 
         send(page, "Mostra o ranking de score do período.")
