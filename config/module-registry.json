@@ -231,19 +231,19 @@
       "name": "Brabus F&I Intelligence (AI + future Voice)",
       "route": "/intelligence",
       "title": "Brabus Intelligence",
-      "density": "MEDIUM (drawer UI)",
-      "authRequirement": "session + MASTER role (server-enforced)",
-      "designPattern": "voice-focus-mode (APPROVED architecture) + voice-orb-variant (PROVISIONAL, HUMAN SELECTION PENDING — MUST NOT auto-select)",
-      "entryPoint": "NOT YET CREATED in V2",
-      "businessSource": "assets/js/portal-ai-ui.js + supabase/functions/portal-ai (NOT ported/called this phase)",
-      "functionalSource": "assets/js/portal-ai-ui.js + supabase/functions/portal-ai (portal-financiamento-brabus-secure)",
-      "approvedReference": "voice-focus-mode",
+      "density": "MEDIUM (conversation workspace)",
+      "authRequirement": "session + MASTER role (server-enforced) — NOT implemented this Wave (IA-V2-1 is fixture-only, 0 backend, 0 auth, see entryPoint note)",
+      "designPattern": "V2-native fixture-driven conversation workspace on module-system.css primitives (IA-V2-1) — the prior voice-focus-mode/voice-orb-variant reference is NOT used; this Wave deliberately did not transplant that legacy UI (see docs/IA-V2-1-CONTRACT.md)",
+      "entryPoint": "assets/js/brabus-intelligence.js (NX_BRABUS_INTELLIGENCE_PAGE) + assets/js/adapters/brabus-intelligence.adapter.js (NX_BRABUS_INTELLIGENCE_ADAPTER)",
+      "businessSource": "N/A this Wave — 0 business logic in V2; every fixture value is a plain synthetic literal, not derived from a formula (see tests/business-logic-scanner.py)",
+      "functionalSource": "Contract recovered by reading the real, reconciled portal-ai-homolog Edge Function + assets/js/portal-ai-ui.js (portal-financiamento-brabus-secure, ia-reconciliation-v2-local worktree) — behaviorally, never transplanted",
+      "approvedReference": "N/A — see designPattern",
       "migrationWave": 7,
       "risk": "HIGH",
-      "migrationStatus": "NOT_MIGRATED",
+      "migrationStatus": "IN_PROGRESS",
       "landingTitle": "Brabus Intelligence",
       "landingDesc": "Assistente de IA — texto e, futuramente, voz.",
-      "notes": "UNSCHEDULABLE until 3 named blockers close (PORTAL-NEXT-01/MIGRATION-WAVES.md Wave 7): Voice Orb variant human decision; the separately-tracked V1 AI kill-switch issue (PORTAL-NEXT-01.1, CONFIRMED, MEDIUM, not this phase's concern); the Orb-to-real-backend bridge design (does not exist yet)."
+      "notes": "IA-V2-1 (this Wave): V2-native module shell + contract adapter + structured-block renderer, fixture-driven only — 0 network calls, 0 real auth, 0 Voice, 0 Realtime, 0 backend call. Human Visual UAT: UAT_PENDING (docs/IA-V2-1-CONTRACT.md). Remaining blockers before real backend integration (IA-V2-2): real V2 auth (NX_AUTH is currently a contract-only stub), CORS allowlist update on the 3 Edge Functions for V2's eventual origin, feature containment/kill-switch equivalent. Voice Orb variant human decision and the CSP media-src prerequisite remain open, but only block the later Voice Wave (IA-V2-4), not this one."
     }
   ]
 }

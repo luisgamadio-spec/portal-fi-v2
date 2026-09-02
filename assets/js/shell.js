@@ -112,7 +112,8 @@
     gestao: 'NX_GESTAO_PAGE',
     dashbi: 'NX_DASHBI_PAGE',
     'simulador-novos': 'NX_SIMULADOR_NOVOS_PAGE',
-    'simulador-seminovos': 'NX_SIMULADOR_SEMINOVOS_PAGE'
+    'simulador-seminovos': 'NX_SIMULADOR_SEMINOVOS_PAGE',
+    'brabus-intelligence': 'NX_BRABUS_INTELLIGENCE_PAGE'
   };
 
   var hasRenderedOnce = false;

@@ -1,0 +1,73 @@
+/* PORTAL-NEXT V2 — Brabus Intelligence module CSS (IA-V2-1).
+
+   Loaded after module-system.css, alongside the other per-module
+   stylesheets (index.html). Built entirely on shared --mod-* tokens
+   and .mod* primitives — no new visual language invented (Gate 8 of
+   IA-V2-1). A professional F&I workspace, not a consumer chatbot: no
+   giant avatars, no oversized bubbles, no gimmicks. Single centered
+   conversation column — the module has no second, independently
+   useful information source that would justify a side panel (Gate 15
+   of IA-V2-PLAN-01). */
+
+.baiPage{max-width:820px;margin:0 auto}
+
+/* ---------- Conversation surface ---------- */
+.baiWorkspace{display:flex;flex-direction:column;gap:var(--mod-space-control-gap)}
+.baiConversation{display:flex;flex-direction:column;gap:var(--mod-space-card-gap);min-height:120px}
+
+.baiMessage{display:flex;flex-direction:column;gap:var(--mod-space-micro);max-width:100%}
+.baiMessageUser{align-items:flex-end}
+.baiMessageAssistant{align-items:flex-start}
+
+.baiRoleLabel{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mod-muted)}
+
+.baiBubble{border-radius:var(--radius-md);padding:10px 14px;font-size:var(--mod-body-size);line-height:1.5;max-width:640px;white-space:pre-wrap;overflow-wrap:break-word}
+.baiMessageUser .baiBubble{background:var(--mod-surface-active);border:1px solid rgba(238,75,87,.28)}
+.baiMessageAssistant .baiBubble{background:var(--mod-surface-panel-2);border:1px solid var(--mod-border)}
+.baiBubbleError{background:none;border:1px solid rgba(226,84,58,.4);color:#f3c7ba}
+.baiBubbleLoading{display:flex;align-items:center;gap:var(--mod-space-compact);color:var(--mod-muted);background:none;border:1px dashed var(--mod-border-strong)}
+
+/* ---------- Structured results ---------- */
+.baiStructuredRegion{display:flex;flex-direction:column;gap:var(--mod-space-card-gap);width:100%;max-width:640px}
+.baiBlockTitle{font-family:var(--font-ui);font-size:var(--mod-section-title-size);font-weight:400;margin:0 0 var(--mod-space-compact)}
+.baiBlockPeriod{color:var(--mod-muted);font-size:var(--mod-metadata-size);margin:0 0 var(--mod-space-card-gap)}
+
+.baiMetricsGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--mod-space-card-gap)}
+.baiMetricItem .modKpiLabel{color:var(--mod-muted);font-size:var(--mod-kpi-label-size);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
+.baiMetricItem .modKpiValue{font-family:var(--font-mono);font-size:18px;font-weight:500;margin-top:var(--mod-space-micro);font-variant-numeric:tabular-nums}
+
+.baiComparisonGrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--mod-space-card-gap)}
+@media(max-width:600px){.baiComparisonGrid{grid-template-columns:1fr}}
+.baiComparisonSide{border:1px solid var(--mod-border);border-radius:var(--radius-md);padding:var(--mod-space-control-gap)}
+.baiComparisonSideLabel{font-weight:500;margin:0 0 var(--mod-space-compact)}
+
+.baiOperationsList{display:flex;flex-direction:column;gap:var(--mod-space-micro)}
+.baiOperationRow{display:flex;justify-content:space-between;gap:var(--mod-space-control-gap);padding:var(--mod-space-compact) 0;border-bottom:1px solid var(--mod-border)}
+.baiOperationRow:last-child{border-bottom:none}
+
+/* ---------- Composer ---------- */
+.baiComposer{display:flex;gap:var(--mod-space-compact);align-items:flex-end;border-top:1px solid var(--mod-border);padding-top:var(--mod-space-control-gap)}
+.baiComposerInput{flex:1;resize:none;min-height:44px;max-height:160px;background:var(--mod-surface-panel-2);border:1px solid var(--mod-border-strong);color:var(--color-text-primary);font-family:var(--font-ui);font-size:13px;padding:10px 12px;border-radius:var(--radius-sm);line-height:1.4}
+.baiComposerInput:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+.baiComposerActions{display:flex;gap:var(--mod-space-compact);flex-shrink:0}
+
+.baiHeaderActions{display:flex;gap:var(--mod-space-compact)}
+
+/* A <select> sizes to its widest <option> by default -- without a cap
+   a long fixture-scenario description silently pushes the whole page
+   wider than the viewport (found live during IA-V2-1's own responsive
+   pass). text-overflow needs an explicit block context, hence the
+   wrapping span-like treatment via display + overflow, not just
+   white-space on the select itself (limited select style support). */
+#baiFixtureSelect{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:480px){#baiFixtureSelect{max-width:100%}}
+
+/* ---------- Responsive ---------- */
+@media(max-width:768px){
+  .baiBubble{max-width:100%}
+  .baiStructuredRegion{max-width:100%}
+}
+@media(max-width:480px){
+  .baiComposer{flex-direction:column;align-items:stretch}
+  .baiComposerActions{justify-content:flex-end}
+}
