@@ -59,6 +59,19 @@
 <script src="../design-motion-lab-03/engine.js"></script>
 <script src="assets/js/environment-guard.js"></script>
 <script src="assets/js/network-guard.js"></script>
+<!-- IA-V2-2 -- committed default is mode:'fixture', safe on every host
+     (see intelligence-runtime-config.js's own header). The local
+     override below only ever loads on localhost/127.0.0.1, mirroring
+     the exact same convention the Secure repo already uses for its own
+     portal-runtime-config.local.js -- never present unless a developer
+     creates it on their own machine from the .example.js file. -->
+<script src="assets/js/intelligence-runtime-config.js"></script>
+<script>
+if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
+  document.write('<script src="assets/js/intelligence-runtime-config.local.js"><\/script>');
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.0" integrity="sha384-De+l/Df7qym5QBDVocD3+gW1S7IjR3epf+6KbRDjB3FCCzM/LqVTwqckT6FhFar8" crossorigin="anonymous"></script>
 <script src="assets/js/auth-boundary.js"></script>
 <script src="assets/js/business-adapter-boundary.js"></script>
 <script src="assets/js/router.js"></script>

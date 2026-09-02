@@ -1,15 +1,19 @@
-/* PORTAL-NEXT V2 — Brabus Intelligence page (IA-V2-1).
+/* PORTAL-NEXT V2 — Brabus Intelligence page (IA-V2-1, real transport
+   added IA-V2-2).
 
-   Fixture-driven only this Wave — see docs/IA-V2-1-CONTRACT.md and the
-   adapter's own header comment (assets/js/adapters/
-   brabus-intelligence.adapter.js) for the full boundary. ZERO network
-   calls: NX_BRABUS_INTELLIGENCE_ADAPTER.resolveFixtureScenario stands
-   in for what will be a real fetch() to portal-ai-homolog in IA-V2-2 —
-   this file never calls fetch/XHR itself and never will need to change
-   its own call site when that happens (only the adapter's internals
-   change). ZERO business logic: this file only builds/reads DOM and
+   Two transport modes, selected by window.NX_INTELLIGENCE_CONFIG.mode
+   (default 'fixture', safe everywhere -- Gate 8 containment):
+   'fixture' behaves exactly as IA-V2-1 shipped it (0 network calls,
+   synthetic contract data, fixture banner visible). 'real_text' calls
+   the real, unmodified portal-ai-homolog contract via
+   NX_AUTH.getAccessToken() + A.sendRealText() -- this file still never
+   calls fetch/XHR itself, that lives entirely in the adapter, and both
+   modes converge on the exact same applyResult()/renderConversation()
+   path below, so nothing about rendering forks between them. ZERO
+   business logic either way: this file only builds/reads DOM and
    calls the adapter's pure formatting functions — every number/date/
-   percent shown comes verbatim from a fixture response object.
+   percent shown comes verbatim from a response object neither mode
+   computes.
 
    Conversation state lives in this module's own closure, reset on
    every render() call — matching every other V2 module's lifecycle
@@ -23,6 +27,11 @@
 
   var conversation = []; // [{role, content, blocks}]
   var sending = false;
+
+  function isRealTextMode() {
+    var cfg = window.NX_INTELLIGENCE_CONFIG || {};
+    return cfg.mode === 'real_text';
+  }
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -180,6 +189,71 @@
     if (input) input.disabled = state;
   }
 
+  // Shared by BOTH transports -- the one place that turns a
+  // {response}/{error} result into conversation state, so fixture and
+  // real_text can never silently diverge in how they apply a result
+  // (scenario_reset pruning, error-bubble styling, etc. all live here
+  // exactly once).
+  function applyResult(result) {
+    setSending(false);
+    if (result.error) {
+      conversation.push({ role: 'assistant', content: result.error.message, blocks: null, isError: true });
+      renderConversation();
+      return;
+    }
+    var normalized = result.response;
+    if (normalized.scenario_reset) {
+      // Mirrors the real frontend's own scenario_reset handling:
+      // prune back to just the triggering user turn, then append the
+      // reply -- never invent new reset semantics (Gate 34).
+      var lastUserIdx = -1;
+      for (var i = conversation.length - 1; i >= 0; i--) {
+        if (conversation[i].role === 'user') { lastUserIdx = i; break; }
+      }
+      if (lastUserIdx > 0) conversation = conversation.slice(lastUserIdx);
+    }
+    conversation.push({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false });
+    renderConversation();
+  }
+
+  function handleSendFixture(text, priorTurns) {
+    // Model the real request contract even though nothing is sent over
+    // the network -- proves the shape is correct without needing a
+    // live backend (Gate 15/32 of IA-V2-1).
+    A.createRequest(text, priorTurns);
+
+    setTimeout(function () {
+      var scenario = A.resolveFixtureScenario(text);
+      if (!scenario) {
+        setSending(false);
+        conversation.push({ role: 'assistant', content: 'Não tenho um cenário de teste para essa pergunta neste protótipo local — isso não indica uma falha do contrato, apenas que este fixture não cobre esta frase. Veja o seletor de cenários acima para os exemplos disponíveis.', blocks: null, isError: false });
+        renderConversation();
+        return;
+      }
+      if (scenario.error) {
+        applyResult({ error: scenario.error });
+        return;
+      }
+      applyResult({ response: A.normalizeResponse(scenario.response) });
+    }, FIXTURE_LATENCY_MS);
+  }
+
+  function handleSendRealText(text, priorTurns) {
+    if (!window.NX_AUTH || typeof window.NX_AUTH.getAccessToken !== 'function') {
+      applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
+      return;
+    }
+    window.NX_AUTH.getAccessToken().then(function (token) {
+      if (!token) {
+        applyResult({ error: { status: 401, message: 'Sessão expirada — entre novamente.' } });
+        return;
+      }
+      return A.sendRealText(text, priorTurns, token).then(applyResult);
+    }).catch(function () {
+      applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
+    });
+  }
+
   function handleSend(text) {
     if (sending || !text) return;
     conversation.push({ role: 'user', content: text });
@@ -191,42 +265,9 @@
     setSending(true);
     renderConversation();
 
-    // Model the real request contract even though nothing is sent over
-    // the network -- proves the shape is correct without needing a
-    // live backend (Gate 15/32 of IA-V2-1).
     var priorTurns = conversation.slice(0, -1);
-    A.createRequest(text, priorTurns);
-
-    setTimeout(function () {
-      var scenario = A.resolveFixtureScenario(text);
-      setSending(false);
-
-      if (!scenario) {
-        conversation.push({ role: 'assistant', content: 'Não tenho um cenário de teste para essa pergunta neste protótipo local — isso não indica uma falha do contrato, apenas que este fixture não cobre esta frase. Veja o seletor de cenários acima para os exemplos disponíveis.', blocks: null, isError: false });
-        renderConversation();
-        return;
-      }
-
-      if (scenario.error) {
-        conversation.push({ role: 'assistant', content: scenario.error.message, blocks: null, isError: true });
-        renderConversation();
-        return;
-      }
-
-      var normalized = A.normalizeResponse(scenario.response);
-      if (normalized.scenario_reset) {
-        // Mirrors the real frontend's own scenario_reset handling:
-        // prune back to just the triggering user turn, then append the
-        // reply -- never invent new reset semantics (Gate 34).
-        var lastUserIdx = -1;
-        for (var i = conversation.length - 1; i >= 0; i--) {
-          if (conversation[i].role === 'user') { lastUserIdx = i; break; }
-        }
-        if (lastUserIdx > 0) conversation = conversation.slice(lastUserIdx);
-      }
-      conversation.push({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false });
-      renderConversation();
-    }, FIXTURE_LATENCY_MS);
+    if (isRealTextMode()) handleSendRealText(text, priorTurns);
+    else handleSendFixture(text, priorTurns);
   }
 
   function onNovaConversa() {
@@ -289,6 +330,10 @@
   }
 
   function pageHtml() {
+    // Gate 34/35 of IA-V2-2 -- the fixture banner/selector are dev/
+    // test tooling that must never appear once REAL_TEXT is active;
+    // the approved IA-V2-1 clean initial state is otherwise identical
+    // either way (Gate 46 visual freeze).
     return '<div class="baiPage">' +
       '<div class="modPageHeader"><div class="modHeaderMain">' +
       '<span class="modEyebrow">INTELLIGENCE</span>' +
@@ -297,7 +342,7 @@
       '</div><div class="modHeaderActions baiHeaderActions">' +
       '<button type="button" class="modBtn modBtnGhost" id="baiNewChatBtn">Nova conversa</button>' +
       '</div></div>' +
-      fixtureBannerHtml() +
+      (isRealTextMode() ? '' : fixtureBannerHtml()) +
       '<div class="baiWorkspace">' +
       '<div class="baiConversation" id="baiConversation" aria-live="polite" aria-atomic="false"></div>' +
       '<div class="baiComposer">' +
@@ -318,6 +363,7 @@
       return Promise.resolve();
     },
     // exposed for tests, DOM-independent
-    renderStructuredBlock: renderStructuredBlock
+    renderStructuredBlock: renderStructuredBlock,
+    isRealTextMode: isRealTextMode
   };
 })();

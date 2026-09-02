@@ -1,3 +1,9 @@
 # local scratch only
 .DS_Store
 Thumbs.db
+
+# IA-V2-2 -- local-only Intelligence runtime config (mirrors the Secure
+# repo's own portal-runtime-config.local.js convention). Never committed:
+# it points at a LOCAL mock/homolog backend for this machine's own
+# testing, never a real endpoint or secret.
+assets/js/intelligence-runtime-config.local.js

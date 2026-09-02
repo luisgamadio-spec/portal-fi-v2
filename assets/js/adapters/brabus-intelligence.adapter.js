@@ -456,6 +456,55 @@
     return null;
   }
 
+  /* ============================================================
+     REAL TEXT TRANSPORT (IA-V2-2) -- the ONLY function that changes
+     when swapping fixture for a real backend, exactly as planned in
+     IA-V2-1-CONTRACT.md. Sends the SAME request shape createRequest()
+     already produces, to the real portal-ai-homolog contract
+     (POST, Content-Type/apikey/Authorization headers, {message,
+     conversation} body), and returns the SAME {response}/{error}
+     shape resolveFixtureScenario()'s callers already handle -- no
+     fork in the page controller's own send flow. Zero financial
+     logic: this function only moves bytes and maps an HTTP status to
+     the already-established Portuguese error copy (Gate 26), it never
+     inspects or computes a financial value. */
+  var ERROR_MESSAGE_BY_STATUS = {
+    401: 'Sessão expirada — entre novamente.',
+    403: 'Este recurso não está disponível para o seu perfil.'
+  };
+  function errorMessageForStatus(status) {
+    return ERROR_MESSAGE_BY_STATUS[status] || 'Não foi possível concluir a análise agora. Tente novamente.';
+  }
+
+  function sendRealText(message, conversation, accessToken) {
+    var cfg = window.NX_INTELLIGENCE_CONFIG || {};
+    if (!cfg.textEndpoint || !cfg.supabasePublishableKey) {
+      return Promise.resolve({ error: { status: 0, message: 'Configuração de Intelligence ausente — modo real_text não está configurado neste ambiente.' } });
+    }
+    if (!accessToken) {
+      return Promise.resolve({ error: { status: 401, message: errorMessageForStatus(401) } });
+    }
+    var body = createRequest(message, conversation);
+    return fetch(cfg.textEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': cfg.supabasePublishableKey,
+        'Authorization': 'Bearer ' + accessToken
+      },
+      body: JSON.stringify(body)
+    }).then(function (resp) {
+      return resp.json().catch(function () { return {}; }).then(function (payload) {
+        if (!resp.ok) {
+          return { error: { status: resp.status, message: errorMessageForStatus(resp.status) } };
+        }
+        return { response: normalizeResponse(payload) };
+      });
+    }).catch(function () {
+      return { error: { status: 0, message: errorMessageForStatus(0) } };
+    });
+  }
+
   window.NX_BRABUS_INTELLIGENCE_ADAPTER = {
     MAX_HISTORY: MAX_HISTORY,
     BLOCK_TYPES: BLOCK_TYPES,
@@ -465,6 +514,7 @@
     formatValue: formatValue,
     SCENARIOS: SCENARIOS,
     resolveFixtureScenario: resolveFixtureScenario,
-    loadFixtureScenario: loadFixtureScenario
+    loadFixtureScenario: loadFixtureScenario,
+    sendRealText: sendRealText
   };
 })();
