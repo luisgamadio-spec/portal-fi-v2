@@ -38,6 +38,11 @@ def main():
         "dashbi": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
         "simulador-novos": {"NOT_MIGRATED", "IN_PROGRESS", "VISUAL_PARITY_PENDING", "UAT_PENDING"},
         "simulador-seminovos": {"NOT_MIGRATED", "IN_PROGRESS", "VISUAL_PARITY_PENDING", "UAT_PENDING"},
+        # IA-V2-1: fixture-driven module shell + adapter landed, 0 real
+        # backend/auth yet — IN_PROGRESS, not UAT_PENDING (that status is
+        # reserved for a module whose real functional behavior is ready
+        # for human review, which fixture-only Intelligence is not).
+        "brabus-intelligence": {"NOT_MIGRATED", "IN_PROGRESS"},
     }
 
     for m in modules:
@@ -59,7 +64,7 @@ def main():
     if dupes:
         errors.append(f"duplicate module ids: {dupes}")
 
-    print(f"[{'PASS' if not errors else 'FAIL'}] all modules have required contract fields and correct status discipline (landing=HUMAN_APPROVED, score/coparticipado/simulador-novos/simulador-seminovos=UAT_PENDING/VISUAL_PARITY_PENDING, all others=NOT_MIGRATED)")
+    print(f"[{'PASS' if not errors else 'FAIL'}] all modules have required contract fields and correct status discipline (landing=HUMAN_APPROVED, score/coparticipado/simulador-novos/simulador-seminovos=UAT_PENDING/VISUAL_PARITY_PENDING, brabus-intelligence=NOT_MIGRATED/IN_PROGRESS, all others=NOT_MIGRATED)")
     if errors:
         for e in errors:
             print("  -", e)

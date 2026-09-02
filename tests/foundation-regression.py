@@ -29,6 +29,8 @@ CHECKS = [
     ("Coparticipado Parity (PORTAL-NEXT-05 Gates 13-14)", ["python", os.path.join(HERE, "coparticipado-parity-test.py")]),
     ("Gestão Parity (PORTAL-NEXT-06 Gates 27-28)", ["python", os.path.join(HERE, "gestao-parity-test.py")]),
     ("Dashbi Parity (PORTAL-NEXT-07 Gates 34-35)", ["python", os.path.join(HERE, "dashbi-parity-test.py")]),
+    ("Brabus Intelligence Contract (IA-V2-1)", ["python", os.path.join(HERE, "intelligence-contract-test.py")]),
+    ("Brabus Intelligence Presentation Parity (IA-V2-1 Gate 55)", ["python", os.path.join(HERE, "intelligence-presentation-parity-test.py")]),
 ]
 
 def main():
