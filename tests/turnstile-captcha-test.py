@@ -272,6 +272,30 @@ def main():
         check("19: second submit renders a second, fresh widget (no stale token reuse)", page.evaluate("window.__TURNSTILE_RENDER_CALLS__") == 2)
         page.close()
 
+        # ---------- 20: REGRESSION -- turnstileSiteKey absent from runtime
+        # config (mock-mode markup/behavior) but the backend itself still
+        # enforces CAPTCHA regardless -- reproduces a real incident: after
+        # Phase 3B's own cleanup removed the temporary real site key from
+        # the ambient .local.js, a fresh real-mode login attempt got no
+        # captchaToken at all, and the real Supabase project's own
+        # captcha_failed rejection landed on CAPTCHA_FAILED. Must reach
+        # CAPTCHA_FAILED cleanly (not hang, not show the widget-failure
+        # message) so this operational trap is diagnosable from the UI
+        # alone next time.
+        page = new_page(browser, CONFIG_SCRIPT_MOCK_MODE,
+                         "{loginShouldFail: true, loginErrorMessage: 'captcha protection: request disallowed (no captcha_token found)'}",
+                         turnstile_script="window.turnstile = undefined;")
+        page.goto(BASE)
+        wait_state(page, "SIGNED_OUT")
+        page.fill("#loginEmail", "user@example.com")
+        page.fill("#loginPassword", "pass")
+        page.click("#loginSubmit")
+        wait_state(page, "CAPTCHA_FAILED")
+        check("20: turnstileSiteKey absent + backend still enforces captcha -> CAPTCHA_FAILED (reproduces the real incident)", True)
+        check("21: shows the CAPTCHA_FAILED message, not the widget-acquisition-failure message",
+              "segurança" in page.inner_text("#loginStatus").lower() and "antes de entrar" not in page.inner_text("#loginStatus").lower())
+        page.close()
+
         browser.close()
 
     print()

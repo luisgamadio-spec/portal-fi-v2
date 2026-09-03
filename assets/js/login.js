@@ -179,7 +179,18 @@
       }).catch(function () {
         submitting = false;
         setSubmitting(false);
-        renderStatus('Não foi possível validar a verificação de segurança. Tente novamente.', 'error');
+        // AUTH FOUNDATION forensic gate: deliberately DISTINCT from
+        // STATES.CAPTCHA_FAILED's message (messagesFor(), above) --
+        // that one means Supabase rejected an actually-submitted
+        // token; this one means the widget itself never produced a
+        // token (script/render/execute failure), so auth-core.login()
+        // was never even called. Sharing identical text made an
+        // earlier real incident (widget never engaged because
+        // turnstileSiteKey was absent from runtime config, so
+        // Supabase's own captcha_failed rejection looked identical to
+        // a local widget failure) needlessly hard to root-cause from
+        // the message alone.
+        renderStatus('Não foi possível concluir a verificação de segurança antes de entrar. Tente novamente.', 'error');
       });
     });
     mounted = true;
