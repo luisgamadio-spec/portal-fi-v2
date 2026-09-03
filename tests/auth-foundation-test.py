@@ -10,7 +10,9 @@ so window.supabase.createClient() returns a fully-controlled fake
 client -- no real network call, no real Supabase project touched, 0
 credentials anywhere in this file.
 
-Requires: `python -m http.server 8700` running from PORTAL-FI-DESIGN-LAB/.
+Requires: a static server for PORTAL-FI-DESIGN-LAB/ on the project's
+canonical port 8080 (AUTH FOUNDATION Phase 2C Gate 8/9 -- do not
+introduce a new port convention; 8080 is the established one).
 """
 import io
 import os
@@ -20,7 +22,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 V2_ROOT = os.path.dirname(HERE)
-BASE = "http://localhost:8700/portal-next-v2/index.html"
+BASE = "http://127.0.0.1:8080/portal-next-v2/index.html"
 
 results = []
 
