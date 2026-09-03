@@ -47,7 +47,13 @@ body.landing-active #nxContentOutlet{padding:0;max-width:none;flex:none}
 @media(prefers-reduced-motion:no-preference){ .contextBeam{transition:width var(--duration-context) var(--ease-precise), opacity calc(var(--duration-context) * .7) var(--ease-precise)} }
 @media(max-width:1000px){ .contextBeam{display:none} }
 
-.fNav{width:42%;flex-shrink:0;background:var(--color-surface-1);padding:70px 0 70px 56px;display:flex;flex-direction:column;justify-content:center;gap:4px;border-right:1px solid var(--color-hairline);position:relative}
+/* AUTH FOUNDATION Phase 2E, Gate 6: sizing/box model moved from
+   .fNav onto a new .fNavCol wrapper so a small "Categorias" eyebrow
+   can sit above the tab list, inside the same column, without
+   affecting .fNav's own flex/gap role. */
+.fNavCol{width:42%;flex-shrink:0;background:var(--color-surface-1);padding:70px 0 70px 56px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--color-hairline);position:relative}
+.fNavEyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-text-muted);margin:0 0 20px;padding-right:40px}
+.fNav{display:flex;flex-direction:column;gap:4px}
 .fNavItem{position:relative;display:flex;align-items:baseline;gap:15px;background:none;border:0;padding:11px 40px 11px 0;text-align:left;cursor:pointer;color:var(--color-text-muted);width:100%}
 .fNavItem:before{content:"";position:absolute;left:-56px;top:-6px;bottom:-6px;width:120px;background:radial-gradient(ellipse at left, rgba(238,75,87,.14), transparent 72%);opacity:0}
 @media(prefers-reduced-motion:no-preference){
@@ -68,19 +74,44 @@ body.landing-active #nxContentOutlet{padding:0;max-width:none;flex:none}
 .motionProtectFull{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,var(--color-canvas) 0%,rgba(10,10,10,.55) 38%,transparent 62%)}
 .fCanvasInner{max-width:640px;width:100%;position:relative;z-index:2}
 
-.fModuleBlock{padding:21px 18px;margin:0 -18px;border-radius:2px;cursor:pointer}
+/* AUTH FOUNDATION Phase 2E, Gate 8: names the active category above
+   the module list -- the explicit, textual link between columns
+   (complements the eyebrow on the left) that also gives a single-item
+   category (e.g. Brabus Intelligence) the same confirming signal every
+   multi-item category gets, without a special-cased interaction. */
+.fDetailEyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-accent-primary);margin:0 0 22px}
+
+/* AUTH FOUNDATION Phase 2E, Gate 7/17: .fModuleBlock is now a real
+   <a href> for an available module (moduleBlockHtml) -- reset link
+   defaults so it reads identically to the prior div. */
+.fModuleBlock{display:block;text-decoration:none;color:inherit;padding:21px 18px;margin:0 -18px;border-radius:2px;cursor:pointer}
 @media(prefers-reduced-motion:no-preference){ .fModuleBlock{transition:background-color var(--duration-fast) var(--ease-precise)} }
 .fModuleBlock:hover,.fModuleBlock:focus-visible{background:rgba(255,255,255,.028)}
 .fModuleBlock:focus-visible{outline:var(--focus-ring);outline-offset:2px}
 .fModuleTop{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .fModuleTitle{font-size:19.5px;font-weight:500;letter-spacing:-.004em;margin:0;color:var(--color-text-primary)}
-.fModuleArrow{color:var(--color-text-muted);flex-shrink:0;opacity:0;transform:translateX(-4px)}
+/* Gate 4/7 fix: the arrow previously only existed on hover (opacity:0
+   at rest) -- the single strongest missing "this is a destination"
+   signal identified in the human-confirmed UX audit. Visible-but-quiet
+   at rest, brightens on interaction; a restrained, standard
+   list-of-links convention, not a new decorative element. */
+.fModuleArrow{color:var(--color-text-muted);flex-shrink:0;opacity:.4}
 @media(prefers-reduced-motion:no-preference){ .fModuleArrow{transition:opacity var(--duration-fast) var(--ease-precise), transform var(--duration-fast) var(--ease-precise)} }
-.fModuleBlock:hover .fModuleArrow,.fModuleBlock:focus-visible .fModuleArrow{opacity:1;transform:translateX(0);color:var(--color-accent-primary)}
+.fModuleBlock:hover .fModuleArrow,.fModuleBlock:focus-visible .fModuleArrow{opacity:1;transform:translateX(3px);color:var(--color-accent-primary)}
 .fModuleDesc{font-size:14px;line-height:1.62;color:var(--color-text-secondary);margin:7px 0 0;max-width:54ch}
 
+/* AUTH FOUNDATION Phase 2E, Gate 10/16: deferred/unauthorized module
+   destinations (moduleBlockHtml) -- truthfully non-interactive, never
+   styled to look clickable when the route only leads to a placeholder
+   or a denial-redirect. Mirrors the sidebar's existing pNavItemDeferred
+   restraint (dim, no hover response) rather than inventing a new
+   "locked" visual language. */
+.fModuleBlockDeferred{cursor:default;opacity:.45}
+.fModuleBlockDeferred:hover{background:none}
+.fModuleSoon{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;color:var(--color-text-muted);border:1px solid var(--color-hairline-strong);border-radius:3px;padding:2px 7px;flex-shrink:0}
+
 @media(max-width:1000px){
-  .fNav{width:46%;padding-left:32px}
+  .fNavCol{width:46%;padding-left:32px}
   .fCanvas{padding:60px 32px}
 }
 @media(max-width:900px){ .ctxBeam{top:auto;left:0} }
@@ -91,7 +122,9 @@ body.landing-active #nxContentOutlet{padding:0;max-width:none;flex:none}
      global no-horizontal-scroll directive forbids that pattern.
      flex-wrap lets the same items reflow onto additional lines
      instead — 0 label removed, 0 new component, same fNavItem markup. */
-  .fNav{width:100%;flex-direction:row;flex-wrap:wrap;justify-content:flex-start;padding:18px;gap:10px 24px;border-right:0;border-bottom:1px solid var(--color-hairline)}
+  .fNavCol{width:100%;padding:18px;border-right:0;border-bottom:1px solid var(--color-hairline)}
+  .fNavEyebrow{padding-right:0;margin-bottom:10px}
+  .fNav{flex-direction:row;flex-wrap:wrap;justify-content:flex-start;gap:10px 24px}
   .fNavItem{padding:5px 0 9px;flex-shrink:0;width:auto}
   .fNavItem:before{display:none}
   .fNavItem .idx{display:none}
@@ -100,6 +133,7 @@ body.landing-active #nxContentOutlet{padding:0;max-width:none;flex:none}
   .fCanvas{padding:26px 18px 48px;align-items:flex-start}
   .fCanvasInner{max-width:none}
   .fModuleTitle{font-size:18px}
+  .fDetailEyebrow{margin-bottom:14px}
 }
 
 /* ---------- headerLogo (Gate 42 — real institutional asset, V2 addition,

@@ -194,17 +194,27 @@
     }
   }
 
-  /* ---------- Landing HTML (transplanted from pages.js pageLanding/landingModuleBlockHtml) ---------- */
+  /* ---------- Landing HTML (transplanted from pages.js pageLanding/landingModuleBlockHtml) ----------
+     AUTH FOUNDATION Phase 2E, Gate 6/17/18: the category list is a
+     genuine tab list (role="tablist"/"tab"/"tabpanel", not a page-link
+     list) -- native semantics for what the interaction already was,
+     never simulated with generic divs. A small "Categorias" eyebrow
+     (Gate 6) frames the left column as a selector group rather than a
+     destination list -- no instructional copy, one restrained label. */
   function landingHtml(groups) {
     var navItems = groups.map(function (g, i) {
-      return '<button type="button" class="fNavItem' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '">' +
+      return '<button type="button" class="fNavItem' + (i === 0 ? ' active' : '') + '" id="fNavTab' + i + '" role="tab" aria-selected="' + (i === 0 ? 'true' : 'false') + '" aria-controls="landingModuleDetail" data-idx="' + i + '">' +
         '<span class="idx">' + String(i + 1).padStart(2, '0') + '</span><span class="label">' + esc(g.label) + '</span></button>';
     }).join('');
     return '<div class="fShell" id="landingShell">' +
       '<div class="contextBeam" id="landingBeam"></div>' +
-      '<nav class="fNav" id="landingNav">' + navItems + '</nav>' +
+      '<div class="fNavCol">' +
+        '<div class="fNavEyebrow">Categorias</div>' +
+        '<nav class="fNav" id="landingNav" role="tablist" aria-label="Categorias do Portal">' + navItems + '</nav>' +
+      '</div>' +
       '<section class="fCanvas"><div class="ambientLayer" id="landingAmbientLayer" aria-hidden="true"></div><div class="motionProtectFull"></div><div class="fCanvasInner">' +
-      '<div id="landingModuleDetail"></div>' +
+      '<div class="fDetailEyebrow" id="landingDetailEyebrow"></div>' +
+      '<div id="landingModuleDetail" role="tabpanel" aria-labelledby="fNavTab0"></div>' +
       '</div></section>' +
       '</div>';
   }
@@ -214,10 +224,38 @@
        matches the reference exactly; that metadata was explicitly
        rejected by human UAT in FACELIFT-PROTOTYPE-01.2 (see
        docs/LANDING-CONTENT-MAP.md "MUST NOT show" list). */
-    return '<div class="fModuleBlock" data-route="' + m.id + '" tabindex="0" role="button" aria-label="Abrir ' + esc(m.landingTitle || m.name) + '">' +
-      '<div class="fModuleTop"><h3 class="fModuleTitle">' + esc(m.landingTitle || m.name) + '</h3><span class="fModuleArrow">→</span></div>' +
+    var title = esc(m.landingTitle || m.name);
+
+    // AUTH FOUNDATION Phase 2E, Gate 10/16: previously identical
+    // markup for every module regardless of migrationStatus/
+    // authorization -- a deferred/unavailable module looked exactly
+    // as clickable as a real one until AFTER navigating into it. Now
+    // mirrors the sidebar's own already-correct navItemHtml() logic
+    // (same predicate, same truthful language) so Landing and Sidebar
+    // never contradict each other (Gate 15).
+    if (m.migrationStatus === 'NOT_MIGRATED') {
+      return '<div class="fModuleBlock fModuleBlockDeferred" aria-disabled="true">' +
+        '<div class="fModuleTop"><h3 class="fModuleTitle">' + title + '</h3><span class="fModuleSoon">Em breve</span></div>' +
+        '<p class="fModuleDesc">' + esc(m.landingDesc || m.title) + '</p>' +
+        '</div>';
+    }
+    if (m.authMode && window.NX_AUTH_CORE && !window.NX_AUTH_CORE.isModuleAuthorized(m)) {
+      return '<div class="fModuleBlock fModuleBlockDeferred" aria-disabled="true">' +
+        '<div class="fModuleTop"><h3 class="fModuleTitle">' + title + '</h3></div>' +
+        '<p class="fModuleDesc">' + esc(m.landingDesc || m.title) + '</p>' +
+        '</div>';
+    }
+    // AUTH FOUNDATION Phase 2E, Gate 7/17: a real <a href> instead of
+    // a role="button" div -- correct semantics for an element whose
+    // only behavior is navigation (screen readers announce "link,"
+    // not "button"), and it gets native cursor/cross-browser
+    // affordance for free. The arrow's default (non-hover) visibility
+    // moved to CSS -- see .fModuleArrow -- so availability reads at
+    // rest, not only on hover.
+    return '<a class="fModuleBlock" href="#/' + m.id + '">' +
+      '<div class="fModuleTop"><h3 class="fModuleTitle">' + title + '</h3><span class="fModuleArrow" aria-hidden="true">→</span></div>' +
       '<p class="fModuleDesc">' + esc(m.landingDesc || m.title) + '</p>' +
-      '</div>';
+      '</a>';
   }
 
   /* ---------- ambient motion (Gate 11: exact normative Parametric Reactive config) ---------- */
@@ -246,17 +284,29 @@
     var beamEl = document.getElementById('landingBeam');
     var shellEl = document.getElementById('landingShell');
     var detailEl = document.getElementById('landingModuleDetail');
+    var eyebrowEl = document.getElementById('landingDetailEyebrow');
     var activeIdx = 0;
 
     function moduleByIdGlobal(id) { return window.NX_REGISTRY.byId(id); }
 
     function selectGroup(idx, fireBeam) {
       var g = groups[idx];
+      // AUTH FOUNDATION Phase 2E, Gate 8: the eyebrow above the module
+      // list names the active category explicitly, making the
+      // left-selects/right-responds relationship legible without
+      // instructional copy, and giving a single-item category (Gate
+      // 9) the same confirming signal every other category gets.
+      if (eyebrowEl) eyebrowEl.textContent = g.label;
       detailEl.innerHTML = g.moduleIds.map(function (mid) {
         var m = moduleByIdGlobal(mid);
         return m ? moduleBlockHtml(m) : '';
       }).join('');
-      navEl.querySelectorAll('.fNavItem').forEach(function (b, i) { b.classList.toggle('active', i === idx); });
+      navEl.querySelectorAll('.fNavItem').forEach(function (b, i) {
+        var isActive = i === idx;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-selected', String(isActive));
+      });
+      detailEl.setAttribute('aria-labelledby', 'fNavTab' + idx);
       if (fireBeam && !(window.MotionEngine && window.MotionEngine.reduce)) {
         var btn = navEl.querySelector('.fNavItem[data-idx="' + idx + '"]');
         var shellRect = shellEl.getBoundingClientRect();
@@ -270,22 +320,34 @@
     }
     selectGroup(0, false);
 
+    // AUTH FOUNDATION Phase 2E: real-pointer-movement guard, found
+    // during this Wave's own module-reachability automation, not in
+    // the human's original report -- but a real, reproducible browser
+    // behavior (not Playwright-only): when Landing mounts immediately
+    // after a click elsewhere (e.g. the Login button), Chromium
+    // re-evaluates :hover for whatever now sits under the STATIONARY
+    // cursor and fires a synthetic mouseenter for it -- silently
+    // overriding the intended default (category 0) with whichever
+    // category label happens to end up at that screen position. A
+    // mouseenter is only honored once an actual mousemove has been
+    // observed since Landing mounted, so category selection only ever
+    // follows real, deliberate pointer movement.
+    var pointerHasMoved = false;
+    var moveGuard = function () { pointerHasMoved = true; document.removeEventListener('mousemove', moveGuard); };
+    document.addEventListener('mousemove', moveGuard);
+
     navEl.querySelectorAll('.fNavItem').forEach(function (btn, idx) {
       btn.addEventListener('click', function () { if (idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); } });
-      btn.addEventListener('mouseenter', function () { if (idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); } });
+      btn.addEventListener('mouseenter', function () { if (pointerHasMoved && idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); } });
       btn.addEventListener('focus', function () { if (idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); } });
       btn.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); } } });
     });
-    detailEl.addEventListener('click', function (e) {
-      var block = e.target.closest('.fModuleBlock'); if (!block) return;
-      window.NX_ROUTER.navigate(block.getAttribute('data-route'));
-    });
-    detailEl.addEventListener('keydown', function (e) {
-      if (e.key !== 'Enter' && e.key !== ' ') return;
-      var block = e.target.closest('.fModuleBlock'); if (!block) return;
-      e.preventDefault();
-      window.NX_ROUTER.navigate(block.getAttribute('data-route'));
-    });
+    // AUTH FOUNDATION Phase 2E: module destinations are now real
+    // <a href="#/..."> elements (moduleBlockHtml) -- the browser's own
+    // click/Enter activation handles navigation natively; the manual
+    // click/keydown delegation this replaced is no longer needed
+    // (deferred/unauthorized blocks are plain <div>s with no href at
+    // all, so they were never reachable via this path either way).
   }
 
   /* ---------- public entry, called by shell.js on every route change ---------- */
