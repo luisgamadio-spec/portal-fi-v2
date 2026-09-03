@@ -493,7 +493,13 @@
      inspects or computes a financial value. */
   var ERROR_MESSAGE_BY_STATUS = {
     401: 'Sessão expirada — entre novamente.',
-    403: 'Este recurso não está disponível para o seu perfil.'
+    403: 'Este recurso não está disponível para o seu perfil.',
+    // IA-V2-3B -- the backend's own server-authoritative kill switch
+    // (never a frontend toggle) returns 503 when Intelligence is
+    // disabled. Same tone as 401/403: plain, non-technical, no retry
+    // loop, no fixture fallback -- applyResult() already renders every
+    // error identically as a normal conversation bubble.
+    503: 'Brabus Intelligence está temporariamente indisponível.'
   };
   function errorMessageForStatus(status) {
     return ERROR_MESSAGE_BY_STATUS[status] || 'Não foi possível concluir a análise agora. Tente novamente.';

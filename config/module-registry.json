@@ -232,7 +232,7 @@
       "route": "/intelligence",
       "title": "Brabus Intelligence",
       "density": "MEDIUM (conversation workspace)",
-      "authRequirement": "session + MASTER role (server-enforced) — NOT implemented this Wave (IA-V2-1 is fixture-only, 0 backend, 0 auth, see entryPoint note)",
+      "authRequirement": "session + MASTER role (server-enforced) — IMPLEMENTED as of IA-V2-2 (real_text mode): real Supabase Auth session via auth-boundary.js; MASTER resolved server-side by the Edge Function via a service-role lookup, never a client claim. Human-approved (IA-V2-2-HUMAN-UAT-02) against a local mock Supabase; real Supabase project homologation pending (IA-V2-3). A server-authoritative kill switch (IA-V2-3B) additionally gates every request after MASTER validation, before any OpenAI call.",
       "designPattern": "V2-native fixture-driven conversation workspace on module-system.css primitives (IA-V2-1) — the prior voice-focus-mode/voice-orb-variant reference is NOT used; this Wave deliberately did not transplant that legacy UI (see docs/IA-V2-1-CONTRACT.md)",
       "entryPoint": "assets/js/brabus-intelligence.js (NX_BRABUS_INTELLIGENCE_PAGE) + assets/js/adapters/brabus-intelligence.adapter.js (NX_BRABUS_INTELLIGENCE_ADAPTER)",
       "businessSource": "N/A this Wave — 0 business logic in V2; every fixture value is a plain synthetic literal, not derived from a formula (see tests/business-logic-scanner.py)",
@@ -243,7 +243,7 @@
       "migrationStatus": "IN_PROGRESS",
       "landingTitle": "Brabus Intelligence",
       "landingDesc": "Assistente de IA — texto e, futuramente, voz.",
-      "notes": "IA-V2-1 (this Wave): V2-native module shell + contract adapter + structured-block renderer, fixture-driven only — 0 network calls, 0 real auth, 0 Voice, 0 Realtime, 0 backend call. Human Visual UAT: UAT_PENDING (docs/IA-V2-1-CONTRACT.md). Remaining blockers before real backend integration (IA-V2-2): real V2 auth (NX_AUTH is currently a contract-only stub), CORS allowlist update on the 3 Edge Functions for V2's eventual origin, feature containment/kill-switch equivalent. Voice Orb variant human decision and the CSP media-src prerequisite remain open, but only block the later Voice Wave (IA-V2-4), not this one."
+      "notes": "real_text transport implemented and human-homologated locally: Scenario 1 plus 3 selected checkpoints (Balão, Multi-turn, Cash Conversion rate sovereignty), all HUMAN_PASS (IA-V2-2-HUMAN-UAT-02). Structured-block presentation contract corrected to match the real backend's field shapes (IA-V2-2-STRUCTURED-BLOCK-FIX-01). A server-authoritative kill switch was added (IA-V2-3B, migration 20260902100000_ia_texto_kill_switch.sql, key ia_texto_habilitada in public.configuracoes via operational_portal_config()) -- default disabled, fail-closed. Remaining blockers before real Supabase homologation: production CORS/origin decision, Edge Function deployment + secret provisioning, dedicated homolog MASTER account (IA-V2-3A/C). Voice Orb variant human decision and the CSP media-src prerequisite remain open, but only block the later Voice Wave, not this one."
     }
   ]
 }
