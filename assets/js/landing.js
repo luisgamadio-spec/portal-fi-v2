@@ -57,11 +57,25 @@
     { label: 'Administração', moduleIds: ['shell-admin'] }
   ];
 
-  /* ---------- Shell Wave 2A: local-only mock user for the header's
-     user-context area. Presentation only — feeds no authorization
-     decision anywhere (same discipline as Wave 2's fixture provider).
-     A multi-profile switcher is explicitly deferred to Wave 2C. */
+  /* ---------- AUTH FOUNDATION Phase 2B: the header's user-context
+     area now reads the real Auth Context (assets/js/auth-core.js)
+     when one exists. Falls back to the same local-only mock this
+     Wave's predecessor used (Shell Wave 2A) ONLY when auth isn't
+     configured for this host (AUTH_NOT_CONFIGURED -- see auth-core.js)
+     -- presentation only either way, feeds no authorization decision
+     here (that lives exclusively in auth-core.js's isModuleAuthorized,
+     consumed below). */
   var MOCK_USER = { name: 'Marina Ferreira', profile: 'ANALISTA', store: 'Barra Funda', department: 'Novos + Seminovos' };
+  function currentUserDisplay() {
+    var ctx = window.NX_AUTH_CORE && window.NX_AUTH_CORE.getContext();
+    if (!ctx) return MOCK_USER;
+    return {
+      name: ctx.nome || '—',
+      profile: ctx.perfil || '—',
+      store: ctx.loja || 'Todas',
+      department: ctx.status || ''
+    };
+  }
   function userInitials(name) {
     return String(name || '').split(' ').filter(Boolean).slice(0, 2).map(function (p) { return p[0]; }).join('').toUpperCase();
   }
@@ -96,6 +110,16 @@
       return '<span class="pNavItem pNavItemDeferred" aria-disabled="true">' +
         '<span class="pNavIcon">' + icon + '</span><span class="pNavLabel">' + label + '</span>' +
         '<span class="pNavSoon">Em breve</span></span>';
+    }
+    // AUTH FOUNDATION Phase 2B, Gate 12: a migrated module the current
+    // user lacks permission for is disabled the same way — never a
+    // dead/broken link, and never implies access that authorization
+    // would refuse. Reuses the exact NOT_MIGRATED visual language
+    // (Gate 12's own instruction), no separate "locked" pattern
+    // invented.
+    if (m.authMode && window.NX_AUTH_CORE && !window.NX_AUTH_CORE.isModuleAuthorized(m)) {
+      return '<span class="pNavItem pNavItemDeferred" aria-disabled="true">' +
+        '<span class="pNavIcon">' + icon + '</span><span class="pNavLabel">' + label + '</span></span>';
     }
     var active = activeRouteId === id;
     return '<a href="#/' + id + '" class="pNavItem' + (active ? ' active' : '') + '"' + (active ? ' aria-current="page"' : '') + '>' +
@@ -138,17 +162,35 @@
         '<span class="pBreadcrumbCurrent">' + esc(entry ? (entry.landingTitle || entry.name) : 'Landing') + '</span>';
     }
     var userArea = document.getElementById('pUserArea');
-    // Rendered once — this is static local mock context, not per-route data.
-    if (userArea && !userArea.dataset.rendered) {
+    // AUTH FOUNDATION Phase 2B: re-rendered on every route change now
+    // (cheap, avoids staleness across logout -> a different user
+    // logging back in on the same page load) rather than the prior
+    // Shell Wave 2A "render once" caching, which was only safe while
+    // this was permanently static mock data.
+    if (userArea) {
+      var u = currentUserDisplay();
+      var showLogout = window.NX_AUTH_CORE && window.NX_AUTH_CORE.getState() === window.NX_AUTH_CORE.STATES.AUTHORIZED;
       userArea.innerHTML =
         '<div class="pUserChip">' +
-          '<span class="pUserAvatar" aria-hidden="true">' + esc(userInitials(MOCK_USER.name)) + '</span>' +
+          '<span class="pUserAvatar" aria-hidden="true">' + esc(userInitials(u.name)) + '</span>' +
           '<span class="pUserInfo">' +
-            '<span class="pUserName"><span class="pUserNameText">' + esc(MOCK_USER.name) + '</span><span class="pUserBadge">' + esc(MOCK_USER.profile) + '</span></span>' +
-            '<span class="pUserContext">' + esc(MOCK_USER.store) + ' · ' + esc(MOCK_USER.department) + '</span>' +
+            '<span class="pUserName"><span class="pUserNameText">' + esc(u.name) + '</span><span class="pUserBadge">' + esc(u.profile) + '</span></span>' +
+            '<span class="pUserContext">' + esc(u.store) + (u.department ? ' · ' + esc(u.department) : '') + '</span>' +
           '</span>' +
+          (showLogout ? '<button type="button" class="pUserLogout" id="pUserLogoutBtn" aria-label="Sair">Sair</button>' : '') +
         '</div>';
-      userArea.dataset.rendered = '1';
+      var logoutBtn = document.getElementById('pUserLogoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', function () {
+          // AUTH FOUNDATION Phase 2B, Gate 19: centralized logout --
+          // Intelligence's own conversation state is reset as a side
+          // effect of the resulting SIGNED_OUT transition unmounting
+          // the module (brabus-intelligence.js's own in-memory
+          // conversation array is not module-global persisted state).
+          window.NX_ROUTER.navigate('landing');
+          window.NX_AUTH_CORE.logout();
+        });
+      }
     }
   }
 

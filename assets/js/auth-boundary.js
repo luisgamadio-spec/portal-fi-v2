@@ -1,23 +1,41 @@
-/* PORTAL-NEXT V2 — Auth Boundary (IA-V2-2).
+/* PORTAL-NEXT V2 — Auth Boundary (IA-V2-2, generalized AUTH FOUNDATION
+   Phase 2B).
 
-   Real implementation of the same contract the Foundation-phase stub
-   declared (Gate 17 of that Wave) — same shape, same method names,
-   NOT a new auth mechanism. Reuses V1's exact real flow:
-   supabaseClient.auth.signInWithPassword({email, password}) for
-   login, supabaseClient.auth.getSession() for the current session,
-   and RPC usuario_logado_fi() for role resolution — a SERVER-SIDE
-   lookup, never a client-side claim (see
+   The single file that ever calls supabaseClient.auth.* or the
+   profile/permission RPCs (see docs/ARCHITECTURE.md's Login/Auth Core/
+   Router-Guard/Shell/Modules boundary) -- same contract shape the
+   Foundation-phase stub declared, NOT a new auth mechanism. Reuses
+   V1's exact real flow: signInWithPassword for login, getSession()
+   for the current session, and RPC usuario_logado_fi() for role
+   resolution -- a SERVER-SIDE lookup, never a client-side claim (see
    PORTAL-NEXT-01/ARCHITECTURE-AUDIT.md Gate 6, carried forward here).
+   Module permission resolution (portal_modulos_permitidos()) lives
+   here too, for the same "one file owns every auth RPC" reason --
+   auth-core.js orchestrates the lifecycle, it never touches Supabase
+   directly.
 
-   Only active when window.NX_INTELLIGENCE_CONFIG.mode === 'real_text'
-   AND both supabaseUrl/supabasePublishableKey are configured (Gate 8
-   feature containment — the default committed config has mode:
-   'fixture' and both fields null, so this module does nothing on any
-   host where no local override file exists, production included).
-   When inactive, every method still throws with the same
-   NOT_IMPLEMENTED-shaped message the Foundation stub used, so any
-   other caller that isn't Intelligence's own real-mode path continues
-   to fail loudly instead of silently no-op'ing. */
+   AUTH FOUNDATION Phase 2A, Gate 3/8/10: two real field-mapping
+   defects fixed this Wave against the actual live usuario_logado_fi()
+   RPC shape (confirmed by direct schema inspection, not assumption):
+   the RPC returns `usuario_id`, not `id` -- V1's own production code
+   has carried the same wrong-field bug -- and it does not return
+   `primeiro_acesso` at all, so that property is dropped entirely
+   rather than defaulted to false (a false default would falsely claim
+   the backend said first-access is complete). See AUTH-V1-FIRST-
+   ACCESS-DEFECT -- intentionally NOT fixed here; this file only stops
+   consuming a field the RPC never provided.
+
+   Activation generalized beyond Intelligence-only real_text mode:
+   this boundary is now live whenever supabaseUrl/supabasePublishableKey
+   are configured, for ANY consumer (Auth Core included), not only when
+   NX_INTELLIGENCE_CONFIG.mode==='real_text'. The default committed
+   config still ships both fields null, so this remains fully inert on
+   any host without a local override file, production included -- the
+   same Gate 8 feature containment as before, just no longer coupled
+   to Intelligence's own mode flag. When inactive, every method still
+   throws with the same NOT_IMPLEMENTED-shaped message, so a caller
+   that isn't going through Auth Core's boot sequence continues to
+   fail loudly instead of silently no-op'ing. */
 (function () {
   'use strict';
 
@@ -25,22 +43,39 @@
     return function () {
       throw new Error(
         '[auth-boundary] ' + name + '() has no active Supabase client this ' +
-        'session -- either NX_INTELLIGENCE_CONFIG.mode is not "real_text", ' +
-        'or supabaseUrl/supabasePublishableKey are not configured. See ' +
-        'assets/js/intelligence-runtime-config.example.js.'
+        'session -- supabaseUrl/supabasePublishableKey are not configured. ' +
+        'See assets/js/intelligence-runtime-config.example.js.'
       );
     };
   }
 
   var cfg = window.NX_INTELLIGENCE_CONFIG || {};
-  var active = cfg.mode === 'real_text' && !!cfg.supabaseUrl && !!cfg.supabasePublishableKey;
+  var active = !!cfg.supabaseUrl && !!cfg.supabasePublishableKey;
 
   if (!active || typeof window.supabase === 'undefined') {
+    // getAccessToken deliberately OMITTED here (not stubbed to
+    // notImplemented): brabus-intelligence.js's existing guard
+    // (`typeof window.NX_AUTH.getAccessToken !== 'function'`) depends
+    // on it being genuinely undefined, not a function that throws, to
+    // fail safely in fixture mode. Do not add it without re-auditing
+    // that call site.
     window.NX_AUTH = {
+      // AUTH FOUNDATION Phase 2B, Gate 10/28: the route guard reads
+      // this flag, NOT a query param/localStorage/config override, to
+      // decide whether to enforce authorization at all. false here
+      // means no real Supabase credentials exist anywhere for this
+      // environment (the actual default state of every host today,
+      // production included) -- the guard stays fully inert, an
+      // unconfigured-vs-configured distinction, not a bypass of a
+      // real system. It flips true only once real credentials are
+      // configured, the same gate Intelligence's real_text mode
+      // already relies on.
+      isAuthConfigured: false,
       signIn: notImplemented('signIn'),
       getSession: notImplemented('getSession'),
       onAuthStateChange: notImplemented('onAuthStateChange'),
       resolveAuthorizedProfile: notImplemented('resolveAuthorizedProfile'),
+      resolveAllowedModules: notImplemented('resolveAllowedModules'),
       signOut: notImplemented('signOut')
     };
     return;
@@ -48,26 +83,36 @@
 
   var client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabasePublishableKey);
 
-  // Mirrors V1's portalUserFromDatabase() field mapping exactly (same
-  // row shape from usuario_logado_fi()) -- not reinvented, not
-  // simplified, so a real backend's real row shape is handled
-  // identically to how the production frontend already handles it.
+  // usuario_logado_fi()'s real, live RETURNS TABLE shape (confirmed by
+  // direct schema inspection, AUTH FOUNDATION Phase 2A Gate 8):
+  // (usuario_id, auth_user_id, nome, cpf_normalizado, email_auth,
+  // perfil, loja, status, ativo) -- no `id`, no `primeiro_acesso`.
   function userFromRow(row) {
     if (!row) return null;
     return {
-      id: row.id,
+      userId: row.usuario_id,
       authUserId: row.auth_user_id,
       nome: row.nome || '',
-      tipo: String(row.perfil || '').toUpperCase(),
+      perfil: String(row.perfil || '').toUpperCase(),
       loja: row.loja || '',
-      ativo: row.ativo !== false,
-      primeiroAcesso: row.primeiro_acesso === true
+      status: row.status || '',
+      ativo: row.ativo !== false
     };
   }
 
   window.NX_AUTH = {
-    signIn: function (email, password) {
-      return client.auth.signInWithPassword({ email: email, password: password }).then(function (result) {
+    isAuthConfigured: true,
+    // captchaToken: TURNSTILE_PRODUCTION_WIRING_PENDING (Gate 16) --
+    // forwarded in the exact shape V1 uses
+    // (signInWithPassword(creds, {options:{captchaToken}})) whenever
+    // present, so wiring a real token through later requires no
+    // change here; omitted entirely (not sent as null) when absent,
+    // since Supabase treats a present-but-null captchaToken as a
+    // deliberate empty-token attempt rather than "no captcha in use."
+    signIn: function (email, password, captchaToken) {
+      var creds = { email: email, password: password };
+      var opts = captchaToken ? { options: { captchaToken: captchaToken } } : undefined;
+      return client.auth.signInWithPassword(creds, opts).then(function (result) {
         if (result.error) throw result.error;
         return { session: result.data.session };
       });
@@ -99,14 +144,30 @@
       });
     },
 
+    // AUTH FOUNDATION Phase 2B, Gate 7: the real permission-matrix RPC
+    // (AUTH FOUNDATION Phase 2A Gate 9) -- default-deny by its own
+    // server-side design (empty identity/unmapped profile -> '[]').
+    // Fail-closed here too: any RPC error resolves to an empty array,
+    // never "show everything" -- callers must never interpret a
+    // rejected promise from this method as "trust the caller's own
+    // cached list instead."
+    resolveAllowedModules: function () {
+      return client.rpc('portal_modulos_permitidos').then(function (result) {
+        if (result.error) return [];
+        return Array.isArray(result.data) ? result.data : [];
+      }).catch(function () {
+        return [];
+      });
+    },
+
     signOut: function () {
       return client.auth.signOut();
     },
 
-    // Not part of the original Foundation-stub contract -- added here
-    // because the TEXT transport adapter needs the raw bearer token,
-    // not just the session object, and re-deriving it from getSession()
-    // at every call site would duplicate this same one-liner everywhere.
+    // Needed because the TEXT transport adapter (and now Auth Core's
+    // own callers) need the raw bearer token, not just the session
+    // object, and re-deriving it from getSession() at every call site
+    // would duplicate this same one-liner everywhere.
     getAccessToken: function () {
       return client.auth.getSession().then(function (result) {
         var session = result.data ? result.data.session : null;

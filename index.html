@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="../shared/fonts.css">
 <link rel="stylesheet" href="../design-system-2/tokens.css">
 <link rel="stylesheet" href="assets/css/shell.css">
+<link rel="stylesheet" href="assets/css/login.css">
 <link rel="stylesheet" href="assets/css/landing.css">
 <link rel="stylesheet" href="assets/css/module-system.css">
 <link rel="stylesheet" href="assets/css/score.css">
@@ -20,7 +21,11 @@
 
 <a class="nxSkipLink" href="#nxContentOutlet">Pular para o conteúdo</a>
 
-<div id="nxRoot">
+<div id="nxBootLoading" class="nxPlaceholder"><p>Carregando…</p></div>
+
+<div id="nxLoginRoot" hidden></div>
+
+<div id="nxRoot" hidden>
   <div class="pShell">
     <div class="pNavBackdrop" id="pNavBackdrop" hidden></div>
     <nav class="pGlobalNav" id="pGlobalNav" aria-label="Navegação principal"></nav>
@@ -73,6 +78,8 @@ if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.0" integrity="sha384-De+l/Df7qym5QBDVocD3+gW1S7IjR3epf+6KbRDjB3FCCzM/LqVTwqckT6FhFar8" crossorigin="anonymous"></script>
 <script src="assets/js/auth-boundary.js"></script>
+<script src="assets/js/auth-core.js"></script>
+<script src="assets/js/login.js"></script>
 <script src="assets/js/business-adapter-boundary.js"></script>
 <script src="assets/js/router.js"></script>
 <script src="assets/js/module-registry.js"></script>

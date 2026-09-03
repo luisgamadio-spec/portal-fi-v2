@@ -1,5 +1,5 @@
 {
-  "$schemaNote": "Module Contract (Gate 12) fields per entry: id, route, title, density, authRequirement, designPattern, entryPoint, businessSource, migrationStatus. Manifest fields (Gate 39) add: name, approvedReference, functionalSource, migrationWave, risk, notes. Merged into one object per module below so a Wave doesn't have to invent structure twice.",
+  "$schemaNote": "Module Contract (Gate 12) fields per entry: id, route, title, density, authRequirement, designPattern, entryPoint, businessSource, migrationStatus. Manifest fields (Gate 39) add: name, approvedReference, functionalSource, migrationWave, risk, notes. AUTH FOUNDATION Phase 2B adds: permissionId (the real modulos_portal.id this module maps to, or null) and authMode (one of LOGIN_REQUIRED, PERMISSION_MATRIX, MASTER_ONLY, ANALISTA_OR_MASTER, SEPARATE_AUTHORITY -- frontend-known constants, never dynamically read from a backend value; see assets/js/shell.js's route guard). Merged into one object per module below so a Wave doesn't have to invent structure twice.",
   "migrationStatusEnum": [
     "NOT_MIGRATED",
     "IN_PROGRESS",
@@ -14,6 +14,8 @@
   "modules": [
     {
       "id": "landing",
+      "permissionId": null,
+      "authMode": "LOGIN_REQUIRED",
       "name": "Landing",
       "route": "/landing",
       "title": "Portal F&I — Grupo Brabus",
@@ -34,6 +36,8 @@
     },
     {
       "id": "shell-admin",
+      "permissionId": "painelMaster",
+      "authMode": "MASTER_ONLY",
       "name": "Portal Shell / MASTER Admin Panel",
       "route": "/admin",
       "title": "Painel Master",
@@ -53,6 +57,8 @@
     },
     {
       "id": "score",
+      "permissionId": "analiseScoreVendedores",
+      "authMode": "PERMISSION_MATRIX",
       "name": "Score (Análise de Score Vendedores)",
       "route": "/score",
       "title": "Análise de Score Vendedores",
@@ -78,6 +84,8 @@
     },
     {
       "id": "coparticipado",
+      "permissionId": "coparticipadoPortal",
+      "authMode": "PERMISSION_MATRIX",
       "name": "Coparticipado",
       "route": "/coparticipado",
       "title": "Gestão de Coparticipados & Subsidiados",
@@ -104,6 +112,8 @@
     },
     {
       "id": "gestao",
+      "permissionId": "gestao",
+      "authMode": "PERMISSION_MATRIX",
       "name": "Gestão (analise-fi-grupo)",
       "route": "/gestao",
       "title": "Análise F&I do Grupo",
@@ -131,6 +141,8 @@
     },
     {
       "id": "dashbi",
+      "permissionId": "dashbi",
+      "authMode": "PERMISSION_MATRIX",
       "name": "Análise Geral do Grupo (Dashbi)",
       "route": "/dashbi",
       "title": "Análise Geral do Grupo",
@@ -165,6 +177,8 @@
     },
     {
       "id": "simulador-novos",
+      "permissionId": "simuladorCompleto",
+      "authMode": "PERMISSION_MATRIX",
       "name": "Simulador Novos",
       "route": "/simulador-novos",
       "title": "Simulador F&I Brabus Mitsubishi",
@@ -187,6 +201,8 @@
     },
     {
       "id": "simulador-seminovos",
+      "permissionId": "simuladorSeminovos",
+      "authMode": "PERMISSION_MATRIX",
       "name": "Simulador Seminovos",
       "route": "/simulador-seminovos",
       "title": "Simulador de Financiamentos Seminovos Grupo Brabus",
@@ -209,6 +225,8 @@
     },
     {
       "id": "salarios-comissoes",
+      "permissionId": "comissoes",
+      "authMode": "PERMISSION_MATRIX",
       "name": "Salários / Comissões",
       "route": "/salarios",
       "title": "Salários e Comissões",
@@ -228,6 +246,8 @@
     },
     {
       "id": "brabus-intelligence",
+      "permissionId": null,
+      "authMode": "SEPARATE_AUTHORITY",
       "name": "Brabus F&I Intelligence (AI + future Voice)",
       "route": "/intelligence",
       "title": "Brabus Intelligence",
@@ -244,6 +264,48 @@
       "landingTitle": "Brabus Intelligence",
       "landingDesc": "Assistente de IA — texto e, futuramente, voz.",
       "notes": "real_text transport implemented and human-homologated locally: Scenario 1 plus 3 selected checkpoints (Balão, Multi-turn, Cash Conversion rate sovereignty), all HUMAN_PASS (IA-V2-2-HUMAN-UAT-02). Structured-block presentation contract corrected to match the real backend's field shapes (IA-V2-2-STRUCTURED-BLOCK-FIX-01). A server-authoritative kill switch was added (IA-V2-3B, migration 20260902100000_ia_texto_kill_switch.sql, key ia_texto_habilitada in public.configuracoes via operational_portal_config()) -- default disabled, fail-closed. Remaining blockers before real Supabase homologation: production CORS/origin decision, Edge Function deployment + secret provisioning, dedicated homolog MASTER account (IA-V2-3A/C). Voice Orb variant human decision and the CSP media-src prerequisite remain open, but only block the later Voice Wave, not this one."
+    },
+    {
+      "id": "painel-analista-fi",
+      "permissionId": "painelAnalistaFi",
+      "authMode": "ANALISTA_OR_MASTER",
+      "name": "Painel do Analista F&I",
+      "route": "/painel-analista-fi",
+      "title": "Painel do Analista F&I",
+      "density": "LOW",
+      "authRequirement": "session + perfil in (ANALISTA, MASTER), server-enforced (V1: portal-app.js:2003-2004 hard client gate + RPC-level SECURITY DEFINER re-check)",
+      "designPattern": "no Approved Reference yet -- small self-contained surface (~45 lines of V1 controller/render code)",
+      "entryPoint": "NOT YET CREATED in V2",
+      "businessSource": "N/A (self-service queue-status control, not financial business logic)",
+      "functionalSource": "assets/js/portal-app.js:2002-2043 (showPainelAnalistaFi/atualizarResumoPainelAnalistaFi/alterarMeuStatusAnalistaFi) (portal-financiamento-brabus-secure) -- reads RPC operational_my_analyst_fi, writes RPC atualizar_meu_status_analista_fi (both confirmed live/ATIVA, Git=C -- DB-only, not in this repo's migrations)",
+      "approvedReference": null,
+      "migrationWave": 0,
+      "risk": "LOW",
+      "migrationStatus": "NOT_MIGRATED",
+      "landingTitle": "Painel do Analista F&I",
+      "landingDesc": "Controle de status na fila de atendimento: online, ocupado, almoço, férias ou offline.",
+      "notes": "AUTH FOUNDATION Phase 2A discovery (Gate 5): a real, live, currently-used surface entirely missed by the original PORTAL-V2 MASTER GAP AUDIT because that audit was built from this registry rather than cross-checked against V1's live modulos_portal permission catalog. No department/store scoping -- role-only gate. Zero overlap with Gestão/Dashbi/Score/Salários (distinct data domain: call-queue availability, table inferred as analistas_fi). Management counterpart is central-atendimento-fi (same underlying queue/table) -- kept as two separate registry entries per AUTH FOUNDATION Phase 2B Decision H3 (different role gates: ANALISTA+MASTER vs MASTER-only), though they may share future V2 components/design primitives."
+    },
+    {
+      "id": "central-atendimento-fi",
+      "permissionId": "centralAtendimentoFi",
+      "authMode": "MASTER_ONLY",
+      "name": "Central de Atendimento F&I",
+      "route": "/central-atendimento-fi",
+      "title": "Central de Atendimento F&I",
+      "density": "MEDIUM-HIGH (dashboard + CRUD form + filterable/exportable history table)",
+      "authRequirement": "session + MASTER role, server-enforced (V1: hard isMaster() gate at every render function + 5 SECURITY DEFINER RPCs re-checking server-side)",
+      "designPattern": "no Approved Reference yet -- a full mini-SPA admin console (~130 dense lines of V1 controller/render code across dashboard/analistas/histórico screens)",
+      "entryPoint": "NOT YET CREATED in V2",
+      "businessSource": "N/A (admin/queue-management operations, not financial business logic)",
+      "functionalSource": "index.html:1639-1761 (portal-financiamento-brabus-secure) -- reads RPCs gestor_listar_analistas_fi/gestor_listar_historico_atendimentos_fi, writes gestor_salvar_analista_fi/gestor_alterar_status_analista_fi/gestor_encerrar_expediente_fi + a queue-reorder pair (all confirmed live/ATIVA, Git=C -- DB-only). Includes a client-side Excel export (XLSX.writeFile) of the call history.",
+      "approvedReference": null,
+      "migrationWave": 0,
+      "risk": "MEDIUM",
+      "migrationStatus": "NOT_MIGRATED",
+      "landingTitle": "Central de Atendimento F&I",
+      "landingDesc": "Administração da fila de atendimento: analistas, status e histórico de chamadas F&I.",
+      "notes": "AUTH FOUNDATION Phase 2A discovery (Gate 6) -- same missed-surface finding as painel-analista-fi. The largest and most mature of the two; a real MASTER-only CRUD admin console with genuine write operations (analyst upsert, forced status changes, bulk end-of-shift), not a read-only report. No overlap with Gestão/Dashbi/Score/Salários; it is the management counterpart to painel-analista-fi (same analistas_fi queue/table). Kept as a separate registry entry per Decision H3 (see painel-analista-fi's own notes)."
     }
   ]
 }

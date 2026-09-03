@@ -1,0 +1,163 @@
+/* PORTAL-NEXT V2 — Login (AUTH FOUNDATION Phase 2B).
+   Built on the same tokens/typography/spacing the rest of V2 already
+   uses (design-system-2/tokens.css, assets/css/module-system.css's
+   surface/type conventions) -- not a copy of the legacy standalone
+   login page. Operational-portal register: clean, minimal, no
+   marketing hero, no decorative motion. */
+
+#nxLoginRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+  background: var(--p-black-1, #0a0a0a);
+  padding: 24px;
+}
+
+/* An ID selector with display:flex would otherwise outrank the UA
+   stylesheet's [hidden]{display:none} (lower specificity), keeping a
+   hidden login visually present and intercepting clicks -- display is
+   scoped to the not-hidden case explicitly instead. */
+#nxLoginRoot:not([hidden]) {
+  display: flex;
+}
+
+.loginShell {
+  width: 100%;
+  max-width: 380px;
+}
+
+.loginCard {
+  background: var(--p-black-2, #111111);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 40px 32px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.loginLogo {
+  height: 40px;
+  width: auto;
+  margin-bottom: 20px;
+}
+
+.loginTitle {
+  font-family: var(--font-ui, 'IBM Plex Sans', sans-serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: #f5f5f5;
+  margin: 0 0 6px;
+}
+
+.loginSubtitle {
+  font-family: var(--font-ui, 'IBM Plex Sans', sans-serif);
+  font-size: 13px;
+  color: #8a8a8a;
+  margin: 0 0 28px;
+}
+
+#loginForm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+
+.loginField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.loginField label {
+  font-family: var(--font-ui, 'IBM Plex Sans', sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #b5b5b5;
+}
+
+.loginField input {
+  font-family: var(--font-ui, 'IBM Plex Sans', sans-serif);
+  font-size: 14px;
+  color: #f5f5f5;
+  background: var(--p-black-3, #161616);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease;
+}
+
+.loginField input:focus-visible {
+  outline: 2px solid var(--p-red-1, #ee4b57);
+  outline-offset: 1px;
+  border-color: var(--p-red-1, #ee4b57);
+}
+
+.loginField input:disabled {
+  opacity: 0.6;
+}
+
+.loginStatus {
+  font-family: var(--font-ui, 'IBM Plex Sans', sans-serif);
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.loginStatusError {
+  color: #ffb4b8;
+  background: rgba(238, 75, 87, 0.12);
+  border: 1px solid rgba(238, 75, 87, 0.3);
+}
+
+.loginStatusInfo {
+  color: #d7d7d7;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.loginSubmit {
+  font-family: var(--font-ui, 'IBM Plex Sans', sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--p-red-2, #c1121f);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.loginSubmit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.loginSubmit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loginSubmit:focus-visible {
+  outline: 2px solid var(--p-red-1, #ee4b57);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .loginCard {
+    padding: 32px 22px 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loginSubmit,
+  .loginField input {
+    transition: none;
+  }
+}

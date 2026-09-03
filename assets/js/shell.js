@@ -133,6 +133,20 @@
     });
   }
 
+  /* ---------- AUTH FOUNDATION Phase 2B, Gate 10: centralized route
+     guard. Runs BEFORE landing/module dispatch -- a direct hash
+     navigation can never reach a module's mount code without passing
+     this check first, matching the target flow HASH CHANGE -> ROUTER
+     -> AUTH STATE CHECK -> REGISTRY RESOLUTION -> AUTHORIZATION CHECK
+     -> SHELL DISPATCH -> MODULE MOUNT. Fail-closed throughout (Gate
+     26): an unknown authMode, a PERMISSION_MATRIX module with no
+     permissionId, or any unrecognized combination denies rather than
+     defaulting to allow. */
+  function isRouteAuthorized(entry) {
+    if (!entry) return true; // unknown-route 404 is handled by renderPlaceholder itself, not a permission concern
+    return window.NX_AUTH_CORE.isModuleAuthorized(entry);
+  }
+
   // Defense in depth alongside landing.js's own currentRouteId() guard:
   // if a newer route dispatch has started before this one's async chain
   // finishes, skip its remaining side effects (module dispatch, design
@@ -141,6 +155,23 @@
   function onRouteChange(routeId) {
     var myToken = ++routeToken;
     var entry = window.NX_REGISTRY.byId(routeId);
+
+    if (window.NX_AUTH_CORE.getState() !== window.NX_AUTH_CORE.STATES.AUTH_NOT_CONFIGURED &&
+        window.NX_AUTH_CORE.getState() !== window.NX_AUTH_CORE.STATES.AUTHORIZED) {
+      // AUTH FOUNDATION Phase 2B, Gate 11: any authenticated-app route
+      // requested while not AUTHORIZED renders Login, never the
+      // requested module -- a direct hash/URL cannot bypass this.
+      window.NX_LOGIN.render();
+      return;
+    }
+    if (entry && entry.authMode && !isRouteAuthorized(entry)) {
+      // Not a dedicated error page (Gate 24's failure-matrix
+      // discipline, matching V1: an unauthorized module simply isn't
+      // navigable) -- return to the authenticated Landing.
+      window.NX_ROUTER.navigate('landing');
+      return;
+    }
+
     window.NX_LANDING.renderRoute(routeId, entry).then(function () {
       if (myToken !== routeToken) return;
       if (!window.NX_LANDING.isLandingRoute(routeId)) {
@@ -215,16 +246,43 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  /* ---------- AUTH FOUNDATION Phase 2B, Gate 17: boot sequence.
+     SESSION RESOLUTION -> PROFILE RESOLUTION -> AUTHORIZATION CONTEXT
+     completes (auth-core.js's boot()) BEFORE the registry/router are
+     wired at all -- no shell/module content can flash before
+     authorization is known, per Gate 17's explicit requirement. The
+     outlet's static "Carregando…" placeholder (index.html) covers
+     this whole window; nxRoot itself stays hidden until AUTHORIZED
+     (or AUTH_NOT_CONFIGURED, which behaves as pre-Auth-Foundation). */
+  function boot() {
     setupDevBadge();
     setupNavDrawer();
+    window.NX_AUTH_CORE.onStateChange(function (state) {
+      var STATES = window.NX_AUTH_CORE.STATES;
+      var bootLoading = document.getElementById('nxBootLoading');
+      if (bootLoading && state !== STATES.INITIALIZING_SESSION) bootLoading.hidden = true;
+      if (state === STATES.AUTHORIZED || state === STATES.AUTH_NOT_CONFIGURED) {
+        document.getElementById('nxRoot').hidden = false;
+        window.NX_LOGIN.hide();
+        // Re-evaluate the current route under the now-current auth
+        // state (covers: fresh login -> land on the route that was
+        // originally requested if still valid, or Landing by default;
+        // logout elsewhere reverting AUTHORIZED -> SIGNED_OUT re-shows
+        // Login via the same listener's else branch below).
+        if (!window.NX_ROUTER.currentRouteId()) {
+          window.NX_ROUTER.navigate(DEFAULT_ROUTE);
+        } else {
+          onRouteChange(window.NX_ROUTER.currentRouteId());
+        }
+      } else if (state !== STATES.INITIALIZING_SESSION && state !== STATES.AUTHENTICATING && state !== STATES.AUTHENTICATED_RESOLVING_PROFILE) {
+        document.getElementById('nxRoot').hidden = true;
+        window.NX_LOGIN.render();
+      }
+    });
+
     window.NX_REGISTRY.load().then(function () {
       window.NX_ROUTER.onChange(onRouteChange);
-      if (!window.NX_ROUTER.currentRouteId()) {
-        window.NX_ROUTER.navigate(DEFAULT_ROUTE);
-      } else {
-        window.NX_ROUTER.resolveInitial();
-      }
+      return window.NX_AUTH_CORE.boot();
     }).catch(function () {
       document.getElementById('nxContentOutlet').innerHTML =
         '<div class="nxPlaceholder"><h1>Registry failed to load</h1>' +
@@ -232,5 +290,6 @@
         'opened this file directly (file://), start a local server ' +
         'instead — see docs/DEVELOPMENT.md.</p></div>';
     });
-  });
+  }
+  document.addEventListener('DOMContentLoaded', boot);
 })();
