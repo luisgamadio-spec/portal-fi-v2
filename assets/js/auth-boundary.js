@@ -102,17 +102,21 @@
 
   window.NX_AUTH = {
     isAuthConfigured: true,
-    // captchaToken: TURNSTILE_PRODUCTION_WIRING_PENDING (Gate 16) --
-    // forwarded in the exact shape V1 uses
-    // (signInWithPassword(creds, {options:{captchaToken}})) whenever
-    // present, so wiring a real token through later requires no
-    // change here; omitted entirely (not sent as null) when absent,
-    // since Supabase treats a present-but-null captchaToken as a
-    // deliberate empty-token attempt rather than "no captcha in use."
+    // captchaToken (AUTH FOUNDATION Phase 3B, Gate 7): forwarded in
+    // the exact shape verified against the real auth-js
+    // SignInWithPasswordCredentials type -- signInWithPassword takes
+    // ONE credentials object with `options.captchaToken` nested
+    // inside it, never a second function argument (a prior version of
+    // this method passed captchaToken as a phantom 2nd argument,
+    // which signInWithPassword silently ignores -- the token would
+    // never have reached Supabase at all). Omitted entirely (not sent
+    // as null) when absent, since Supabase treats a present-but-null
+    // captchaToken as a deliberate empty-token attempt rather than
+    // "no captcha in use."
     signIn: function (email, password, captchaToken) {
       var creds = { email: email, password: password };
-      var opts = captchaToken ? { options: { captchaToken: captchaToken } } : undefined;
-      return client.auth.signInWithPassword(creds, opts).then(function (result) {
+      if (captchaToken) creds.options = { captchaToken: captchaToken };
+      return client.auth.signInWithPassword(creds).then(function (result) {
         if (result.error) throw result.error;
         return { session: result.data.session };
       });

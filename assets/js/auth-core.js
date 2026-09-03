@@ -51,7 +51,13 @@
     NO_PORTAL_PROFILE: 'NO_PORTAL_PROFILE',
     SESSION_EXPIRED: 'SESSION_EXPIRED',
     NETWORK_ERROR: 'NETWORK_ERROR',
-    RPC_ERROR: 'RPC_ERROR'
+    RPC_ERROR: 'RPC_ERROR',
+    // AUTH FOUNDATION Phase 3B, Gate 16: Supabase's own captcha_failed
+    // rejection (observed live, Phase 3A.2-F1: HTTP 400 "captcha
+    // protection: request disallowed") must never again surface as a
+    // generic RPC_ERROR -- classifyError() below detects it by message
+    // before falling through to the generic branch.
+    CAPTCHA_FAILED: 'CAPTCHA_FAILED'
   };
 
   var state = STATES.INITIALIZING_SESSION;
@@ -79,6 +85,7 @@
   // is not distinguishable from the client today.
   function classifyError(err) {
     var msg = String((err && err.message) || err || '');
+    if (/captcha/i.test(msg)) return STATES.CAPTCHA_FAILED;
     if (/network|fetch|failed to fetch/i.test(msg)) return STATES.NETWORK_ERROR;
     if (/não provisionado ou inativo/i.test(msg)) return STATES.NO_PORTAL_PROFILE;
     return STATES.RPC_ERROR;
@@ -150,10 +157,10 @@
       });
     },
 
-    // captchaToken: TURNSTILE_PRODUCTION_WIRING_PENDING (Gate 16) --
-    // accepted and forwarded today so a later Turnstile wiring gate
-    // doesn't need to change this method's signature, but always
-    // null until that gate lands.
+    // captchaToken (AUTH FOUNDATION Phase 3B): forwarded to
+    // auth-boundary.js's signIn() unchanged; Auth Core stays ignorant
+    // of Cloudflare/Turnstile details (Gate 8) -- Login owns
+    // acquiring the token, this method only relays it.
     login: function (email, password, captchaToken) {
       if (!window.NX_AUTH || !window.NX_AUTH.isAuthConfigured) {
         setState(STATES.AUTH_NOT_CONFIGURED);

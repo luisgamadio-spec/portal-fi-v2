@@ -46,6 +46,13 @@ window.NX_INTELLIGENCE_CONFIG = {
   // one pair of values, one file -- not duplicated elsewhere.
   supabaseUrl: null,
   supabasePublishableKey: null,
+  // SHARED (AUTH FOUNDATION Phase 3B): public Cloudflare Turnstile
+  // site key (not a secret -- Turnstile's own design). null/absent
+  // here means Login never loads Cloudflare at all and forwards no
+  // captchaToken -- the default committed state and every mock/
+  // fixture-mode host, matching Gate 14/20's zero-Cloudflare-
+  // dependency requirement for deterministic testing.
+  turnstileSiteKey: null,
   // INTELLIGENCE_ONLY. Full URL to the portal-ai-homolog TEXT
   // function. Kept as its own field (not derived as
   // supabaseUrl + '/functions/v1/...') because

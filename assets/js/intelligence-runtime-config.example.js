@@ -9,5 +9,11 @@ window.NX_INTELLIGENCE_CONFIG = {
   mode: 'real_text',
   supabaseUrl: 'http://127.0.0.1:8790',
   supabasePublishableKey: 'local-mock-anon-key',
+  // turnstileSiteKey: intentionally omitted here -- the local mock
+  // Supabase Auth backend does not enforce CAPTCHA, so Login never
+  // loads Cloudflare Turnstile against a mock host (AUTH FOUNDATION
+  // Phase 3B, Gate 20). Only set this to a real Cloudflare Turnstile
+  // site key when supabaseUrl/supabasePublishableKey also point at a
+  // real Supabase project -- never invent or guess a key.
   textEndpoint: 'http://127.0.0.1:8801/'
 };
