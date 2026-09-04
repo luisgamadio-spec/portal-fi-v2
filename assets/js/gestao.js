@@ -1,26 +1,34 @@
 /* PORTAL-NEXT V2 -- Gestão (Análise F&I do Grupo) module UI.
-   Wave 2: RPC-shaped local contract reconciliation.
+   Real Data Integration Foundation, Phase 2.
 
-   Business logic: NONE in this file (render only). Data source:
-   assets/js/adapters/gestao-fixture-provider.js (local-only, RPC-
-   shaped simulation -- see that file's header). Response shaping:
-   assets/js/adapters/gestao.adapter.js (thin: formatting + safe
-   defaulting only). Store display names: assets/js/lookups/
-   store-display.js (presentation only -- store IDENTITY everywhere in
-   this file is the backend's canonical short code).
-
-   This Wave intentionally does NOT connect to Supabase (Decision in
-   the Wave 2 brief) -- when real backend integration happens, only
-   gestao-fixture-provider.js's loadGestaoFixture() gets replaced with
-   a real `operational_fandi_dashboard` RPC call; this file and the
-   adapter do not need to change, because both already consume the
-   RPC's own response shape.
+   Business logic: NONE in this file (render only). Transport boundary
+   (Gate 4): loadGestaoData() picks fixture vs real ONCE, based on
+   whether Auth Foundation has a real session configured -- both paths
+   converge on the exact same normalizeResponse()/render() code below,
+   same principle brabus-intelligence.js already established for its
+   own fixture/real_text split. Real transport:
+   assets/js/adapters/gestao-real-provider.js (thin: calls the
+   already-audited operational_fandi_dashboard RPC via the EXISTING
+   Auth Foundation session, no independent client, no credential
+   construction -- Phase 1's contract audit). Fixture transport
+   (local/mock hosts only): assets/js/adapters/gestao-fixture-
+   provider.js. Response shaping either way: assets/js/adapters/
+   gestao.adapter.js (thin: formatting + safe defaulting only,
+   unchanged -- Phase 1 proved DIRECT_MATCH for every field). Store
+   display names: assets/js/lookups/store-display.js (presentation
+   only -- store IDENTITY everywhere in this file is the backend's
+   canonical short code).
 
    No ANALISTA/GERENTE/VENDEDOR/MASTER/DIRETOR concept exists anywhere
-   in this file -- store and department are plain filter parameters,
-   exactly like the real RPC treats them for a caller whose scope
-   already permits the request. Authorization remains 100%
-   backend-owned. */
+   in this file for AUTHORIZATION purposes -- store and department are
+   plain filter parameters, exactly like the real RPC treats them for
+   a caller whose scope already permits the request (Phase 1, Gate 9/
+   10: proven server-side, empirically, not just read from source).
+   The one exception (Gate 14, Phase 2) is presentation-only: a scoped
+   profile's store selector is constrained to match what the backend
+   already enforces, so the UI doesn't visually offer a choice that
+   silently does nothing -- this reads the existing Auth Context
+   (already real, already tested), it does not decide authorization. */
 (function () {
   'use strict';
 
@@ -29,6 +37,45 @@
   var currentPreset = 'CUSTOM';
   var currentDateStart = '2026-01-01';
   var currentDateEnd = '2026-06-30';
+  var renderSeq = 0;
+
+  // Gate 4: the ONE place transport is decided. Real whenever Auth
+  // Foundation has a real session configured (RPC calls need real
+  // auth anyway); fixture otherwise (every local/mock/AUTH_NOT_
+  // CONFIGURED host, matching the existing convention every other
+  // module/test in this repo already relies on).
+  function isRealTransport() {
+    return !!(window.NX_AUTH && window.NX_AUTH.isAuthConfigured);
+  }
+
+  function loadGestaoData(params) {
+    return isRealTransport()
+      ? window.NX_GESTAO_REAL_PROVIDER.loadGestaoReal(params)
+      : window.NX_GESTAO_FIXTURE_PROVIDER.loadGestaoFixture(params);
+  }
+
+  // Gate 8/9: runtime-state markup, reusing the existing shared visual
+  // system (modLoadingState/modErrorState/modEmptyState -- see
+  // score.js/brabus-intelligence.js for the same classes already in
+  // production use). No new component, no giant new UI.
+  var STATE_COPY = {
+    PERMISSION_DENIED: { title: 'Sem permissão', body: 'Sua conta não tem acesso a esta análise.' },
+    INVALID_FILTER: { title: 'Filtro inválido', body: 'Verifique o período ou o departamento selecionado.' },
+    SCOPE_EMPTY: { title: 'Nenhum lote disponível', body: 'Ainda não há dados validados para análise.' },
+    BACKEND_ERROR: { title: 'Não foi possível carregar', body: 'Não foi possível carregar esse período. Tente selecionar um intervalo menor ou tente novamente.' },
+    SESSION_EXPIRED: { title: 'Sessão expirada', body: 'Entre novamente para continuar.' }
+  };
+
+  function loadingHtml() {
+    return '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando indicadores...</div>';
+  }
+  function errorStateHtml(state, message) {
+    var copy = STATE_COPY[state] || STATE_COPY.BACKEND_ERROR;
+    return '<div class="modErrorState"><div class="modStateTitle">' + esc(copy.title) + '</div>' + esc(copy.body) + '</div>';
+  }
+  function emptyStateHtml() {
+    return '<div class="modEmptyState"><div class="modStateTitle">Nenhum dado no período</div>Nenhuma operação encontrada para os filtros selecionados.</div>';
+  }
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -180,11 +227,23 @@
     var A = window.NX_GESTAO_ADAPTER;
     var department = currentDepartment === 'ALL' ? null : currentDepartment;
     var store = currentStore === 'ALL' ? null : currentStore;
+    var panel = document.getElementById('gePanel');
 
-    return window.NX_GESTAO_FIXTURE_PROVIDER.loadGestaoFixture({
+    // Gate 7: request sequencing (same principle as V1's own
+    // fandiRequestSequence stale-response guard) -- a slow earlier
+    // request must never overwrite a faster later one.
+    var mySeq = ++renderSeq;
+    if (panel) panel.innerHTML = loadingHtml();
+
+    return loadGestaoData({
       start: currentDateStart, end: currentDateEnd, store: store, department: department
     }).then(function (raw) {
+      if (mySeq !== renderSeq) return; // stale, a newer request already won
       var out = A.normalizeResponse(raw);
+      if (out.summary.operational_quantity === 0 && out.stores.length === 0) {
+        if (panel) panel.innerHTML = emptyStateHtml();
+        return;
+      }
       var periodo = (currentDateStart || 'Início') + ' a ' + (currentDateEnd || 'Fim');
       var visaoLoja = displayStore(currentStore === 'ALL' ? null : currentStore);
       var visaoTipo = currentDepartment === 'ALL' ? 'Todos os veículos' : (currentDepartment === 'NOVOS' ? 'Novos' : 'Seminovos');
@@ -304,7 +363,16 @@
         kpiSecondary('Maior loja', aprovadas.items[0] ? displayStore(aprovadas.items[0].store) : '-', (aprovadas.items[0] ? aprovadas.items[0].qtd : 0) + ' CPFs') +
         '</div>' + aprovadas.html;
 
-      document.getElementById('gePanel').innerHTML = html;
+      if (panel) panel.innerHTML = html;
+    }).catch(function (err) {
+      if (mySeq !== renderSeq) return; // stale error, ignore
+      // Gate 9: session-expired delegates to Auth Foundation's own
+      // established handling rather than inventing a second one here.
+      if (err && err.state === 'SESSION_EXPIRED' && window.NX_AUTH_CORE && typeof window.NX_AUTH_CORE.reportSessionExpired === 'function') {
+        window.NX_AUTH_CORE.reportSessionExpired();
+        return;
+      }
+      if (panel) panel.innerHTML = errorStateHtml(err && err.state, err && err.message);
     });
   }
 
@@ -343,19 +411,34 @@
   window.NX_GESTAO_PAGE = {
     render: function (outlet) {
       var D = window.NX_STORE_DISPLAY;
+
+      // Gate 14 (Phase 2): presentation-only alignment with the
+      // already-proven server-side scope (Phase 1, Gate 9/10) -- reads
+      // the existing, already-tested Auth Context, decides nothing
+      // about authorization itself. A scoped (non-MASTER) profile with
+      // a real store sees only that store; the backend would silently
+      // override anything else anyway (Phase 1 empirical proof), this
+      // just stops the UI from offering a choice that does nothing.
+      var ctx = window.NX_AUTH_CORE && window.NX_AUTH_CORE.getContext ? window.NX_AUTH_CORE.getContext() : null;
+      var scopedStore = (ctx && !ctx.isMaster && ctx.loja && D.CANONICAL_STORES.indexOf(ctx.loja) !== -1) ? ctx.loja : null;
+      if (scopedStore) currentStore = scopedStore;
+
       // value = canonical code (Wave 2 Gate 6): selector value, RPC
       // request param, and RPC response `store` field are always the
       // same string -- 0 translation anywhere in identity/comparison
       // logic. Display label comes only from storeDisplayName().
-      var storeOptions = ['<option value="ALL">' + esc(D.storeDisplayName('ALL')) + '</option>'].concat(
-        D.CANONICAL_STORES.map(function (code) { return '<option value="' + esc(code) + '">' + esc(D.storeDisplayName(code)) + '</option>'; })
-      ).join('');
+      var storeOptions = scopedStore
+        ? '<option value="' + esc(scopedStore) + '">' + esc(D.storeDisplayName(scopedStore)) + '</option>'
+        : ['<option value="ALL">' + esc(D.storeDisplayName('ALL')) + '</option>'].concat(
+            D.CANONICAL_STORES.map(function (code) { return '<option value="' + esc(code) + '">' + esc(D.storeDisplayName(code)) + '</option>'; })
+          ).join('');
+      var fixtureBanner = isRealTransport() ? '' : '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS LOCAIS (FIXTURE RPC-SHAPED, NEXT_LOCAL)</span></div>';
       outlet.innerHTML =
         '<div class="gePage">' +
         '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise F&amp;I do Grupo</h1><p class="modSubtitle">Análise operacional F&amp;I/FANDI consolidada do Grupo.</p></div></div>' +
-        '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS LOCAIS (FIXTURE RPC-SHAPED, NEXT_LOCAL)</span></div>' +
+        fixtureBanner +
         '<div class="modFilters">' +
-        '<div class="modField"><label for="geStoreFilter">Loja / Unidade</label><select id="geStoreFilter">' + storeOptions + '</select></div>' +
+        '<div class="modField"><label for="geStoreFilter">Loja / Unidade</label><select id="geStoreFilter"' + (scopedStore ? ' disabled' : '') + '>' + storeOptions + '</select></div>' +
         '<div class="modField"><label>Período rápido</label><div class="gePresetGroup">' +
         '<button type="button" class="gePresetBtn" data-preset="CURRENT_MONTH">Mês atual</button>' +
         '<button type="button" class="gePresetBtn" data-preset="PREVIOUS_MONTH">Mês anterior</button>' +
