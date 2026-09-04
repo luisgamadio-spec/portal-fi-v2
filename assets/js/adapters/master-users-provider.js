@@ -115,15 +115,72 @@
     });
   }
 
-  // WIRED, NOT EXECUTED THIS PHASE (Gate 16/47). Exact param shape per
-  // docs/MASTER-USERS-RPC-CONTRACT-CAPTURE.md.
+  // Edge Function transport -- same auth (session bearer token only,
+  // never service-role) and error-normalization discipline as callRpc,
+  // just a different real endpoint shape
+  // (`${supabaseUrl}/functions/v1/${fnName}`, not `/rest/v1/rpc/`).
+  function callEdgeFunction(fnName, payload, signal) {
+    var cfg = window.NX_INTELLIGENCE_CONFIG || {};
+    if (!cfg.supabaseUrl || !cfg.supabasePublishableKey) {
+      return Promise.reject({ state: 'RPC_ERROR', message: 'Configuração real ausente neste ambiente.' });
+    }
+    if (!window.NX_AUTH || typeof window.NX_AUTH.getAccessToken !== 'function') {
+      return Promise.reject({ state: 'SESSION_EXPIRED', message: 'Sessão indisponível.' });
+    }
+    return window.NX_AUTH.getAccessToken().then(function (token) {
+      if (!token) return Promise.reject({ state: 'SESSION_EXPIRED', message: 'Sessão expirada.' });
+      return fetch(cfg.supabaseUrl + '/functions/v1/' + fnName, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': cfg.supabasePublishableKey,
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(payload || {}),
+        signal: signal
+      }).then(function (resp) {
+        return resp.json().catch(function () { return null; }).then(function (body) {
+          if (!resp.ok) {
+            return Promise.reject({ state: (resp.status === 401 || resp.status === 403) ? 'SESSION_EXPIRED' : 'RPC_ERROR', message: (body && body.error) || 'Erro ao enviar convite.' });
+          }
+          return body;
+        });
+      }, function (err) {
+        if (err && err.name === 'AbortError') return Promise.reject({ state: 'ABORTED', message: 'Requisição cancelada.' });
+        return Promise.reject({ state: 'NETWORK_ERROR', message: 'Falha de rede.' });
+      });
+    });
+  }
+
+  // Exact param shape per docs/MASTER-USERS-RPC-CONTRACT-CAPTURE.md.
+  // Real V1 contract (confirmed Phase 0/1 audit): master_convidar_usuario
+  // creates the usuarios/convites_usuario rows WITHOUT touching
+  // Supabase Auth or sending any email -- admin-invite-user is the
+  // separate, required second step that actually delivers the real
+  // invite. Chained here so the V2 UI reproduces the real two-step
+  // contract exactly (Painel Master Phase 2B Gate 15 finding: Phase
+  // 2A's own implementation stopped after the first step, an
+  // incomplete-but-safe gap since it was never executed for real
+  // either way -- fixed here before any real mutation).
   function inviteUser(fields, params) {
     params = params || {};
     return callRpc('master_convidar_usuario', {
       p_cpf: fields.cpf, p_nome: fields.nome, p_perfil: fields.perfil,
       p_loja: fields.loja || null, p_email: fields.email,
       p_nbs: fields.nbs || null, p_status: fields.status || null
-    }, params.signal);
+    }, params.signal).then(function (rpcResult) {
+      return callEdgeFunction('admin-invite-user', { convite_id: rpcResult.convite_id }, params.signal)
+        .then(function (edgeResult) {
+          return { rpc: rpcResult, edge: edgeResult };
+        }, function (edgeErr) {
+          // Real contract: the usuarios/convites_usuario rows already
+          // exist and are valid (FALHA status, retriable via
+          // resendInvite) -- this is not a rollback-worthy failure, but
+          // the caller must still see it as an error so the UI doesn't
+          // claim success for an invite that was never actually sent.
+          return Promise.reject(Object.assign({ rpc: rpcResult }, edgeErr));
+        });
+    });
   }
 
   // WIRED, NOT EXECUTED THIS PHASE. Full-row overwrite per the RPC's
@@ -137,9 +194,24 @@
   }
 
   // WIRED, NOT EXECUTED THIS PHASE.
+  // Real V1 contract (Phase 0/1 audit): for the "no Auth account yet"
+  // case, resend is the SAME two-step shape as invite -- reset the
+  // convite row via master_reenviar_convite, then re-deliver via the
+  // SAME admin-invite-user Edge Function used by the original invite.
+  // (The "Auth exists but unconfirmed" case uses a different Edge
+  // Function, admin-resend-user-invite -- not needed by this module's
+  // current lifecycle states, since master_reenviar_convite itself
+  // already refuses that case server-side with a real 55000 CONFLICT.)
   function resendInvite(conviteId, params) {
     params = params || {};
-    return callRpc('master_reenviar_convite', { p_convite_id: conviteId }, params.signal);
+    return callRpc('master_reenviar_convite', { p_convite_id: conviteId }, params.signal).then(function (rpcResult) {
+      return callEdgeFunction('admin-invite-user', { convite_id: conviteId }, params.signal)
+        .then(function (edgeResult) {
+          return { rpc: rpcResult, edge: edgeResult };
+        }, function (edgeErr) {
+          return Promise.reject(Object.assign({ rpc: rpcResult }, edgeErr));
+        });
+    });
   }
 
   window.NX_MASTER_USERS_PROVIDER = {

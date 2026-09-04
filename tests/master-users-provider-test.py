@@ -30,6 +30,7 @@ CONV_URL = "https://mock.invalid/rest/v1/rpc/master_listar_convites"
 INVITE_URL = "https://mock.invalid/rest/v1/rpc/master_convidar_usuario"
 UPDATE_URL = "https://mock.invalid/rest/v1/rpc/master_atualizar_autorizacao_usuario"
 RESEND_URL = "https://mock.invalid/rest/v1/rpc/master_reenviar_convite"
+ADMIN_INVITE_EDGE_URL = "https://mock.invalid/functions/v1/admin-invite-user"
 
 results = []
 
@@ -234,6 +235,7 @@ def main():
             _t.sleep(0.2)
             route.fulfill(status=200, content_type="application/json", body=_json.dumps({"convite_id": "c-new", "usuario_id": "u-new", "email": "novo@example.com", "status": "PENDENTE"}))
         page.route(INVITE_URL + "*", slow_invite)
+        page.route(ADMIN_INVITE_EDGE_URL + "*", json_route(200, {"ok": True, "message": "Convite enviado."}))
         mount(page)
         page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
         page.click("#maNewUserBtn")
@@ -257,6 +259,36 @@ def main():
         page.eval_on_selector("#maConfirmYes", "el => { el.click(); el.click(); }")
         page.wait_for_timeout(500)
         check("24: double-submit prevented (exactly 1 invite RPC call despite 2 clicks)", len(invite_calls) == 1)
+        page.close()
+
+        # ---------- 37: two-step invite chain -- exact Edge Function shape (Gate 15) ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        page.route(INVITE_URL + "*", json_route(200, {"convite_id": "c-new", "usuario_id": "u-new", "email": "novo@example.com", "status": "PENDENTE"}))
+        edge_captured = {}
+
+        def capture_edge(route):
+            edge_captured["headers"] = route.request.headers
+            edge_captured["body"] = _json.loads(route.request.post_data or "{}")
+            route.fulfill(status=200, content_type="application/json", body=_json.dumps({"ok": True, "message": "Convite enviado."}))
+        page.route(ADMIN_INVITE_EDGE_URL + "*", capture_edge)
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.click("#maNewUserBtn")
+        page.wait_for_timeout(100)
+        page.fill("#maCpf", "12345678901")
+        page.fill("#maNome", "Novo Colaborador")
+        page.select_option("#maPerfil", "GERENTE")
+        page.wait_for_timeout(50)
+        page.select_option("#maStatus", "NOVOS")
+        page.fill("#maEmail", "novo@example.com")
+        page.click("#maCreateSubmit")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(300)
+        check("37: Edge Function called with exactly the RPC-returned convite_id, nothing else", edge_captured.get("body", {}) == {"convite_id": "c-new"})
+        check("37b: Edge Function call carries only the session's own bearer token, never a service-role key", edge_captured.get("headers", {}).get("authorization") == "Bearer mock-access-token-abc")
         page.close()
 
         # ---------- 25: destructive confirmation (block) ----------
@@ -329,6 +361,28 @@ def main():
         page.click("#maConfirmYes")
         page.wait_for_timeout(200)
         check("14: conflict (55000) normalized, no raw backend text", "modErrorState" not in page.inner_html("#maOutlet") or "55000" not in page.inner_html("#maOutlet"))
+        page.close()
+
+        # ---------- 38: resend success -- two-step chain (RPC then same admin-invite-user Edge Function) ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        page.route(RESEND_URL + "*", json_route(200, {"ok": True, "convite_id": "c1"}))
+        resend_edge_captured = {}
+
+        def capture_resend_edge(route):
+            resend_edge_captured["body"] = _json.loads(route.request.post_data or "{}")
+            route.fulfill(status=200, content_type="application/json", body=_json.dumps({"ok": True, "message": "Reenviado."}))
+        page.route(ADMIN_INVITE_EDGE_URL + "*", capture_resend_edge)
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u1']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maResendBtn")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(300)
+        check("38: resend chains into the same admin-invite-user Edge Function with the correct convite_id", resend_edge_captured.get("body", {}) == {"convite_id": "c1"})
         page.close()
 
         # ---------- 23: read cancellation (rapid re-mount aborts prior list request) ----------

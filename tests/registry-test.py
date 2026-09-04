@@ -43,6 +43,16 @@ def main():
         # reserved for a module whose real functional behavior is ready
         # for human review, which fixture-only Intelligence is not).
         "brabus-intelligence": {"NOT_MIGRATED", "IN_PROGRESS"},
+        # Painel Master Phase 2A: Usuários subarea has real code, a real
+        # audited backend contract, and passing deterministic/real-
+        # read-only tests, but zero mutation has been executed and no
+        # human has approved it — same IN_PROGRESS precedent as
+        # Coparticipado/Gestão/Dashbi's own early real-data-integration
+        # phases, not a new status value. The 16 other admin tabs remain
+        # entirely unbuilt; see the registry entry's own "notes" field
+        # for the honest MIGRATED_SCOPE=USERS_ONLY detail this coarse
+        # enum can't carry on its own.
+        "shell-admin": {"NOT_MIGRATED", "IN_PROGRESS"},
     }
 
     for m in modules:
