@@ -802,14 +802,25 @@
       modeNavHtml() +
       complementaryHtml +
 
-      (isReal
-        ? '<h2>Diagnóstico</h2><p class="dbMuted">Fonte: backend real (operational_metrics / operational_model_metrics). Escopo: <span class="dbDiagJson">' + esc(JSON.stringify(out.sourceInfo)) + '</span></p>'
-        : '<h2>Diagnóstico (dev only)</h2>' +
+      // Dashbi Phase 2D, Gate 8: DIAGNOSTIC_PRODUCTION_VISIBILITY_DEBT --
+      // this footer (like the fixture one below it) is dev/localhost
+      // tooling, not user-facing product; gated the same way
+      // environment-guard.js's own consumers already are, so it never
+      // reaches a real production host. Gate 7: scope.is_master here is
+      // the RPC's own internal per-call analytical-scope flag (Dashbi
+      // Phase 2D, Gate 3-6 -- proven GROUP_VIEW_EFFECTIVE_SCOPE, not the
+      // authenticated identity), never renamed in the raw payload
+      // (backend contract untouched -- Gate 7 Option A) but labeled here
+      // so it can't be misread as Auth Context's own separate isMaster.
+      ((isReal && (!window.NX_ENVIRONMENT || !window.NX_ENVIRONMENT.production))
+        ? '<h2>Diagnóstico (dev only)</h2><p class="dbMuted">Fonte: backend real (operational_metrics / operational_model_metrics). "is_master" no escopo abaixo é o escopo analítico efetivo desta chamada (elevação de grupo autorizada pelo servidor), não a identidade autenticada. Escopo: <span class="dbDiagJson">' + esc(JSON.stringify(out.sourceInfo)) + '</span></p>'
+        : (isReal ? '' :
+          '<h2>Diagnóstico (dev only)</h2>' +
           '<p class="dbMuted">DADOS DE TESTE — não faz parte da experiência final. sourceInfo: <span class="dbDiagJson">' + esc(JSON.stringify(out.sourceInfo)) + '</span></p>' +
           '<p class="dbMuted">Entrada (bases novas): total financiamentos ' + out.entradaDiagnostic.totalFinanciamentos +
           ' · chassis localizados ' + out.entradaDiagnostic.chassisLocalizados +
           ' · não localizados ' + out.entradaDiagnostic.chassisNaoLocalizados +
-          ' · taxa de sucesso ' + A.pct(out.entradaDiagnostic.taxaSucesso) + '</p>');
+          ' · taxa de sucesso ' + A.pct(out.entradaDiagnostic.taxaSucesso) + '</p>'));
 
     panel.innerHTML = html;
   }
