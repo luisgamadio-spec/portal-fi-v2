@@ -433,6 +433,105 @@ def main():
         check("32: request carries only the session's own bearer token, no client-supplied scope/role param", captured.get("headers", {}).get("authorization") == "Bearer mock-access-token-abc" and captured.get("body", {}) == {})
         page.close()
 
+        # ---------- 39-44: Phase 2C human UAT fix -- block state visibility + success feedback ----------
+        # Exact reported bug shape: tem_auth=False (pre-first-access
+        # invited) AND ativo=True (administratively active) -- the
+        # precise combination that made the old single-dimension badge
+        # mask a real, successful block.
+        PRE_ACCESS_ACTIVE_USER = {
+            "id": "u9", "cpf": "29999999902", "cpf_normalizado": "29999999902",
+            "nome": "PAINEL MASTER HOMOLOG V2", "perfil": "VENDEDOR", "loja": "EUROPA",
+            "status": "NOVOS", "ativo": True, "primeiro_acesso": True, "ultimo_login": None,
+            "email_auth": "luisg.amadio@gmail.com", "tem_auth": False,
+            "email_divergente": False, "auth_confirmado": False, "ativacao_legado": None,
+        }
+
+        def stateful_pages(browser, initial_ativo=True):
+            state = {"ativo": initial_ativo}
+
+            def sec_handler(route):
+                u = dict(PRE_ACCESS_ACTIVE_USER, ativo=state["ativo"])
+                route.fulfill(status=200, content_type="application/json", body=_json.dumps({"users": [u], "configurations": [], "audit": []}))
+
+            def update_handler(route):
+                state["ativo"] = not state["ativo"]
+                route.fulfill(status=200, content_type="application/json", body="true")
+
+            page = new_page(browser)
+            page.route(SEC_URL + "*", sec_handler)
+            page.route(CONV_URL + "*", json_route(200, []))
+            page.route(UPDATE_URL + "*", update_handler)
+            return page
+
+        page = stateful_pages(browser, initial_ativo=True)
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        pre_html = page.inner_html("#maPanel")
+        check("39: BEFORE block -- invite state and admin state both visible independently (Convidado + Ativo)", "aguardando aceite" in pre_html and "Ativo" in pre_html)
+        page.eval_on_selector(".maTable tbody tr[data-key='u9']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maToggleActiveBtn")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(300)
+        post_html = page.inner_html("#maOutlet")
+        check("40: AFTER block -- success message shown", "bloqueado com sucesso" in post_html.lower())
+        check("41: AFTER block -- admin state badge shows Bloqueado (list AND detail), invite state unchanged (Convidado still present, not masked/replaced)",
+              post_html.count("Bloqueado") >= 2 and "aguardando aceite" in post_html)
+        check("41b: button toggled to Reativar", "Reativar" in post_html and "id=\"maToggleActiveBtn\"" in post_html)
+        page.close()
+
+        # ---------- 42: block failure does not fake success ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": [PRE_ACCESS_ACTIVE_USER], "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        page.route(UPDATE_URL + "*", json_route(500, {"code": "57014", "message": "boom"}))
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u9']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maToggleActiveBtn")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(300)
+        fail_html = page.inner_html("#maOutlet")
+        check("42: block RPC failure -> no success message, badge still shows Ativo (no fake transition)", "com sucesso" not in fail_html.lower() and "Bloqueado" not in fail_html)
+        page.close()
+
+        # ---------- 43: resend success displays confirmation ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        page.route(RESEND_URL + "*", json_route(200, {"ok": True, "convite_id": "c1"}))
+        page.route(ADMIN_INVITE_EDGE_URL + "*", json_route(200, {"ok": True}))
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u1']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maResendBtn")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(300)
+        check("43: resend success -> visible confirmation message shown", "reenviado com sucesso" in page.inner_html("#maOutlet").lower())
+        page.close()
+
+        # ---------- 44: Edge Function failure AFTER RPC success -> no success message ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        page.route(RESEND_URL + "*", json_route(200, {"ok": True, "convite_id": "c1"}))
+        page.route(ADMIN_INVITE_EDGE_URL + "*", json_route(500, {"error": "smtp down"}))
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u1']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maResendBtn")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(300)
+        check("44: RPC success + Edge Function failure -> no success message ever shown (Gate 9)", "reenviado com sucesso" not in page.inner_html("#maOutlet").lower())
+        page.close()
+
         browser.close()
 
     total = len(results)

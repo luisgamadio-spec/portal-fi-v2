@@ -28,7 +28,21 @@
     return '***.***.**' + digits.slice(-2);
   }
 
-  function classifyLifecycle(u) {
+  // Painel Master Phase 2C, Gate 1/3 (human UAT forensics): invite/auth
+  // lifecycle and administrative active/blocked state are two
+  // INDEPENDENT dimensions in the real backend contract -- `ativo` is
+  // a full, standalone column on `usuarios`, orthogonal to
+  // tem_auth/auth_confirmado/primeiro_acesso (confirmed directly: a
+  // real block was proven server-side successful, audit row and all,
+  // against a user whose tem_auth was still false at that moment).
+  // The prior single-dimension classifyLifecycle() checked !tem_auth
+  // FIRST and returned immediately, so `ativo` was NEVER consulted for
+  // any user who hadn't yet completed Auth creation -- a real user
+  // could be blocked and the UI would still show "Convidado —
+  // aguardando aceite" with zero visible change. Split into two
+  // classifiers, both always evaluated, never collapsed into one
+  // badge that hides the other.
+  function classifyInviteState(u) {
     if (!u.tem_auth) {
       return { state: 'INVITED', label: 'Convidado — aguardando aceite' };
     }
@@ -38,11 +52,18 @@
     if (u.primeiro_acesso) {
       return { state: 'FIRST_ACCESS_PENDING', label: 'Confirmado — primeiro acesso pendente' };
     }
-    if (u.ativo) {
-      return { state: 'ACTIVE', label: 'Ativo' };
-    }
-    return { state: 'INACTIVE', label: 'Inativo/Bloqueado' };
+    return { state: 'ACCEPTED', label: 'Primeiro acesso concluído' };
   }
+
+  function classifyAdminState(u) {
+    return u.ativo
+      ? { state: 'ACTIVE', label: 'Ativo' }
+      : { state: 'BLOCKED', label: 'Bloqueado' };
+  }
+
+  // Back-compat name some call sites may still use; delegates to the
+  // invite dimension only (never re-introduce the collapsed shape).
+  function classifyLifecycle(u) { return classifyInviteState(u); }
 
   function findConvite(convites, usuarioId) {
     var matches = (convites || []).filter(function (c) { return c.usuario_id === usuarioId; });
@@ -53,7 +74,8 @@
   }
 
   function buildUserRow(u, convites) {
-    var lifecycle = classifyLifecycle(u);
+    var lifecycle = classifyInviteState(u);
+    var adminState = classifyAdminState(u);
     var convite = findConvite(convites, u.id);
     return {
       id: u.id,
@@ -65,6 +87,7 @@
       status: u.status || '',
       ativo: !!u.ativo,
       lifecycle: lifecycle,
+      adminState: adminState,
       emailDivergente: !!u.email_divergente,
       // Resend Invite is only meaningful (and only safe, per the real
       // RPC's own contract -- master_reenviar_convite rejects a target
@@ -94,6 +117,8 @@
     buildUsersViewModel: buildUsersViewModel,
     maskCpf: maskCpf,
     classifyLifecycle: classifyLifecycle,
+    classifyInviteState: classifyInviteState,
+    classifyAdminState: classifyAdminState,
     PERFIL_VALUES: PERFIL_VALUES,
     LOJA_VALUES: LOJA_VALUES,
     STATUS_VALUES: STATUS_VALUES,

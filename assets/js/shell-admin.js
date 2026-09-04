@@ -70,6 +70,23 @@
   var editForm = null;
   var pendingConfirm = null; // {kind, payload} while a confirm step is shown
 
+  // Phase 2C, Gate 6/7 (human UAT fix): explicit success feedback for
+  // the mutations whose only backend side effect leaves no obvious
+  // visible trace otherwise -- Bloquear/Reativar (now visible via the
+  // admin badge, but an explicit confirmation is still correct here)
+  // and Reenviar convite (a real email send with zero other UI change
+  // -- proven human-reported gap: "sem nenhuma mensagem de sucesso").
+  // Create/Edit are deliberately left alone (Gate 7's own conservative
+  // scope): their existing implicit confirmation (the new/changed row
+  // becoming visible in the refreshed list) already satisfies this.
+  // Cleared on any new navigation/interaction so it never lingers past
+  // its relevance.
+  var successMessage = null;
+  var SUCCESS_COPY = {
+    toggleActive: { active: 'Usuário reativado com sucesso.', inactive: 'Usuário bloqueado com sucesso.' },
+    resend: 'Convite reenviado com sucesso.'
+  };
+
   // Gate 22 error-state vocabulary (transport-level, from the
   // provider's classifyError) + Gate 6 client-side VALIDATION_ERROR
   // (never sent to the RPC at all).
@@ -139,13 +156,25 @@
     );
   }
 
-  // ---------- lifecycle badge ----------
-  function lifecycleBadgeHtml(lifecycle) {
+  // ---------- lifecycle badges (Phase 2C, Gate 1/3/5 human UAT fix):
+  // invite/auth lifecycle and administrative active/blocked state are
+  // two INDEPENDENT dimensions in the real contract (proven: a real
+  // block succeeds and audits correctly against a user whose invite
+  // lifecycle is still INVITED) -- always render BOTH, never let one
+  // hide the other. ----------
+  function inviteBadgeHtml(lifecycle) {
     var cls = {
       INVITED: 'maBadgeInvited', AUTH_CREATED_UNCONFIRMED: 'maBadgeInvited',
-      FIRST_ACCESS_PENDING: 'maBadgePending', ACTIVE: 'maBadgeActive', INACTIVE: 'maBadgeInactive'
-    }[lifecycle.state] || 'maBadgeInactive';
+      FIRST_ACCESS_PENDING: 'maBadgePending', ACCEPTED: 'maBadgeActive'
+    }[lifecycle.state] || 'maBadgeInvited';
     return '<span class="maBadge ' + cls + '">' + esc(lifecycle.label) + '</span>';
+  }
+  function adminBadgeHtml(adminState) {
+    var cls = adminState.state === 'ACTIVE' ? 'maBadgeActive' : 'maBadgeInactive';
+    return '<span class="maBadge ' + cls + '">' + esc(adminState.label) + '</span>';
+  }
+  function situationBadgesHtml(r) {
+    return inviteBadgeHtml(r.lifecycle) + ' ' + adminBadgeHtml(r.adminState);
   }
 
   function rowKey(r) { return r.id; }
@@ -160,7 +189,7 @@
         '<td>' + esc(r.perfil) + '</td>' +
         '<td>' + esc(r.loja || '—') + '</td>' +
         '<td>' + esc(r.status || '—') + '</td>' +
-        '<td>' + lifecycleBadgeHtml(r.lifecycle) + '</td>' +
+        '<td>' + situationBadgesHtml(r) + '</td>' +
         '</tr>';
     }).join('');
     return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable maTable">' +
@@ -173,7 +202,7 @@
         '<div class="maMobileName">' + esc(r.nome) + '</div>' +
         '<div class="maSubtle">' + esc(r.emailAuth) + '</div>' +
         '<div class="maMobileMeta">' + esc(r.perfil) + ' · ' + esc(r.loja || '—') + ' · ' + esc(r.status || '—') + '</div>' +
-        lifecycleBadgeHtml(r.lifecycle) +
+        situationBadgesHtml(r) +
         '</div>';
     }).join('');
     return '<div class="maMobileOnly">' + cards + '</div>';
@@ -217,7 +246,7 @@
     } else {
       body = fieldRow('Nome', r.nome) + fieldRow('E-mail', r.emailAuth) + fieldRow('CPF', r.cpfMasked) +
         fieldRow('Perfil', r.perfil) + fieldRow('Loja', r.loja || '—') + fieldRow('Departamento', r.status || '—') +
-        '<div class="maDetailField"><span class="maDetailLabel">Situação</span>' + lifecycleBadgeHtml(r.lifecycle) + '</div>' +
+        '<div class="maDetailField"><span class="maDetailLabel">Situação</span>' + situationBadgesHtml(r) + '</div>' +
         (r.emailDivergente ? '<p class="maWarnNote">O e-mail de autenticação diverge do e-mail cadastrado.</p>' : '') +
         '<div class="maDetailActions">' +
         '<button type="button" class="modBtn" id="maEditBtn">Editar autorização</button>' +
@@ -328,10 +357,19 @@
     }
 
     var html = '';
+    if (successMessage) {
+      // Shown for exactly one completed render, then self-clears --
+      // simpler and more robust than hunting down every interaction
+      // site that should dismiss it; the LOADING branch above returns
+      // early without reaching here, so this only fires on the render
+      // that actually follows a completed mutation.
+      html += '<div class="modSuccessState" role="status">' + esc(successMessage) + '</div>';
+      successMessage = null;
+    }
     if (currentView === 'create') {
-      html = renderCreateView();
+      html += renderCreateView();
     } else {
-      html = renderList();
+      html += renderList();
       var detailRow = currentDetailId ? rowById(currentDetailId) : null;
       html += detailRow ? renderDetail(detailRow) : '';
     }
@@ -343,8 +381,8 @@
   }
 
   // ---------- interaction wiring ----------
-  function openDetail(id) { currentDetailId = id; editForm = null; pendingConfirm = null; renderPanel(); }
-  function closeDetail() { currentDetailId = null; editForm = null; pendingConfirm = null; renderPanel(); }
+  function openDetail(id) { currentDetailId = id; editForm = null; pendingConfirm = null; successMessage = null; renderPanel(); }
+  function closeDetail() { currentDetailId = null; editForm = null; pendingConfirm = null; successMessage = null; renderPanel(); }
 
   function wireInteraction() {
     document.querySelectorAll('.maTable tbody tr, .maMobileCard').forEach(function (el) {
@@ -468,10 +506,11 @@
     return null;
   }
 
-  // ---------- mutation execution (Gate 16/47: WIRED, NEVER CALLED
-  // during this Phase's own execution — this function exists and is
-  // exercised only by mocked deterministic tests,
-  // tests/master-users-*.py). Double-submit guarded regardless. ----------
+  // ---------- mutation execution. Real, audited RPC/Edge Function
+  // contract (docs/MASTER-USERS-RPC-CONTRACT-CAPTURE.md), exercised
+  // both via mocked deterministic tests and, as of Painel Master Phase
+  // 2B/2C, real MASTER mutations against the dedicated disposable
+  // homolog identity. Double-submit guarded regardless. ----------
   function executeConfirmedAction() {
     if (!pendingConfirm) return;
     var kind = pendingConfirm.kind;
@@ -481,6 +520,7 @@
 
     var provider = window.NX_MASTER_USERS_PROVIDER;
     var promise;
+    var pendingSuccessMessage = null;
     if (kind === 'invite') {
       promise = provider.inviteUser(createForm, {});
     } else if (kind === 'edit') {
@@ -489,23 +529,34 @@
     } else if (kind === 'toggleActive') {
       var t = pendingConfirm.target;
       promise = provider.updateUserAuthorization({ usuarioId: t.id, perfil: t.perfil, loja: t.loja, status: t.status, ativo: !t.ativo }, {});
+      pendingSuccessMessage = t.ativo ? SUCCESS_COPY.toggleActive.inactive : SUCCESS_COPY.toggleActive.active;
     } else if (kind === 'resend') {
       promise = provider.resendInvite(pendingConfirm.target.conviteId, {});
+      pendingSuccessMessage = SUCCESS_COPY.resend;
     }
 
     promise.then(
       function () {
+        // Fires only on genuine backend confirmation -- resendInvite's
+        // own promise (master-users-provider.js) only resolves once
+        // BOTH the RPC and the admin-invite-user Edge Function have
+        // succeeded, so an Edge Function failure after a successful
+        // RPC correctly lands in the rejection branch below instead
+        // (Gate 9: RPC success + Edge Function failure must never show
+        // success).
         inFlight[flagKey] = false;
         pendingConfirm = null;
         currentView = 'list';
         createForm = null;
         editForm = null;
+        successMessage = pendingSuccessMessage;
         loadUsers(); // re-fetch authoritative state, never optimistic
       },
       function (err) {
         inFlight[flagKey] = false;
         if (kind === 'invite') { createForm.error = (STATE_COPY[err && err.state] || STATE_COPY.RPC_ERROR).body; }
         else if (kind === 'edit') { editForm.error = (STATE_COPY[err && err.state] || STATE_COPY.RPC_ERROR).body; }
+        successMessage = null;
         pendingConfirm = null;
         renderPanel();
       }

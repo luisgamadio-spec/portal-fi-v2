@@ -188,9 +188,16 @@
    10. EMPTY / LOADING / ERROR / INFO STATES — reuses simuladores
    .emptyState/.errorState verbatim (already approved).
    ============================================================ */
-.modEmptyState,.modErrorState,.modInfoState{text-align:center;padding:40px 20px;color:var(--color-text-secondary);font-size:var(--mod-body-size);border:1px dashed var(--mod-border-strong);border-radius:var(--radius-md)}
+.modEmptyState,.modErrorState,.modInfoState,.modSuccessState{text-align:center;padding:40px 20px;color:var(--color-text-secondary);font-size:var(--mod-body-size);border:1px dashed var(--mod-border-strong);border-radius:var(--radius-md)}
 .modEmptyState .modStateTitle,.modErrorState .modStateTitle,.modInfoState .modStateTitle{color:var(--color-text-primary);font-size:13.5px;font-weight:500;margin-bottom:6px}
 .modErrorState{border-color:rgba(226,84,58,.4);color:#f3c7ba}
+/* Painel Master Phase 2C, Gate 6 -- explicit mutation-success feedback
+   (e.g. "Convite reenviado com sucesso."), mirrors .modErrorState's
+   exact shape with --mod-success in place of the critical color. Not
+   color-only: paired with role="status" (announced) at the call site,
+   same non-color-dependent discipline already used by .modErrorState's
+   own title+body text pairing. */
+.modSuccessState{border-color:rgba(87,185,138,.4);color:#c2e8d4;padding:16px 20px;text-align:left}
 .modLoadingState{display:flex;align-items:center;gap:var(--mod-space-compact);color:var(--mod-muted);font-size:var(--mod-body-size);padding:var(--mod-space-control-gap) 0}
 .modLoadingDot{width:6px;height:6px;border-radius:50%;background:var(--mod-accent);flex-shrink:0}
 
