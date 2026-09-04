@@ -34,6 +34,20 @@
   function asNumber(v){if(v===null||v===undefined||v==='')return 0;if(typeof v==='number')return isFinite(v)?v:0;let s=String(v).trim().replace(/[R$\s]/g,'');if(!s)return 0;if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.');else if(s.includes(','))s=s.replace(',','.');const n=parseFloat(s);return isNaN(n)?0:n}
   // ==== END byte-identical extraction ====
 
+  // familiaModelo/normalizeText: byte-identical extraction from the SAME
+  // origin/main:modules/score.html source, re-verified line-for-line
+  // against modules/score.html (Authority) in Score Phase 1 (Gate 8).
+  // Also present, byte-identical, in coparticipado.adapter.js — kept as
+  // an independent Score-local copy (not imported) to avoid cross-module
+  // coupling, matching this codebase's established per-module extraction
+  // pattern. Proven in Phase 1 to operate correctly on the RAW model
+  // string the real RPC returns (production's own processSales() calls
+  // it the same way) — no separate canonicalization step required.
+  // ==== BEGIN byte-identical extraction from origin/main:modules/score.html ====
+  function normalizeText(v){return (v??'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/�/g,'A').replace(/\s+/g,' ').trim()}
+  function familiaModelo(modelo){const m=normalizeText(modelo);if(m.includes('OUTLANDER'))return 'Outlander';if(m.includes('TRITON')||m.includes('L200'))return 'Triton';if(m.includes('ECLIPSE'))return 'Eclipse Cross';return 'Outros'}
+  // ==== END byte-identical extraction ====
+
   // PORTAL-NEXT-07.7C (Gate 14/15): calcScores() itself is NOT touched
   // (see Gate 47 above — no edits to the byte-identical extraction).
   // In real production, every fins[] record's receitaSPF is built by
@@ -75,7 +89,7 @@
     groundTruthRef: 'origin/main:modules/score.html (portal-financiamento-brabus-secure) == live production (PORTAL-NEXT-03.1 PROVED); see docs/SCORE-ENGINE-AUDIT.md',
     // exposed for the parity harness and dev tooling only — not part
     // of the product surface
-    _internal: { SCORE_WEIGHTS, MIX_PLANOS_UNIVERSO, num, pct, asNumber, normalizeFinInput }
+    _internal: { SCORE_WEIGHTS, MIX_PLANOS_UNIVERSO, num, pct, asNumber, normalizeFinInput, familiaModelo, normalizeText }
   };
 
   // Register with the Foundation's business-adapter boundary contract.

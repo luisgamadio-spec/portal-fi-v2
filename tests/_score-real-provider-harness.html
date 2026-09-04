@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- Test-only harness to load the full Score real-data-integration
+     surface (adapter, real provider, real view-model, page/render
+     logic) in isolation, for Real Data Integration Foundation Score
+     Phase 2A's automated tests. Not part of the product shell.
+     window.NX_AUTH / window.NX_INTELLIGENCE_CONFIG are supplied by the
+     test itself via add_init_script, mirroring how score.js reads them
+     at call time. Lives directly under tests/ (not tests/fixtures/) so
+     score.js's own loadFixtures() page-relative fetch
+     ('tests/fixtures/score-fixtures.json') resolves the same way it
+     does from the real product shell -- same reasoning as
+     Coparticipado's own _coparticipado-real-provider-harness.html. -->
+<html><head><meta charset="utf-8"></head>
+<body>
+<div id="scOutlet"></div>
+<script src="../assets/js/adapters/score.adapter.js"></script>
+<script src="../assets/js/adapters/score-real-provider.js"></script>
+<script src="../assets/js/adapters/score-real-view-model.js"></script>
+<script src="../assets/js/score.js"></script>
+</body></html>

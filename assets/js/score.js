@@ -13,6 +13,42 @@
   var currentRows = [];
   var currentDetailKey = null;
 
+  // Score Phase 2A (Real Data Integration Foundation) -- the ONE place
+  // transport is decided, same rule as gestao.js/dashbi.js/
+  // coparticipado.js's own isRealTransport(). renderSeq/realResult/
+  // currentAbortController guard against a stale/superseded async
+  // response overwriting a newer one. Score has no product filter UI
+  // (Phase 1, confirmed) and Gate 6 (Phase 2A) proved a direct, real,
+  // evidence-based default period (SCORE_DATE_CONTRACT_DIRECT) -- so,
+  // unlike Coparticipado, there is no date/store/dept state to track
+  // here; the real provider applies its own proven default internally.
+  function isRealTransport() {
+    return !!(window.NX_AUTH && window.NX_AUTH.isAuthConfigured);
+  }
+  var renderSeq = 0;
+  var realResult = null;
+  var currentAbortController = null;
+
+  // Gate 8 runtime-state vocabulary (LOADING/SUCCESS/EMPTY/AUTH_DENIED/
+  // SESSION_EXPIRED/RPC_ERROR/TIMEOUT/MALFORMED_RESPONSE). EMPTY is not
+  // a distinct error state here -- a SUCCESS with zero rows already
+  // renders the existing "Nenhum vendedor encontrado" empty state via
+  // renderTable() below, same as fixture mode's own empty-fixture case.
+  var STATE_COPY = {
+    AUTH_DENIED: { title: 'Sem permissão', body: 'Sua conta não tem acesso a esta análise.' },
+    SESSION_EXPIRED: { title: 'Sessão expirada', body: 'Entre novamente para continuar.' },
+    RPC_ERROR: { title: 'Não foi possível carregar', body: 'Não foi possível carregar o ranking agora. Tente novamente.' },
+    TIMEOUT: { title: 'Tempo excedido', body: 'A resposta demorou demais. Tente novamente.' },
+    MALFORMED_RESPONSE: { title: 'Não foi possível carregar', body: 'Resposta inesperada do servidor.' }
+  };
+  function loadingHtml() {
+    return '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando ranking...</div>';
+  }
+  function errorStateHtml(state, message) {
+    var copy = STATE_COPY[state] || STATE_COPY.RPC_ERROR;
+    return '<div class="modErrorState"><div class="modStateTitle">' + esc(copy.title) + '</div>' + esc(copy.body) + '</div>';
+  }
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c;
@@ -154,12 +190,8 @@
       '</div>';
   }
 
-  function render() {
-    var fixtureSelect = document.getElementById('scFixtureSelect');
-    var currentId = fixtureSelect ? fixtureSelect.value : FIXTURE_IDS[0];
-    var caseData = fixturesData.filter(function (c) { return c.id === currentId; })[0];
-    currentRows = window.NX_SCORE_ADAPTER.compute(caseData.sales, caseData.fins);
-
+  function renderPanel(rows) {
+    currentRows = rows;
     var tableHtml = renderTable(currentRows);
     var detailRow = currentDetailKey ? currentRows.filter(function (r) { return rowKey(r) === currentDetailKey; })[0] : null;
 
@@ -167,6 +199,56 @@
     document.getElementById('scDetailRegion').innerHTML = detailRow ? renderDetail(detailRow) : '';
 
     wireTableInteraction();
+  }
+
+  function render() {
+    if (!isRealTransport()) {
+      var fixtureSelect = document.getElementById('scFixtureSelect');
+      var currentId = fixtureSelect ? fixtureSelect.value : FIXTURE_IDS[0];
+      var caseData = fixturesData.filter(function (c) { return c.id === currentId; })[0];
+      renderPanel(window.NX_SCORE_ADAPTER.compute(caseData.sales, caseData.fins));
+      return;
+    }
+    if (realResult) { renderPanel(realResult); return; }
+    loadReal();
+  }
+
+  // Fetch -> validated raw payload -> minimal field mapping + canonical
+  // familiaModelo() (score-real-view-model.js) -> existing
+  // normalizeFinInput() + FROZEN calcScores() (NX_SCORE_ADAPTER.compute,
+  // untouched) -> existing presentation. No calculation happens in this
+  // file or in the view-model (Gate: PROIBIDO duplicar calcScores()).
+  function loadReal() {
+    if (currentAbortController) currentAbortController.abort();
+    var controller = new AbortController();
+    currentAbortController = controller;
+    var mySeq = ++renderSeq;
+    var region = document.getElementById('scTableRegion');
+    if (region) region.innerHTML = loadingHtml();
+    var detailRegion = document.getElementById('scDetailRegion');
+    if (detailRegion) detailRegion.innerHTML = '';
+
+    window.NX_SCORE_REAL_PROVIDER.loadScoreReal({ signal: controller.signal }).then(
+      function (payload) {
+        if (mySeq !== renderSeq) return;
+        var mapped;
+        try {
+          mapped = window.NX_SCORE_REAL_VIEW_MODEL.buildRealResult(payload);
+        } catch (e) {
+          var r2 = document.getElementById('scTableRegion');
+          if (r2) r2.innerHTML = errorStateHtml(e && e.state, e && e.message);
+          return;
+        }
+        realResult = window.NX_SCORE_ADAPTER.compute(mapped.sales, mapped.fins);
+        renderPanel(realResult);
+      },
+      function (err) {
+        if (mySeq !== renderSeq) return;
+        if (err && err.state === 'ABORTED') return; // not a user-facing error -- superseded request
+        var region2 = document.getElementById('scTableRegion');
+        if (region2) region2.innerHTML = errorStateHtml(err && err.state, err && err.message);
+      }
+    );
   }
 
   function openDetail(key) {
@@ -211,22 +293,37 @@
     // string -- so a test can assert on `.label` explicitly rather
     // than guessing a return shape.
     classifyScoreBand: classifyScoreBand,
+    // Gate 20/21 (Phase 2A): the dev-only fixture selector must never
+    // appear in real mode, same isRealTransport()-gated shell principle
+    // already used by gestao.js/dashbi.js/coparticipado.js.
     render: function (outlet) {
-      return loadFixtures().then(function () {
+      function paintShell(isFixtureMode) {
         currentDetailKey = null;
-        var options = FIXTURE_IDS.map(function (id) { return '<option value="' + id + '">' + id + '</option>'; }).join('');
+        var fixtureBanner = '';
+        if (isFixtureMode) {
+          var options = FIXTURE_IDS.map(function (id) { return '<option value="' + id + '">' + id + '</option>'; }).join('');
+          fixtureBanner = '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
+            '<label for="scFixtureSelect">fixture:</label>' +
+            '<select id="scFixtureSelect">' + options + '</select></div>';
+        }
         outlet.innerHTML =
           '<div class="scPage">' +
           '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise de Score Vendedores</h1><p class="modSubtitle">Ranking de performance F&amp;I por vendedor.</p></div></div>' +
-          '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
-          '<label for="scFixtureSelect">fixture:</label>' +
-          '<select id="scFixtureSelect">' + options + '</select></div>' +
+          fixtureBanner +
           '<div id="scTableRegion"></div>' +
           '<div id="scDetailRegion"></div>' +
           '</div>';
-        document.getElementById('scFixtureSelect').addEventListener('change', render);
+        if (isFixtureMode) {
+          document.getElementById('scFixtureSelect').addEventListener('change', render);
+        }
         render();
-      });
+      }
+
+      if (isRealTransport()) {
+        paintShell(false);
+        return Promise.resolve();
+      }
+      return loadFixtures().then(function () { paintShell(true); });
     }
   };
 })();
