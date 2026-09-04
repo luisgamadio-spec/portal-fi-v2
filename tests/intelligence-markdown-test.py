@@ -57,6 +57,16 @@ def main():
         page = browser.new_page(viewport={"width": 1366, "height": 768})
         dialogs = []
         page.on("dialog", lambda d: (dialogs.append(d.message), d.dismiss()))
+        # AUTH FOUNDATION generalized route-guard coverage to the whole
+        # shell (Phase 2B) after this test was written -- without this,
+        # a machine with a real .local.js override (Real Data
+        # Integration Foundation's own ongoing arc) lands on SIGNED_OUT/
+        # Login instead of AUTH_NOT_CONFIGURED, and the shell/#nxRoot
+        # (with #baiConversation inside it) never mounts. This test's
+        # own purpose (deterministic Markdown rendering) never depended
+        # on auth; block the local override so it reaches the same
+        # inert AUTH_NOT_CONFIGURED state it always relied on.
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.abort())
 
         page.goto(BASE + "#/brabus-intelligence")
         page.wait_for_timeout(400)
