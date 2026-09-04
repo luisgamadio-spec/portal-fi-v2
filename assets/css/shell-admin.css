@@ -1,0 +1,56 @@
+/* PORTAL-NEXT V2 -- Painel Master / Usuários (Painel Master Phase 2A).
+   Layout/filter/button/table primitives (.modFilters, .modField,
+   .modBtn*, .modTable, .modTableWrap, .modEmptyState, .modLoadingState,
+   .modErrorState, .modPageHeader) all come from module-system.css,
+   unchanged -- only the bits genuinely new to an admin surface live
+   here: section nav, lifecycle badges, the detail/edit panel, and the
+   inline confirmation step (no modal primitive exists yet in this
+   codebase -- Gate 10 forbids introducing a new parallel one for this
+   alone). Desktop table / mobile card dual-renderer breakpoint mirrors
+   score.css's own .scDesktopOnly/.scMobileOnly exactly (767px). */
+
+.maPage { display: flex; flex-direction: column; gap: var(--mod-space-control-gap); }
+
+.maSectionNav { display: flex; gap: var(--space-2); flex-wrap: wrap; padding-bottom: var(--mod-space-compact); border-bottom: 1px solid var(--mod-border); }
+.maSectionItem { font-family: var(--font-ui); font-size: 12.5px; font-weight: 500; padding: var(--space-1) var(--mod-space-compact); border-radius: var(--radius-sm); color: var(--color-text-secondary); }
+.maSectionItemActive { color: var(--color-canvas); background: var(--color-text-primary); }
+.maSectionItemDisabled { opacity: .5; }
+.maSectionSoon { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; }
+
+.maDesktopOnly { display: block; }
+.maMobileOnly { display: none; }
+@media (max-width: 767px) {
+  .maDesktopOnly { display: none; }
+  .maMobileOnly { display: block; }
+}
+
+.maNameCell { display: flex; flex-direction: column; gap: 2px; }
+.maSubtle { color: var(--color-text-secondary); font-size: 12px; }
+
+.maMobileCard { display: flex; flex-direction: column; gap: 4px; padding: var(--mod-space-compact); border: 1px solid var(--mod-border); border-radius: var(--radius-sm); margin-bottom: var(--space-2); cursor: pointer; }
+.maMobileCard:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+.maMobileName { font-weight: 600; }
+.maMobileMeta { color: var(--color-text-secondary); font-size: 12.5px; }
+
+.maBadge { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; }
+.maBadgeInvited { background: var(--color-warning-soft, #fff3cd); color: var(--color-warning-strong, #8a6d1a); }
+.maBadgePending { background: var(--color-accent-soft, #e6f0ff); color: var(--color-accent-primary, #1a56db); }
+.maBadgeActive { background: var(--color-success-soft, #e3f7e8); color: var(--color-success-strong, #1a7f37); }
+.maBadgeInactive { background: var(--color-critical-soft, #fde2e2); color: var(--color-critical, #c22); }
+
+.maDetail, .maConfirm { margin-top: var(--mod-space-control-gap); padding: var(--mod-space-control-gap); border: 1px solid var(--mod-border-strong); border-radius: var(--radius-sm); background: var(--mod-surface-panel-2); display: flex; flex-direction: column; gap: var(--space-2); }
+.maDetailHead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.maDetailHead h2 { margin: 0; font-size: 16px; }
+.maDetailField { display: flex; justify-content: space-between; gap: var(--space-2); padding: 4px 0; border-bottom: 1px solid var(--mod-border); }
+.maDetailLabel { color: var(--color-text-secondary); font-size: 12.5px; }
+.maDetailValue { font-weight: 500; }
+.maDetailActions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
+.maWarnNote { color: var(--color-warning-strong, #8a6d1a); font-size: 12.5px; }
+.maFieldError { color: var(--mod-critical); font-size: 12.5px; }
+
+.maConfirm h3 { margin: 0; font-size: 15px; }
+
+@media (max-width: 480px) {
+  .maDetailActions { flex-direction: column; }
+  .maDetailActions .modBtn, .maDetailActions .modBtnGhost { width: 100%; }
+}

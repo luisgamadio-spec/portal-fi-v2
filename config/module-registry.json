@@ -44,16 +44,16 @@
       "density": "MEDIUM-HIGH",
       "authRequirement": "session + MASTER role (server-enforced)",
       "designPattern": "no Approved Reference yet — largest, most complex real surface (389KB portal-app.js)",
-      "entryPoint": "NOT YET CREATED in V2",
+      "entryPoint": "assets/js/shell-admin.js + assets/css/shell-admin.css + assets/js/adapters/master-users-provider.js + master-users-view-model.js (Painel Master Phase 2A — Usuários subarea only)",
       "businessSource": "N/A (admin operations, not financial business logic)",
-      "functionalSource": "assets/js/portal-app.js (portal-financiamento-brabus-secure) — admin tabs incl. Usuários, Acessos aos Módulos, Revisões Cadastrais, Configurações, Gestão dos Simuladores, Auditoria",
+      "functionalSource": "assets/js/portal-app.js (ia-reconciliation-v2-local) — a real 17-tab admin workspace (Usuários, Acessos aos Módulos, Revisões Cadastrais, Pendências Cadastrais, Configurações, Períodos de Comissão, Férias/Ausências, Mudança de Loja, Gestão de Bases, Gestão dos Simuladores, Fechamento de Competência, Histórico de Competências, Relatórios RH/DP, Métrica Analista, Utilização dos Simuladores, Auditoria, Futuras Funcionalidades) — corrected count; this entry previously listed only 6 tabs (Painel Master Phase 0/1 audit finding, PORTAL-MASTER-01 Gate 21/22).",
       "approvedReference": null,
-      "migrationWave": 0,
+      "migrationWave": 1,
       "risk": "HIGH",
-      "migrationStatus": "NOT_MIGRATED",
+      "migrationStatus": "PARTIAL — MIGRATED_SCOPE=USERS_ONLY (Painel Master Phase 2A). Read-only real data + mutation UI fully wired against the real, audited RPC contract (docs/MASTER-USERS-RPC-CONTRACT-CAPTURE.md), but zero real mutation has been executed — classified MASTER_USERS_MUTATION_READY, not MUTATION_HOMOLOGATED, not HUMAN_APPROVED. All other 16 tabs remain NOT_MIGRATED.",
       "landingTitle": "Auditoria / Painel Master",
-      "landingDesc": "Log de ações administrativas e configuração do Painel Master (usuários, acessos, revisões cadastrais).",
-      "notes": "V1's shell wraps this via successive stacked JS patches (see PORTAL-NEXT-01/ARCHITECTURE-AUDIT.md Gate 4) — V2's shell must NOT reproduce that accretion pattern. Includes the 'Auditoria' admin-action-log tab (PORTAL-NEXT-01.1 finding: real, but a tab, not a standalone module)."
+      "landingDesc": "Administração de usuários e acessos do Portal F&I.",
+      "notes": "V1's shell wraps this via successive stacked JS patches (see PORTAL-NEXT-01/ARCHITECTURE-AUDIT.md Gate 4) — V2's shell must NOT reproduce that accretion pattern. Includes the 'Auditoria' admin-action-log tab (PORTAL-NEXT-01.1 finding: real, but a tab, not a standalone module). Painel Master Phase 2A implements only the Usuários subarea (list/search/filter/detail, invite/edit/block wired but not mutation-homologated) — the router is flat (one hash segment per module id, '#/shell-admin'; this entry's own 'route':'/admin' field is documentation-only, never consumed by code); future subareas are internal view state within shell-admin.js, not separate registry entries."
     },
     {
       "id": "score",
