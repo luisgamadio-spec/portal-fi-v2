@@ -92,6 +92,33 @@
     });
   }
 
+  // Dashbi Phase 2 (Real Data Integration Foundation) -- the ONE place
+  // transport is decided, same rule as gestao.js's own isRealTransport()
+  // (Gate 4 there): real whenever Auth Foundation has a real session
+  // configured, fixture otherwise. renderSeq/realOut guard against a
+  // stale async response overwriting a newer one (period/preset changes
+  // invalidate realOut and bump renderSeq via loadReal()).
+  function isRealTransport() {
+    return !!(window.NX_AUTH && window.NX_AUTH.isAuthConfigured);
+  }
+  var renderSeq = 0;
+  var realOut = null;
+
+  var STATE_COPY = {
+    PERMISSION_DENIED: { title: 'Sem permissão', body: 'Sua conta não tem acesso a esta análise.' },
+    INVALID_FILTER: { title: 'Filtro inválido', body: 'Verifique o período selecionado.' },
+    SCOPE_EMPTY: { title: 'Nenhum lote disponível', body: 'Ainda não há dados validados para análise.' },
+    BACKEND_ERROR: { title: 'Não foi possível carregar', body: 'Não foi possível carregar esse período. Tente selecionar um intervalo menor ou tente novamente.' },
+    SESSION_EXPIRED: { title: 'Sessão expirada', body: 'Entre novamente para continuar.' }
+  };
+  function loadingHtml() {
+    return '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando indicadores...</div>';
+  }
+  function errorStateHtml(state, message) {
+    var copy = STATE_COPY[state] || STATE_COPY.BACKEND_ERROR;
+    return '<div class="modErrorState"><div class="modStateTitle">' + esc(copy.title) + '</div>' + esc(copy.body) + '</div>';
+  }
+
   function loadFixtures() {
     if (fixturesData) return Promise.resolve(fixturesData);
     return fetch('tests/fixtures/dashbi-fixtures.json')
@@ -521,27 +548,46 @@
       '<p class="dbMuted">Classificação oficial por operação, mesma prioridade de Análise F&I do Grupo e Coparticipado: Código IF 999 ou SUBSIDIADO; Código IF 777 ou REVERSÃO; TC Devolvida 1 ou COPARTICIPADO; Balão PMT maior que zero; demais = LINEAR. Faz parte da Análise por Modelos em produção (mesma seção/aba real), não uma visão geral separada.</p>';
   }
 
-  function modelAnalysisHtml(A, results, counts) {
-    var modelRows = A.modelRowsUnified(results, currentFamily);
-    var planRows = A.planRowsByModel(results, currentFamily);
-    // PORTAL-NEXT-07.4.1 — merge Subsidiado/Coparticipado counts (already
-    // extracted, already computed by planRowsByModel for this same family)
-    // onto modelRowsUnified's rows by matching Modelo, so the PLANOS detail
-    // group can show all 5 categories. Presentation-only merge — neither
-    // function's own output is altered, no new calculation introduced. A
-    // model with no matching planRows entry (not in FAMILY_MODELS' static
-    // list) gets 0 for both. PORTAL-NEXT-07.5.1 removed this family's own
-    // "Quantidade por tipo de plano / Modelo" table (redundant with this
-    // same merge, per explicit human decision — see
-    // docs/MODEL-ANALYSIS-REDUNDANT-SECTIONS-REMOVAL.md); planRows/
-    // planRowsByModel itself stays, still required by this merge.
-    var planByModelo = {};
-    planRows.forEach(function (r) { planByModelo[r.Modelo] = r; });
-    modelRows.forEach(function (r) {
-      var p = planByModelo[r.Modelo];
-      r.subsidiadoQtd = p ? p.Subsidiado : 0;
-      r.coparticipadoQtd = p ? p.Coparticipado : 0;
-    });
+  function modelAnalysisHtml(A, results, counts, isReal) {
+    // Dashbi Phase 2, Gate B3/B7: real transport builds modelRows DIRECTLY
+    // from operational_model_metrics's own real per-model aggregates
+    // (dashbi-real-view-model.js) rather than through modelRowsUnified()'s
+    // fixture-oriented per-transaction reconstruction (which depends on raw
+    // fields -- parcelas/pmt/chassi/valorVenda -- the real RPC deliberately
+    // never returns). Real rows already carry correct subsidiadoQtd/
+    // coparticipadoQtd (from the real plan_breakdown), so the fixture-only
+    // planRowsByModel merge below must be skipped for real transport —
+    // running it would silently zero those fields back out (planRowsByModel
+    // reads results.fins, which real transport never populates with a
+    // per-model dimension).
+    var modelRows = isReal
+      ? window.NX_DASHBI_REAL_VIEW_MODEL.modelRowsForFamily(results, currentFamily)
+      : A.modelRowsUnified(results, currentFamily);
+    if (!isReal) {
+      var planRows = A.planRowsByModel(results, currentFamily);
+      // PORTAL-NEXT-07.4.1 — merge Subsidiado/Coparticipado counts (already
+      // extracted, already computed by planRowsByModel for this same family)
+      // onto modelRowsUnified's rows by matching Modelo, so the PLANOS detail
+      // group can show all 5 categories. Presentation-only merge — neither
+      // function's own output is altered, no new calculation introduced. A
+      // model with no matching planRows entry (not in FAMILY_MODELS' static
+      // list) gets 0 for both. PORTAL-NEXT-07.5.1 removed this family's own
+      // "Quantidade por tipo de plano / Modelo" table (redundant with this
+      // same merge, per explicit human decision — see
+      // docs/MODEL-ANALYSIS-REDUNDANT-SECTIONS-REMOVAL.md); planRows/
+      // planRowsByModel itself stays, still required by this merge.
+      var planByModelo = {};
+      planRows.forEach(function (r) { planByModelo[r.Modelo] = r; });
+      modelRows.forEach(function (r) {
+        var p = planByModelo[r.Modelo];
+        r.subsidiadoQtd = p ? p.Subsidiado : 0;
+        r.coparticipadoQtd = p ? p.Coparticipado : 0;
+      });
+    }
+    // inconsistenciaTritonRows() looks for a literal "INCONSISTÊNCIA
+    // TRITON" sentinel modelo value that only Base01/Base02 cross-
+    // validation (fixture-only, no equivalent for a single real source of
+    // truth) ever produces -- safe to call unchanged, always empty for real.
     var tritonRows = A.inconsistenciaTritonRows(results);
 
     var tritonHtml = '';
@@ -682,10 +728,13 @@
       '</div>';
   }
 
-  function render() {
+  // Dashbi Phase 2 -- renderPanel draws a given, already-computed `out`
+  // (fixture, via A.compute(), or real, via NX_DASHBI_REAL_VIEW_MODEL.
+  // buildRealOut()) into #dbPanel. Kept transport-agnostic: every branch
+  // that actually differs between fixture/real lives in modelAnalysisHtml
+  // (Gate B7) or in the diagnostic footer below, gated by isReal.
+  function renderPanel(out, isReal) {
     var A = window.NX_DASHBI_ADAPTER;
-    var input = buildFixtureInput(currentFixtureId);
-    var out = A.compute(input);
     var panel = document.getElementById('dbPanel');
 
     if (out.blocked) {
@@ -723,7 +772,7 @@
     if (modesForView(currentDeptView).indexOf(currentMode) === -1) currentMode = 'overview';
 
     var complementaryHtml = '';
-    if (currentMode === 'modelos') complementaryHtml = modelAnalysisHtml(A, out, counts);
+    if (currentMode === 'modelos') complementaryHtml = modelAnalysisHtml(A, out, counts, isReal);
     else if (currentMode === 'ranking') complementaryHtml = rankingHtml(A, out, salesView, finsView);
     else if (currentMode === 'novosLoja') complementaryHtml = novosLojaHtml(A, out);
     else complementaryHtml = '<p class="dbMuted dbModeHint">Selecione uma análise complementar acima (Análise por Modelos, Ranking ou Novos por Loja) para abrir seus indicadores.</p>';
@@ -753,19 +802,62 @@
       modeNavHtml() +
       complementaryHtml +
 
-      '<h2>Diagnóstico (dev only)</h2>' +
-      '<p class="dbMuted">DADOS DE TESTE — não faz parte da experiência final. sourceInfo: <span class="dbDiagJson">' + esc(JSON.stringify(out.sourceInfo)) + '</span></p>' +
-      '<p class="dbMuted">Entrada (bases novas): total financiamentos ' + out.entradaDiagnostic.totalFinanciamentos +
-      ' · chassis localizados ' + out.entradaDiagnostic.chassisLocalizados +
-      ' · não localizados ' + out.entradaDiagnostic.chassisNaoLocalizados +
-      ' · taxa de sucesso ' + A.pct(out.entradaDiagnostic.taxaSucesso) + '</p>';
+      (isReal
+        ? '<h2>Diagnóstico</h2><p class="dbMuted">Fonte: backend real (operational_metrics / operational_model_metrics). Escopo: <span class="dbDiagJson">' + esc(JSON.stringify(out.sourceInfo)) + '</span></p>'
+        : '<h2>Diagnóstico (dev only)</h2>' +
+          '<p class="dbMuted">DADOS DE TESTE — não faz parte da experiência final. sourceInfo: <span class="dbDiagJson">' + esc(JSON.stringify(out.sourceInfo)) + '</span></p>' +
+          '<p class="dbMuted">Entrada (bases novas): total financiamentos ' + out.entradaDiagnostic.totalFinanciamentos +
+          ' · chassis localizados ' + out.entradaDiagnostic.chassisLocalizados +
+          ' · não localizados ' + out.entradaDiagnostic.chassisNaoLocalizados +
+          ' · taxa de sucesso ' + A.pct(out.entradaDiagnostic.taxaSucesso) + '</p>');
 
     panel.innerHTML = html;
   }
 
+  // Dashbi Phase 2, Gate B4/B5/B12 -- render() is the single entry point
+  // every UI handler calls. Fixture path stays fully synchronous (Gate C2:
+  // no behavior change, no accidental real network call). Real path fetches
+  // both RPCs for the CURRENT period (p_start/p_end -- Gate B5, fixes the
+  // fixture-era date-filter disconnect where currentDateStart/End never
+  // actually constrained computation) and caches the result in realOut so
+  // a mode/family/view/detail-toggle click (none of which change the
+  // period) re-renders instantly without refetching. Date/preset changes
+  // explicitly clear realOut (see wireEvents/applyPresetAndRender) to force
+  // a fresh fetch. renderSeq guards a stale response from a superseded
+  // fetch (same technique as gestao.js).
+  function render() {
+    if (!isRealTransport()) {
+      var A = window.NX_DASHBI_ADAPTER;
+      var input = buildFixtureInput(currentFixtureId);
+      var out = A.compute(input);
+      renderPanel(out, false);
+      return;
+    }
+    if (realOut) { renderPanel(realOut, true); return; }
+    loadReal();
+  }
+
+  function loadReal() {
+    var mySeq = ++renderSeq;
+    var panel = document.getElementById('dbPanel');
+    if (panel) panel.innerHTML = loadingHtml();
+    window.NX_DASHBI_REAL_PROVIDER.loadDashbiReal({ start: currentDateStart, end: currentDateEnd }).then(
+      function (payload) {
+        if (mySeq !== renderSeq) return;
+        realOut = window.NX_DASHBI_REAL_VIEW_MODEL.buildRealOut(payload.metrics, payload.modelMetrics);
+        renderPanel(realOut, true);
+      },
+      function (err) {
+        if (mySeq !== renderSeq) return;
+        var panel2 = document.getElementById('dbPanel');
+        if (panel2) panel2.innerHTML = errorStateHtml(err && err.state, err && err.message);
+      }
+    );
+  }
+
   function applyPresetAndRender(preset) {
     currentPreset = preset;
-    var today = new Date(2026, 7, 30); // fixed reference date (NEXT_LOCAL fixture mode -- deterministic)
+    var today = new Date(2026, 7, 30); // fixed reference date (NEXT_LOCAL fixture mode -- deterministic; real mode still uses it as "today" for preset math, matching V1's own real production behavior of computing presets off the actual current date -- see wireEvents note)
     var start, end = today;
     if (preset === 'currentMonth') start = new Date(today.getFullYear(), today.getMonth(), 1);
     else if (preset === 'lastMonth') { start = new Date(today.getFullYear(), today.getMonth() - 1, 1); end = new Date(today.getFullYear(), today.getMonth(), 0); }
@@ -778,13 +870,15 @@
       document.getElementById('dbDateEnd').value = currentDateEnd;
     }
     document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.toggle('dbBtnActive', b.dataset.preset === preset); });
+    realOut = null;
     render();
   }
 
   function wireEvents() {
-    document.getElementById('dbFixtureSelect').addEventListener('change', function (e) { currentFixtureId = e.target.value; render(); });
-    document.getElementById('dbDateStart').addEventListener('change', function (e) { currentDateStart = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); }); render(); });
-    document.getElementById('dbDateEnd').addEventListener('change', function (e) { currentDateEnd = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); }); render(); });
+    var fixtureSelect = document.getElementById('dbFixtureSelect');
+    if (fixtureSelect) fixtureSelect.addEventListener('change', function (e) { currentFixtureId = e.target.value; render(); });
+    document.getElementById('dbDateStart').addEventListener('change', function (e) { currentDateStart = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); }); realOut = null; render(); });
+    document.getElementById('dbDateEnd').addEventListener('change', function (e) { currentDateEnd = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); }); realOut = null; render(); });
     document.querySelectorAll('.dbPresetBtn').forEach(function (btn) { btn.addEventListener('click', function () { applyPresetAndRender(btn.dataset.preset); }); });
     document.querySelectorAll('.dbViewBtn').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -826,32 +920,49 @@
     });
   }
 
+  // Dashbi Phase 2, Gate B4 -- pageShellHtml(isFixtureMode) keeps the
+  // fixture banner/selector out of real mode's DOM entirely (no "DADOS DE
+  // TESTE" label over real data), same principle as gestao.js's own
+  // isRealTransport()-gated fixtureBanner.
+  function pageShellHtml(isFixtureMode) {
+    var fixtureBanner = '';
+    if (isFixtureMode) {
+      var fixtureOptions = fixturesData.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === currentFixtureId ? ' selected' : '') + '>' + esc(c.id) + '</option>'; }).join('');
+      fixtureBanner = '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
+        '<label for="dbFixtureSelect">fixture:</label><select id="dbFixtureSelect">' + fixtureOptions + '</select></div>';
+    }
+    return '<div class="dbPage">' +
+      '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise Geral do Grupo</h1><p class="modSubtitle">Visão analítica geral do Grupo Brabus Mitsubishi.</p></div></div>' +
+      fixtureBanner +
+      '<div class="modFilters">' +
+      '<div class="modField"><label>Visão</label><div class="dbViewGroup">' +
+      '<button type="button" class="dbBtn dbViewBtn dbBtnActive" data-view="Grupo">Grupo</button>' +
+      '<button type="button" class="dbBtn dbViewBtn" data-view="Novos">Novos</button>' +
+      '<button type="button" class="dbBtn dbViewBtn" data-view="Seminovos">Seminovos</button>' +
+      '</div></div>' +
+      '<div class="modField"><label>Período rápido</label><div class="dbPresetGroup">' +
+      '<button type="button" class="dbBtn dbPresetBtn" data-preset="currentMonth">Mês atual</button>' +
+      '<button type="button" class="dbBtn dbPresetBtn" data-preset="lastMonth">Mês anterior</button>' +
+      '<button type="button" class="dbBtn dbPresetBtn" data-preset="last6">Últimos 6 meses</button>' +
+      '<button type="button" class="dbBtn dbPresetBtn" data-preset="lastYear">Último ano</button>' +
+      '</div></div>' +
+      '<div class="modField"><label for="dbDateStart">Data inicial</label><input id="dbDateStart" type="date" value="' + currentDateStart + '"></div>' +
+      '<div class="modField"><label for="dbDateEnd">Data final</label><input id="dbDateEnd" type="date" value="' + currentDateEnd + '"></div>' +
+      '</div>' +
+      '<div id="dbPanel"></div>' +
+      '</div>';
+  }
+
   window.NX_DASHBI_PAGE = {
     render: function (outlet) {
+      if (isRealTransport()) {
+        outlet.innerHTML = pageShellHtml(false);
+        wireEvents();
+        render();
+        return Promise.resolve();
+      }
       return loadFixtures().then(function () {
-        var fixtureOptions = fixturesData.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === currentFixtureId ? ' selected' : '') + '>' + esc(c.id) + '</option>'; }).join('');
-        outlet.innerHTML =
-          '<div class="dbPage">' +
-          '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise Geral do Grupo</h1><p class="modSubtitle">Visão analítica geral do Grupo Brabus Mitsubishi.</p></div></div>' +
-          '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
-          '<label for="dbFixtureSelect">fixture:</label><select id="dbFixtureSelect">' + fixtureOptions + '</select></div>' +
-          '<div class="modFilters">' +
-          '<div class="modField"><label>Visão</label><div class="dbViewGroup">' +
-          '<button type="button" class="dbBtn dbViewBtn dbBtnActive" data-view="Grupo">Grupo</button>' +
-          '<button type="button" class="dbBtn dbViewBtn" data-view="Novos">Novos</button>' +
-          '<button type="button" class="dbBtn dbViewBtn" data-view="Seminovos">Seminovos</button>' +
-          '</div></div>' +
-          '<div class="modField"><label>Período rápido</label><div class="dbPresetGroup">' +
-          '<button type="button" class="dbBtn dbPresetBtn" data-preset="currentMonth">Mês atual</button>' +
-          '<button type="button" class="dbBtn dbPresetBtn" data-preset="lastMonth">Mês anterior</button>' +
-          '<button type="button" class="dbBtn dbPresetBtn" data-preset="last6">Últimos 6 meses</button>' +
-          '<button type="button" class="dbBtn dbPresetBtn" data-preset="lastYear">Último ano</button>' +
-          '</div></div>' +
-          '<div class="modField"><label for="dbDateStart">Data inicial</label><input id="dbDateStart" type="date" value="' + currentDateStart + '"></div>' +
-          '<div class="modField"><label for="dbDateEnd">Data final</label><input id="dbDateEnd" type="date" value="' + currentDateEnd + '"></div>' +
-          '</div>' +
-          '<div id="dbPanel"></div>' +
-          '</div>';
+        outlet.innerHTML = pageShellHtml(true);
         wireEvents();
         render();
       });
