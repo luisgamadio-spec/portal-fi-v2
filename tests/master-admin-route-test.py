@@ -80,8 +80,17 @@ window.__MOCK_CALLS__ = { signIn: 0, getSession: 0, rpc: [] };
 """
 
 
+REAL_NETWORK_TRIPWIRE_HOSTS = ("supabase.co", "challenges.cloudflare.com")
+real_network_hits = []
+
+
 def new_page(browser, mock_state):
     page = browser.new_page(viewport={"width": 1366, "height": 900})
+    # requestfinished, not request: an aborted request (the routes
+    # below) still fires "request" even though zero bytes reach a real
+    # server -- requestfinished only fires for one that wasn't aborted.
+    page.on("requestfinished", lambda req: real_network_hits.append(req.url)
+            if any(h in req.url for h in REAL_NETWORK_TRIPWIRE_HOSTS) else None)
     page.add_init_script(CONFIG_SCRIPT)
     page.add_init_script("window.__MOCK__ = " + mock_state + ";")
     page.add_init_script(MOCK_CLIENT_SCRIPT)
@@ -101,18 +110,21 @@ def new_page(browser, mock_state):
     # REAL production project, auth-boundary.js's own
     # window.supabase.createClient(...) then creates a REAL client,
     # and a real signInWithPassword call reaches the real backend
-    # (confirmed directly: a real POST to
+    # (confirmed directly, in a throwaway standalone repro script that
+    # lacked this route: a real POST to
     # https://yacqlelpzchcotgngwbh.supabase.co/auth/v1/token was
-    # observed before this route.abort() was added, rejected by
-    # Supabase's own bot-protection as CAPTCHA_FAILED -- a real,
-    # unintended network interaction, not a mock). Blocking the CDN
-    # script here keeps this file's own mock authoritative for the
-    # whole test -- confirmed zero *.supabase.co requests with this
-    # route in place. This is a real, pre-existing test-infrastructure
-    # gap (tests/auth-foundation-test.py has the identical exposure,
-    # unmodified and unfixed here per this Phase's "don't touch
-    # unrelated files" discipline) -- flagged in the final report, not
-    # silently patched elsewhere.
+    # observed, rejected by Supabase's own bot-protection as
+    # CAPTCHA_FAILED). CORRECTION (Painel Master Phase 2B): this is
+    # NOT a gap in tests/auth-foundation-test.py or
+    # tests/turnstile-captcha-test.py -- both already carry the
+    # equivalent "**/supabase-js@*" route (present since the original
+    # Auth Foundation wave, `git log` confirms) and both pass cleanly
+    # with a real network tripwire attached. The real network hit
+    # observed in Phase 2A came from this file's own throwaway
+    # diagnostic script, written without copying that established
+    # protection -- a debugging methodology gap, not a product/test
+    # defect. This file's own equivalent block below (and the
+    # tripwire further down) is correct defense-in-depth regardless.
     page.route("**/cdn.jsdelivr.net/npm/@supabase/supabase-js**", lambda route: route.abort())
     return page
 
@@ -218,6 +230,10 @@ def main():
         page.close()
 
         browser.close()
+
+    check("36: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
+    if real_network_hits:
+        print("[TRIPWIRE] real network hit(s) detected:", real_network_hits)
 
     total = len(results)
     passed = sum(1 for _, ok in results if ok)

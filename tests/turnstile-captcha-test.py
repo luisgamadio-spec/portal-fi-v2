@@ -121,8 +121,26 @@ window.turnstile = {
 """ % (mode, token, mode, mode)
 
 
+# Painel Master Phase 2B, Gate 0/4 -- deterministic network tripwire:
+# any request that actually COMPLETES against a real Supabase project
+# or real Cloudflare Turnstile is recorded and asserted empty at the
+# end of main(). Listens on "requestfinished" specifically, not
+# "request" -- this file deliberately aborts challenges.cloudflare.com
+# in some scenarios (turnstile_script=None, exercising the real-load-
+# failure path) via route.abort(), and an aborted request still fires
+# a "request" event (Playwright's CDP interception happens before the
+# browser ever opens a socket) even though zero bytes reach a real
+# server; "requestfinished" only fires for a request that was NOT
+# aborted, i.e. one that genuinely got a response -- the actual danger
+# signal this tripwire exists to catch.
+REAL_NETWORK_TRIPWIRE_HOSTS = ("supabase.co", "challenges.cloudflare.com")
+real_network_hits = []
+
+
 def new_page(browser, config_script, mock_state, turnstile_script=None):
     page = browser.new_page(viewport={"width": 1366, "height": 800})
+    page.on("requestfinished", lambda req: real_network_hits.append(req.url)
+            if any(h in req.url for h in REAL_NETWORK_TRIPWIRE_HOSTS) else None)
     page.route("**/supabase-js@*", lambda route: route.abort())
     # Both the committed default (assets/js/intelligence-runtime-
     # config.js) and the ambient .local.js are real <script> tags that
@@ -297,6 +315,10 @@ def main():
         page.close()
 
         browser.close()
+
+    check("22: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
+    if real_network_hits:
+        print("[TRIPWIRE] real network hit(s) detected:", real_network_hits)
 
     print()
     passed = sum(1 for _, c in results if c)

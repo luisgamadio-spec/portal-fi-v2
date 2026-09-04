@@ -97,8 +97,36 @@ window.__MOCK_CALLS__ = { signIn: 0, getSession: 0, rpc: [] };
 """
 
 
+# Painel Master Phase 2B, Gate 0/4 -- network tripwire: a deterministic,
+# automatic proof that this suite never reaches a real backend, rather
+# than relying solely on route.abort() to silently prevent it. Any
+# request whose host matches a real Supabase project or Cloudflare
+# Turnstile is recorded here and asserted empty at the very end of
+# main() -- if the CDN-block below (or any future page created outside
+# new_page()) ever fails to keep the mock authoritative, this makes the
+# whole suite fail loudly instead of masking a real network call behind
+# a passing-looking captcha/auth-state assertion (exactly how the
+# Painel Master Phase 2A investigation's own throwaway repro script
+# missed this: it never had this or the route-block, so a real
+# signInWithPassword reached yacqlelpzchcotgngwbh.supabase.co
+# undetected).
+# Listens on "requestfinished" specifically, not "request" -- an
+# aborted request (this file's own **/supabase-js@* block) still
+# fires a "request" event even though zero bytes reach a real server;
+# "requestfinished" only fires for a request that was NOT aborted, the
+# actual danger signal this tripwire exists to catch.
+REAL_NETWORK_TRIPWIRE_HOSTS = ("supabase.co", "challenges.cloudflare.com")
+real_network_hits = []
+
+
+def _install_tripwire(page):
+    page.on("requestfinished", lambda req: real_network_hits.append(req.url)
+            if any(h in req.url for h in REAL_NETWORK_TRIPWIRE_HOSTS) else None)
+
+
 def new_page(browser, mock_state, viewport=None):
     page = browser.new_page(viewport=viewport or {"width": 1366, "height": 800})
+    _install_tripwire(page)
     # The real @supabase/supabase-js UMD bundle (index.html's own CDN
     # <script>) loads AFTER add_init_script's injected scripts (normal
     # document order) and unconditionally reassigns window.supabase,
@@ -286,6 +314,8 @@ def main():
         # default (assets/js/intelligence-runtime-config.js) to be
         # what's actually in effect.
         page = browser.new_page(viewport={"width": 1366, "height": 800})
+        _install_tripwire(page)
+        page.route("**/supabase-js@*", lambda route: route.abort())
         page.route("**/intelligence-runtime-config.local.js", lambda route: route.abort())
         page.goto(BASE)
         page.wait_for_function("window.NX_AUTH_CORE && window.NX_AUTH_CORE.getState() === 'AUTH_NOT_CONFIGURED'", timeout=3000)
@@ -296,6 +326,10 @@ def main():
         page.close()
 
         browser.close()
+
+    check("28: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
+    if real_network_hits:
+        print("[TRIPWIRE] real network hit(s) detected:", real_network_hits)
 
     print()
     passed = sum(1 for _, c in results if c)
