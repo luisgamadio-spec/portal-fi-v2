@@ -17,17 +17,64 @@
   // transport is decided, same rule as gestao.js/dashbi.js/
   // coparticipado.js's own isRealTransport(). renderSeq/realResult/
   // currentAbortController guard against a stale/superseded async
-  // response overwriting a newer one. Score has no product filter UI
-  // (Phase 1, confirmed) and Gate 6 (Phase 2A) proved a direct, real,
-  // evidence-based default period (SCORE_DATE_CONTRACT_DIRECT) -- so,
-  // unlike Coparticipado, there is no date/store/dept state to track
-  // here; the real provider applies its own proven default internally.
+  // response overwriting a newer one.
   function isRealTransport() {
     return !!(window.NX_AUTH && window.NX_AUTH.isAuthConfigured);
   }
   var renderSeq = 0;
   var realResult = null;
   var currentAbortController = null;
+
+  // Score Phase 2B (Period Filter Contract) -- real period selection.
+  // Gate 5: no single unified default exists across the already-
+  // homologated analytical modules (Dashbi defaults to the full
+  // calendar year 2026-01-01..2026-12-31; Gestão to 2026-01-01..
+  // 2026-06-30 -- confirmed by direct read of each module's own initial
+  // state, not assumed). Score's own default (2026-06-01..today) is
+  // ALREADY real-MASTER human-tested and approved from Phase 2A's own
+  // UAT -- preserved here as the initial state rather than introduced
+  // as a new, unproven behavior; only the picker itself is new.
+  // currentPreset stays 'CUSTOM' until a quick-period button is used
+  // (same convention as dashbi.js/gestao.js).
+  var SCORE_DEFAULT_DATE_START = '2026-06-01';
+  function todayIso() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  var currentPreset = 'CUSTOM';
+  var currentDateStart = SCORE_DEFAULT_DATE_START;
+  var currentDateEnd = todayIso();
+
+  function isValidIsoDate(s) {
+    return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + 'T00:00:00').getTime());
+  }
+  // Gate 6: required, valid, start<=end -- checked client-side BEFORE
+  // any request is made (no request on an invalid contract).
+  function dateContractError() {
+    if (!currentDateStart) return 'Selecione a data inicial.';
+    if (!currentDateEnd) return 'Selecione a data final.';
+    if (!isValidIsoDate(currentDateStart) || !isValidIsoDate(currentDateEnd)) return 'Data inválida.';
+    if (currentDateStart > currentDateEnd) return 'A data inicial deve ser anterior ou igual à data final.';
+    return null;
+  }
+
+  // Same day-math as dashbi.js's own applyPresetAndRender (Gate 3 audit
+  // -- reused verbatim, not reinvented), except computed off the
+  // GENUINE current date (real production's own real-mode behavior,
+  // per Phase 2A Gate 5's reading of modules/score.html) rather than a
+  // fixture-fixed reference date -- Score's fixture mode is scenario-
+  // based, not date-driven, so there is no fixture-determinism need a
+  // pinned date would serve here.
+  function computePreset(preset) {
+    var today = new Date();
+    var start, end = today;
+    if (preset === 'currentMonth') start = new Date(today.getFullYear(), today.getMonth(), 1);
+    else if (preset === 'lastMonth') { start = new Date(today.getFullYear(), today.getMonth() - 1, 1); end = new Date(today.getFullYear(), today.getMonth(), 0); }
+    else if (preset === 'last6') start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+    else if (preset === 'lastYear') start = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+    if (!start) return null;
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  }
 
   // Gate 8 runtime-state vocabulary (LOADING/SUCCESS/EMPTY/AUTH_DENIED/
   // SESSION_EXPIRED/RPC_ERROR/TIMEOUT/MALFORMED_RESPONSE). EMPTY is not
@@ -47,6 +94,12 @@
   function errorStateHtml(state, message) {
     var copy = STATE_COPY[state] || STATE_COPY.RPC_ERROR;
     return '<div class="modErrorState"><div class="modStateTitle">' + esc(copy.title) + '</div>' + esc(copy.body) + '</div>';
+  }
+  // Gate 6 -- purely local, no request made; distinct from the
+  // transport-level STATE_COPY above (this is a client-side contract
+  // violation, never a backend response).
+  function invalidFilterHtml(message) {
+    return '<div class="modErrorState"><div class="modStateTitle">Período inválido</div>' + esc(message) + '</div>';
   }
 
   function esc(s) {
@@ -209,6 +262,17 @@
       renderPanel(window.NX_SCORE_ADAPTER.compute(caseData.sales, caseData.fins));
       return;
     }
+    // Gate 6: invalid contract -> no request, local error only.
+    var filterErr = dateContractError();
+    if (filterErr) {
+      if (currentAbortController) currentAbortController.abort();
+      ++renderSeq;
+      var badRegion = document.getElementById('scTableRegion');
+      if (badRegion) badRegion.innerHTML = invalidFilterHtml(filterErr);
+      var badDetail = document.getElementById('scDetailRegion');
+      if (badDetail) badDetail.innerHTML = '';
+      return;
+    }
     if (realResult) { renderPanel(realResult); return; }
     loadReal();
   }
@@ -218,6 +282,9 @@
   // normalizeFinInput() + FROZEN calcScores() (NX_SCORE_ADAPTER.compute,
   // untouched) -> existing presentation. No calculation happens in this
   // file or in the view-model (Gate: PROIBIDO duplicar calcScores()).
+  // Gate 7: every valid period change reaches this function via
+  // realResult=null (set by the filter handlers below) -- no partial
+  // recompute, no client-side filtering of a previous period's dataset.
   function loadReal() {
     if (currentAbortController) currentAbortController.abort();
     var controller = new AbortController();
@@ -228,7 +295,7 @@
     var detailRegion = document.getElementById('scDetailRegion');
     if (detailRegion) detailRegion.innerHTML = '';
 
-    window.NX_SCORE_REAL_PROVIDER.loadScoreReal({ signal: controller.signal }).then(
+    window.NX_SCORE_REAL_PROVIDER.loadScoreReal({ start: currentDateStart, end: currentDateEnd, signal: controller.signal }).then(
       function (payload) {
         if (mySeq !== renderSeq) return;
         var mapped;
@@ -249,6 +316,31 @@
         if (region2) region2.innerHTML = errorStateHtml(err && err.state, err && err.message);
       }
     );
+  }
+
+  // Gate 11 (critical): any period change closes an open detail rather
+  // than risk pairing a stale breakdown with the new period's ranking --
+  // deterministic, matches Coparticipado's own real-mode date-change
+  // handlers (realResult=null + re-render) plus this file's own
+  // openDetail/closeDetail contract.
+  function onPeriodChanged() {
+    currentDetailKey = null;
+    realResult = null;
+    render();
+  }
+
+  function applyPresetAndRender(preset) {
+    var computed = computePreset(preset);
+    if (!computed) return;
+    currentPreset = preset;
+    currentDateStart = computed.start;
+    currentDateEnd = computed.end;
+    var dsEl = document.getElementById('scDateStart');
+    var deEl = document.getElementById('scDateEnd');
+    if (dsEl) dsEl.value = currentDateStart;
+    if (deEl) deEl.value = currentDateEnd;
+    document.querySelectorAll('.scPresetBtn').forEach(function (b) { b.classList.toggle('modSegItemActive', b.dataset.preset === preset); });
+    onPeriodChanged();
   }
 
   function openDetail(key) {
@@ -297,6 +389,44 @@
     // appear in real mode, same isRealTransport()-gated shell principle
     // already used by gestao.js/dashbi.js/coparticipado.js.
     render: function (outlet) {
+      // Gate 3/16 (Phase 2B): reuses the exact canonical filter-bar
+      // pattern already homologated in dashbi.js/gestao.js (.modFilters/
+      // .modField wrapper, shared .modSegmentedGroup/.modSegItem preset
+      // control, <input type="date"> pair) -- zero new CSS, zero
+      // redesign. Real-mode only: fixture mode is scenario-based (12
+      // canned cases with no per-record date field, Phase 1/2A), so a
+      // period picker has nothing to filter there.
+      function periodFilterHtml() {
+        return '<div class="modFilters">' +
+          '<div class="modField"><label>Período rápido</label><div class="modSegmentedGroup">' +
+          '<button type="button" class="modSegItem scPresetBtn" data-preset="currentMonth">Mês atual</button>' +
+          '<button type="button" class="modSegItem scPresetBtn" data-preset="lastMonth">Mês anterior</button>' +
+          '<button type="button" class="modSegItem scPresetBtn" data-preset="last6">Últimos 6 meses</button>' +
+          '<button type="button" class="modSegItem scPresetBtn" data-preset="lastYear">Último ano</button>' +
+          '</div></div>' +
+          '<div class="modField"><label for="scDateStart">Data inicial</label><input id="scDateStart" type="date" value="' + esc(currentDateStart) + '"></div>' +
+          '<div class="modField"><label for="scDateEnd">Data final</label><input id="scDateEnd" type="date" value="' + esc(currentDateEnd) + '"></div>' +
+          '</div>';
+      }
+
+      function wireFilterEvents() {
+        document.getElementById('scDateStart').addEventListener('change', function (e) {
+          currentDateStart = e.target.value;
+          currentPreset = 'CUSTOM';
+          document.querySelectorAll('.scPresetBtn').forEach(function (b) { b.classList.remove('modSegItemActive'); });
+          onPeriodChanged();
+        });
+        document.getElementById('scDateEnd').addEventListener('change', function (e) {
+          currentDateEnd = e.target.value;
+          currentPreset = 'CUSTOM';
+          document.querySelectorAll('.scPresetBtn').forEach(function (b) { b.classList.remove('modSegItemActive'); });
+          onPeriodChanged();
+        });
+        document.querySelectorAll('.scPresetBtn').forEach(function (btn) {
+          btn.addEventListener('click', function () { applyPresetAndRender(btn.dataset.preset); });
+        });
+      }
+
       function paintShell(isFixtureMode) {
         currentDetailKey = null;
         var fixtureBanner = '';
@@ -310,11 +440,14 @@
           '<div class="scPage">' +
           '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise de Score Vendedores</h1><p class="modSubtitle">Ranking de performance F&amp;I por vendedor.</p></div></div>' +
           fixtureBanner +
+          (isFixtureMode ? '' : periodFilterHtml()) +
           '<div id="scTableRegion"></div>' +
           '<div id="scDetailRegion"></div>' +
           '</div>';
         if (isFixtureMode) {
           document.getElementById('scFixtureSelect').addEventListener('change', render);
+        } else {
+          wireFilterEvents();
         }
         render();
       }
