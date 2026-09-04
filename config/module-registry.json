@@ -90,7 +90,7 @@
       "route": "/coparticipado",
       "title": "Gestão de Coparticipados & Subsidiados",
       "density": "MEDIUM (filtered table + 3-stat summary on the Subsidiados view) — see docs/COPARTICIPADO-ENGINE-AUDIT.md; data-table.md's HIGH-density Ambient-Motion-OFF rule applied to the table region regardless (0 canvas mounted on this route)",
-      "authRequirement": "session + role scope (NOT implemented this Wave — 0 backend, local fixtures only, same boundary as Score)",
+      "authRequirement": "session + role scope, server-enforced (Coparticipado Phase 2, Real Data Integration Foundation: real transport wired against operational_score_coparticipated_data, shared with Score, gated server-side by analiseScoreVendedores -- as of Phase 1C the coparticipadoPortal matrix is fully aligned with it across every catalog profile; fixture transport remains the deterministic-test default per isRealTransport())",
       "designPattern": "data-table (Approved normative pattern, same one Score uses) — NO executable Approved Reference exists for Coparticipado; NORMATIVE COMPLIANCE reported, not VISUAL PARITY, per Gate 43",
       "entryPoint": "assets/js/coparticipado.js + assets/css/coparticipado.css + assets/js/adapters/coparticipado.adapter.js (PORTAL-NEXT-05)",
       "businessSource": "modules/coparticipado.html — classifyPlan/processFins/processSales/matchB3/calcCoparticipacaoDetalhe and 5 more pure functions (40 total incl. display/filter helpers) — EXTRACTED this phase, byte-identical, from origin/main (NOT the local clone, proved divergent — see docs/COPARTICIPADO-ENGINE-AUDIT.md)",

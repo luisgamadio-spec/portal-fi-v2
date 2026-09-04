@@ -119,6 +119,19 @@ def main():
         page = browser.new_page(viewport={"width": 1920, "height": 1080})
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
+        # Coparticipado Phase 2, Gate 20 (test-harness debt, isolated in
+        # Phase 1): Auth Foundation's shell-wide route-guard generalization
+        # (an earlier, unrelated Wave) now gates the whole app; with the
+        # current .local.js real-credentials override active, the app
+        # boots to SIGNED_OUT/Login instead of the historically inert
+        # AUTH_NOT_CONFIGURED state this test always relied on, so #nxRoot
+        # never mounts. This test's own purpose (fixture presentation
+        # parity) never depended on auth -- block the local override so it
+        # reaches the same inert state it always relied on. Identical
+        # technique already established for the two Intelligence tests
+        # (Dashbi Phase 1, Part 0) and auth-foundation-test.py's own
+        # scenario 26.
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.abort())
         page.goto(URL)
         page.wait_for_timeout(500)
 

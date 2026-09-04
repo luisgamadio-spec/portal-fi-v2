@@ -47,6 +47,34 @@
   var currentDateStart = '';
   var currentDateEnd = '2026-12-31';
 
+  // Coparticipado Phase 2 (Real Data Integration Foundation) -- the ONE
+  // place transport is decided, same rule as gestao.js/dashbi.js's own
+  // isRealTransport(). renderSeq/realResult/currentAbortController guard
+  // against a stale or superseded async response overwriting a newer
+  // one; date-range changes invalidate realResult and abort any
+  // in-flight request (Gate 12 -- this is a new provider, so proper
+  // cancellation is used from the start rather than retrofitted).
+  function isRealTransport() {
+    return !!(window.NX_AUTH && window.NX_AUTH.isAuthConfigured);
+  }
+  var renderSeq = 0;
+  var realResult = null;
+  var currentAbortController = null;
+
+  var STATE_COPY = {
+    PERMISSION_DENIED: { title: 'Sem permissão', body: 'Sua conta não tem acesso a esta análise.' },
+    INVALID_FILTER: { title: 'Filtro inválido', body: 'Verifique o período selecionado.' },
+    BACKEND_ERROR: { title: 'Não foi possível carregar', body: 'Não foi possível carregar esse período. Tente selecionar um intervalo menor ou tente novamente.' },
+    SESSION_EXPIRED: { title: 'Sessão expirada', body: 'Entre novamente para continuar.' }
+  };
+  function loadingHtml() {
+    return '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando indicadores...</div>';
+  }
+  function errorStateHtml(state, message) {
+    var copy = STATE_COPY[state] || STATE_COPY.BACKEND_ERROR;
+    return '<div class="modErrorState"><div class="modStateTitle">' + esc(copy.title) + '</div>' + esc(copy.body) + '</div>';
+  }
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c;
@@ -208,9 +236,11 @@
     }).join('');
   }
 
-  function render() {
-    var input = buildFixtureInput(currentFixtureId);
-    var result = window.NX_COPARTICIPADO_ADAPTER.compute(input);
+  // Transport-agnostic: draws a given, already-computed {sales, fins}
+  // result into #cpPanel. Every branch that actually differs between
+  // fixture/real transport lives upstream (buildFixtureInput+compute()
+  // vs. the real provider+view-model), not here.
+  function renderPanel(result) {
     var filteredFins = applyFilters(result.fins);
 
     populateStoreOptions(result.fins, result.sales);
@@ -229,50 +259,124 @@
     document.getElementById('cpTabSubs').addEventListener('click', function () { currentView = 'SUBSIDIADO'; render(); });
   }
 
+  // render() is the single entry point every UI handler calls. Fixture
+  // path stays fully synchronous (Gate 19: no behavior change, no
+  // accidental real network call). Real path fetches for the CURRENT
+  // period (p_start/p_end) and caches the result in realResult so a
+  // view-switch/loja/departamento change (none of which change the
+  // period, and the RPC accepts no store/dept override -- Gate 7/18)
+  // re-renders instantly without refetching. Date-range changes
+  // explicitly clear realResult and abort any in-flight request.
+  function render() {
+    if (!isRealTransport()) {
+      var input = buildFixtureInput(currentFixtureId);
+      var result = window.NX_COPARTICIPADO_ADAPTER.compute(input);
+      renderPanel(result);
+      return;
+    }
+    if (realResult) { renderPanel(realResult); return; }
+    loadReal();
+  }
+
+  function loadReal() {
+    if (currentAbortController) currentAbortController.abort();
+    var controller = new AbortController();
+    currentAbortController = controller;
+    var mySeq = ++renderSeq;
+    var panel = document.getElementById('cpPanel');
+    if (panel) panel.innerHTML = loadingHtml();
+    window.NX_COPARTICIPADO_REAL_PROVIDER.loadCoparticipadoReal({
+      start: currentDateStart, end: currentDateEnd, signal: controller.signal
+    }).then(
+      function (payload) {
+        if (mySeq !== renderSeq) return;
+        realResult = window.NX_COPARTICIPADO_REAL_VIEW_MODEL.buildRealResult(payload);
+        renderPanel(realResult);
+      },
+      function (err) {
+        if (mySeq !== renderSeq) return;
+        if (err && err.state === 'ABORTED') return; // Gate 12: not a user-facing error
+        var panel2 = document.getElementById('cpPanel');
+        if (panel2) panel2.innerHTML = errorStateHtml(err && err.state, err && err.message);
+      }
+    );
+  }
+
   function wireFilterEvents() {
-    document.getElementById('cpFixtureSelect').addEventListener('change', function (e) {
-      currentFixtureId = e.target.value;
-      render();
-    });
+    var fixtureSelect = document.getElementById('cpFixtureSelect');
+    if (fixtureSelect) {
+      fixtureSelect.addEventListener('change', function (e) {
+        currentFixtureId = e.target.value;
+        render();
+      });
+    }
     document.getElementById('cpStoreFilter').addEventListener('change', function (e) {
+      // Subtractive-only over the already-authorized dataset (Gate 18) --
+      // no refetch needed, the RPC has no store override parameter.
       currentStore = e.target.value;
       render();
     });
     document.getElementById('cpDeptFilter').addEventListener('change', function (e) {
+      // Same as above -- subtractive-only, no department override exists
+      // on the RPC either.
       currentDept = e.target.value;
       render();
     });
     document.getElementById('cpDateStart').addEventListener('change', function (e) {
       currentDateStart = e.target.value;
+      realResult = null; // period changed -- server scope itself changes, must refetch
       render();
     });
     document.getElementById('cpDateEnd').addEventListener('change', function (e) {
       currentDateEnd = e.target.value;
+      realResult = null;
       render();
     });
   }
 
+  // Gate 8/19: pageShellHtml(isFixtureMode) keeps the fixture banner/
+  // selector out of real mode's DOM entirely, same principle as gestao.js/
+  // dashbi.js's own isRealTransport()-gated shell.
+  function pageShellHtml(isFixtureMode) {
+    var fixtureBanner = '';
+    if (isFixtureMode) {
+      var options = ['<option value="ALL">combinado (todos os cenários)</option>'].concat(
+        fixturesData.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.id) + '</option>'; })
+      ).join('');
+      fixtureBanner = '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
+        '<label for="cpFixtureSelect">fixture:</label>' +
+        '<select id="cpFixtureSelect">' + options + '</select></div>';
+    }
+    return '<div class="cpPage">' +
+      '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Gestão de Coparticipados &amp; Subsidiados</h1><p class="modSubtitle">Módulo financeiro · Portal F&amp;I Grupo Brabus Mitsubishi</p></div></div>' +
+      fixtureBanner +
+      '<div class="modFilters">' +
+      '<div class="modField"><label for="cpStoreFilter">Loja</label><select id="cpStoreFilter"><option value="">Todas as lojas</option></select></div>' +
+      '<div class="modField"><label for="cpDeptFilter">Departamento</label><select id="cpDeptFilter">' +
+      '<option value="Grupo" selected>Grupo</option><option value="Novos">Novos</option><option value="Seminovos">Seminovos</option></select></div>' +
+      '<div class="modField"><label for="cpDateStart">Data inicial</label><input id="cpDateStart" type="date" value="' + esc(currentDateStart) + '"></div>' +
+      '<div class="modField"><label for="cpDateEnd">Data final</label><input id="cpDateEnd" type="date" value="' + esc(currentDateEnd) + '"></div>' +
+      '</div>' +
+      '<div class="cpPanel" id="cpPanel"></div>' +
+      '</div>';
+  }
+
   window.NX_COPARTICIPADO_PAGE = {
     render: function (outlet) {
+      if (isRealTransport()) {
+        // The RPC requires a non-null p_start (Phase 1B, Gate 7) --
+        // fixture mode's own '' default ("no lower bound", a pure
+        // client-side predicate) has no real-transport equivalent, so
+        // real mode gets a concrete default here, at render() call time
+        // only -- fixture mode's own default is untouched (Gate 19).
+        if (!currentDateStart) currentDateStart = '2026-01-01';
+        outlet.innerHTML = pageShellHtml(false);
+        wireFilterEvents();
+        render();
+        return Promise.resolve();
+      }
       return loadFixtures().then(function () {
-        var options = ['<option value="ALL">combinado (todos os cenários)</option>'].concat(
-          fixturesData.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.id) + '</option>'; })
-        ).join('');
-        outlet.innerHTML =
-          '<div class="cpPage">' +
-          '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Gestão de Coparticipados &amp; Subsidiados</h1><p class="modSubtitle">Módulo financeiro · Portal F&amp;I Grupo Brabus Mitsubishi</p></div></div>' +
-          '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
-          '<label for="cpFixtureSelect">fixture:</label>' +
-          '<select id="cpFixtureSelect">' + options + '</select></div>' +
-          '<div class="modFilters">' +
-          '<div class="modField"><label for="cpStoreFilter">Loja</label><select id="cpStoreFilter"><option value="">Todas as lojas</option></select></div>' +
-          '<div class="modField"><label for="cpDeptFilter">Departamento</label><select id="cpDeptFilter">' +
-          '<option value="Grupo" selected>Grupo</option><option value="Novos">Novos</option><option value="Seminovos">Seminovos</option></select></div>' +
-          '<div class="modField"><label for="cpDateStart">Data inicial</label><input id="cpDateStart" type="date"></div>' +
-          '<div class="modField"><label for="cpDateEnd">Data final</label><input id="cpDateEnd" type="date" value="2026-12-31"></div>' +
-          '</div>' +
-          '<div class="cpPanel" id="cpPanel"></div>' +
-          '</div>';
+        outlet.innerHTML = pageShellHtml(true);
         wireFilterEvents();
         render();
       });

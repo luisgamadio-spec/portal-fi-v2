@@ -137,6 +137,14 @@
     processFins: processFins,
     calcCoparticipacaoDetalhe: calcCoparticipacaoDetalhe,
     findTaxaCopart: findTaxaCopart,
+    // Coparticipado Phase 2 (Real Data Integration Foundation): exposed
+    // so coparticipado-real-view-model.js can build DATA.taxasCopart's
+    // lookup keys from the real rates[] array the exact same way real
+    // V1 production's own score-coparticipated-secure-adapter.js does
+    // (taxaKey is a page-global there; here it was private to this
+    // module's closure) -- zero behavior change, one more pure
+    // function on the existing export list.
+    taxaKey: taxaKey,
     classifyPlan: classifyPlan,
     parseDate: parseDate,
     money: money,
