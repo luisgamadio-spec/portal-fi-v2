@@ -36,13 +36,46 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch()
 
+        # Score Foundation Phase 0 forensics: the raw reference's own
+        # calcScores() computes `o.retorno += f.retorno + f.receitaSPF`
+        # with NO fallback (unlike the adjacent `f.spfQtd||0` one line
+        # over) -- real production never actually exercises this gap
+        # because its own upstream processFins() builds receitaSPF via
+        # `reduce((s,r)=>s+asNumber(...), 0)`, a numeric-seeded reduce
+        # that makes "receitaSPF missing" structurally impossible in
+        # real data (see score.adapter.js's own PORTAL-NEXT-07.7C
+        # normalizeFinInput() and its header comment, an already-made,
+        # already-documented decision -- calcScores() itself stays
+        # byte-identical/untouched). This test must therefore feed the
+        # SAME real-guaranteed input shape to the golden reference that
+        # real production would actually guarantee, not run the
+        # reference directly against an artificially-impossible raw
+        # fixture shape -- a no-op for every other fixture (already-
+        # numeric receitaSPF passes through unchanged), and the only
+        # correct way to test "does V2 reproduce production math for
+        # data production can actually produce."
+        def as_number(v):
+            if v is None or v == "":
+                return 0
+            if isinstance(v, (int, float)):
+                return v if v == v and v not in (float("inf"), float("-inf")) else 0
+            return 0
+
+        def normalize_fins(fins):
+            out = []
+            for f in fins:
+                f2 = dict(f)
+                f2["receitaSPF"] = as_number(f.get("receitaSPF"))
+                out.append(f2)
+            return out
+
         ref_page = browser.new_page()
         ref_page.goto("http://localhost:8700/PORTAL-NEXT-04/.source/reference-standalone.html")
         goldens = {}
         for case in fixtures:
             goldens[case["id"]] = ref_page.evaluate(
                 "([sales, fins]) => REFERENCE_calcScores(sales, fins)",
-                [case["sales"], case["fins"]],
+                [case["sales"], normalize_fins(case["fins"])],
             )
         ref_page.close()
 

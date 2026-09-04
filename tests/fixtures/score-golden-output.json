@@ -895,15 +895,15 @@
       "vendas": 1,
       "fin": 1,
       "producao": 10000,
-      "retorno": NaN,
-      "spf": NaN,
+      "retorno": 800,
+      "spf": 0,
       "spfQtd": 0,
       "familias": {},
       "plans": {},
       "planCounts": {
         "undefined": 1
       },
-      "score": NaN,
+      "score": 431,
       "scoreBreakdown": [
         {
           "label": "Volume de vendas",
@@ -947,15 +947,15 @@
         },
         {
           "label": "Retorno médio",
-          "points": NaN,
+          "points": 80,
           "max": 160,
-          "pct": NaN,
-          "detail": "0,0%",
+          "pct": 0.5,
+          "detail": "8,0%",
           "amostra": "1/2 financiamentos"
         }
       ],
       "share": 1,
-      "retornoMed": NaN,
+      "retornoMed": 0.08,
       "planoMais": "undefined"
     }
   ],
