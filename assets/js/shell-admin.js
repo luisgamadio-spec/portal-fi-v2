@@ -77,6 +77,14 @@
     dirty: false, successMessage: null, conflictMessage: null
   };
 
+  // Painel Master Phase PM-4B -- Auditoria section state. READ-ONLY (no
+  // dirty/saving concept at all -- there is no mutation path here by
+  // design, Gate 4/18). currentDetailId reused conceptually but kept in
+  // its own var (auditDetailId) so opening an audit row's detail never
+  // interferes with a Usuários row's own currentDetailId.
+  var auditState = { loading: false, loaded: false, error: null, rows: [] };
+  var auditDetailId = null;
+
   // Create/Edit form working state — reset on view change.
   var createForm = null;
   var editForm = null;
@@ -344,7 +352,7 @@
   var SECTIONS = [
     { id: 'usuarios', label: 'Usuários', active: true },
     { id: 'acessos', label: 'Acessos aos Módulos', active: true },
-    { id: 'auditoria', label: 'Auditoria', active: false },
+    { id: 'auditoria', label: 'Auditoria', active: true },
     { id: 'revisoes', label: 'Revisões Cadastrais', active: false }
   ];
   function sectionNavHtml() {
@@ -388,6 +396,8 @@
     if (newUserBtn) newUserBtn.hidden = (currentSection !== 'usuarios');
     if (currentSection === 'acessos') {
       acessosEnter();
+    } else if (currentSection === 'auditoria') {
+      auditEnter();
     } else {
       renderPanel();
     }
@@ -582,6 +592,107 @@
     );
   }
 
+  // ---------- Auditoria (Painel Master Phase PM-4B) ----------
+  // READ-ONLY -- no filters/search/period exist here on purpose: the
+  // real V1 "Auditoria" tab has none either (direct source read,
+  // portal-app.js's own MASTER_TAB==='auditoria' branch), so none are
+  // added here "for convenience" (Gate 16's own explicit instruction).
+
+  function auditEnter() {
+    if (auditState.loaded || auditState.loading) { renderPanel(); return; }
+    auditLoad();
+  }
+
+  function auditLoad() {
+    auditState.loading = true;
+    auditState.error = null;
+    renderPanel();
+    window.NX_MASTER_AUDIT_PROVIDER.loadAuditData({}).then(
+      function (payload) {
+        var vm = window.NX_MASTER_AUDIT_VIEW_MODEL.buildAuditViewModel(payload);
+        auditState.rows = vm.rows;
+        auditState.loading = false;
+        auditState.loaded = true;
+        renderPanel();
+      },
+      function (err) {
+        auditState.loading = false;
+        auditState.loaded = false;
+        auditState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  function auditRowById(id) {
+    // Real contract confirmed live: auditoria.id is a uuid (not the
+    // bigint this file first assumed) -- compared as strings regardless,
+    // so this works either way and never silently fails to match.
+    return auditState.rows.filter(function (r) { return String(r.id) === String(id); })[0] || null;
+  }
+
+  function auditBadgeHtml(r) {
+    var cls = r.resolvido ? 'maBadgeActive' : 'maBadgeInactive';
+    return '<span class="maBadge ' + cls + '">' + esc(r.resolvidoLabel) + '</span>';
+  }
+
+  function renderAuditDesktopTable(rows) {
+    var body = rows.map(function (r) {
+      return '<tr class="maudRow" tabindex="0" role="button" data-key="' + esc(r.id) + '" aria-label="Ver detalhes do evento ' + esc(r.tipo) + '">' +
+        '<td>' + esc(r.criadoEmFormatted) + '</td>' +
+        '<td>' + esc(r.tipo) + '</td>' +
+        '<td>' + esc(r.vendedor) + '</td>' +
+        '<td>' + auditBadgeHtml(r) + '</td>' +
+        '</tr>';
+    }).join('');
+    return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable maudTable">' +
+      '<thead><tr><th scope="col">Data/Hora</th><th scope="col">Evento</th><th scope="col">Vendedor/Usuário</th><th scope="col">Resultado</th></tr></thead>' +
+      '<tbody>' + body + '</tbody></table></div></div>';
+  }
+
+  function renderAuditMobileCards(rows) {
+    var cards = rows.map(function (r) {
+      return '<div class="maMobileCard maudMobileCard" tabindex="0" role="button" data-key="' + esc(r.id) + '" aria-label="Ver detalhes do evento ' + esc(r.tipo) + '">' +
+        '<div class="maMobileName">' + esc(r.criadoEmFormatted) + '</div>' +
+        '<div class="maSubtle">' + esc(r.tipo) + '</div>' +
+        '<div class="maMobileMeta">' + esc(r.vendedor) + '</div>' +
+        auditBadgeHtml(r) +
+        '</div>';
+    }).join('');
+    return '<div class="maMobileOnly">' + cards + '</div>';
+  }
+
+  function renderAuditDetail(r) {
+    if (!r) return '';
+    var body = fieldRow('Data/Hora', r.criadoEmFormatted) + fieldRow('Evento', r.tipo) + fieldRow('Descrição', r.descricao) +
+      fieldRow('Alvo (CPF)', r.cpfMasked) + fieldRow('Vendedor/Usuário', r.vendedor) + fieldRow('Loja', r.loja) +
+      fieldRow('Origem', r.baseOrigem) + fieldRow('Resultado', r.resolvidoLabel) +
+      (r.resolvidoEm ? fieldRow('Resolvido em', r.resolvidoEmFormatted) : '');
+    return '<div class="maDetail" id="maAuditDetail">' +
+      '<div class="maDetailHead"><h2>' + esc(r.tipo) + '</h2>' +
+      '<button type="button" class="modBtnGhost" id="maAuditCloseDetail">Fechar</button></div>' +
+      body + '</div>';
+  }
+
+  function renderAuditoriaSection() {
+    if (auditState.error) {
+      return errorStateHtml(auditState.error.state, auditState.error.message) +
+        '<div class="maDetailActions"><button type="button" class="modBtn" id="maAuditRetryBtn">Tentar novamente</button></div>';
+    }
+    if (auditState.loading || !auditState.loaded) {
+      return '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando auditoria...</div>';
+    }
+    var html = '<p class="modSubtitle">Registro das ações executadas pelo Painel Master. Mostra os 100 eventos mais recentes.</p>';
+    if (!auditState.rows.length) {
+      html += '<div class="modEmptyState"><div class="modStateTitle">Nenhum registro</div>Nenhum evento de auditoria encontrado.</div>';
+    } else {
+      html += renderAuditDesktopTable(auditState.rows) + renderAuditMobileCards(auditState.rows);
+    }
+    var detailRow = auditDetailId ? auditRowById(auditDetailId) : null;
+    html += detailRow ? renderAuditDetail(detailRow) : '';
+    return html;
+  }
+
   // ---------- master render ----------
   function renderPanel() {
     var panel = document.getElementById('maPanel');
@@ -594,6 +705,12 @@
         htmlA += confirmHtml(pendingConfirm.title, pendingConfirm.body, pendingConfirm.confirmLabel, pendingConfirm.destructive, pendingConfirm.bodyHtml);
       }
       panel.innerHTML = htmlA;
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'auditoria') {
+      panel.innerHTML = renderAuditoriaSection();
       wireInteraction();
       return;
     }
@@ -671,6 +788,17 @@
     if (mamSave) mamSave.addEventListener('click', acessosOpenSaveConfirm);
     var mamRetry = document.getElementById('mamRetryBtn');
     if (mamRetry) mamRetry.addEventListener('click', acessosLoad);
+
+    var maAuditRetry = document.getElementById('maAuditRetryBtn');
+    if (maAuditRetry) maAuditRetry.addEventListener('click', auditLoad);
+    var maAuditClose = document.getElementById('maAuditCloseDetail');
+    if (maAuditClose) maAuditClose.addEventListener('click', function () { auditDetailId = null; renderPanel(); });
+    document.querySelectorAll('.maudRow, .maudMobileCard').forEach(function (el) {
+      el.addEventListener('click', function () { auditDetailId = el.getAttribute('data-key'); renderPanel(); });
+      el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); auditDetailId = el.getAttribute('data-key'); renderPanel(); }
+      });
+    });
 
     document.querySelectorAll('.maTable tbody tr, .maMobileCard').forEach(function (el) {
       el.addEventListener('click', function () { openDetail(el.getAttribute('data-key')); });
@@ -880,6 +1008,8 @@
         modules: [], serverSnapshot: {}, serverUpdatedAt: {}, localPermissions: {},
         dirty: false, successMessage: null, conflictMessage: null
       };
+      auditState = { loading: false, loaded: false, error: null, rows: [] };
+      auditDetailId = null;
       outlet.innerHTML =
         '<div class="maPage">' +
         '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Painel Master</h1><p class="modSubtitle">Administração de usuários e acessos.</p></div>' +
