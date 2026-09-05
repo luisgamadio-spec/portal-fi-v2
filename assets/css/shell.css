@@ -6,6 +6,27 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Painel Master Phase PM-5B (Human UAT finding, PM-5A root-caused it):
+   the HTML `hidden` attribute's own UA default -- [hidden]{display:none}
+   -- is AUTHOR-origin-losing by design: any author rule that sets an
+   explicit `display` on the same element (e.g. .modBtn{display:
+   inline-flex}) wins at equal specificity regardless of source order,
+   because author-normal beats user-agent-normal before specificity is
+   even compared. Confirmed empirically: shell-admin.js's own
+   `newUserBtn.hidden = true` left the button's computed display at
+   `flex`, fully visible, still keyboard-focusable (tabIndex 0) --
+   `hidden` was being silently ignored, not merely mis-styled.
+   Audited every other real `.hidden =`/`setAttribute('hidden', ...)`
+   site in this codebase (#nxDesignTrace, #pNavBackdrop, #nxRoot,
+   #nxBootLoading, #loginStatus, #nxLoginRoot) before adding this
+   globally: none of them sets a conflicting explicit `display` on the
+   same element (the two that already have their own `[hidden]`-aware
+   rule, #nxDesignTrace/#nxLoginRoot, only ever ADD display:none or key
+   off the attribute's ABSENCE via :not([hidden]) -- never try to keep
+   a hidden element visible), so restoring the real HTML semantic here
+   is safe portal-wide, not just for the one button that surfaced it. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;

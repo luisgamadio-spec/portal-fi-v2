@@ -837,6 +837,86 @@ def main():
         check("R: the modal dialog itself never grows wider than its own box from a long e-mail (real clipping check, not just presence-in-DOM)", not dialog_self_overflow)
         page.close()
 
+        # ==================== Painel Master Phase PM-5B ====================
+        # Human UAT / PM-5A finding: "+ Novo usuário" (#maNewUserBtn) stayed
+        # visually rendered AND keyboard-focusable outside Usuários even
+        # though shell-admin.js's own `newUserBtn.hidden = true` ran -- a CSS
+        # cascade bug, not a JS logic bug: .modBtn{display:inline-flex} (an
+        # AUTHOR-origin rule) silently beat the browser's own USER-AGENT-
+        # origin `[hidden]{display:none}` default, because origin/importance
+        # is compared before specificity. Fixed with a global
+        # `[hidden]{display:none!important}` rule in shell.css. These tests
+        # assert the real computed style and actual focus outcome -- NOT the
+        # `hidden` IDL property alone (a <button>'s `.tabIndex` stays 0 even
+        # under display:none, so checking `.tabIndex` alone would pass on
+        # the unfixed bug too; the correct proof is calling `.focus()` and
+        # checking whether `document.activeElement` actually changed).
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+
+        def btn_state():
+            return page.evaluate("""() => {
+                const b = document.getElementById('maNewUserBtn');
+                const r = b.getBoundingClientRect();
+                return { hiddenAttr: b.hidden, display: getComputedStyle(b).display, area: r.width * r.height };
+            }""")
+
+        def try_focus():
+            return page.evaluate("""() => {
+                const b = document.getElementById('maNewUserBtn');
+                b.focus();
+                return document.activeElement === b;
+            }""")
+
+        # 52: Usuários (default section) -- button genuinely visible
+        st = btn_state()
+        check("52: on Usuários, #maNewUserBtn hidden attr is false", st["hiddenAttr"] is False)
+        check("52b: on Usuários, computed display is not 'none'", st["display"] != "none")
+        check("52c: on Usuários, the button occupies real screen area (not a zero-size ghost)", st["area"] > 0)
+        check("52d: on Usuários, the button is genuinely focusable", try_focus() is True)
+
+        # 53: each of the other 3 real sections -- button must be genuinely
+        # hidden (computed style, not just the IDL property) and unfocusable.
+        for section_id, label in [("acessos", "Acessos aos Módulos"), ("pendenciasCadastrais", "Pendências Cadastrais"), ("auditoria", "Auditoria")]:
+            page.click('[data-section="%s"]' % section_id)
+            page.wait_for_timeout(150)
+            st = btn_state()
+            check("53 (%s): hidden attr is true" % label, st["hiddenAttr"] is True)
+            check("53 (%s): computed display is genuinely 'none' (the actual PM-5B cascade-bug regression check)" % label, st["display"] == "none")
+            check("53 (%s): zero screen area" % label, st["area"] == 0)
+            check("53 (%s): NOT keyboard-focusable despite tabIndex still reporting 0 on a <button> (misleading IDL property, not proof)" % label,
+                  page.evaluate("document.getElementById('maNewUserBtn').tabIndex") == 0 and try_focus() is False)
+
+        # 54: returning to Usuários fully restores visibility + focusability
+        page.click('[data-section="usuarios"]')
+        page.wait_for_timeout(150)
+        st = btn_state()
+        check("54: back on Usuários, button is visible again", st["display"] != "none" and st["area"] > 0)
+        check("54b: back on Usuários, button is focusable again", try_focus() is True)
+
+        # 55 (Gate 12): responsive sweep -- hide/show never leaves an empty
+        # header gap or causes overflow at representative widths.
+        for w in [1440, 1060, 900, 390]:
+            page.set_viewport_size({"width": w, "height": 800})
+            page.wait_for_timeout(100)
+            no_overflow = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1")
+            check("55 (w=%d): no horizontal overflow with the button visible (Usuários)" % w, no_overflow)
+            page.click('[data-section="auditoria"]')
+            page.wait_for_timeout(150)
+            no_overflow_hidden = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1")
+            header_gap = page.evaluate("""() => {
+                const h = document.querySelector('.modPageHeader');
+                return h ? h.getBoundingClientRect().height : 0;
+            }""")
+            check("55 (w=%d): no horizontal overflow with the button hidden (Auditoria)" % w, no_overflow_hidden)
+            check("55 (w=%d): header still renders (no collapsed/empty gap left behind by the hidden button)" % w, header_gap > 0)
+            page.click('[data-section="usuarios"]')
+            page.wait_for_timeout(150)
+        page.close()
+
         browser.close()
 
     total = len(results)

@@ -242,6 +242,35 @@ def main():
         check("35e: Pendências Cadastrais is a real, clickable nav item (a <button>, not a disabled span)", pendencias_is_link == "BUTTON")
         page.close()
 
+        # ---------- 37: breadcrumb reflects the real module, not the
+        # stale sub-feature name (Painel Master Phase PM-5B, Gate 18) ----------
+        # PM-5A found the registry's shell-admin `landingTitle` still said
+        # "Auditoria / Painel Master" -- a leftover from when Auditoria was
+        # the module's most recently-added sub-feature -- rendered verbatim
+        # into #pBreadcrumb (landing.js renderTopBar) regardless of which of
+        # the module's 4 internal sections (Usuários/Acessos/Pendências/
+        # Auditoria) is actually active. Fixed at the data level (registry
+        # `landingTitle` -> "Painel Master"); this asserts the REAL rendered
+        # breadcrumb, not just the registry string (grep alone would not
+        # catch a stale cache or a second hardcoded copy elsewhere).
+        page = new_page(browser, "{initialSession: null, profileRow: " + MASTER_ROW + ", allowedModuleIds: []}")
+        page.goto(BASE)
+        login(page, "master@example.com")
+        page.evaluate("window.NX_ROUTER.navigate('shell-admin')")
+        page.wait_for_timeout(400)
+        breadcrumb_text = page.inner_text("#pBreadcrumb")
+        check("37: breadcrumb no longer shows the stale 'Auditoria / Painel Master' label", "Auditoria / Painel Master" not in breadcrumb_text)
+        check("37b: breadcrumb shows the corrected 'Painel Master' current-location label", page.inner_text("#pBreadcrumb .pBreadcrumbCurrent") == "Painel Master")
+        check("37c: breadcrumb still shows the fixed 'Portal F&I' product tag ahead of it (format unchanged, no duplication)", page.inner_text("#pBreadcrumb .pBreadcrumbTag").upper() == "PORTAL F&I")
+        # section switch does not change the breadcrumb (module-level label,
+        # not section-level -- a single static string cannot correctly name
+        # one of 4 internal sections, so PM-5B intentionally names the module).
+        if page.query_selector('[data-section="auditoria"]'):
+            page.click('[data-section="auditoria"]')
+            page.wait_for_timeout(200)
+        check("37d: breadcrumb unchanged after switching to the Auditoria section (module-level label, by design)", page.inner_text("#pBreadcrumb .pBreadcrumbCurrent") == "Painel Master")
+        page.close()
+
         browser.close()
 
     check("36: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)

@@ -16,6 +16,14 @@
      visual-fidelity gap, discovered while capturing screenshots of the
      Usuários detail modal; the real product always loads this file). -->
 <link rel="stylesheet" href="../../design-system-2/tokens.css">
+<!-- Painel Master Phase PM-5B: the real assets/css/shell.css that
+     index.html itself loads -- without it, the portal-wide
+     [hidden]{display:none!important} rule (the actual fix for
+     #maNewUserBtn's own hidden-attribute bug) never applies here,
+     making its regression test silently pass for the wrong reason
+     (same class of harness-fidelity gap already found/fixed for
+     tokens.css in PM-4B.4). -->
+<link rel="stylesheet" href="../assets/css/shell.css">
 <link rel="stylesheet" href="../assets/css/module-system.css">
 <link rel="stylesheet" href="../assets/css/shell-admin.css">
 </head>
