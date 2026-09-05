@@ -63,7 +63,7 @@
   // Double-submit guards (Gate 24) — one per distinct mutation action,
   // never a single shared flag (two different actions must not block
   // each other).
-  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false, pcMutate: false, pcExcecao: false, gbImport: false };
+  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false, pcMutate: false, pcExcecao: false, gbImport: false, gsImport: false };
 
   // Painel Master Phase 3B -- Acessos aos Módulos section state. Kept
   // entirely separate from the Usuários vars above (own load/error/
@@ -124,6 +124,19 @@
     modal: null, // null | {kind:'diagnostic'|'success'|'error', ...}
     sessionFinanceBatch: null,
     lastMissingSellers: []
+  };
+
+  // Painel Master Phase PM-5D -- Gestão dos Simuladores section state.
+  // Own independent load lifecycle, same discipline as gbState above.
+  // `statusByTipo` mirrors V1's gsCarregarStatus() result (tipo_base ->
+  // ACTIVE batch info, from master_simulador_listar_bases). `pendingUid`
+  // tracks which of the 10 GS_BASE_DEFS card triggered the current file
+  // picker/flow.
+  var gsState = {
+    loading: false, loaded: false, error: null,
+    statusByTipo: {},
+    pendingUid: null,
+    modal: null // null | {kind:'diagnostic'|'success'|'error', ...}
   };
 
   // Create/Edit form working state — reset on view change.
@@ -464,10 +477,16 @@
   // signals); Pendências Cadastrais is the downstream queue that reviews
   // exactly those signals. Identity/access sections (Usuários/Acessos)
   // stay first, Auditoria (a pure read-only log of everything) stays last.
+  // Painel Master Phase PM-5D: 'gestaoSimuladores' placed immediately
+  // after 'gestaoBases' -- the two are sibling upstream-data-management
+  // capabilities (file-upload -> dry-run diff -> confirm, same shared UI
+  // architecture), grouped together ahead of the reconciliation queue
+  // and the read-only audit log.
   var SECTIONS = [
     { id: 'usuarios', label: 'Usuários', active: true },
     { id: 'acessos', label: 'Acessos aos Módulos', active: true },
     { id: 'gestaoBases', label: 'Gestão de Bases', active: true },
+    { id: 'gestaoSimuladores', label: 'Gestão dos Simuladores', active: true },
     { id: 'pendenciasCadastrais', label: 'Pendências Cadastrais', active: true },
     { id: 'auditoria', label: 'Auditoria', active: true }
   ];
@@ -512,6 +531,7 @@
     auditDetailId = null;
     pcDetailId = null;
     gbState.modal = null;
+    gsState.modal = null;
     // Never leave either section's modal open behind a section switch --
     // a blunt clear (no focus-return) is correct here, since the trigger
     // row itself is about to be discarded along with the whole section.
@@ -527,6 +547,8 @@
       pcEnter();
     } else if (currentSection === 'gestaoBases') {
       gbEnter();
+    } else if (currentSection === 'gestaoSimuladores') {
+      gsEnter();
     } else {
       renderPanel();
     }
@@ -886,6 +908,7 @@
     else if (currentDetailId) { e.preventDefault(); closeUserModal(); }
     else if (pcDetailId) { e.preventDefault(); closePcModal(); }
     else if (gbState.modal) { e.preventDefault(); gbCloseModal(); }
+    else if (gsState.modal) { e.preventDefault(); gsCloseModal(); }
   }
 
   function auditModalBodyHtml(r) {
@@ -1656,6 +1679,20 @@
     var gbErrorClose = document.getElementById('gbErrorCloseBtn');
     if (gbErrorClose) gbErrorClose.addEventListener('click', gbCloseModal);
   }
+
+  // Mirrors wireGbModalInteraction()'s own precedent: renderNxModal only
+  // wires the shared backdrop/close-X; anything inside the modal body
+  // needs its own wiring call right after the modal (re)renders.
+  function wireGsModalInteraction() {
+    var gsCancelarBtn = document.getElementById('gsCancelarBtn');
+    if (gsCancelarBtn) gsCancelarBtn.addEventListener('click', gsCancelar);
+    var gsConfirmarBtn = document.getElementById('gsConfirmarBtn');
+    if (gsConfirmarBtn) gsConfirmarBtn.addEventListener('click', gsConfirmarHandler);
+    var gsSuccessClose = document.getElementById('gsSuccessCloseBtn');
+    if (gsSuccessClose) gsSuccessClose.addEventListener('click', gsCloseModalAndRefresh);
+    var gsErrorClose = document.getElementById('gsErrorCloseBtn');
+    if (gsErrorClose) gsErrorClose.addEventListener('click', gsCloseModal);
+  }
   function gbHomolog() { return GB_PROVIDER.isHomologationMode(); }
   function gbCloseModal() { gbState.modal = null; clearNxModal(); }
   function gbCloseModalAndRefresh() { gbState.modal = null; clearNxModal(); gbState.loaded = false; gbEnter(); }
@@ -1977,6 +2014,229 @@
     });
   }
 
+  // ==================== Gestão dos Simuladores (Painel Master Phase PM-5D) ====================
+  // Real backend reuse only -- 10 write RPCs (master_simulador_commit_*,
+  // one overloaded -- see the provider's own note on always sending
+  // p_linhas_coeficiente explicitly) + 1 read (master_simulador_listar_
+  // bases), recovered live via pg_get_functiondef since NONE of these
+  // functions nor their 10 underlying tables exist anywhere in this
+  // codebase's Git history (PM-5D Gate 18). Same homologation-mode
+  // safety gate as Gestão de Bases, INDEPENDENTLY confirmed identical
+  // for this capability (PM-5D Gate 34) -- ported, not assumed.
+  //
+  // ABSOLUTE FREEZE (PM-5D Gate 3): this section only reshapes a
+  // spreadsheet into the exact real RPC payload shape and displays the
+  // real dry-run diff the backend itself computes -- it computes zero
+  // financing formulas. It also NEVER wires the V2 simulators'
+  // (Simulador Novos/Seminovos) own consumption to this data -- those
+  // are already Human-approved and explicitly FROZEN
+  // ("Fechamos os simuladores.", see config/module-registry.json) with
+  // 0 backend connection by their own prior, separate, deliberate
+  // decision; this admin surface exists purely to migrate the ADMIN
+  // capability, per this Phase's own mandatory Gate 4/25 separation.
+  var GS_VM = window.NX_MASTER_GESTAO_SIMULADORES_VM;
+  var GS_PROVIDER = window.NX_MASTER_GESTAO_SIMULADORES_PROVIDER;
+  var GS_GROUPS = [['ZEROKM', 'ZeroKM'], ['SEMINOVOS', 'Seminovos']];
+
+  function gsEnter() {
+    if (gsState.loaded || gsState.loading) { renderPanel(); return; }
+    gsLoad();
+  }
+
+  function gsLoad() {
+    gsState.loading = true;
+    gsState.error = null;
+    renderPanel();
+    GS_PROVIDER.listarBases({}).then(
+      function (bases) {
+        var byTipo = {};
+        (bases || []).forEach(function (b) { byTipo[b.tipo_base] = b; });
+        gsState.statusByTipo = byTipo;
+        gsState.loading = false;
+        gsState.loaded = true;
+        renderPanel();
+      },
+      function (err) {
+        gsState.loading = false;
+        gsState.loaded = false;
+        gsState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  function gsCardHtml(def) {
+    var info = gsState.statusByTipo[def.tipoBase];
+    var sharedBadge = def.compartilhada ? '<span class="gsSharedBadge" title="Mesma base ACTIVE usada por ZeroKM e Seminovos">BASE COMPARTILHADA</span>' : '';
+    var bootstrapBadge = (info && info.bootstrap) ? '<span class="gsBootstrapBadge">BASE INICIAL / BOOTSTRAP</span>' : '';
+    var partialBadge = def.parcial ? '<span class="gsPartialBadge" title="' + esc(def.parcial) + '">ATUALIZAÇÃO PARCIAL</span>' : '';
+    var body = info ? (
+      '<div class="gbRow"><span>Status</span><b class="gbStatusOk">ACTIVE</b></div>' +
+      '<div class="gbRow"><span>Versão (batch)</span><b>' + esc(String(info.batch_id || '-').slice(0, 8)) + '</b></div>' +
+      '<div class="gbRow"><span>Arquivo</span><b>' + esc(info.arquivo_nome || '-') + '</b></div>' +
+      '<div class="gbRow"><span>Importado em</span><b>' + esc(GS_VM.gsFmtDateTime(info.importado_em)) + '</b></div>' +
+      '<div class="gbRow"><span>Registros</span><b>' + esc(GS_VM.gsFmtNum(info.quantidade_registros)) + '</b></div>' +
+      '<div class="gbRow"><span>Responsável</span><b>' + esc(info.responsavel || '-') + '</b></div>'
+    ) : '<p class="note">Nenhuma base ACTIVE encontrada.</p>';
+    var avisos = (info && Array.isArray(info.avisos) && info.avisos.length)
+      ? '<div class="gbWarn">' + info.avisos.map(function (a) { return '<div>⚠️ ' + esc(typeof a === 'string' ? a : JSON.stringify(a)) + '</div>'; }).join('') + '</div>' : '';
+    var notaExtra = def.nota ? '<p class="note gsNotaExtra">' + esc(def.nota) + '</p>' : '';
+    var parcialExtra = def.parcial ? '<p class="note gbWarn gsPartialNote">⚠️ ' + esc(def.parcial) + '</p>' : '';
+    return '<div class="gbCard">' +
+      '<h3>' + esc(def.label) + ' ' + sharedBadge + ' ' + bootstrapBadge + ' ' + partialBadge + '</h3>' +
+      body + avisos + notaExtra + parcialExtra +
+      '<button type="button" class="modBtn gsUpdateBtn" data-uid="' + esc(def.uid) + '"' + (inFlight.gsImport ? ' disabled' : '') + '>ATUALIZAR BASE</button>' +
+      '</div>';
+  }
+
+  function renderGestaoSimuladoresSection() {
+    var homologBanner = (GS_PROVIDER.isHomologationMode())
+      ? '<p class="note gbWarn gbHomologBanner">🧪 MODO HOMOLOGAÇÃO — nenhuma atualização de base será gravada neste ambiente.</p>'
+      : '';
+    var html = '<h2>Gestão dos Simuladores</h2>' +
+      '<p class="note">Atualize as bases de taxas/coeficientes/rebates que alimentam o Simulador ZeroKM e o Simulador Seminovos. As fórmulas de cálculo não são alteradas aqui — apenas a fonte de dados. A base ACTIVE atual permanece em uso pelo simulador até você revisar a prévia (dry-run) e confirmar explicitamente.</p>' +
+      homologBanner;
+    if (gsState.error) {
+      html += errorStateHtml(gsState.error.state, gsState.error.message) +
+        '<button type="button" id="gsRetryBtn" class="modBtnGhost">Tentar novamente</button>';
+    } else if (gsState.loading || !gsState.loaded) {
+      html += '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando status das bases...</div>';
+    } else {
+      html += GS_GROUPS.map(function (g) {
+        var grupo = g[0], rotulo = g[1];
+        var itens = GS_VM.GS_BASE_DEFS.filter(function (d) { return d.grupo === grupo; });
+        return '<h3 class="gsGroupTitle">' + esc(rotulo) + '</h3><div class="gbGrid">' + itens.map(gsCardHtml).join('') + '</div>';
+      }).join('');
+    }
+    html += '<input type="file" id="gsFileInput" accept=".xlsx,.xls" hidden>';
+    return html;
+  }
+
+  // ---------- modal root (shared #nxModalRoot) ----------
+  function renderGsModalRoot() {
+    if (!gsState.modal) { if (currentSection === 'gestaoSimuladores') clearNxModal(); return; }
+    var m = gsState.modal;
+    if (m.kind === 'progress') renderNxModal(m.titulo, gsProgressBodyHtml(), function () {});
+    else if (m.kind === 'diagnostic') renderNxModal(m.titulo + ' — PRÉVIA (DRY-RUN, nada foi gravado)', gsDiagnosticBodyHtml(m), gsCancelar);
+    else if (m.kind === 'success') renderNxModal((gsHomolog() ? '🧪 ' : '✅ ') + m.titulo, gsSuccessBodyHtml(m), gsCloseModalAndRefresh);
+    else if (m.kind === 'error') renderNxModal('Arquivo rejeitado', gsErrorBodyHtml(m), gsCloseModal);
+    wireGsModalInteraction();
+  }
+  function gsHomolog() { return GS_PROVIDER.isHomologationMode(); }
+  function gsCloseModal() { gsState.modal = null; clearNxModal(); }
+  function gsCloseModalAndRefresh() { gsState.modal = null; clearNxModal(); gsState.loaded = false; gsEnter(); }
+  function gsCancelar() { gsState.modal = null; clearNxModal(); }
+
+  function gsProgressBodyHtml() {
+    return '<div class="gbProgressWrap"><div class="gbProgressBar" style="width:60%"></div></div><p class="note">Lendo e validando o arquivo localmente antes de qualquer chamada ao servidor...</p>';
+  }
+  // Generic diff renderer -- most RPCs return `comparacao_com_active`;
+  // Coparticipado/Semestral return `comparacao_matriz_modelo` (its own
+  // name, since there is a SECOND independent comparison for the
+  // coefficient table) -- same shape either way (novos/alterados/
+  // sem_alteracao/removidos + detalhe_alterados), rendered identically.
+  function gsDiagnosticBodyHtml(m) {
+    var dry = m.dry;
+    var comp = dry.comparacao_com_active || dry.comparacao_matriz_modelo || {};
+    var novos = comp.novos || 0, alterados = comp.alterados || 0, semAlt = comp.sem_alteracao || 0, removidos = comp.removidos || 0;
+    var detalhes = comp.detalhe_alterados || [];
+    var cols = detalhes.length ? Object.keys(detalhes[0]) : [];
+    var detalheHtml = detalhes.length
+      ? '<div class="gsTableWrap"><table class="gsTable"><thead><tr>' + cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead>' +
+        '<tbody>' + detalhes.map(function (r) { return '<tr>' + cols.map(function (c) { return '<td>' + esc(GS_VM.gsFmtValor(r[c])) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>'
+      : '<p class="note">Nenhuma linha com valor alterado em relação à base ACTIVE atual.</p>';
+
+    var avisosExtras = [];
+    if (dry.aviso_tabela_geral) avisosExtras.push(dry.aviso_tabela_geral);
+    if (dry.base_compartilhada) avisosExtras.push(dry.base_compartilhada);
+    if (Array.isArray(m.argsBase.p_avisos)) m.argsBase.p_avisos.forEach(function (a) { avisosExtras.push(a); });
+    if (dry.linhas_coeficiente) avisosExtras.push(dry.linhas_coeficiente + ' linha(s) para a tabela de coeficiente (prazo/taxa→coeficiente) também presentes — comparação separada, não exibida nesta prévia resumida.');
+    var avisosHtml = avisosExtras.length ? '<div class="gbWarn">' + avisosExtras.map(function (a) { return '<div>⚠️ ' + esc(a) + '</div>'; }).join('') + '</div>' : '';
+
+    var linhasValidas = (dry.linhas_validas !== undefined && dry.linhas_validas !== null) ? dry.linhas_validas
+      : (dry.linhas_modelo_validas !== undefined && dry.linhas_modelo_validas !== null) ? dry.linhas_modelo_validas : 0;
+
+    return '<div class="gbRow"><span>Arquivo</span><b>' + esc(m.arquivo) + '</b></div>' +
+      '<div class="gbRow"><span>Linhas válidas no arquivo</span><b>' + esc(GS_VM.gsFmtNum(linhasValidas)) + '</b></div>' +
+      '<div class="gbRow"><span>Novos</span><b>' + esc(GS_VM.gsFmtNum(novos)) + '</b></div>' +
+      '<div class="gbRow"><span>Alterados</span><b>' + esc(GS_VM.gsFmtNum(alterados)) + '</b></div>' +
+      '<div class="gbRow"><span>Sem alteração</span><b>' + esc(GS_VM.gsFmtNum(semAlt)) + '</b></div>' +
+      '<div class="gbRow"><span>Removidos (não estão mais no arquivo)</span><b>' + esc(GS_VM.gsFmtNum(removidos)) + '</b></div>' +
+      '<h4 class="gsDetailTitle">Detalhe das linhas alteradas (chave lógica, valor atual, valor novo)</h4>' +
+      detalheHtml + avisosHtml +
+      '<p class="note">A base ACTIVE atual continua sendo usada pelo simulador até você confirmar.</p>' +
+      '<p id="gsDiagMsg" class="maSubtle gbErrText" role="status"></p>' +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="gsCancelarBtn">CANCELAR</button>' +
+      '<button type="button" class="modBtn" id="gsConfirmarBtn"' + (inFlight.gsImport ? ' disabled' : '') + '>CONFIRMAR ATUALIZAÇÃO</button>' +
+      '</div>';
+  }
+  function gsSuccessBodyHtml(m) {
+    var tituloLinha = gsHomolog()
+      ? '<p class="gbSimNote"><b>🧪 SIMULAÇÃO CONCLUÍDA — nenhuma alteração foi realizada no banco</b></p>'
+      : '<p><b>BASE ATUALIZADA COM SUCESSO</b></p>';
+    return tituloLinha +
+      '<div class="gbRow"><span>Arquivo</span><b>' + esc(m.arquivo) + '</b></div>' +
+      '<div class="gbRow"><span>Novo batch (versão)</span><b>' + esc(String((m.result && m.result.batch_id) || '-').slice(0, 8)) + '</b></div>' +
+      '<div class="gbRow"><span>Data/hora</span><b>' + esc(GS_VM.gsFmtDateTime(new Date().toISOString())) + '</b></div>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="gsSuccessCloseBtn">Fechar</button></div>';
+  }
+  function gsErrorBodyHtml(m) {
+    return '<p class="gbErrText">' + esc(m.message || 'Falha ao processar o arquivo.') + '</p>' +
+      '<p class="note">A base ACTIVE atual não foi alterada.</p>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="gsErrorCloseBtn">Fechar</button></div>';
+  }
+
+  window.gsOnAtualizarClick = function (uid) {
+    gsState.pendingUid = uid;
+    var input = document.getElementById('gsFileInput');
+    if (input) input.click();
+  };
+
+  function gsOnFileChosen(file) {
+    var uid = gsState.pendingUid;
+    if (!file || !uid) return;
+    gsState.modal = { kind: 'progress', titulo: 'Lendo ' + file.name + '...' };
+    renderGsModalRoot();
+    GS_VM.gsLerWorkbook(file).then(function (wbBuf) {
+      var matrix = GS_VM.gsSheetMatrix(wbBuf.wb);
+      return GS_VM.gsSha256Hex(wbBuf.buf).then(function (sha256) {
+        var parsedFile = GS_VM.parseFile(uid, matrix);
+        var def = parsedFile.def;
+        var argsBase = Object.assign({ p_arquivo_nome: file.name, p_arquivo_sha256: sha256 }, def.montarArgs(parsedFile.parsed));
+        return GS_PROVIDER.commit(def.rpc, Object.assign({}, argsBase, { p_dry_run: true })).then(function (dry) {
+          gsState.modal = { kind: 'diagnostic', titulo: def.label, arquivo: file.name, def: def, argsBase: argsBase, dry: dry };
+          renderGsModalRoot();
+        });
+      });
+    }).catch(function (e) {
+      gsState.modal = { kind: 'error', message: String((e && e.message) || e) };
+      renderGsModalRoot();
+    });
+  }
+
+  function gsConfirmarHandler() {
+    if (inFlight.gsImport) return;
+    var m = gsState.modal;
+    if (!m || m.kind !== 'diagnostic') return;
+    inFlight.gsImport = true;
+    var btn = document.getElementById('gsConfirmarBtn');
+    if (btn) btn.disabled = true;
+    GS_PROVIDER.commit(m.def.rpc, Object.assign({}, m.argsBase, { p_dry_run: false })).then(
+      function (result) {
+        inFlight.gsImport = false;
+        gsState.modal = { kind: 'success', titulo: m.def.label, arquivo: m.arquivo, result: result };
+        renderGsModalRoot();
+      },
+      function (err) {
+        inFlight.gsImport = false;
+        var msg = document.getElementById('gsDiagMsg');
+        if (msg) msg.textContent = 'Erro ao confirmar: ' + String((err && err.message) || err);
+        if (btn) btn.disabled = false;
+      }
+    );
+  }
+
   // ---------- master render ----------
   function renderPanel() {
     var panel = document.getElementById('maPanel');
@@ -2029,6 +2289,13 @@
     if (currentSection === 'gestaoBases') {
       renderGbModalRoot();
       panel.innerHTML = renderGestaoBasesSection();
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'gestaoSimuladores') {
+      renderGsModalRoot();
+      panel.innerHTML = renderGestaoSimuladoresSection();
       wireInteraction();
       return;
     }
@@ -2180,6 +2447,19 @@
     if (gbRetry) gbRetry.addEventListener('click', gbLoad);
     document.querySelectorAll('.gbUpdateBtn').forEach(function (el) {
       el.addEventListener('click', function () { window.gbOnAtualizarClick(el.getAttribute('data-source-type')); });
+    });
+
+    // ---- Gestão dos Simuladores (Painel Master Phase PM-5D) ----
+    var gsFileInput = document.getElementById('gsFileInput');
+    if (gsFileInput) gsFileInput.addEventListener('change', function (e) {
+      var file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (file) gsOnFileChosen(file);
+    });
+    var gsRetry = document.getElementById('gsRetryBtn');
+    if (gsRetry) gsRetry.addEventListener('click', gsLoad);
+    document.querySelectorAll('.gsUpdateBtn').forEach(function (el) {
+      el.addEventListener('click', function () { window.gsOnAtualizarClick(el.getAttribute('data-uid')); });
     });
 
     var search = document.getElementById('maSearch');

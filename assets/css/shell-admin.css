@@ -334,3 +334,29 @@ body.maudModalOpen { overflow: hidden; }
 @media (max-width: 480px) {
   .gbGrid { grid-template-columns: 1fr; }
 }
+
+/* ==================== Gestão dos Simuladores (Painel Master Phase PM-5D) ====================
+   Reuses .gbGrid/.gbCard/.gbRow/.gbWarn/.gbProgress* etc. verbatim
+   (same real backend pattern: upload -> dry-run diff -> confirm) --
+   only the pieces genuinely unique to this surface (group headings,
+   badges, the diff-detail table) get their own rules. */
+.gsGroupTitle { margin: var(--space-4) 0 var(--space-1) 0; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-text-secondary); }
+.gsGroupTitle:first-child { margin-top: 0; }
+.gsSharedBadge, .gsBootstrapBadge, .gsPartialBadge {
+  display: inline-block; font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em;
+  padding: 2px 6px; border-radius: 999px; vertical-align: middle; margin-left: 4px;
+}
+.gsSharedBadge { background: var(--color-accent-soft, #e6f0ff); color: var(--color-accent-primary, #1a56db); }
+.gsBootstrapBadge { background: var(--mod-border); color: var(--color-text-secondary); }
+.gsPartialBadge { background: var(--color-warning-soft, #fff3cd); color: var(--color-warning-strong, #8a6d1a); }
+.gsNotaExtra { margin-top: 8px; }
+.gsPartialNote { margin-top: 8px; }
+.gsDetailTitle { margin: 14px 0 4px; font-size: 13px; }
+/* Wide diff-detail table: its own horizontal scroll container, never
+   the page body (Gate 46) -- column count varies per config family
+   (some have 3 fields, Coparticipado's model matrix has 7). */
+.gsTableWrap { overflow-x: auto; max-width: 100%; border: 1px solid var(--mod-border); border-radius: var(--radius-sm); }
+.gsTable { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+.gsTable th, .gsTable td { padding: 4px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--mod-border); }
+.gsTable th:first-child, .gsTable td:first-child { text-align: left; }
+.gsTable thead th { color: var(--color-text-secondary); font-weight: 500; text-transform: uppercase; font-size: 10.5px; letter-spacing: .03em; }
