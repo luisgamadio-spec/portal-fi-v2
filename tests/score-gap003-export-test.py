@@ -144,6 +144,35 @@ def with_golden(*extra):
     return json.dumps({"cases": GOLDEN_CASES + list(extra)})
 
 
+RPC_URL = "https://mock.invalid/rest/v1/rpc/operational_score_coparticipated_data"
+
+CAPTURE_HOOK_JS = """
+    window.__CAPTURED = null;
+    window.__WRITEFILE_CALLS = 0;
+    XLSX.writeFile = function(wb, filename, opts) {
+        window.__WRITEFILE_CALLS++;
+        var dump = { filename: filename, sheetNames: wb.SheetNames.slice(), sheets: {} };
+        wb.SheetNames.forEach(function(name){
+            var ws = wb.Sheets[name];
+            var range = XLSX.utils.decode_range(ws['!ref']);
+            var grid = [];
+            for (var r = range.s.r; r <= range.e.r; r++) {
+                var row = [];
+                for (var c = range.s.c; c <= range.e.c; c++) {
+                    var addr = XLSX.utils.encode_cell({r:r, c:c});
+                    var cell = ws[addr];
+                    row.push(cell ? { v: (cell.v instanceof Date ? cell.v.toISOString() : cell.v), t: cell.t } : null);
+                }
+                grid.push(row);
+            }
+            dump.sheets[name] = grid;
+        });
+        window.__CAPTURED = dump;
+    };
+    void 0;
+"""
+
+
 def mount(browser, configured, fixtures_body):
     page = browser.new_page(viewport={"width": 1366, "height": 900})
     page.add_init_script(auth_mock_script(configured))
@@ -152,32 +181,54 @@ def mount(browser, configured, fixtures_body):
     page.wait_for_function("!!window.NX_SCORE_PAGE", timeout=5000)
     page.evaluate("window.NX_SCORE_PAGE.render(document.getElementById('scOutlet'))")
     # Install the capture hook (same technique as dashbi-gap004-export-test.py).
-    page.evaluate("""
-        window.__CAPTURED = null;
-        window.__WRITEFILE_CALLS = 0;
-        XLSX.writeFile = function(wb, filename, opts) {
-            window.__WRITEFILE_CALLS++;
-            var dump = { filename: filename, sheetNames: wb.SheetNames.slice(), sheets: {} };
-            wb.SheetNames.forEach(function(name){
-                var ws = wb.Sheets[name];
-                var range = XLSX.utils.decode_range(ws['!ref']);
-                var grid = [];
-                for (var r = range.s.r; r <= range.e.r; r++) {
-                    var row = [];
-                    for (var c = range.s.c; c <= range.e.c; c++) {
-                        var addr = XLSX.utils.encode_cell({r:r, c:c});
-                        var cell = ws[addr];
-                        row.push(cell ? { v: (cell.v instanceof Date ? cell.v.toISOString() : cell.v), t: cell.t } : null);
-                    }
-                    grid.push(row);
-                }
-                dump.sheets[name] = grid;
-            });
-            window.__CAPTURED = dump;
-        };
-        void 0;
-    """)
+    page.evaluate(CAPTURE_HOOK_JS)
     return page
+
+
+def mount_real(browser, route_handler):
+    # FC-2.2: real-mode mount, mirroring score-real-contract-test.py's own
+    # new_page()/mount() pair -- NX_AUTH.isAuthConfigured=true, RPC routed
+    # to `route_handler` instead of the fixtures.json route.
+    page = browser.new_page(viewport={"width": 1366, "height": 900})
+    page.add_init_script(auth_mock_script(True))
+    page.route(RPC_URL + "*", route_handler)
+    page.goto(BASE)
+    page.wait_for_function("!!window.NX_SCORE_PAGE", timeout=5000)
+    page.evaluate("window.NX_SCORE_PAGE.render(document.getElementById('scOutlet'))")
+    page.evaluate(CAPTURE_HOOK_JS)
+    return page
+
+
+def real_json_route(status, body):
+    def handler(route):
+        route.fulfill(status=status, content_type="application/json", body=json.dumps(body))
+    return handler
+
+
+EMPTY_REAL_PAYLOAD = {
+    "scope": {"profile": "MASTER", "is_master": True}, "period_start": "2026-06-01", "period_end": "2026-09-05",
+    "contains_client_identity": False, "contains_personal_documents": False, "contains_full_chassis": False,
+    "sales": [], "finance": [], "rates": []
+}
+
+# Real-shaped payload (same field names score-real-contract-test.py's own
+# SAMPLE_PAYLOAD uses) -- 1 COPARTICIPADO row with a matching rate, 1
+# LINEAR row that must be excluded from the export.
+REAL_SAMPLE_PAYLOAD = dict(EMPTY_REAL_PAYLOAD, sales=[
+    {"date": "2026-08-01", "seller": "REAL SELLER A", "store": "BARRA FUNDA", "department": "NOVOS",
+     "model": "OUTLANDER", "sale_value": 200000, "operation_reference": "***AB1234"},
+], finance=[
+    {"date": "2026-08-01", "seller": "REAL SELLER A", "store": "BARRA FUNDA", "department": "NOVOS",
+     "model": "OUTLANDER", "sale_value": 200000, "financed_value": 180000, "return_value": 9000,
+     "spf_value": 0, "spf_count": 0, "installments": 48, "installment_value": 3750,
+     "balloon_value": 0, "plan": "COPARTICIPADO", "status": "PAGA", "operation_reference": "***AB1234"},
+    {"date": "2026-08-02", "seller": "REAL SELLER B", "store": "SANTO AMARO", "department": "NOVOS",
+     "model": "TRITON", "sale_value": 150000, "financed_value": 140000, "return_value": 7000,
+     "spf_value": 0, "spf_count": 0, "installments": 36, "installment_value": 4200,
+     "balloon_value": 0, "plan": "LINEAR", "status": "PAGA", "operation_reference": "***CD5678"},
+], rates=[
+    {"model": "OUTLANDER", "total_rebate": 3, "brabus_percent": 50},  # percent-form -> normalized to 0.03/0.5
+])
 
 
 def select_fixture(page, fixture_id):
@@ -287,19 +338,95 @@ def run(playwright):
         check("empty dataset shows a controlled message", "coparticipado" in status_text.lower())
         check("empty dataset does NOT call XLSX.writeFile", page2.evaluate("window.__WRITEFILE_CALLS") == 0)
 
-        # ---- Test group 3: real mode -- button GATED (disabled), not a
-        # working-but-broken export. This is this Wave's deliberate,
-        # documented scope boundary, not a bug. ----
-        page3 = mount(browser, True, with_golden())
-        # score.js's real branch calls loadReal() -> the mocked NX_AUTH has
-        # no real provider route configured, so the request will error --
-        # irrelevant to this check, which only inspects the STATIC shell
-        # (button disabled state + explanatory text), painted synchronously
-        # before any network response arrives.
-        btn3_disabled = page3.eval_on_selector("#scExportCopaBtn", "el => el.disabled")
-        check("export button is DISABLED in real mode (Gate 11: no misleading/broken export shipped)", btn3_disabled is True)
-        status3 = page3.inner_text("#scExportStatus")
-        check("real mode shows an explicit reason, not a silent disable", "modelo" in status3.lower() and "coparticipa" in status3.lower())
+        # ---- Test group 3A: real mode, request in flight -> button
+        # disabled (Gate 24: no export while loading). Route intentionally
+        # never resolves (no fulfill/abort) -- Playwright's sync API runs
+        # route handlers and page.wait_for_timeout() on the same dispatcher,
+        # so a Python-side time.sleep() inside the handler itself blocks
+        # that SAME wait, making a "resolve after N ms" delay unreliable to
+        # observe mid-flight from this single-threaded test driver. Leaving
+        # the request permanently pending is simpler and just as valid for
+        # proving the loading window alone -- test group 3B separately
+        # proves the button re-enables after a real success.
+        page3a = mount_real(browser, lambda route: None)
+        page3a.wait_for_timeout(150)  # render() already kicked off loadReal() synchronously by now
+        btn3a_disabled = page3a.eval_on_selector("#scExportCopaBtn", "el => el.disabled")
+        check("32: export button is DISABLED while a real request is in flight", btn3a_disabled is True)
+        status3a = page3a.inner_text("#scExportStatus")
+        check("32b: loading state shows an explanatory status, not silence", len(status3a.strip()) > 0)
+        page3a.close()
+
+        # ---- Test group 3B: real mode, successful load with a
+        # COPARTICIPADO row -> button enabled, full 19-column real export ----
+        page3b = mount_real(browser, real_json_route(200, REAL_SAMPLE_PAYLOAD))
+        page3b.wait_for_function("!document.getElementById('scExportCopaBtn').disabled", timeout=5000)
+        btn3b_disabled = page3b.eval_on_selector("#scExportCopaBtn", "el => el.disabled")
+        check("33: export button is ENABLED after a successful real load", btn3b_disabled is False)
+
+        page3b.click("#scExportCopaBtn")
+        page3b.wait_for_timeout(100)
+        cap3b = page3b.evaluate("window.__CAPTURED")
+        check("34: writeFile called exactly once (real mode)", page3b.evaluate("window.__WRITEFILE_CALLS") == 1)
+        check("35: capture non-null (real mode)", cap3b is not None)
+        if cap3b:
+            grid3b = cap3b["sheets"]["Coparticipados"]
+            header3b = [c["v"] if c else None for c in grid3b[0]]
+            check("36: real-mode header row matches the same 19-column V1 contract", header3b == EXPECTED_HEADERS)
+            data3b = [[c["v"] if c else None for c in row] for row in grid3b[1:]]
+            check("37: only the COPARTICIPADO row exported (1 of 2 finance rows; LINEAR excluded)", len(data3b) == 1)
+            if data3b:
+                row = data3b[0]
+                check("38: Nome do cliente == 'Operação protegida' (never a real name, real mode)", row[0] == "Operação protegida")
+                check("39: Vendedor == real seller identity (staff, not customer PII)", row[1] == "REAL SELLER A")
+                check("40: Loja vinculada", row[2] == "BARRA FUNDA")
+                check("41: Modelo do carro == raw RPC model, no re-normalization", row[3] == "OUTLANDER")
+                check("42: Modelo tabela taxa resolved via real payload.rates[] (rate lookup works end-to-end)", row[4] == "OUTLANDER")
+                check("43: Família do carro present (familia now retained on real fins)", row[5] == "Outlander")
+                check("44: Valor de venda numeric and correct", abs(row[6] - 200000) < 0.01)
+                check("45: Valor financiado numeric and correct", abs(row[9] - 180000) < 0.01)
+                check("46: Rebate Total == normalized real rate (3% -> 0.03)", abs(row[10] - 0.03) < 0.0001)
+                check("47: Rebate Parte Brabus == normalized real rate (50% -> 0.5)", abs(row[11] - 0.5) < 0.0001)
+                check("48: Valor do Rebate Total == valorFinanciado * rebateTotal", abs(row[12] - (180000 * 0.03)) < 0.01)
+                check("49: Valor da Coparticipação == valorRebateTotal * parteBrabus", abs(row[13] - (180000 * 0.03 * 0.5)) < 0.01)
+                check("50: Situação == real status", row[14] == "PAGA")
+                check("51: Prazo == real installments count", row[15] == 48)
+                check("52: Parcela == real installment value", abs(row[16] - 3750) < 0.01)
+                check("53: Data da venda present (real date parsed)", bool(row[17]))
+                check("54: Chassi == EXACT masked operation_reference, never a full VIN", row[18] == "***AB1234")
+        page3b.close()
+
+        # ---- Test group 3C: real mode, successful load but ZERO
+        # COPARTICIPADO rows -> button stays ENABLED (Gate 25/38), click
+        # shows the same controlled empty message as fixture mode. ----
+        real_no_copart = dict(EMPTY_REAL_PAYLOAD, sales=REAL_SAMPLE_PAYLOAD["sales"], finance=[REAL_SAMPLE_PAYLOAD["finance"][1]])  # only the LINEAR row
+        page3c = mount_real(browser, real_json_route(200, real_no_copart))
+        page3c.wait_for_function("!document.getElementById('scExportCopaBtn').disabled", timeout=5000)
+        check("55: button ENABLED even with zero COPARTICIPADO rows (eligibility != row count)",
+              page3c.eval_on_selector("#scExportCopaBtn", "el => el.disabled") is False)
+        page3c.click("#scExportCopaBtn")
+        page3c.wait_for_timeout(100)
+        check("56: zero-COPARTICIPADO real click shows the controlled empty message",
+              "coparticipado" in page3c.inner_text("#scExportStatus").lower())
+        check("57: zero-COPARTICIPADO real click does NOT call XLSX.writeFile", page3c.evaluate("window.__WRITEFILE_CALLS") == 0)
+        page3c.close()
+
+        # ---- Test group 3D: real mode, transport failure -> button
+        # disabled, no stale/misleading export available (Gate 24/37). ----
+        page3d = mount_real(browser, real_json_route(500, {"code": "57014", "message": "backend detail not for users"}))
+        page3d.wait_for_function("document.getElementById('scTableRegion').innerHTML.includes('modErrorState')", timeout=5000)
+        check("58: export button DISABLED after a transport failure", page3d.eval_on_selector("#scExportCopaBtn", "el => el.disabled") is True)
+        check("58b: failure status does not leak raw backend error text", "backend detail not for users" not in page3d.inner_text("#scExportStatus"))
+        page3d.close()
+
+        # ---- Test group 3E: real mode, contract failure (unexpected
+        # department -> MALFORMED_RESPONSE thrown by the view-model) ----
+        bad_contract = dict(EMPTY_REAL_PAYLOAD, sales=[
+            {"date": "2026-08-01", "seller": "X", "store": "Y", "department": "OFICINA", "model": "OUTLANDER", "operation_reference": "***ZZ0000"}
+        ])
+        page3e = mount_real(browser, real_json_route(200, bad_contract))
+        page3e.wait_for_function("document.getElementById('scTableRegion').innerHTML.includes('modErrorState')", timeout=5000)
+        check("59: export button DISABLED after a contract failure (MALFORMED_RESPONSE)", page3e.eval_on_selector("#scExportCopaBtn", "el => el.disabled") is True)
+        page3e.close()
 
         # ---- Test group 4: larger dataset completes without freezing ----
         many_fins = []

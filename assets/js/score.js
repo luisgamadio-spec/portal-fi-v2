@@ -18,17 +18,19 @@
   // array (fixture: render()'s caseData.fins; real: loadReal()'s
   // mapped.fins), never a second fetch.
   var currentFins = [];
-  // FC-2 (GAP-003), fixture mode only: mirrors the Coparticipado module's
-  // OWN established convention (coparticipado.adapter.js's compute(fixture)
-  // -- "DATA.taxasCopart = fixture.taxasCopart || {}") rather than
-  // hardcoding a rate table in this file. Every existing golden Score
-  // fixture case simply has no taxasCopart key, so this is always {} for
-  // them today -- combined with golden fins[] rows also lacking `modelo`
-  // (Gate 13 privacy-minimization predates this Wave), every row
-  // naturally falls back to calcCoparticipacaoDetalhe()'s own existing
-  // "Modelo não encontrado" result, exactly as V1 itself already renders
-  // for an unmatched model (Gate: accept the graceful fallback, this is
-  // not a defect to work around).
+  // FC-2 (GAP-003): mirrors the Coparticipado module's OWN established
+  // convention (coparticipado.adapter.js's compute(fixture) --
+  // "DATA.taxasCopart = fixture.taxasCopart || {}") rather than
+  // hardcoding a rate table in this file. Fixture mode: from
+  // caseData.taxasCopart (every existing golden Score fixture case has no
+  // such key, so this is always {} for them -- combined with golden
+  // fins[] lacking `modelo`, every row naturally falls back to
+  // calcCoparticipacaoDetalhe()'s own existing "Modelo não encontrado"
+  // result, exactly as V1 itself already renders for an unmatched model --
+  // not a defect to work around). FC-2.2, real mode: from
+  // score-real-view-model.js's buildRealResult().taxasCopart, built from
+  // the real payload.rates[] the same way (Gate 19: canonical rate source,
+  // no fixture-only table in real mode).
   var currentTaxasCopart = {};
   var lastScExportAt = 0;
 
@@ -262,6 +264,21 @@
       '</div>';
   }
 
+  // FC-2.2 (GAP-003, Gate 24): the export button's own region lives in
+  // the static shell (painted once by paintShell), outside #scTableRegion/
+  // #scDetailRegion -- renderPanel() alone doesn't cover every state
+  // transition (loading and error states never call renderPanel at all),
+  // so this is called directly from every place real-mode transport state
+  // changes: loadReal()'s own start/success/error, and render()'s
+  // invalid-filter-contract branch. Fixture mode never calls this with
+  // enabled=false (mechanics are always synchronous/local there).
+  function setExportButtonState(enabled, message) {
+    var btn = document.getElementById('scExportCopaBtn');
+    var statusEl = document.getElementById('scExportStatus');
+    if (btn) btn.disabled = !enabled;
+    if (statusEl) statusEl.textContent = message || '';
+  }
+
   function renderPanel(rows) {
     currentRows = rows;
     var tableHtml = renderTable(currentRows);
@@ -280,6 +297,7 @@
       var caseData = fixturesData.filter(function (c) { return c.id === currentId; })[0];
       currentFins = caseData.fins || [];
       currentTaxasCopart = caseData.taxasCopart || {};
+      setExportButtonState(true);
       renderPanel(window.NX_SCORE_ADAPTER.compute(caseData.sales, caseData.fins));
       return;
     }
@@ -292,9 +310,11 @@
       if (badRegion) badRegion.innerHTML = invalidFilterHtml(filterErr);
       var badDetail = document.getElementById('scDetailRegion');
       if (badDetail) badDetail.innerHTML = '';
+      // FC-2.2 (Gate 24): no export during a contract failure.
+      setExportButtonState(false, 'Selecione um período válido para habilitar a exportação.');
       return;
     }
-    if (realResult) { renderPanel(realResult); return; }
+    if (realResult) { setExportButtonState(true); renderPanel(realResult); return; }
     loadReal();
   }
 
@@ -315,6 +335,8 @@
     if (region) region.innerHTML = loadingHtml();
     var detailRegion = document.getElementById('scDetailRegion');
     if (detailRegion) detailRegion.innerHTML = '';
+    // FC-2.2 (Gate 24): no export while a real fetch is in flight.
+    setExportButtonState(false, 'Carregando dados do Score…');
 
     window.NX_SCORE_REAL_PROVIDER.loadScoreReal({ start: currentDateStart, end: currentDateEnd, signal: controller.signal }).then(
       function (payload) {
@@ -325,10 +347,19 @@
         } catch (e) {
           var r2 = document.getElementById('scTableRegion');
           if (r2) r2.innerHTML = errorStateHtml(e && e.state, e && e.message);
+          // FC-2.2 (Gate 24): a contract failure (e.g. MALFORMED_RESPONSE)
+          // must not leave the button enabled against no valid dataset.
+          setExportButtonState(false, 'Exportação indisponível: não foi possível interpretar os dados do período.');
           return;
         }
         currentFins = mapped.fins || [];
+        currentTaxasCopart = mapped.taxasCopart || {};
         realResult = window.NX_SCORE_ADAPTER.compute(mapped.sales, mapped.fins);
+        // FC-2.2: real data loaded successfully -- export becomes
+        // available (Gate 25/38: a zero-COPARTICIPADO period still
+        // enables the button; the click-time empty-state message,
+        // already in exportCoparticipadosXlsx(), covers that case).
+        setExportButtonState(true);
         renderPanel(realResult);
       },
       function (err) {
@@ -336,6 +367,8 @@
         if (err && err.state === 'ABORTED') return; // not a user-facing error -- superseded request
         var region2 = document.getElementById('scTableRegion');
         if (region2) region2.innerHTML = errorStateHtml(err && err.state, err && err.message);
+        // FC-2.2 (Gate 24): no export during a transport/authorization failure.
+        setExportButtonState(false, 'Exportação indisponível: não foi possível carregar os dados do Score.');
       }
     );
   }
@@ -413,17 +446,17 @@
   // formula-frozen functions already reused by the separate Coparticipado
   // module (window.NX_COPARTICIPADO_ADAPTER), not a second classifier.
   //
-  // REAL-MODE FIELD GAP (this Wave's central finding, documented in the
-  // FC-2 audit): score-real-view-model.js's buildFins() deliberately omits
-  // modelo/cliente/chassi/data/parcelas/pmt/situacaoB3/valorVenda from real
-  // Score data (a documented Gate-13 privacy-minimization decision from an
-  // earlier wave, NOT reversed here without human authorization) -- every
-  // one of those fields is required by this export's own contract. Shipping
-  // a "working" real-mode button would silently produce a workbook with
-  // nearly every column blank/fallback for every row, which is a
-  // misleading export, not a degraded-but-honest one. Real mode is
-  // therefore gated off with a clear, visible reason rather than
-  // implemented in a broken/misleading form.
+  // REAL MODE (FC-2.2, accepting FC-2.1's audit): score-real-view-model.js
+  // now retains modelo/cliente/chassi/data/parcelas/pmt/situacaoB3/
+  // valorVenda/familia on real fins/sales too -- FC-2.1 proved these add 0
+  // new browser-side exposure (every field, or its already-masked
+  // equivalent, is already sent by the same RPC to this same caller today,
+  // and already retained field-for-field by the sibling Coparticipado
+  // module's own real view-model). This function itself is transport-
+  // agnostic -- it reads currentFins/currentTaxasCopart exactly the same
+  // way regardless of which mode populated them; eligibility (loading/
+  // error/no-data states) is handled by setExportButtonState(), not by
+  // this function refusing to run in real mode.
   function exportCoparticipadosXlsx(btn) {
     var now = Date.now();
     if (now - lastScExportAt < 800) return; // debounce accidental double-click
@@ -549,14 +582,14 @@
             '<select id="scFixtureSelect">' + options + '</select></div>';
         }
         // FC-2 (GAP-003): discoverable-but-not-dominant, next to the
-        // header rather than a global "Exportar" (Gate 27). Real mode
-        // renders the button disabled with an explicit reason (see
-        // exportCoparticipadosXlsx's own comment) instead of hiding the
-        // action entirely or shipping a silently-broken export.
-        var exportDisabledMsg = 'Exportação de Coparticipados disponível apenas em modo de teste (fixture) nesta versão -- o backend real ainda não retorna os dados de modelo/cliente/chassi necessários para este relatório (decisão pendente de autorização humana).';
+        // header rather than a global "Exportar" (Gate 27). FC-2.2:
+        // real-mode data completion (FC-2.1's audit + Option A) lifted
+        // the earlier unconditional real-mode disable -- eligibility is
+        // now dynamic, driven by transport state (setExportButtonState(),
+        // called from render()/loadReal() below), not a fixed per-mode flag.
         var exportBarHtml = '<div class="scExportBar">' +
-          '<button type="button" class="modBtn modBtnGhost scExportCopaBtn" id="scExportCopaBtn"' + (isFixtureMode ? '' : ' disabled aria-disabled="true"') + '>Exportar Coparticipados</button>' +
-          '<span id="scExportStatus" class="modMuted scExportStatus" role="status" aria-live="polite">' + (isFixtureMode ? '' : esc(exportDisabledMsg)) + '</span>' +
+          '<button type="button" class="modBtn modBtnGhost scExportCopaBtn" id="scExportCopaBtn">Exportar Coparticipados</button>' +
+          '<span id="scExportStatus" class="modMuted scExportStatus" role="status" aria-live="polite"></span>' +
           '</div>';
         outlet.innerHTML =
           '<div class="scPage">' +
