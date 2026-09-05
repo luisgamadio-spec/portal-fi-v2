@@ -136,11 +136,35 @@
 /* Visually hidden but available to assistive tech (Gate 29) -- standard
    sr-only clip pattern, no dependency on any utility framework. */
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-/* Gate 20/25 (responsive): the previous-value line occupies its own
-   compact secondary line inside table cells/mobile cards rather than
-   sitting inline with the primary value, so it never forces a cell to
-   overflow at 390px. */
-.dbTable .dbNumCol .dbPrevValue, .dbMobileValue .dbPrevValue { display: flex; margin-top: 2px; margin-left: 0; }
+
+/* FC-1.2 (Human UAT DEFECT A) -- table/model numeric comparison cells.
+   Grid, not the KPI cards' inline-flex (.dbPrevValue, kept above,
+   unchanged, exempt per Gate 23): CURRENT (row 1) spans both columns;
+   PREVIOUS NUMBER (row 2, column 1) lands on the exact same right edge as
+   CURRENT because both are justify-self:end within the same first column
+   -- the ARROW (row 2, column 2) sits outside that shared edge and can
+   never shift the numbers (Gate 20). white-space:nowrap on both number
+   rows stops currency values from wrapping into awkward fragments
+   (Gate 27) -- the table's own overflow-x:auto (.dbTableWrap) is the
+   fallback for genuinely insufficient width, not mid-number breaking. */
+/* grid-column:1 on BOTH current and previous (not 1/-1 spanning both
+   columns) is what makes them share the same right edge: column 1 is
+   sized to max-content across everything placed in it, so it auto-widens
+   to fit whichever of the two numbers is wider, and both then right-align
+   (justify-self:end) to that SAME column's right edge. Column 2 exists
+   only for the arrow -- it stays empty on the current row by construction
+   (nothing is ever placed in it there), never affecting column 1's edge. */
+.dbNumCompare { display: inline-grid; grid-template-columns: max-content max-content; column-gap: 4px; justify-content: end; }
+.dbNumCurrent { grid-column: 1; justify-self: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dbPrevNum { grid-column: 1; justify-self: end; font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--color-text-muted); }
+.dbNumCompare .dbPrevValueNA { grid-column: 1; justify-self: end; font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted); font-weight: 600; }
+.dbNumCompare .dbPrevArrow { grid-column: 2; justify-self: start; }
+/* Gate 20/25 (responsive): the previous row occupies its own compact
+   secondary line, not inline with the current value, so it never forces
+   a cell to overflow at 390px -- .dbNumCompare is already 2 grid rows by
+   construction (dbNumCurrent + dbPrevNum/dbPrevArrow), this just confirms
+   the containing cell doesn't force it back onto one line. */
+.dbTable .dbNumCol .dbNumCompare, .dbMobileValue .dbNumCompare { display: inline-grid; }
 .dbFamilyMetricBox .dbV .dbPrevValue { display: flex; margin-top: 2px; margin-left: 0; font-size: 10px; }
 
 .dbPlanGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-2); }

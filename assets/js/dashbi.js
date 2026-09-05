@@ -273,21 +273,57 @@
   // picked; real: previous fetch failed) -- that case is still handled by
   // every call site's own `prev ? ... : ''` guard, which omits this
   // function entirely rather than calling it with previousValue=null.
+  // Shared by previousValueHtml/numCompareCellHtml (Gate 18, FC-1.2 brief:
+  // "Do not duplicate formatter/business logic") -- the only business rule
+  // here is a plain numeric comparison, not calcDelta (FC-1.1 already
+  // removed that dependency).
+  function comparisonDirection(currentValue, previousValue) {
+    var c = Number(currentValue) || 0, p = Number(previousValue) || 0;
+    var direction = c > p ? 'up' : (c < p ? 'down' : 'flat');
+    var arrow = c > p ? '▲' : (c < p ? '▼' : '→');
+    var changeWord = c > p ? 'aumentou' : (c < p ? 'diminuiu' : 'permaneceu igual');
+    return { direction: direction, arrow: arrow, changeWord: changeWord };
+  }
+
   function previousValueHtml(A, currentValue, previousValue, previousFormatted, short) {
     var cls = 'dbPrevValue' + (short ? ' dbPrevValueShort' : '');
     if (previousValue == null) {
       return '<span class="' + cls + ' dbPrevValueNA" aria-label="sem valor anterior disponível">—</span>';
     }
-    var c = Number(currentValue) || 0, p = Number(previousValue) || 0;
-    var direction = c > p ? 'up' : (c < p ? 'down' : 'flat');
-    var arrow = c > p ? '▲' : (c < p ? '▼' : '→');
-    var changeWord = c > p ? 'aumentou' : (c < p ? 'diminuiu' : 'permaneceu igual');
+    var d = comparisonDirection(currentValue, previousValue);
     // Gate 29: visually only previous value + arrow; assistive tech gets
     // the equivalent context via a visually-hidden sr-only span, not a
     // visible "Anterior:"/percent label.
-    var srText = 'valor anterior ' + previousFormatted + '; valor atual ' + changeWord;
+    var srText = 'valor anterior ' + previousFormatted + '; valor atual ' + d.changeWord;
     return '<span class="' + cls + '">' +
-      '<span aria-hidden="true">' + esc(previousFormatted) + ' <span class="dbPrevArrow dbPrevArrow' + direction.charAt(0).toUpperCase() + direction.slice(1) + '">' + arrow + '</span></span>' +
+      '<span aria-hidden="true">' + esc(previousFormatted) + ' <span class="dbPrevArrow dbPrevArrow' + d.direction.charAt(0).toUpperCase() + d.direction.slice(1) + '">' + d.arrow + '</span></span>' +
+      '<span class="srOnly">' + esc(srText) + '</span>' +
+      '</span>';
+  }
+
+  // FC-1.2 (Human UAT DEFECT A): table/model numeric cells need the
+  // PREVIOUS number's own digits to land on the exact same right edge as
+  // the CURRENT number, with the arrow occupying separate space that never
+  // shifts that edge (Gate 19-21, this Wave's brief). previousValueHtml's
+  // single inline-flex line (kept unchanged, still used by KPI cards,
+  // explicitly exempt per Gate 23) can't do this -- a CSS Grid cell
+  // (.dbNumCompare, dashbi.css) can: row 1 (current) spans both grid
+  // columns; row 2 puts the previous NUMBER in column 1 (same right edge
+  // as row 1, both right-aligned) and the arrow in column 2, outside that
+  // shared edge. currentHtml may itself carry markup (e.g. a colored Share
+  // span) -- passed through unescaped, same convention as cellHtml()'s
+  // {raw:...} elsewhere in this file.
+  function numCompareCellHtml(A, currentHtml, currentValue, previousValue, previousFormatted) {
+    if (previousValue == null) {
+      return '<span class="dbNumCompare"><span class="dbNumCurrent">' + currentHtml + '</span>' +
+        '<span class="dbPrevNum dbPrevValueNA" aria-label="sem valor anterior disponível">—</span></span>';
+    }
+    var d = comparisonDirection(currentValue, previousValue);
+    var srText = 'valor anterior ' + previousFormatted + '; valor atual ' + d.changeWord;
+    return '<span class="dbNumCompare">' +
+      '<span class="dbNumCurrent">' + currentHtml + '</span>' +
+      '<span class="dbPrevNum" aria-hidden="true">' + esc(previousFormatted) + '</span>' +
+      '<span class="dbPrevArrow dbPrevArrow' + d.direction.charAt(0).toUpperCase() + d.direction.slice(1) + '" aria-hidden="true">' + d.arrow + '</span>' +
       '<span class="srOnly">' + esc(srText) + '</span>' +
       '</span>';
   }
@@ -376,14 +412,18 @@
   // Receita Total each full width), built from the SAME v/f/share
   // values the desktop row already computed. No recalculation.
   function dbPrimaryMetricFieldsHtml(A, v, f, share, prev) {
-    var cmp = prev
-      ? { vendas: previousValueHtml(A, v.qtd, prev.v.qtd, A.num(prev.v.qtd), true), fin: previousValueHtml(A, f.qtd, prev.f.qtd, A.num(prev.f.qtd), true), share: previousValueHtml(A, share, prev.share, A.pct(prev.share), true), producao: previousValueHtml(A, f.producao || 0, prev.f.producao || 0, A.money(prev.f.producao || 0), true), receitaTotal: previousValueHtml(A, f.receitaTotal || 0, prev.f.receitaTotal || 0, A.money(prev.f.receitaTotal || 0), true) }
-      : null;
-    return dbMobileField('Vendas', String(v.qtd) + (cmp ? cmp.vendas : ''), 'dbMobileFieldPair') +
-      dbMobileField('Financiamentos', String(f.qtd) + (cmp ? cmp.fin : ''), 'dbMobileFieldPair') +
-      dbMobileField('Share', penetracaoCellHtml(A, share) + (cmp ? cmp.share : ''), 'dbMobileFieldEmph') +
-      dbMobileField('Produção Total', esc(A.money(f.producao || 0)) + (cmp ? cmp.producao : '')) +
-      dbMobileField('Receita Total', esc(A.money(f.receitaTotal || 0)) + (cmp ? cmp.receitaTotal : ''));
+    // FC-1.2 DEFECT A: same numCompareCellHtml grid as the desktop table,
+    // so mobile cards get the same aligned current/previous+arrow geometry.
+    var vendasField = prev ? numCompareCellHtml(A, String(v.qtd), v.qtd, prev.v.qtd, A.num(prev.v.qtd)) : String(v.qtd);
+    var finField = prev ? numCompareCellHtml(A, String(f.qtd), f.qtd, prev.f.qtd, A.num(prev.f.qtd)) : String(f.qtd);
+    var shareField = prev ? numCompareCellHtml(A, penetracaoCellHtml(A, share), share, prev.share, A.pct(prev.share)) : penetracaoCellHtml(A, share);
+    var producaoField = prev ? numCompareCellHtml(A, esc(A.money(f.producao || 0)), f.producao || 0, prev.f.producao || 0, A.money(prev.f.producao || 0)) : esc(A.money(f.producao || 0));
+    var receitaTotalField = prev ? numCompareCellHtml(A, esc(A.money(f.receitaTotal || 0)), f.receitaTotal || 0, prev.f.receitaTotal || 0, A.money(prev.f.receitaTotal || 0)) : esc(A.money(f.receitaTotal || 0));
+    return dbMobileField('Vendas', vendasField, 'dbMobileFieldPair') +
+      dbMobileField('Financiamentos', finField, 'dbMobileFieldPair') +
+      dbMobileField('Share', shareField, 'dbMobileFieldEmph') +
+      dbMobileField('Produção Total', producaoField) +
+      dbMobileField('Receita Total', receitaTotalField);
   }
 
   // FC-1.1, CHANGE-02: sellerTableHtml ("Vendas e Financiamentos por
@@ -422,11 +462,13 @@
           { label: 'Retorno', value: esc(A.pct(retornoFromFin(f))) + (prev ? previousValueHtml(A, retornoFromFin(f), retornoFromFin(prev.f), A.pct(retornoFromFin(prev.f))) : '') }
         ] }
       ];
-      var vendasCell = String(v.qtd) + (prev ? previousValueHtml(A, v.qtd, prev.v.qtd, A.num(prev.v.qtd), true) : '');
-      var finCell = String(f.qtd) + (prev ? previousValueHtml(A, f.qtd, prev.f.qtd, A.num(prev.f.qtd), true) : '');
-      var producaoCell = A.money(f.producao || 0) + (prev ? previousValueHtml(A, f.producao || 0, prev.f.producao || 0, A.money(prev.f.producao || 0), true) : '');
-      var receitaTotalCell = A.money(f.receitaTotal || 0) + (prev ? previousValueHtml(A, f.receitaTotal || 0, prev.f.receitaTotal || 0, A.money(prev.f.receitaTotal || 0), true) : '');
-      var shareCell = penetracaoCellHtml(A, share) + (prev ? previousValueHtml(A, share, prev.share, A.pct(prev.share), true) : '');
+      // FC-1.2 DEFECT A: numCompareCellHtml (right-aligned grid), not
+      // previousValueHtml's inline-flex line -- see its own comment for why.
+      var vendasCell = prev ? numCompareCellHtml(A, String(v.qtd), v.qtd, prev.v.qtd, A.num(prev.v.qtd)) : String(v.qtd);
+      var finCell = prev ? numCompareCellHtml(A, String(f.qtd), f.qtd, prev.f.qtd, A.num(prev.f.qtd)) : String(f.qtd);
+      var producaoCell = prev ? numCompareCellHtml(A, A.money(f.producao || 0), f.producao || 0, prev.f.producao || 0, A.money(prev.f.producao || 0)) : A.money(f.producao || 0);
+      var receitaTotalCell = prev ? numCompareCellHtml(A, A.money(f.receitaTotal || 0), f.receitaTotal || 0, prev.f.receitaTotal || 0, A.money(prev.f.receitaTotal || 0)) : A.money(f.receitaTotal || 0);
+      var shareCell = prev ? numCompareCellHtml(A, penetracaoCellHtml(A, share), share, prev.share, A.pct(prev.share)) : penetracaoCellHtml(A, share);
       desktopRows.push(expandableRow(ns, loja, [loja, { raw: vendasCell }, { raw: finCell }, { raw: shareCell }, { raw: producaoCell }, { raw: receitaTotalCell }], 1, 7, detailGroups, STORE_HEADERS));
       mobileCards.push(dbMobileCard(ns, loja, loja, null, dbPrimaryMetricFieldsHtml(A, v, f, share, prev), detailGroups));
     });
@@ -543,7 +585,10 @@
     // period) -> "—" (Gate 8, FC-1.1), not silently omitted as in FC-1.
     var prevVal = prevRow ? prevRow[c.key] : null;
     var prevFormatted = prevRow ? (c.penetracao ? A.pct(prevVal) : String(c.f(A, prevVal))) : null;
-    return formatted + previousValueHtml(A, val, prevVal, prevFormatted, true);
+    // FC-1.2 DEFECT A: numCompareCellHtml (right-aligned grid) -- Gate 25
+    // named this as one of the surfaces with particularly poor readability
+    // (narrow columns, monetary values wrapping awkwardly).
+    return numCompareCellHtml(A, formatted, val, prevVal, prevFormatted);
   }
 
   // FC-1 (GAP-001): all 19 non-identity columns compared, same set
@@ -884,6 +929,43 @@
     var salesView = currentDeptView === 'Grupo' ? out.sales : out.sales.filter(function (x) { return x.dept === currentDeptView; });
     var finsView = currentDeptView === 'Grupo' ? out.fins : out.fins.filter(function (x) { return x.dept === currentDeptView; });
 
+    // FC-1.2, DEFECT B (Human UAT): storeTableHtml was reading out.aggs
+    // directly -- computed once by A.compute()/buildRealOut() over the
+    // FULL, un-filtered sales/fins (aggregate() itself has no department
+    // parameter, confirmed by direct source read: vendasLoja/finLoja/
+    // vendasVendDept/finVendDept accumulate whatever rows they're given,
+    // with no dept check -- unlike vendasModelo/finModelo/compModelo,
+    // which DO hardcode `if (r.dept==='Novos')` inside aggregate() itself,
+    // which is why Model Analysis was never affected by this defect).
+    // Root cause: RENDER_USES_WRONG_DATASET -- storeTableHtml(A, out, ...)
+    // always got the cross-department aggregate regardless of
+    // currentDeptView, so "Vendas e Financiamentos por Loja" silently
+    // showed the same Grupo-wide numbers under Novos/Seminovos too.
+    // Fix mirrors V1's own pattern exactly (origin/main render():
+    // `agView = aggregate({sales:salesView, fins:finsView})`, used for
+    // its own per-loja tables) -- re-aggregate from the SAME already-
+    // computed salesView/finsView, never a client-side re-filter of
+    // out.aggs itself (which has no department dimension left once
+    // aggregated) and never a derived Novos=Grupo-Seminovos subtraction.
+    var deptOut = currentDeptView === 'Grupo' ? out : {
+      sales: salesView, fins: finsView,
+      aggs: A.aggregate({ sales: salesView, fins: finsView })
+    };
+    // Gate 12 (FC-1/FC-1.2): the previous period must use the SAME
+    // department selection as the current one -- otherwise "Novos"
+    // would compare against an unfiltered (Grupo-wide) previous period,
+    // a subtler instance of the identical defect.
+    var deptPreviousOut = null;
+    if (validPreviousOut) {
+      if (currentDeptView === 'Grupo') {
+        deptPreviousOut = validPreviousOut;
+      } else {
+        var prevSalesView = validPreviousOut.sales.filter(function (x) { return x.dept === currentDeptView; });
+        var prevFinsView = validPreviousOut.fins.filter(function (x) { return x.dept === currentDeptView; });
+        deptPreviousOut = { sales: prevSalesView, fins: prevFinsView, aggs: A.aggregate({ sales: prevSalesView, fins: prevFinsView }) };
+      }
+    }
+
     // Reset to a valid mode if the current one is unavailable in this view
     // (e.g. leaving Novos while Model Analysis or Novos por Loja was active).
     // Production's own code (updateModelosTabVisibility) only wires this
@@ -924,7 +1006,7 @@
       // from Visão Geral by explicit human decision (redundant with
       // Ranking, which is the dedicated seller-performance surface) --
       // see the note above sellerTableHtml's deletion.
-      '<h2>Vendas e Financiamentos por Loja</h2>' + storeTableHtml(A, out, validPreviousOut) +
+      '<h2>Vendas e Financiamentos por Loja</h2>' + storeTableHtml(A, deptOut, deptPreviousOut) +
 
       complementaryHtml +
 
