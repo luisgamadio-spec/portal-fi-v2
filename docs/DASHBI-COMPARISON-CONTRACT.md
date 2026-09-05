@@ -1,6 +1,53 @@
-# Dashbi Previous-Period Comparison Contract (FC-1/FC-1.1, GAP-001)
+# Dashbi Previous-Period Comparison Contract (FC-1/FC-1.1/FC-1.2, GAP-001)
 
-## FC-1.1 revision (Human UAT, 2026-09-05) — READ THIS FIRST
+## FC-1.2 fixes (Human UAT, 2026-09-05) — READ THIS FIRST
+
+Human UAT on FC-1.1 found two defects; FC-1.1 was NOT approved.
+
+**Defect B (data, the important one)**: "Vendas e Financiamentos por Loja"
+showed the exact same store values regardless of the Grupo/Novos/Seminovos
+selector. Root cause, confirmed by direct source read (and by a stash-based
+before/after test run — the new test suite fails 9/11 checks against the
+pre-fix code, passes 11/11 against the fix): `storeTableHtml(A, out, ...)`
+always read `out.aggs`, computed ONCE by `compute()`/`buildRealOut()` over
+the FULL, cross-department `sales`/`fins` arrays. `aggregate()` itself has
+NO department parameter — `vendasLoja`/`finLoja`/`vendasVendDept`/
+`finVendDept` accumulate whatever rows they're handed, with no `dept` check
+(confirmed by direct source read of `dashbi.adapter.js`'s `aggregate()`).
+This is UNLIKE `vendasModelo`/`finModelo`/`compModelo` (Model Analysis),
+which hardcode `if (r.dept==='Novos')` INSIDE `aggregate()` itself — which
+is exactly why Model Analysis was never affected by this defect, and why
+Ranking (which already used the correctly department-filtered
+`salesView`/`finsView`, not `out` directly) was never affected either.
+Classification: **RENDER_USES_WRONG_DATASET**. Fix: `renderPanel()` now
+re-aggregates from the SAME already-computed `salesView`/`finsView` per
+`currentDeptView` (mirrors V1's own `agView = aggregate({sales,fins})`
+pattern exactly) before calling `storeTableHtml`, for BOTH the current and
+the previous period (Gate 12 — an unscoped previous period would have been
+a subtler instance of the identical defect). No RPC/adapter/provider
+change — `aggregate()` was already correct for whatever it's given; the
+defect was entirely in which dataset `renderPanel()` handed it.
+
+**Defect A (alignment)**: the current/previous+arrow model itself (approved
+in FC-1.1) is unchanged. Only the geometry was fixed: a CSS Grid cell
+(`.dbNumCompare`, `dashbi.css`) makes the previous number's digits land on
+the exact same right edge as the current number, with the arrow in a
+separate grid column that never shifts either number — proven pixel-exact
+(not just class presence) in `tests/dashbi-fc12-alignment-test.py`. Applied
+to `storeTableHtml`'s 5 primary columns and `modelCellHtml` (all 19 compared
+Model Analysis columns); KPI cards are explicitly exempt (isolated blocks,
+don't need forced right-alignment) and keep `previousValueHtml`'s simple
+inline-flex line unchanged.
+
+Verification: 26/26 golden + 36/36 real-provider + 16/16 comparison-parity
++ 27/27 FC-1.1 presentation/navigation all unchanged (business logic and
+the dual-period engine untouched) + 24 new FC-1.2 checks (11 scope + 13
+alignment geometry). `REAL_MASTER_RUNTIME_VALIDATION_UNAVAILABLE` — this
+session had no live homolog login session to validate August 2026 data
+directly; relied on the mocked real-transport harness and the golden
+fixture's own multi-department, multi-store shape instead.
+
+## FC-1.1 revision (Human UAT, 2026-09-05)
 
 FC-1's percent-delta presentation ("▲ +12,4%", "Anterior: X") was **not
 approved** by Human UAT. Current rule, implemented in FC-1.1:
