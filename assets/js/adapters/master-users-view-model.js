@@ -73,6 +73,31 @@
     return matches[0];
   }
 
+  // Painel Master Phase PM-4B.3: real V1 parity (portal-app.js's own
+  // renderFichaUsuarioHtml(), read directly, not assumed) -- these are
+  // the exact 3 non-legacy conditions under which a real MASTER-
+  // generated access link is offered. The 4th real V1 branch (BLISTIQ
+  // legacy migration links, gated on a legacy-account marker this
+  // payload doesn't carry) is deliberately NOT reproduced here --
+  // tracked separately (Gate: not silently dropped, see report) since
+  // it targets a different external domain via a different Edge
+  // Function shape, not a simple 4th case of this same action. Any
+  // combination outside these 3 (e.g. ativo && primeiro_acesso) matches
+  // V1's own real gap -- no action, not invented to fill it.
+  function determineAccessLinkAction(u) {
+    if (!u.tem_auth) return null;
+    if (!u.ativo && u.primeiro_acesso && u.auth_confirmado) {
+      return { type: 'continuation', label: 'Gerar link para concluir acesso' };
+    }
+    if (!u.ativo && u.primeiro_acesso && !u.auth_confirmado) {
+      return { type: 'activation', label: 'Gerar link de ativação' };
+    }
+    if (u.ativo && !u.primeiro_acesso) {
+      return { type: 'recovery', label: 'Gerar link para redefinir senha' };
+    }
+    return null;
+  }
+
   function buildUserRow(u, convites) {
     var lifecycle = classifyInviteState(u);
     var adminState = classifyAdminState(u);
@@ -89,6 +114,7 @@
       lifecycle: lifecycle,
       adminState: adminState,
       emailDivergente: !!u.email_divergente,
+      accessLinkAction: determineAccessLinkAction(u),
       // Resend Invite is only meaningful (and only safe, per the real
       // RPC's own contract -- master_reenviar_convite rejects a target
       // that already has tem_auth=true) while lifecycle is INVITED.
@@ -119,6 +145,7 @@
     classifyLifecycle: classifyLifecycle,
     classifyInviteState: classifyInviteState,
     classifyAdminState: classifyAdminState,
+    determineAccessLinkAction: determineAccessLinkAction,
     PERFIL_VALUES: PERFIL_VALUES,
     LOJA_VALUES: LOJA_VALUES,
     STATUS_VALUES: STATUS_VALUES,

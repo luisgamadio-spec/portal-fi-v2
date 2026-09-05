@@ -214,10 +214,77 @@
     });
   }
 
+  // Painel Master Phase PM-4B.3 (Human UAT finding: real V1 parity gap --
+  // link-generation actions never existed in V2 at all, confirmed by
+  // direct source read of portal-app.js's renderFichaUsuarioHtml()).
+  // Real Edge Function contract (supabase/functions/admin-generate-user-
+  // access-link/index.ts, ia-reconciliation-v2-local): MASTER-only
+  // re-verified server-side against the DB (never trusts the frontend),
+  // rate-limited 5min server-side via the auditoria table, re-validates
+  // target eligibility fresh from the DB (never trusts what the UI
+  // rendered), never persists/logs the returned link anywhere server-
+  // side. tipo is 'activation' (target must be !ativo && primeiro_acesso)
+  // or 'recovery' (target must be ativo && !primeiro_acesso) -- this
+  // file does not re-decide eligibility, it only calls through; the
+  // real authority is 100% server-side, exactly like every other
+  // mutation in this file.
+  function generateAccessLink(usuarioId, tipo, params) {
+    params = params || {};
+    return callEdgeFunction('admin-generate-user-access-link', { usuario_id: usuarioId, tipo: tipo }, params.signal);
+  }
+
+  // Continuation link (Incidente 22.1 real contract): a DIFFERENT
+  // backend shape than activation/recovery above -- the raw token is
+  // generated CLIENT-SIDE (32 random bytes via Web Crypto, same
+  // algorithm as portal-app.js's own continuacaoRandomToken()) and only
+  // its SHA-256 HASH is ever sent to the RPC; the RPC never sees or
+  // returns the raw token, so the final link is assembled here, from
+  // the token this file itself generated, never from anything the
+  // server returns. This is the exact real security model already
+  // proven in production -- not invented here, replicated byte-for-
+  // byte from the real V1 helpers.
+  function continuacaoRandomTokenHex() {
+    var bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+  function continuacaoSha256Hex(text) {
+    var data = new TextEncoder().encode(text);
+    return crypto.subtle.digest('SHA-256', data).then(function (digest) {
+      return Array.from(new Uint8Array(digest)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    });
+  }
+  // Real, public (not secret) production redirect target -- the exact
+  // same constant portal-app.js's own CONTINUACAO_PRIMEIRO_ACESSO_URL_BASE
+  // uses; this is where the token is redeemed, not a credential.
+  var CONTINUACAO_PRIMEIRO_ACESSO_URL_BASE = 'https://brabus.blistiq.com.br/concluir-acesso.html';
+
+  function generateContinuationLink(usuarioId, params) {
+    params = params || {};
+    var token = continuacaoRandomTokenHex();
+    return continuacaoSha256Hex(token).then(function (tokenHash) {
+      var expiraEm = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      return callRpc('master_gerar_continuacao_primeiro_acesso', {
+        p_usuario_id: usuarioId, p_token_hash: tokenHash, p_expira_em: expiraEm
+      }, params.signal).then(function (data) {
+        if (!data || data.ok !== true) {
+          var codigo = data && data.codigo;
+          return Promise.reject({ state: 'RPC_ERROR', code: codigo, aguardarSegundos: data && data.aguardar_segundos, message: 'Não foi possível gerar o link.' });
+        }
+        // The link is assembled HERE, client-side, from the token this
+        // function itself generated -- the RPC response never contains
+        // it (only {ok, codigo}), matching the real security model.
+        return { link: CONTINUACAO_PRIMEIRO_ACESSO_URL_BASE + '#token=' + encodeURIComponent(token) };
+      });
+    });
+  }
+
   window.NX_MASTER_USERS_PROVIDER = {
     loadMasterUsersData: loadMasterUsersData,
     inviteUser: inviteUser,
     updateUserAuthorization: updateUserAuthorization,
-    resendInvite: resendInvite
+    resendInvite: resendInvite,
+    generateAccessLink: generateAccessLink,
+    generateContinuationLink: generateContinuationLink
   };
 })();

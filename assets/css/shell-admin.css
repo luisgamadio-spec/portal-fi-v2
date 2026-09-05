@@ -155,3 +155,46 @@
    single, justified max-width on this one column only, not a pattern
    applied broadly across columns. */
 .maudVendedorCell { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+
+/* Painel Master Phase PM-4B.3 -- Auditoria detail modal (Human UAT
+   decision: opening a detail must never scroll to the end of a
+   100-row list). Rendered into #nxModalRoot, the pre-existing,
+   previously-unused overlay root already declared in shell.css/
+   index.html (position:fixed, inset:0, z-index:100) -- reused as-is
+   per Gate 19's own instruction to prefer an existing pattern; only
+   the actual dialog/backdrop visual treatment is new (that root only
+   had bare positioning, no visual styling yet, since nothing consumed
+   it before this). */
+.maudModalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  pointer-events: auto;
+}
+.maudModalDialog {
+  background: var(--mod-surface-panel-2);
+  border: 1px solid var(--mod-border-strong);
+  border-radius: var(--radius-md);
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: var(--mod-space-control-gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.maudModalDialog:focus { outline: none; } /* focus is programmatic (Gate 22), not a click target */
+.maudModalBody { display: flex; flex-direction: column; }
+/* Gate 23: background scroll lock while the modal is open -- the
+   Auditoria list behind it must not shift. */
+body.maudModalOpen { overflow: hidden; }
+
+@media (max-width: 480px) {
+  .maudModalBackdrop { padding: 0; align-items: flex-end; }
+  .maudModalDialog { max-width: 100%; max-height: 100vh; height: 100%; border-radius: 0; }
+}

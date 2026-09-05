@@ -14,6 +14,11 @@
 </head>
 <body>
 <div id="maOutlet"></div>
+<!-- Painel Master Phase PM-4B.3: the real #nxModalRoot (index.html/
+     shell.css) that the Auditoria detail modal renders into -- without
+     this, master-audit-provider.js's modal code would silently no-op
+     in this harness (real product always has this element). -->
+<div id="nxModalRoot" aria-hidden="true"></div>
 <script src="../assets/js/adapters/master-users-provider.js"></script>
 <script src="../assets/js/adapters/master-users-view-model.js"></script>
 <script src="../assets/js/adapters/master-acessos-provider.js"></script>

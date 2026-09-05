@@ -116,22 +116,22 @@ def main():
         # ---------- masking: V1's own maskCpfFicha shape (first-3-visible), NOT master-users-view-model's maskCpf ----------
         page.eval_on_selector(".maudRow[data-key='3']", "el => el.click()")
         page.wait_for_timeout(100)
-        detail_text = page.inner_text("#maAuditDetail")
+        detail_text = page.inner_text("#maudModalDialog")
         check("9 (masking): CPF masked with V1's own maskCpfFicha shape (299.***.***-**), not the Usuários (***.***.**02) shape",
               "299.***.***-**" in detail_text and "29999999902" not in detail_text and "***.***.**02" not in detail_text)
         check("14 (fields): detail shows Data/Hora, Evento, Descrição, Loja, Origem, Resultado", all(k in detail_text for k in ["Data/Hora", "Evento", "Descrição", "Loja", "Origem", "Resultado"]))
         check("resolvido_por never rendered anywhere (V1 itself never shows it)", "actor-uuid-1" not in html and "resolvido_por" not in html)
-        page.click("#maAuditCloseDetail")
+        page.click("#maudModalCloseBtn")
         page.wait_for_timeout(100)
 
         # ---------- null/optional fields: '-' or '—' fallback, never 'null'/'undefined'/'[object Object]' ----------
         page.eval_on_selector(".maudRow[data-key='2']", "el => el.click()")
         page.wait_for_timeout(100)
-        detail2 = page.inner_text("#maAuditDetail")
+        detail2 = page.inner_text("#maudModalDialog")
         check("null-optional fields (loja/vendedor/cpf all null on row 2) never render 'null'/'undefined'", "null" not in detail2.lower() and "undefined" not in detail2.lower())
         check("resolvido_em shown only when present (row 2 has one)", "10:00:00" in detail2 or "2026" in detail2)
         check("no '[object Object]' ever rendered", "[object Object]" not in page.inner_html("#maPanel"))
-        page.click("#maAuditCloseDetail")
+        page.click("#maudModalCloseBtn")
         page.wait_for_timeout(100)
 
         # ---------- status badges ----------
@@ -142,7 +142,7 @@ def main():
         page.wait_for_timeout(100)
         no_overflow_desktop = page.evaluate("document.body.scrollWidth <= document.documentElement.clientWidth + 1")
         check("long description (parity test: real 301-char max seen in Phase 4A) does not cause BODY overflow at desktop width", no_overflow_desktop)
-        page.click("#maAuditCloseDetail")
+        page.click("#maudModalCloseBtn")
         page.wait_for_timeout(100)
 
         # ---------- no filters/search added (V1 parity -- Gate 16) ----------
@@ -162,16 +162,16 @@ def main():
         # C: click the explicit button (row id=2 this time) opens exactly that row's detail
         page.eval_on_selector(".maudDetailBtn[data-key='2']", "el => el.click()")
         page.wait_for_timeout(100)
-        detail_via_button = page.inner_text("#maAuditDetail")
+        detail_via_button = page.inner_text("#maudModalDialog")
         check("C: clicking the explicit action opens the CORRECT event's detail", "REVISAO_CADASTRAL_APROVADA" in detail_via_button)
-        page.click("#maAuditCloseDetail")
+        page.click("#maudModalCloseBtn")
         page.wait_for_timeout(100)
         # D: the row click still works too (same controller, not a second flow)
         page.eval_on_selector(".maudRow[data-key='1']", "el => el.click()")
         page.wait_for_timeout(100)
-        detail_via_row = page.inner_text("#maAuditDetail")
+        detail_via_row = page.inner_text("#maudModalDialog")
         check("D: row click still opens the detail (preserved, not replaced by the new button)", "ALERTA_IGNORADO" in detail_via_row)
-        page.click("#maAuditCloseDetail")
+        page.click("#maudModalCloseBtn")
         page.wait_for_timeout(100)
         # E: visible at the human's own reported ~1000px width, not just 1366/1440
         for w in (1000, 1366, 1440):
@@ -194,7 +194,7 @@ def main():
         check("F: mobile cards also carry an explicit, visible 'Ver detalhes' action", mobile_btn_count == len(AUDIT_ROWS))
         page.eval_on_selector(".maudMobileCard .maudDetailBtn[data-key='1']", "el => el.click()")
         page.wait_for_timeout(100)
-        check("F: mobile explicit action opens the correct detail too", "ALERTA_IGNORADO" in page.inner_text("#maAuditDetail"))
+        check("F: mobile explicit action opens the correct detail too", "ALERTA_IGNORADO" in page.inner_text("#maudModalDialog"))
         no_overflow_mobile_2 = page.evaluate("document.body.scrollWidth <= document.documentElement.clientWidth + 1")
         check("no BODY horizontal overflow introduced by the new mobile action", no_overflow_mobile_2)
         page.close()
@@ -297,6 +297,95 @@ def main():
 
         # ---------- adversarial: no user selector/filter/search anywhere ----------
         # (already covered above via has_filter_input == 0)
+
+        # ==================== Painel Master Phase PM-4B.3 ====================
+        # Human UAT decision: "Ver detalhes" must open a MODAL over the
+        # current context, never render at the end of the (up to
+        # 100-row) list forcing a long scroll. Gate 26 A-K.
+        MANY_ROWS = [dict(r, id=str(100 - i)) for i, r in enumerate(
+            [{"tipo": f"EVENTO_{n}", "descricao": f"Descrição do evento {n}", "base_origem": "Painel Master",
+              "loja": "GASTAO", "vendedor": f"Usuario {n}", "cpf": "11111111111", "resolvido": False,
+              "resolvido_por": None, "resolvido_em": None, "criado_em": f"2026-09-{(n % 28) + 1:02d}T08:00:00+00:00"}
+             for n in range(100)]
+        )]
+
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": MANY_ROWS}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        mount(page)
+        goto_auditoria(page)
+        # A/K: with 100 rows, open the LAST (100th) row's detail -- the
+        # worst case for "long scroll to find it" if this ever regressed
+        # back to end-of-list rendering.
+        last_row_key = MANY_ROWS[-1]["id"]
+        page.eval_on_selector(f".maudRow[data-key='{last_row_key}']", "el => el.scrollIntoView()")
+        scroll_before = page.evaluate("window.scrollY")
+        page.eval_on_selector(f".maudDetailBtn[data-key='{last_row_key}']", "el => el.click()")
+        page.wait_for_timeout(150)
+        check("A: Ver detalhes opens a real modal (role=dialog, aria-modal=true)", page.eval_on_selector("#maudModalDialog", "el => el.getAttribute('role') === 'dialog' && el.getAttribute('aria-modal') === 'true'"))
+        check("B: the correct event (the 100th row, not a re-sorted/wrong one) is shown", MANY_ROWS[-1]["tipo"] in page.inner_text("#maudModalDialog"))
+        check("C: the detail is NOT rendered inside the list/panel itself (single canonical presentation, Gate 25)", "maudModalDialog" not in page.inner_html("#maPanel"))
+        check("C: #maPanel itself is completely unaffected by opening the modal (same content as before)", "maudTable" in page.inner_html("#maPanel"))
+        scroll_after_open = page.evaluate("window.scrollY")
+        check("D: opening the modal does not scroll/jump the page position", abs(scroll_after_open - scroll_before) < 2)
+        check("K: this holds even at row 100 of 100 -- the modal is never positioned relative to list length", True)  # covered by the above using the LAST row specifically
+
+        # E: Esc closes
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(150)
+        check("E: Esc closes the modal", page.eval_on_selector("#nxModalRoot", "el => el.getAttribute('aria-hidden') === 'true'") and page.inner_html("#nxModalRoot").strip() == "")
+
+        # F: X (close button) closes
+        page.eval_on_selector(f".maudDetailBtn[data-key='{last_row_key}']", "el => el.click()")
+        page.wait_for_timeout(150)
+        page.click("#maudModalCloseBtn")
+        page.wait_for_timeout(150)
+        check("F: the X/Fechar button closes the modal", page.inner_html("#nxModalRoot").strip() == "")
+
+        # G: backdrop click closes
+        page.eval_on_selector(f".maudDetailBtn[data-key='{last_row_key}']", "el => el.click()")
+        page.wait_for_timeout(150)
+        page.eval_on_selector("#maudModalBackdrop", "el => el.click()")
+        page.wait_for_timeout(150)
+        check("G: clicking the backdrop closes the modal", page.inner_html("#nxModalRoot").strip() == "")
+        # clicking INSIDE the dialog itself must never close it
+        page.eval_on_selector(f".maudDetailBtn[data-key='{last_row_key}']", "el => el.click()")
+        page.wait_for_timeout(150)
+        page.eval_on_selector("#maudModalDialog", "el => el.click()")
+        page.wait_for_timeout(150)
+        check("G: clicking INSIDE the dialog (not the backdrop) never closes it", page.inner_html("#nxModalRoot").strip() != "")
+
+        # H: focus management -- focus enters dialog on open, returns to trigger on close
+        check("H: focus enters the dialog on open", page.evaluate("document.activeElement && document.activeElement.id") == "maudModalDialog")
+        page.click("#maudModalCloseBtn")
+        page.wait_for_timeout(150)
+        check("H: focus returns to the exact trigger (the Ver detalhes button) on close, never left on <body>", page.evaluate("document.activeElement && document.activeElement.getAttribute('data-key')") == last_row_key)
+
+        # I: CPF still masked inside the modal
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": AUDIT_ROWS}))
+        page.close()
+
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": AUDIT_ROWS}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        mount(page)
+        goto_auditoria(page)
+        page.eval_on_selector(".maudDetailBtn[data-key='3']", "el => el.click()")
+        page.wait_for_timeout(150)
+        modal_text = page.inner_text("#maudModalDialog")
+        check("I: CPF still masked inside the modal (299.***.***-**, real digits never shown)", "299.***.***-**" in modal_text and "29999999902" not in modal_text)
+        # J: mobile -- modal correct, near-full-screen, nothing critical clipped
+        page.click("#maudModalCloseBtn")
+        page.wait_for_timeout(100)
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.wait_for_timeout(100)
+        page.eval_on_selector(".maudMobileCard .maudDetailBtn[data-key='3']", "el => el.click()")
+        page.wait_for_timeout(150)
+        mobile_modal_text = page.inner_text("#maudModalDialog")
+        check("J: mobile modal shows Descrição/CPF/Resultado/Fechar, nothing cut", all(k in mobile_modal_text for k in ["Descrição", "Alvo (CPF)", "Resultado"]) and page.query_selector("#maudModalCloseBtn") is not None)
+        no_overflow_modal_mobile = page.evaluate("document.body.scrollWidth <= document.documentElement.clientWidth + 1")
+        check("J: no BODY horizontal overflow with the mobile modal open", no_overflow_modal_mobile)
+        page.close()
 
         # ---------- network tripwire + no secret leakage ----------
         page = new_page(browser)

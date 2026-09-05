@@ -31,6 +31,8 @@ INVITE_URL = "https://mock.invalid/rest/v1/rpc/master_convidar_usuario"
 UPDATE_URL = "https://mock.invalid/rest/v1/rpc/master_atualizar_autorizacao_usuario"
 RESEND_URL = "https://mock.invalid/rest/v1/rpc/master_reenviar_convite"
 ADMIN_INVITE_EDGE_URL = "https://mock.invalid/functions/v1/admin-invite-user"
+ACCESS_LINK_EDGE_URL = "https://mock.invalid/functions/v1/admin-generate-user-access-link"
+CONTINUATION_RPC_URL = "https://mock.invalid/rest/v1/rpc/master_gerar_continuacao_primeiro_acesso"
 
 results = []
 
@@ -530,6 +532,179 @@ def main():
         page.click("#maConfirmYes")
         page.wait_for_timeout(300)
         check("44: RPC success + Edge Function failure -> no success message ever shown (Gate 9)", "reenviado com sucesso" not in page.inner_html("#maOutlet").lower())
+        page.close()
+
+        # ==================== Painel Master Phase PM-4B.3 ====================
+        # Human UAT finding: real V1 parity gap -- link-generation actions
+        # (activation/recovery/continuation) never existed in V2 at all.
+        # State-specific visibility proven against the SAME fixture users
+        # already used above (u2=activation-eligible, u3=continuation-
+        # eligible, u4=recovery-eligible, u1/u5=no action, matching V1's
+        # own real gap for those combinations -- not invented).
+
+        # ---------- 45: correct action per state, invalid states show none ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+
+        def open_and_get_action_btn(uid):
+            page.eval_on_selector(f".maTable tbody tr[data-key='{uid}']", "el => el.click()")
+            page.wait_for_timeout(100)
+            btn = page.query_selector("#maGenerateLinkBtn")
+            text = btn.text_content() if btn else None
+            page.click("#maCloseDetail")
+            page.wait_for_timeout(100)
+            return text
+
+        check("45a: u2 (AUTH_CREATED_UNCONFIRMED+BLOCKED) shows 'Gerar link de ativação'", open_and_get_action_btn("u2") == "Gerar link de ativação")
+        check("45b: u3 (FIRST_ACCESS_PENDING+BLOCKED) shows 'Gerar link para concluir acesso'", open_and_get_action_btn("u3") == "Gerar link para concluir acesso")
+        check("45c: u4 (ACCEPTED+ACTIVE) shows 'Gerar link para redefinir senha'", open_and_get_action_btn("u4") == "Gerar link para redefinir senha")
+        check("45d: u1 (INVITED, no auth yet) shows NO link action (Reenviar Convite covers it instead)", open_and_get_action_btn("u1") is None)
+        check("45e: u5 (ACCEPTED+BLOCKED) shows NO link action (matches V1's own real gap, not invented)", open_and_get_action_btn("u5") is None)
+        page.close()
+
+        # ---------- 46: activation link -- confirm step, correct provider call, copy-only-after-link ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        link_calls = []
+
+        def capture_link_call(route):
+            link_calls.append(_json.loads(route.request.post_data or "{}"))
+            route.fulfill(status=200, content_type="application/json", body=_json.dumps({"ok": True, "link": "https://TEST-ONLY-MOCK.example/token-placeholder-not-real"}))
+        page.route(ACCESS_LINK_EDGE_URL + "*", capture_link_call)
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u2']", "el => el.click()")
+        page.wait_for_timeout(100)
+        check("46: no link panel shown before any action taken", "maGeneratedLinkInput" not in page.inner_html("#maPanel"))
+        page.click("#maGenerateLinkBtn")
+        page.wait_for_timeout(100)
+        check("46: explicit confirmation step shown before calling the backend (zero calls yet)", "maConfirm" in page.inner_html("#maPanel") and len(link_calls) == 0)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(200)
+        check("46: exactly one call to admin-generate-user-access-link", len(link_calls) == 1)
+        if link_calls:
+            check("46: correct usuario_id and tipo='activation' sent", link_calls[0].get("usuario_id") == "u2" and link_calls[0].get("tipo") == "activation")
+            check("MASTER_USERS_ACTION security: no cpf/email/actor field ever sent in the payload", not any(k in link_calls[0] for k in ("cpf", "email", "actor", "master_id", "auth_uid")))
+        check("46: link only shown AFTER generation succeeds (present now)", "maGeneratedLinkInput" in page.inner_html("#maPanel"))
+        check("46: the mock link string never appears anywhere except inside the readonly input value (no console/log leak surface in this render)", page.inner_html("#maPanel").count("TEST-ONLY-MOCK") == 1)
+        page.close()
+
+        # ---------- 47: copy button only meaningful once a link exists; never auto-copies ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        page.route(ACCESS_LINK_EDGE_URL + "*", json_route(200, {"ok": True, "link": "https://TEST-ONLY-MOCK.example/token-b"}))
+        page.add_init_script("""
+        window.__clipboardWrites = [];
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__clipboardWrites.push(t); return Promise.resolve(); } }, configurable: true });
+        """)
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u4']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maGenerateLinkBtn")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(200)
+        clipboard_before = page.evaluate("window.__clipboardWrites.length")
+        check("47: nothing copied to clipboard automatically after generation", clipboard_before == 0)
+        page.click("#maCopyLinkBtn")
+        page.wait_for_timeout(100)
+        check("47: explicit 'Copiar link' click copies the exact generated link", page.evaluate("window.__clipboardWrites") == ["https://TEST-ONLY-MOCK.example/token-b"])
+        check("47: visible feedback shown after copying", "copiado" in page.inner_text("#maPanel").lower())
+        page.click("#maCloseLinkPanel")
+        page.wait_for_timeout(100)
+        check("47: link panel fully cleared after Fechar (nothing lingers)", "maGeneratedLinkInput" not in page.inner_html("#maPanel"))
+        page.close()
+
+        # ---------- 48: continuation link -- different backend shape (RPC, not Edge Function), same UX ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        continuation_calls = []
+
+        def capture_continuation(route):
+            continuation_calls.append(_json.loads(route.request.post_data or "{}"))
+            route.fulfill(status=200, content_type="application/json", body=_json.dumps({"ok": True, "codigo": "GERADO"}))
+        page.route(CONTINUATION_RPC_URL + "*", capture_continuation)
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u3']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maGenerateLinkBtn")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(200)
+        check("48: exactly one call to master_gerar_continuacao_primeiro_acesso", len(continuation_calls) == 1)
+        if continuation_calls:
+            check("48: correct usuario_id sent, real token HASH sent (never the raw token)", continuation_calls[0].get("p_usuario_id") == "u3" and len(continuation_calls[0].get("p_token_hash", "")) == 64)
+            check("48: expiration is ~30 minutes out, never absent", "p_expira_em" in continuation_calls[0])
+        link_val = page.eval_on_selector("#maGeneratedLinkInput", "el => el.value")
+        check("48: final link built client-side from the RAW token (server never returns it) -- points at the real production continuation host", link_val is not None and link_val.startswith("https://brabus.blistiq.com.br/concluir-acesso.html#token="))
+        raw_token_in_link = link_val.split("token=")[1] if link_val else ""
+        sent_hash = continuation_calls[0].get("p_token_hash") if continuation_calls else ""
+        check("48: the hash sent to the server does not equal the raw token in the link (real hashing occurred, not a passthrough)", raw_token_in_link != sent_hash)
+        page.close()
+
+        # ---------- 49: real V1 continuation error codes normalized, dialog stays open (not silently closed) ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        page.route(CONTINUATION_RPC_URL + "*", json_route(200, {"ok": False, "codigo": "RATE_LIMIT", "aguardar_segundos": 180}))
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u3']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maGenerateLinkBtn")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(200)
+        confirm_text = page.inner_text("#maPanel")
+        check("49: RATE_LIMIT normalized to real V1 copy (minutes, not raw codigo)", "minuto" in confirm_text.lower() and "RATE_LIMIT" not in confirm_text)
+        check("49: confirm dialog stays open on failure (never silently closed, never a false success)", "maConfirm" in page.inner_html("#maPanel") and "maGeneratedLinkInput" not in page.inner_html("#maPanel"))
+        page.close()
+
+        # ---------- 50: MASTER-only server-side (403) normalized, no raw backend text ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        page.route(ACCESS_LINK_EDGE_URL + "*", json_route(403, {"error": "Apenas usuário MASTER ativo pode gerar links de acesso"}))
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u4']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maGenerateLinkBtn")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(200)
+        check("50: 403 normalized, no raw backend text leaked", "Apenas usuário MASTER ativo" not in page.inner_html("#maPanel"))
+        page.close()
+
+        # ---------- 51: duplicate-submit guard on link generation ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        dup_link_calls = []
+
+        def slow_link(route):
+            import time as _t
+            dup_link_calls.append(1)
+            _t.sleep(0.2)
+            route.fulfill(status=200, content_type="application/json", body=_json.dumps({"ok": True, "link": "https://TEST-ONLY-MOCK.example/token-c"}))
+        page.route(ACCESS_LINK_EDGE_URL + "*", slow_link)
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u4']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maGenerateLinkBtn")
+        page.wait_for_timeout(100)
+        page.eval_on_selector("#maConfirmYes", "el => { el.click(); el.click(); }")
+        page.wait_for_timeout(500)
+        check("51: duplicate-submit guard (exactly 1 call despite 2 clicks)", len(dup_link_calls) == 1)
         page.close()
 
         browser.close()

@@ -297,7 +297,7 @@ def main():
         check("Gate 13: Vendedor/Usuário cell exposes the full name via title even if visually ellipsized", cell_title == LONG_NAME)
         page.eval_on_selector(".maudDetailBtn", "el => el.click()")
         page.wait_for_timeout(150)
-        detail_text = page.inner_text("#maAuditDetail")
+        detail_text = page.inner_text("#maudModalDialog")
         check("Gate 19: detail panel still shows the FULL vendor name (never truncated there)", LONG_NAME in detail_text)
         check("Gate 19: detail panel still shows the full long description untouched", LONG_EVENT_DESC in detail_text)
         page.close()
@@ -310,7 +310,7 @@ def main():
         page.wait_for_timeout(200)
         page.eval_on_selector(".maudDetailBtn", "el => el.click()")
         page.wait_for_timeout(150)
-        check("PM-4B.1 non-regression: Ver detalhes still opens the correct event at 1000px", "REVISAO_CADASTRAL_CORRIGIDA_COM_NOME_LONGO" in page.inner_text("#maAuditDetail"))
+        check("PM-4B.1 non-regression: Ver detalhes still opens the correct event at 1000px", "REVISAO_CADASTRAL_CORRIGIDA_COM_NOME_LONGO" in page.inner_text("#maudModalDialog"))
         page.close()
 
         # ---------- network tripwire ----------

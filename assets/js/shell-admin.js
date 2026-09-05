@@ -63,7 +63,7 @@
   // Double-submit guards (Gate 24) — one per distinct mutation action,
   // never a single shared flag (two different actions must not block
   // each other).
-  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false };
+  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false };
 
   // Painel Master Phase 3B -- Acessos aos Módulos section state. Kept
   // entirely separate from the Usuários vars above (own load/error/
@@ -102,6 +102,21 @@
   // Cleared on any new navigation/interaction so it never lingers past
   // its relevance.
   var successMessage = null;
+
+  // Painel Master Phase PM-4B.3 -- link generation (Gate 13/14 security
+  // discipline): the raw link exists ONLY in this in-memory variable,
+  // never in the URL, never logged, never in localStorage/sessionStorage.
+  // Cleared aggressively at every navigation boundary (openDetail/
+  // closeDetail/switchSection/page unload) -- same discipline as V1's
+  // own limparLinkAcessoGerado(), never left lingering.
+  var generatedLink = null; // { tipo, link } | null
+  window.addEventListener('beforeunload', function () { generatedLink = null; });
+  // Gate 21/26 (PM-4B.3): registered ONCE at module scope (not inside
+  // wireInteraction(), which runs on every render and would stack
+  // duplicate listeners) -- Esc closes the audit detail modal from
+  // anywhere while it's open.
+  document.addEventListener('keydown', function (e) { auditModalKeydown(e); });
+
   var SUCCESS_COPY = {
     toggleActive: { active: 'Usuário reativado com sucesso.', inactive: 'Usuário bloqueado com sucesso.' },
     resend: 'Convite reenviado com sucesso.'
@@ -272,12 +287,33 @@
         '<button type="button" class="modBtn" id="maEditBtn">Editar autorização</button>' +
         '<button type="button" class="modBtn' + (r.ativo ? ' modBtnDanger' : '') + '" id="maToggleActiveBtn">' + (r.ativo ? 'Bloquear' : 'Reativar') + '</button>' +
         (r.conviteId ? '<button type="button" class="modBtn" id="maResendBtn">Reenviar convite</button>' : '') +
+        (r.accessLinkAction ? '<button type="button" class="modBtn" id="maGenerateLinkBtn">' + esc(r.accessLinkAction.label) + '</button>' : '') +
         '</div>';
     }
     return '<div class="maDetail" id="maDetail">' +
       '<div class="maDetailHead"><h2>' + esc(r.nome) + '</h2>' +
       '<button type="button" class="modBtnGhost" id="maCloseDetail">Fechar</button></div>' +
       body + '</div>';
+  }
+
+  // Painel Master Phase PM-4B.3 -- the generated link is shown exactly
+  // once, in its own panel (never auto-copied, Gate 14), with an
+  // explicit "Copiar link" action. Matches V1's own real two-step UX
+  // (Gerar link -> resultado temporário -> Copiar link) rather than
+  // inventing a new one.
+  var ACCESS_LINK_TITULO = { activation: 'ativação', recovery: 'recuperação', continuation: 'continuação de acesso' };
+  function renderGeneratedLinkPanel() {
+    if (!generatedLink) return '';
+    var titulo = ACCESS_LINK_TITULO[generatedLink.tipo] || 'acesso';
+    return '<div class="maConfirm" role="alertdialog" aria-labelledby="maLinkTitle">' +
+      '<h3 id="maLinkTitle">Link de ' + esc(titulo) + ' gerado com sucesso</h3>' +
+      '<p class="maWarnNote">Este link é confidencial e será exibido somente agora. Compartilhe apenas com o próprio usuário.</p>' +
+      '<div class="modField"><label for="maGeneratedLinkInput">Link</label><input id="maGeneratedLinkInput" type="text" readonly value="' + esc(generatedLink.link) + '" onclick="this.select()"></div>' +
+      '<p class="maSubtle" id="maLinkCopyMsg" role="status"></p>' +
+      '<div class="maDetailActions">' +
+      '<button type="button" class="modBtn" id="maCopyLinkBtn">Copiar link</button>' +
+      '<button type="button" class="modBtnGhost" id="maCloseLinkPanel">Fechar</button>' +
+      '</div></div>';
   }
 
   function renderEditForm(r) {
@@ -336,11 +372,12 @@
   // ---------- confirmation step (inline, two-step reveal — no modal
   // primitive exists yet in this codebase; Gate 10 forbids introducing
   // a new parallel component for this alone) ----------
-  function confirmHtml(title, body, confirmLabel, destructive, bodyHtml) {
+  function confirmHtml(title, body, confirmLabel, destructive, bodyHtml, errorMsg) {
     return '<div class="maConfirm" role="alertdialog" aria-labelledby="maConfirmTitle">' +
       '<h3 id="maConfirmTitle">' + esc(title) + '</h3>' +
       (body ? '<p>' + esc(body) + '</p>' : '') +
       (bodyHtml || '') +
+      (errorMsg ? '<p class="maFieldError" role="alert">' + esc(errorMsg) + '</p>' : '') +
       '<div class="maDetailActions">' +
       '<button type="button" class="modBtn' + (destructive ? ' modBtnDanger' : '') + '" id="maConfirmYes">' + esc(confirmLabel) + '</button>' +
       '<button type="button" class="modBtnGhost" id="maConfirmNo">Cancelar</button>' +
@@ -392,6 +429,8 @@
     editForm = null;
     pendingConfirm = null;
     successMessage = null;
+    generatedLink = null;
+    if (auditDetailId) closeAuditModal(); // never leave the modal open behind a section switch
     var newUserBtn = document.getElementById('maNewUserBtn');
     if (newUserBtn) newUserBtn.hidden = (currentSection !== 'usuarios');
     if (currentSection === 'acessos') {
@@ -680,16 +719,70 @@
     return '<div class="maMobileOnly">' + cards + '</div>';
   }
 
-  function renderAuditDetail(r) {
-    if (!r) return '';
-    var body = fieldRow('Data/Hora', r.criadoEmFormatted) + fieldRow('Evento', r.tipo) + fieldRow('Descrição', r.descricao) +
+  // Painel Master Phase PM-4B.3 (Human UAT finding: clicking "Ver
+  // detalhes" rendered the detail at the END of the (up to 100-row)
+  // list, forcing a long scroll and losing context). Fixed by rendering
+  // into the existing, pre-built, currently-unused #nxModalRoot (real
+  // infrastructure already present in index.html/shell.css -- "Gate
+  // 10" overlay/modal root -- reused as-is, per Gate 19's own
+  // instruction to prefer an existing pattern over inventing markup).
+  // The list itself is never re-rendered/scrolled to open this -- only
+  // the separate modal root's own content changes.
+  var auditModalTriggerEl = null;
+
+  function auditModalBodyHtml(r) {
+    return fieldRow('Data/Hora', r.criadoEmFormatted) + fieldRow('Evento', r.tipo) + fieldRow('Descrição', r.descricao) +
       fieldRow('Alvo (CPF)', r.cpfMasked) + fieldRow('Vendedor/Usuário', r.vendedor) + fieldRow('Loja', r.loja) +
       fieldRow('Origem', r.baseOrigem) + fieldRow('Resultado', r.resolvidoLabel) +
       (r.resolvidoEm ? fieldRow('Resolvido em', r.resolvidoEmFormatted) : '');
-    return '<div class="maDetail" id="maAuditDetail">' +
-      '<div class="maDetailHead"><h2>' + esc(r.tipo) + '</h2>' +
-      '<button type="button" class="modBtnGhost" id="maAuditCloseDetail">Fechar</button></div>' +
-      body + '</div>';
+  }
+
+  function renderAuditModalRoot() {
+    var root = document.getElementById('nxModalRoot');
+    if (!root) return;
+    var r = auditDetailId ? auditRowById(auditDetailId) : null;
+    if (!r) {
+      root.innerHTML = '';
+      root.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('maudModalOpen');
+      return;
+    }
+    root.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('maudModalOpen'); // background scroll lock (Gate 23)
+    root.innerHTML = '<div class="maudModalBackdrop" id="maudModalBackdrop">' +
+      '<div class="maudModalDialog" role="dialog" aria-modal="true" aria-labelledby="maudModalTitle" tabindex="-1" id="maudModalDialog">' +
+      '<div class="maDetailHead"><h2 id="maudModalTitle">' + esc(r.tipo) + '</h2>' +
+      '<button type="button" class="modBtnGhost" id="maudModalCloseBtn" aria-label="Fechar">×</button></div>' +
+      '<div class="maudModalBody">' + auditModalBodyHtml(r) + '</div>' +
+      '</div></div>';
+    var backdrop = document.getElementById('maudModalBackdrop');
+    var dialog = document.getElementById('maudModalDialog');
+    if (backdrop) backdrop.addEventListener('click', function (e) { if (e.target === backdrop) closeAuditModal(); });
+    var closeBtn = document.getElementById('maudModalCloseBtn');
+    if (closeBtn) closeBtn.addEventListener('click', closeAuditModal);
+    // Gate 22: focus enters the dialog on open.
+    if (dialog) dialog.focus();
+  }
+
+  function auditModalKeydown(e) {
+    if (e.key === 'Escape' && auditDetailId) { e.preventDefault(); closeAuditModal(); }
+  }
+
+  function openAuditModal(id, triggerEl) {
+    auditDetailId = id;
+    auditModalTriggerEl = triggerEl || null;
+    renderAuditModalRoot();
+  }
+
+  function closeAuditModal() {
+    auditDetailId = null;
+    renderAuditModalRoot();
+    // Gate 22: focus returns to the exact trigger that opened this
+    // event's modal -- never left stranded on <body>.
+    if (auditModalTriggerEl && typeof auditModalTriggerEl.focus === 'function') {
+      auditModalTriggerEl.focus();
+    }
+    auditModalTriggerEl = null;
   }
 
   function renderAuditoriaSection() {
@@ -706,8 +799,8 @@
     } else {
       html += renderAuditDesktopTable(auditState.rows) + renderAuditMobileCards(auditState.rows);
     }
-    var detailRow = auditDetailId ? auditRowById(auditDetailId) : null;
-    html += detailRow ? renderAuditDetail(detailRow) : '';
+    // Gate 25: single canonical presentation -- the old end-of-list
+    // detail panel is gone entirely, never rendered alongside the modal.
     return html;
   }
 
@@ -758,17 +851,18 @@
       html += renderList();
       var detailRow = currentDetailId ? rowById(currentDetailId) : null;
       html += detailRow ? renderDetail(detailRow) : '';
+      html += renderGeneratedLinkPanel();
     }
     if (pendingConfirm) {
-      html += confirmHtml(pendingConfirm.title, pendingConfirm.body, pendingConfirm.confirmLabel, pendingConfirm.destructive, pendingConfirm.bodyHtml);
+      html += confirmHtml(pendingConfirm.title, pendingConfirm.body, pendingConfirm.confirmLabel, pendingConfirm.destructive, pendingConfirm.bodyHtml, pendingConfirm.error);
     }
     panel.innerHTML = html;
     wireInteraction();
   }
 
   // ---------- interaction wiring ----------
-  function openDetail(id) { currentDetailId = id; editForm = null; pendingConfirm = null; successMessage = null; renderPanel(); }
-  function closeDetail() { currentDetailId = null; editForm = null; pendingConfirm = null; successMessage = null; renderPanel(); }
+  function openDetail(id) { currentDetailId = id; editForm = null; pendingConfirm = null; successMessage = null; generatedLink = null; renderPanel(); }
+  function closeDetail() { currentDetailId = null; editForm = null; pendingConfirm = null; successMessage = null; generatedLink = null; renderPanel(); }
 
   // Painel Master Phase 3B fix: the section nav reflects `currentSection`
   // (which item is the inert "active" span vs. a clickable link) and
@@ -809,24 +903,20 @@
 
     var maAuditRetry = document.getElementById('maAuditRetryBtn');
     if (maAuditRetry) maAuditRetry.addEventListener('click', auditLoad);
-    var maAuditClose = document.getElementById('maAuditCloseDetail');
-    if (maAuditClose) maAuditClose.addEventListener('click', function () { auditDetailId = null; renderPanel(); });
     document.querySelectorAll('.maudRow, .maudMobileCard').forEach(function (el) {
-      el.addEventListener('click', function () { auditDetailId = el.getAttribute('data-key'); renderPanel(); });
+      el.addEventListener('click', function () { openAuditModal(el.getAttribute('data-key'), el); });
       el.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); auditDetailId = el.getAttribute('data-key'); renderPanel(); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAuditModal(el.getAttribute('data-key'), el); }
       });
     });
     // Gate 6 (PM-4B.1): the explicit button calls the exact same
     // controller as the row/card click -- never a second flow. Stops
     // propagation only so the parent row/card's own click listener
-    // doesn't ALSO fire redundantly (harmless if it did, since both set
-    // the same auditDetailId, but this keeps a single, clean render).
+    // doesn't ALSO fire redundantly.
     document.querySelectorAll('.maudDetailBtn').forEach(function (el) {
       el.addEventListener('click', function (e) {
         e.stopPropagation();
-        auditDetailId = el.getAttribute('data-key');
-        renderPanel();
+        openAuditModal(el.getAttribute('data-key'), el);
       });
     });
 
@@ -898,6 +988,42 @@
       };
       renderPanel();
     });
+
+    var generateLinkBtn = document.getElementById('maGenerateLinkBtn');
+    if (generateLinkBtn) generateLinkBtn.addEventListener('click', function () {
+      var r = rowById(currentDetailId);
+      var action = r.accessLinkAction;
+      if (!action) return;
+      var bodyByType = {
+        activation: 'Este link permitirá que o usuário defina sua senha de acesso. Compartilhe-o somente com o próprio usuário. Gerar um novo link invalida qualquer link anterior ainda não utilizado.',
+        recovery: 'Este link permitirá que o usuário redefina sua senha. Compartilhe-o somente com o próprio usuário. Gerar um novo link invalida qualquer link de recuperação anterior ainda não utilizado.',
+        continuation: 'O usuário já confirmou o e-mail e definiu senha — este link NÃO pede nova senha, só conclui o vínculo com o Portal. Compartilhe-o somente com o próprio usuário. Este link expira em 30 minutos.'
+      };
+      pendingConfirm = {
+        kind: 'generateAccessLink', subtype: action.type, target: r,
+        title: action.label,
+        body: bodyByType[action.type] || '',
+        confirmLabel: action.label, destructive: false
+      };
+      renderPanel();
+    });
+
+    var copyLinkBtn = document.getElementById('maCopyLinkBtn');
+    if (copyLinkBtn) copyLinkBtn.addEventListener('click', function () {
+      if (!generatedLink) return;
+      var msg = document.getElementById('maLinkCopyMsg');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(generatedLink.link).then(function () {
+          if (msg) msg.textContent = 'Link copiado.';
+        }, function () {
+          if (msg) msg.textContent = 'Não foi possível copiar automaticamente — selecione e copie manualmente.';
+        });
+      } else if (msg) {
+        msg.textContent = 'Não foi possível copiar automaticamente — selecione e copie manualmente.';
+      }
+    });
+    var closeLinkBtn = document.getElementById('maCloseLinkPanel');
+    if (closeLinkBtn) closeLinkBtn.addEventListener('click', function () { generatedLink = null; renderPanel(); });
 
     var confirmYes = document.getElementById('maConfirmYes');
     if (confirmYes) confirmYes.addEventListener('click', executeConfirmedAction);
@@ -973,6 +1099,49 @@
       acessosExecuteSave(delta);
       return;
     }
+    if (kind === 'generateAccessLink') {
+      if (inFlight.generateLink) return;
+      inFlight.generateLink = true;
+      var linkTarget = pendingConfirm.target;
+      var subtype = pendingConfirm.subtype;
+      var linkProvider = window.NX_MASTER_USERS_PROVIDER;
+      var linkPromise = subtype === 'continuation'
+        ? linkProvider.generateContinuationLink(linkTarget.id, {})
+        : linkProvider.generateAccessLink(linkTarget.id, subtype, {});
+      linkPromise.then(
+        function (result) {
+          inFlight.generateLink = false;
+          pendingConfirm = null;
+          generatedLink = { tipo: subtype, link: result.link };
+          renderPanel();
+        },
+        function (err) {
+          inFlight.generateLink = false;
+          // Real V1 copy for master_gerar_continuacao_primeiro_acesso's
+          // own enumerated failure codes (docs: this Phase's own RPC
+          // capture) -- everything else falls back to the shared
+          // STATE_COPY vocabulary already used across this file.
+          var msg = (STATE_COPY[err && err.state] || STATE_COPY.RPC_ERROR).body;
+          if (err && err.code) {
+            var CONTINUATION_ERROR_COPY = {
+              USUARIO_JA_ATIVO: 'Este usuário já está ativo.',
+              PRIMEIRO_ACESSO_NAO_PENDENTE: 'Este usuário não está aguardando primeiro acesso.',
+              SEM_CONTA_AUTH: 'Este usuário ainda não possui conta Auth.',
+              CONTA_LEGADA_USE_MIGRACAO: 'Conta legada — este fluxo ainda não está disponível no Portal V2 para contas de migração legada.',
+              CONTA_AUTH_NAO_LOCALIZADA: 'Conta Auth vinculada não foi localizada.',
+              EMAIL_DIVERGENTE: 'E-mail divergente entre o cadastro e a conta Auth — geração bloqueada por segurança.',
+              AUTH_NAO_CONFIRMADO: 'O usuário ainda não confirmou o e-mail — use Reenviar Convite ou Gerar Link de Ativação.',
+              CONVITE_INCOMPATIVEL: 'Convite original não encontrado ou incompatível.',
+              RATE_LIMIT: (err.aguardarSegundos ? 'Aguarde cerca de ' + Math.ceil(err.aguardarSegundos / 60) + ' minuto(s) antes de gerar outro link.' : 'Aguarde alguns minutos antes de gerar outro link.')
+            };
+            msg = CONTINUATION_ERROR_COPY[err.code] || msg;
+          }
+          pendingConfirm.error = msg;
+          renderPanel();
+        }
+      );
+      return;
+    }
 
     var flagKey = kind === 'toggleActive' ? 'toggleActive' : kind === 'resend' ? 'resend' : kind === 'edit' ? 'edit' : 'invite';
     if (inFlight[flagKey]) return; // double-submit guard
@@ -1040,6 +1209,10 @@
       };
       auditState = { loading: false, loaded: false, error: null, rows: [] };
       auditDetailId = null;
+      auditModalTriggerEl = null;
+      var staleModalRoot = document.getElementById('nxModalRoot');
+      if (staleModalRoot) { staleModalRoot.innerHTML = ''; staleModalRoot.setAttribute('aria-hidden', 'true'); }
+      document.body.classList.remove('maudModalOpen');
       outlet.innerHTML =
         '<div class="maPage">' +
         '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Painel Master</h1><p class="modSubtitle">Administração de usuários e acessos.</p></div>' +
