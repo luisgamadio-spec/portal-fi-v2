@@ -91,3 +91,11 @@
 .mamConfirmItem { padding: var(--space-1) var(--mod-space-compact); border-radius: var(--radius-sm); font-size: 12.5px; border-left: 3px solid var(--mod-border-strong); }
 .mamConfirmGood { border-left-color: var(--color-success-strong, #1a7f37); }
 .mamConfirmBad { border-left-color: var(--mod-critical, #c22); }
+
+/* Painel Master Phase PM-4B.1 -- explicit "Ver detalhes" affordance
+   (Human UAT finding: the whole row/card was clickable but had zero
+   visible affordance). Compact, discreet (.modBtnGhost's own neutral
+   underlined-text look) so it never competes with the RESULTADO badge. */
+.maudDetailCol { white-space: nowrap; text-align: right; }
+.maudDetailBtn { font-size: 12.5px; }
+.maudMobileActions { margin-top: 2px; }

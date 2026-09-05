@@ -636,6 +636,22 @@
     return '<span class="maBadge ' + cls + '">' + esc(r.resolvidoLabel) + '</span>';
   }
 
+  // Painel Master Phase PM-4B.1 (Human UAT finding): PM-4B's table
+  // relied on an invisible whole-row click (tabindex/role=button, no
+  // affordance) -- confirmed against real V1 source this Phase that V1's
+  // OWN Auditoria list already renders an explicit, visible "Ver
+  // detalhes" button per row (portal-app.js's adminListActions/
+  // abrirDetalheAuditoria). This was a real parity gap, not just a UX
+  // nicety -- restoring V1's own real affordance, in the V2 design
+  // system's own button convention (.modBtnGhost; no icon system exists
+  // anywhere in this codebase, so a text button is the actual "already
+  // belonging to the design system" choice, not a new one). The row/
+  // card click is PRESERVED (Gate 6/PM-4B.1) -- both paths call the
+  // exact same auditDetailId assignment, never two different flows.
+  function auditDetailBtnHtml(r) {
+    return '<button type="button" class="modBtnGhost maudDetailBtn" data-key="' + esc(r.id) + '" aria-label="Ver detalhes do evento ' + esc(r.tipo) + '" title="Ver detalhes do evento ' + esc(r.tipo) + '">Ver detalhes</button>';
+  }
+
   function renderAuditDesktopTable(rows) {
     var body = rows.map(function (r) {
       return '<tr class="maudRow" tabindex="0" role="button" data-key="' + esc(r.id) + '" aria-label="Ver detalhes do evento ' + esc(r.tipo) + '">' +
@@ -643,10 +659,11 @@
         '<td>' + esc(r.tipo) + '</td>' +
         '<td>' + esc(r.vendedor) + '</td>' +
         '<td>' + auditBadgeHtml(r) + '</td>' +
+        '<td class="maudDetailCol">' + auditDetailBtnHtml(r) + '</td>' +
         '</tr>';
     }).join('');
     return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable maudTable">' +
-      '<thead><tr><th scope="col">Data/Hora</th><th scope="col">Evento</th><th scope="col">Vendedor/Usuário</th><th scope="col">Resultado</th></tr></thead>' +
+      '<thead><tr><th scope="col">Data/Hora</th><th scope="col">Evento</th><th scope="col">Vendedor/Usuário</th><th scope="col">Resultado</th><th scope="col">Detalhes</th></tr></thead>' +
       '<tbody>' + body + '</tbody></table></div></div>';
   }
 
@@ -657,6 +674,7 @@
         '<div class="maSubtle">' + esc(r.tipo) + '</div>' +
         '<div class="maMobileMeta">' + esc(r.vendedor) + '</div>' +
         auditBadgeHtml(r) +
+        '<div class="maudMobileActions">' + auditDetailBtnHtml(r) + '</div>' +
         '</div>';
     }).join('');
     return '<div class="maMobileOnly">' + cards + '</div>';
@@ -797,6 +815,18 @@
       el.addEventListener('click', function () { auditDetailId = el.getAttribute('data-key'); renderPanel(); });
       el.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); auditDetailId = el.getAttribute('data-key'); renderPanel(); }
+      });
+    });
+    // Gate 6 (PM-4B.1): the explicit button calls the exact same
+    // controller as the row/card click -- never a second flow. Stops
+    // propagation only so the parent row/card's own click listener
+    // doesn't ALSO fire redundantly (harmless if it did, since both set
+    // the same auditDetailId, but this keeps a single, clean render).
+    document.querySelectorAll('.maudDetailBtn').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.stopPropagation();
+        auditDetailId = el.getAttribute('data-key');
+        renderPanel();
       });
     });
 

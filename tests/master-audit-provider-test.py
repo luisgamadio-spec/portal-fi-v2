@@ -151,6 +151,52 @@ def main():
 
         # ---------- explicit "100 most recent" framing, never implies full history ----------
         check("copy states this is the recent-events window, not implying all 478 historical rows", "100" in text and "recentes" in text.lower())
+
+        # ---------- PM-4B.1 (Human UAT finding): explicit "Ver detalhes" affordance ----------
+        detail_btn_count = page.eval_on_selector_all(".maDesktopOnly .maudDetailBtn", "els => els.length")
+        check("A: every desktop row has an explicit detail affordance (not just an invisible whole-row click)", detail_btn_count == len(AUDIT_ROWS))
+        btn_label = page.eval_on_selector(".maudDetailBtn[data-key='3']", "el => el.getAttribute('aria-label')")
+        check("B: the affordance has a real, specific accessible label (not a generic 'click here')", bool(btn_label) and "CONVITE_ENVIADO" in btn_label)
+        btn_title = page.eval_on_selector(".maudDetailBtn[data-key='3']", "el => el.getAttribute('title')")
+        check("B: also exposes a title, doesn't depend on hover/aria alone", bool(btn_title))
+        # C: click the explicit button (row id=2 this time) opens exactly that row's detail
+        page.eval_on_selector(".maudDetailBtn[data-key='2']", "el => el.click()")
+        page.wait_for_timeout(100)
+        detail_via_button = page.inner_text("#maAuditDetail")
+        check("C: clicking the explicit action opens the CORRECT event's detail", "REVISAO_CADASTRAL_APROVADA" in detail_via_button)
+        page.click("#maAuditCloseDetail")
+        page.wait_for_timeout(100)
+        # D: the row click still works too (same controller, not a second flow)
+        page.eval_on_selector(".maudRow[data-key='1']", "el => el.click()")
+        page.wait_for_timeout(100)
+        detail_via_row = page.inner_text("#maAuditDetail")
+        check("D: row click still opens the detail (preserved, not replaced by the new button)", "ALERTA_IGNORADO" in detail_via_row)
+        page.click("#maAuditCloseDetail")
+        page.wait_for_timeout(100)
+        # E: visible at the human's own reported ~1000px width, not just 1366/1440
+        for w in (1000, 1366, 1440):
+            page.set_viewport_size({"width": w, "height": 800})
+            page.wait_for_timeout(50)
+            visible_count = page.eval_on_selector_all(".maDesktopOnly .maudDetailBtn", "els => els.filter(el => el.offsetParent !== null).length")
+            check(f"E: Detalhes action remains visible at {w}px (the human's own reported viewport class)", visible_count == len(AUDIT_ROWS))
+        page.set_viewport_size({"width": 1366, "height": 900})
+        page.close()
+
+        # ---------- F: mobile has an equally explicit affordance ----------
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": AUDIT_ROWS}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        mount(page)
+        goto_auditoria(page)
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.wait_for_timeout(100)
+        mobile_btn_count = page.eval_on_selector_all(".maudMobileCard .maudDetailBtn", "els => els.filter(el => el.offsetParent !== null).length")
+        check("F: mobile cards also carry an explicit, visible 'Ver detalhes' action", mobile_btn_count == len(AUDIT_ROWS))
+        page.eval_on_selector(".maudMobileCard .maudDetailBtn[data-key='1']", "el => el.click()")
+        page.wait_for_timeout(100)
+        check("F: mobile explicit action opens the correct detail too", "ALERTA_IGNORADO" in page.inner_text("#maAuditDetail"))
+        no_overflow_mobile_2 = page.evaluate("document.body.scrollWidth <= document.documentElement.clientWidth + 1")
+        check("no BODY horizontal overflow introduced by the new mobile action", no_overflow_mobile_2)
         page.close()
 
         # ---------- 4: empty ----------
