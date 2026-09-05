@@ -9,6 +9,13 @@
      tests/master-admin-route-test.py; this harness tests only the
      Usuários module's own behavior once mounted. -->
 <html><head><meta charset="utf-8">
+<!-- Painel Master Phase PM-4B.4: the real design-system-2/tokens.css
+     that index.html itself loads -- without it, --mod-surface-panel-2/
+     --mod-border-strong etc. resolve to nothing, so the modal dialog
+     paints with a transparent background here (a pure test-harness
+     visual-fidelity gap, discovered while capturing screenshots of the
+     Usuários detail modal; the real product always loads this file). -->
+<link rel="stylesheet" href="../../design-system-2/tokens.css">
 <link rel="stylesheet" href="../assets/css/module-system.css">
 <link rel="stylesheet" href="../assets/css/shell-admin.css">
 </head>

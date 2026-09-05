@@ -106,16 +106,17 @@
   // Painel Master Phase PM-4B.3 -- link generation (Gate 13/14 security
   // discipline): the raw link exists ONLY in this in-memory variable,
   // never in the URL, never logged, never in localStorage/sessionStorage.
-  // Cleared aggressively at every navigation boundary (openDetail/
-  // closeDetail/switchSection/page unload) -- same discipline as V1's
+  // Cleared aggressively at every navigation boundary (openUserModal/
+  // closeUserModal/switchSection/page unload) -- same discipline as V1's
   // own limparLinkAcessoGerado(), never left lingering.
   var generatedLink = null; // { tipo, link } | null
   window.addEventListener('beforeunload', function () { generatedLink = null; });
-  // Gate 21/26 (PM-4B.3): registered ONCE at module scope (not inside
-  // wireInteraction(), which runs on every render and would stack
-  // duplicate listeners) -- Esc closes the audit detail modal from
+  // Gate 21/26 (PM-4B.3), generalized Phase PM-4B.4: registered ONCE at
+  // module scope (not inside wireInteraction(), which runs on every
+  // render and would stack duplicate listeners) -- Esc closes whichever
+  // #nxModalRoot dialog is currently open (Auditoria or Usuários), from
   // anywhere while it's open.
-  document.addEventListener('keydown', function (e) { auditModalKeydown(e); });
+  document.addEventListener('keydown', function (e) { nxModalKeydown(e); });
 
   var SUCCESS_COPY = {
     toggleActive: { active: 'Usuário reativado com sucesso.', inactive: 'Usuário bloqueado com sucesso.' },
@@ -272,14 +273,35 @@
   function fieldRow(label, value) {
     return '<div class="maDetailField"><span class="maDetailLabel">' + esc(label) + '</span><span class="maDetailValue">' + esc(value) + '</span></div>';
   }
-  function renderDetail(r) {
-    if (!r) return '';
+  // Painel Master Phase PM-4B.4 (Human UAT finding: same UX class of
+  // defect already found and fixed in Auditoria at PM-4B.3 -- clicking a
+  // user rendered its detail at the end of the (possibly long) user
+  // list, forcing a scroll and losing list context). The below-list
+  // detail surface (formerly its own "<div class=maDetail id=maDetail>"
+  // wrapper with its own head/Fechar button) is RETIRED -- this function
+  // now returns only the INNER content, rendered inside the shared
+  // #nxModalRoot dialog (renderNxModal() below already supplies the
+  // head/title/close button, exactly as it already does for Auditoria).
+  // ONE modal pattern for both sections (Gate 4), not two parallel ones.
+  function isDetailConfirmKind(kind) {
+    return kind === 'edit' || kind === 'toggleActive' || kind === 'resend' || kind === 'generateAccessLink';
+  }
+  function renderUserModalBody(r) {
+    var out = '';
+    // Gate 13 (PM-4B.4): the explicit success feedback established at
+    // Phase 2C (a real human-UAT fix) must not silently disappear now
+    // that mutations are triggered from inside the modal -- shown here,
+    // inside the dialog, instead of in the list panel sitting behind
+    // the modal backdrop where it would render and self-clear unseen.
+    if (successMessage) {
+      out += '<div class="modSuccessState" role="status">' + esc(successMessage) + '</div>';
+      successMessage = null;
+    }
     var editing = editForm && editForm.id === r.id;
-    var body;
     if (editing) {
-      body = renderEditForm(r);
+      out += renderEditForm(r);
     } else {
-      body = fieldRow('Nome', r.nome) + fieldRow('E-mail', r.emailAuth) + fieldRow('CPF', r.cpfMasked) +
+      out += fieldRow('Nome', r.nome) + fieldRow('E-mail', r.emailAuth) + fieldRow('CPF', r.cpfMasked) +
         fieldRow('Perfil', r.perfil) + fieldRow('Loja', r.loja || '—') + fieldRow('Departamento', r.status || '—') +
         '<div class="maDetailField"><span class="maDetailLabel">Situação</span>' + situationBadgesHtml(r) + '</div>' +
         (r.emailDivergente ? '<p class="maWarnNote">O e-mail de autenticação diverge do e-mail cadastrado.</p>' : '') +
@@ -290,10 +312,11 @@
         (r.accessLinkAction ? '<button type="button" class="modBtn" id="maGenerateLinkBtn">' + esc(r.accessLinkAction.label) + '</button>' : '') +
         '</div>';
     }
-    return '<div class="maDetail" id="maDetail">' +
-      '<div class="maDetailHead"><h2>' + esc(r.nome) + '</h2>' +
-      '<button type="button" class="modBtnGhost" id="maCloseDetail">Fechar</button></div>' +
-      body + '</div>';
+    out += renderGeneratedLinkPanel();
+    if (pendingConfirm && isDetailConfirmKind(pendingConfirm.kind)) {
+      out += confirmHtml(pendingConfirm.title, pendingConfirm.body, pendingConfirm.confirmLabel, pendingConfirm.destructive, pendingConfirm.bodyHtml, pendingConfirm.error);
+    }
+    return out;
   }
 
   // Painel Master Phase PM-4B.3 -- the generated link is shown exactly
@@ -430,7 +453,12 @@
     pendingConfirm = null;
     successMessage = null;
     generatedLink = null;
-    if (auditDetailId) closeAuditModal(); // never leave the modal open behind a section switch
+    auditDetailId = null;
+    // Never leave either section's modal open behind a section switch --
+    // a blunt clear (no focus-return) is correct here, since the trigger
+    // row itself is about to be discarded along with the whole section.
+    clearNxModal();
+    nxModalTriggerEl = null;
     var newUserBtn = document.getElementById('maNewUserBtn');
     if (newUserBtn) newUserBtn.hidden = (currentSection !== 'usuarios');
     if (currentSection === 'acessos') {
@@ -719,16 +747,82 @@
     return '<div class="maMobileOnly">' + cards + '</div>';
   }
 
-  // Painel Master Phase PM-4B.3 (Human UAT finding: clicking "Ver
-  // detalhes" rendered the detail at the END of the (up to 100-row)
-  // list, forcing a long scroll and losing context). Fixed by rendering
-  // into the existing, pre-built, currently-unused #nxModalRoot (real
-  // infrastructure already present in index.html/shell.css -- "Gate
-  // 10" overlay/modal root -- reused as-is, per Gate 19's own
-  // instruction to prefer an existing pattern over inventing markup).
-  // The list itself is never re-rendered/scrolled to open this -- only
-  // the separate modal root's own content changes.
-  var auditModalTriggerEl = null;
+  // Painel Master Phase PM-4B.3 introduced this pattern for Auditoria
+  // (Human UAT finding: clicking "Ver detalhes" rendered the detail at
+  // the END of the (up to 100-row) list, forcing a long scroll and
+  // losing context). Fixed by rendering into the existing, pre-built,
+  // then-unused #nxModalRoot (real infrastructure already present in
+  // index.html/shell.css -- "Gate 10" overlay/modal root). Phase
+  // PM-4B.4 found the SAME defect class in Usuários and generalizes
+  // this into ONE shared modal primitive (Gate 4 of PM-4B.4: "ONE
+  // PAINEL MASTER MODAL PATTERN") -- both sections keep their own
+  // detail-id state (auditDetailId / currentDetailId, never merged,
+  // since they address two independent datasets), but share the exact
+  // same dialog shell, focus/backdrop/Esc mechanics, and CSS. The
+  // underlying list (#maPanel) is NEVER re-rendered/scrolled to open or
+  // close either modal -- only the separate #nxModalRoot's own content
+  // changes, which is what makes exact scroll preservation and
+  // exact-trigger focus-return possible.
+  var nxModalTriggerEl = null;
+
+  function renderNxModal(titleText, bodyHtml, onClose) {
+    var root = document.getElementById('nxModalRoot');
+    if (!root) return;
+    root.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('maudModalOpen'); // background scroll lock (Gate 23)
+    root.innerHTML = '<div class="maudModalBackdrop" id="maudModalBackdrop">' +
+      '<div class="maudModalDialog" role="dialog" aria-modal="true" aria-labelledby="maudModalTitle" tabindex="-1" id="maudModalDialog">' +
+      '<div class="maDetailHead"><h2 id="maudModalTitle">' + esc(titleText) + '</h2>' +
+      '<button type="button" class="modBtnGhost" id="maudModalCloseBtn" aria-label="Fechar">×</button></div>' +
+      '<div class="maudModalBody">' + bodyHtml + '</div>' +
+      '</div></div>';
+    var backdrop = document.getElementById('maudModalBackdrop');
+    var dialog = document.getElementById('maudModalDialog');
+    if (backdrop) backdrop.addEventListener('click', function (e) { if (e.target === backdrop) onClose(); });
+    var closeBtn = document.getElementById('maudModalCloseBtn');
+    if (closeBtn) closeBtn.addEventListener('click', onClose);
+    // Gate 22: focus enters the dialog on open (and again on every
+    // in-place content refresh, e.g. after a mutation reloads the row).
+    if (dialog) dialog.focus();
+  }
+
+  function clearNxModal() {
+    var root = document.getElementById('nxModalRoot');
+    if (!root) return;
+    root.innerHTML = '';
+    root.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('maudModalOpen');
+  }
+
+  // Focus-return target (Gate 17/22): normally the exact element that
+  // opened the modal. If the underlying list was re-rendered meanwhile
+  // (e.g. loadUsers() refreshed rows while the modal stayed open across
+  // a mutation) that original node is detached and .focus() on it is a
+  // silent no-op -- fall back to the freshly-rendered row/card carrying
+  // the same data-key, rather than leaving focus stranded on <body>.
+  function findListTriggerByKey(key) {
+    var candidates = document.querySelectorAll('.maTable tbody tr[data-key], .maMobileCard[data-key], .maudRow[data-key], .maudMobileCard[data-key]');
+    for (var i = 0; i < candidates.length; i++) {
+      if (candidates[i].getAttribute('data-key') === String(key)) return candidates[i];
+    }
+    return null;
+  }
+  function returnFocusToTrigger(fallbackKey) {
+    var el = nxModalTriggerEl;
+    if (el && document.body.contains(el) && typeof el.focus === 'function') {
+      el.focus();
+    } else if (fallbackKey != null) {
+      var alt = findListTriggerByKey(fallbackKey);
+      if (alt && typeof alt.focus === 'function') alt.focus();
+    }
+    nxModalTriggerEl = null;
+  }
+
+  function nxModalKeydown(e) {
+    if (e.key !== 'Escape') return;
+    if (auditDetailId) { e.preventDefault(); closeAuditModal(); }
+    else if (currentDetailId) { e.preventDefault(); closeUserModal(); }
+  }
 
   function auditModalBodyHtml(r) {
     return fieldRow('Data/Hora', r.criadoEmFormatted) + fieldRow('Evento', r.tipo) + fieldRow('Descrição', r.descricao) +
@@ -738,51 +832,57 @@
   }
 
   function renderAuditModalRoot() {
-    var root = document.getElementById('nxModalRoot');
-    if (!root) return;
     var r = auditDetailId ? auditRowById(auditDetailId) : null;
-    if (!r) {
-      root.innerHTML = '';
-      root.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('maudModalOpen');
-      return;
-    }
-    root.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('maudModalOpen'); // background scroll lock (Gate 23)
-    root.innerHTML = '<div class="maudModalBackdrop" id="maudModalBackdrop">' +
-      '<div class="maudModalDialog" role="dialog" aria-modal="true" aria-labelledby="maudModalTitle" tabindex="-1" id="maudModalDialog">' +
-      '<div class="maDetailHead"><h2 id="maudModalTitle">' + esc(r.tipo) + '</h2>' +
-      '<button type="button" class="modBtnGhost" id="maudModalCloseBtn" aria-label="Fechar">×</button></div>' +
-      '<div class="maudModalBody">' + auditModalBodyHtml(r) + '</div>' +
-      '</div></div>';
-    var backdrop = document.getElementById('maudModalBackdrop');
-    var dialog = document.getElementById('maudModalDialog');
-    if (backdrop) backdrop.addEventListener('click', function (e) { if (e.target === backdrop) closeAuditModal(); });
-    var closeBtn = document.getElementById('maudModalCloseBtn');
-    if (closeBtn) closeBtn.addEventListener('click', closeAuditModal);
-    // Gate 22: focus enters the dialog on open.
-    if (dialog) dialog.focus();
-  }
-
-  function auditModalKeydown(e) {
-    if (e.key === 'Escape' && auditDetailId) { e.preventDefault(); closeAuditModal(); }
+    if (!r) { clearNxModal(); return; }
+    renderNxModal(r.tipo, auditModalBodyHtml(r), closeAuditModal);
   }
 
   function openAuditModal(id, triggerEl) {
     auditDetailId = id;
-    auditModalTriggerEl = triggerEl || null;
+    nxModalTriggerEl = triggerEl || null;
     renderAuditModalRoot();
   }
 
   function closeAuditModal() {
+    var closedId = auditDetailId;
     auditDetailId = null;
-    renderAuditModalRoot();
+    clearNxModal();
     // Gate 22: focus returns to the exact trigger that opened this
     // event's modal -- never left stranded on <body>.
-    if (auditModalTriggerEl && typeof auditModalTriggerEl.focus === 'function') {
-      auditModalTriggerEl.focus();
+    returnFocusToTrigger(closedId);
+  }
+
+  // ---------- Usuários detail modal (Painel Master Phase PM-4B.4) ----------
+  function renderUserModalRoot() {
+    var r = currentDetailId ? rowById(currentDetailId) : null;
+    if (!r) {
+      if (currentDetailId) currentDetailId = null; // row no longer present after a reload
+      clearNxModal();
+      return;
     }
-    auditModalTriggerEl = null;
+    renderNxModal(r.nome, renderUserModalBody(r), closeUserModal);
+    wireUserModalInteraction();
+  }
+
+  function openUserModal(id, triggerEl) {
+    currentDetailId = id;
+    editForm = null;
+    pendingConfirm = null;
+    successMessage = null;
+    generatedLink = null;
+    nxModalTriggerEl = triggerEl || null;
+    renderUserModalRoot();
+  }
+
+  function closeUserModal() {
+    var closedId = currentDetailId;
+    currentDetailId = null;
+    editForm = null;
+    pendingConfirm = null;
+    successMessage = null;
+    generatedLink = null;
+    clearNxModal();
+    returnFocusToTrigger(closedId);
   }
 
   function renderAuditoriaSection() {
@@ -836,7 +936,12 @@
     }
 
     var html = '';
-    if (successMessage) {
+    // Gate 13 (PM-4B.4): when a user's detail modal is open, the success
+    // banner renders INSIDE the modal instead (renderUserModalBody) --
+    // rendering it here too would mean it flashes and self-clears
+    // behind the modal backdrop, never actually seen (this exact render
+    // still reaches the modal refresh below, in the same tick).
+    if (successMessage && !currentDetailId) {
       // Shown for exactly one completed render, then self-clears --
       // simpler and more robust than hunting down every interaction
       // site that should dismiss it; the LOADING branch above returns
@@ -849,21 +954,21 @@
       html += renderCreateView();
     } else {
       html += renderList();
-      var detailRow = currentDetailId ? rowById(currentDetailId) : null;
-      html += detailRow ? renderDetail(detailRow) : '';
-      html += renderGeneratedLinkPanel();
     }
-    if (pendingConfirm) {
+    // Gate 6/25 (PM-4B.4): the below-list detail/confirm/link-panel
+    // surface is retired -- a detail-related confirm (edit/toggleActive/
+    // resend/generateAccessLink) now renders inside the user modal
+    // itself (renderUserModalBody); only Acessos/Invite confirms still
+    // belong in this main panel.
+    if (pendingConfirm && !isDetailConfirmKind(pendingConfirm.kind)) {
       html += confirmHtml(pendingConfirm.title, pendingConfirm.body, pendingConfirm.confirmLabel, pendingConfirm.destructive, pendingConfirm.bodyHtml, pendingConfirm.error);
     }
     panel.innerHTML = html;
     wireInteraction();
+    renderUserModalRoot();
   }
 
   // ---------- interaction wiring ----------
-  function openDetail(id) { currentDetailId = id; editForm = null; pendingConfirm = null; successMessage = null; generatedLink = null; renderPanel(); }
-  function closeDetail() { currentDetailId = null; editForm = null; pendingConfirm = null; successMessage = null; generatedLink = null; renderPanel(); }
-
   // Painel Master Phase 3B fix: the section nav reflects `currentSection`
   // (which item is the inert "active" span vs. a clickable link) and
   // must be regenerated every render, not just once at mount -- an
@@ -921,9 +1026,9 @@
     });
 
     document.querySelectorAll('.maTable tbody tr, .maMobileCard').forEach(function (el) {
-      el.addEventListener('click', function () { openDetail(el.getAttribute('data-key')); });
+      el.addEventListener('click', function () { openUserModal(el.getAttribute('data-key'), el); });
       el.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(el.getAttribute('data-key')); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openUserModal(el.getAttribute('data-key'), el); }
       });
     });
 
@@ -935,95 +1040,6 @@
     if (fl) fl.addEventListener('change', function (e) { filterLoja = e.target.value; renderPanel(); });
     var fs = document.getElementById('maFilterStatus');
     if (fs) fs.addEventListener('change', function (e) { filterStatus = e.target.value; renderPanel(); });
-
-    var closeBtn = document.getElementById('maCloseDetail');
-    if (closeBtn) closeBtn.addEventListener('click', closeDetail);
-
-    var editBtn = document.getElementById('maEditBtn');
-    if (editBtn) editBtn.addEventListener('click', function () {
-      var r = rowById(currentDetailId);
-      editForm = { id: r.id, perfil: r.perfil, loja: r.loja, status: r.status, ativo: r.ativo, error: null };
-      renderPanel();
-    });
-    var editCancel = document.getElementById('maEditCancel');
-    if (editCancel) editCancel.addEventListener('click', function () { editForm = null; renderPanel(); });
-    var editPerfil = document.getElementById('maEditPerfil');
-    if (editPerfil) editPerfil.addEventListener('change', function (e) { editForm.perfil = e.target.value; });
-    var editLoja = document.getElementById('maEditLoja');
-    if (editLoja) editLoja.addEventListener('change', function (e) { editForm.loja = e.target.value; });
-    var editStatus = document.getElementById('maEditStatus');
-    if (editStatus) editStatus.addEventListener('change', function (e) { editForm.status = e.target.value; });
-    var editForm2 = document.getElementById('maEditForm');
-    if (editForm2) editForm2.addEventListener('submit', function (e) {
-      e.preventDefault();
-      pendingConfirm = {
-        kind: 'edit',
-        title: 'Confirmar alteração de autorização',
-        body: 'Perfil: ' + editForm.perfil + ' · Loja: ' + (editForm.loja || '—') + ' · Departamento: ' + (editForm.status || '—'),
-        confirmLabel: 'Confirmar', destructive: false
-      };
-      renderPanel();
-    });
-
-    var toggleBtn = document.getElementById('maToggleActiveBtn');
-    if (toggleBtn) toggleBtn.addEventListener('click', function () {
-      var r = rowById(currentDetailId);
-      pendingConfirm = {
-        kind: 'toggleActive', target: r,
-        title: r.ativo ? 'Bloquear usuário' : 'Reativar usuário',
-        body: r.ativo ? 'O usuário perderá acesso imediatamente ao portal.' : 'O usuário voltará a ter acesso ao portal.',
-        confirmLabel: r.ativo ? 'Bloquear' : 'Reativar', destructive: r.ativo
-      };
-      renderPanel();
-    });
-
-    var resendBtn = document.getElementById('maResendBtn');
-    if (resendBtn) resendBtn.addEventListener('click', function () {
-      var r = rowById(currentDetailId);
-      pendingConfirm = {
-        kind: 'resend', target: r,
-        title: 'Reenviar convite',
-        body: 'Um novo e-mail de convite será enviado para ' + r.emailAuth + '.',
-        confirmLabel: 'Reenviar', destructive: false
-      };
-      renderPanel();
-    });
-
-    var generateLinkBtn = document.getElementById('maGenerateLinkBtn');
-    if (generateLinkBtn) generateLinkBtn.addEventListener('click', function () {
-      var r = rowById(currentDetailId);
-      var action = r.accessLinkAction;
-      if (!action) return;
-      var bodyByType = {
-        activation: 'Este link permitirá que o usuário defina sua senha de acesso. Compartilhe-o somente com o próprio usuário. Gerar um novo link invalida qualquer link anterior ainda não utilizado.',
-        recovery: 'Este link permitirá que o usuário redefina sua senha. Compartilhe-o somente com o próprio usuário. Gerar um novo link invalida qualquer link de recuperação anterior ainda não utilizado.',
-        continuation: 'O usuário já confirmou o e-mail e definiu senha — este link NÃO pede nova senha, só conclui o vínculo com o Portal. Compartilhe-o somente com o próprio usuário. Este link expira em 30 minutos.'
-      };
-      pendingConfirm = {
-        kind: 'generateAccessLink', subtype: action.type, target: r,
-        title: action.label,
-        body: bodyByType[action.type] || '',
-        confirmLabel: action.label, destructive: false
-      };
-      renderPanel();
-    });
-
-    var copyLinkBtn = document.getElementById('maCopyLinkBtn');
-    if (copyLinkBtn) copyLinkBtn.addEventListener('click', function () {
-      if (!generatedLink) return;
-      var msg = document.getElementById('maLinkCopyMsg');
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(generatedLink.link).then(function () {
-          if (msg) msg.textContent = 'Link copiado.';
-        }, function () {
-          if (msg) msg.textContent = 'Não foi possível copiar automaticamente — selecione e copie manualmente.';
-        });
-      } else if (msg) {
-        msg.textContent = 'Não foi possível copiar automaticamente — selecione e copie manualmente.';
-      }
-    });
-    var closeLinkBtn = document.getElementById('maCloseLinkPanel');
-    if (closeLinkBtn) closeLinkBtn.addEventListener('click', function () { generatedLink = null; renderPanel(); });
 
     var confirmYes = document.getElementById('maConfirmYes');
     if (confirmYes) confirmYes.addEventListener('click', executeConfirmedAction);
@@ -1059,6 +1075,109 @@
       };
       renderPanel();
     });
+  }
+
+  // Painel Master Phase PM-4B.4: interaction wiring scoped to the
+  // Usuários detail content that now lives inside #nxModalRoot instead
+  // of below the list -- called every time renderUserModalRoot() (re)
+  // builds that content (open, close-then-reopen, or an in-place
+  // refresh after a mutation), exactly mirroring how wireInteraction()
+  // itself is called after every #maPanel render. State changes that
+  // only affect the modal's own content (a confirm step, the edit form,
+  // the generated-link panel) re-render via renderUserModalRoot() only
+  // -- never the full renderPanel(), which would rebuild the list and
+  // detach the exact row/card this modal's focus-return depends on.
+  function wireUserModalInteraction() {
+    var editBtn = document.getElementById('maEditBtn');
+    if (editBtn) editBtn.addEventListener('click', function () {
+      var r = rowById(currentDetailId);
+      editForm = { id: r.id, perfil: r.perfil, loja: r.loja, status: r.status, ativo: r.ativo, error: null };
+      renderUserModalRoot();
+    });
+    var editCancel = document.getElementById('maEditCancel');
+    if (editCancel) editCancel.addEventListener('click', function () { editForm = null; renderUserModalRoot(); });
+    var editPerfil = document.getElementById('maEditPerfil');
+    if (editPerfil) editPerfil.addEventListener('change', function (e) { editForm.perfil = e.target.value; });
+    var editLoja = document.getElementById('maEditLoja');
+    if (editLoja) editLoja.addEventListener('change', function (e) { editForm.loja = e.target.value; });
+    var editStatus = document.getElementById('maEditStatus');
+    if (editStatus) editStatus.addEventListener('change', function (e) { editForm.status = e.target.value; });
+    var editForm2 = document.getElementById('maEditForm');
+    if (editForm2) editForm2.addEventListener('submit', function (e) {
+      e.preventDefault();
+      pendingConfirm = {
+        kind: 'edit',
+        title: 'Confirmar alteração de autorização',
+        body: 'Perfil: ' + editForm.perfil + ' · Loja: ' + (editForm.loja || '—') + ' · Departamento: ' + (editForm.status || '—'),
+        confirmLabel: 'Confirmar', destructive: false
+      };
+      renderUserModalRoot();
+    });
+
+    var toggleBtn = document.getElementById('maToggleActiveBtn');
+    if (toggleBtn) toggleBtn.addEventListener('click', function () {
+      var r = rowById(currentDetailId);
+      pendingConfirm = {
+        kind: 'toggleActive', target: r,
+        title: r.ativo ? 'Bloquear usuário' : 'Reativar usuário',
+        body: r.ativo ? 'O usuário perderá acesso imediatamente ao portal.' : 'O usuário voltará a ter acesso ao portal.',
+        confirmLabel: r.ativo ? 'Bloquear' : 'Reativar', destructive: r.ativo
+      };
+      renderUserModalRoot();
+    });
+
+    var resendBtn = document.getElementById('maResendBtn');
+    if (resendBtn) resendBtn.addEventListener('click', function () {
+      var r = rowById(currentDetailId);
+      pendingConfirm = {
+        kind: 'resend', target: r,
+        title: 'Reenviar convite',
+        body: 'Um novo e-mail de convite será enviado para ' + r.emailAuth + '.',
+        confirmLabel: 'Reenviar', destructive: false
+      };
+      renderUserModalRoot();
+    });
+
+    var generateLinkBtn = document.getElementById('maGenerateLinkBtn');
+    if (generateLinkBtn) generateLinkBtn.addEventListener('click', function () {
+      var r = rowById(currentDetailId);
+      var action = r.accessLinkAction;
+      if (!action) return;
+      var bodyByType = {
+        activation: 'Este link permitirá que o usuário defina sua senha de acesso. Compartilhe-o somente com o próprio usuário. Gerar um novo link invalida qualquer link anterior ainda não utilizado.',
+        recovery: 'Este link permitirá que o usuário redefina sua senha. Compartilhe-o somente com o próprio usuário. Gerar um novo link invalida qualquer link de recuperação anterior ainda não utilizado.',
+        continuation: 'O usuário já confirmou o e-mail e definiu senha — este link NÃO pede nova senha, só conclui o vínculo com o Portal. Compartilhe-o somente com o próprio usuário. Este link expira em 30 minutos.'
+      };
+      pendingConfirm = {
+        kind: 'generateAccessLink', subtype: action.type, target: r,
+        title: action.label,
+        body: bodyByType[action.type] || '',
+        confirmLabel: action.label, destructive: false
+      };
+      renderUserModalRoot();
+    });
+
+    var copyLinkBtn = document.getElementById('maCopyLinkBtn');
+    if (copyLinkBtn) copyLinkBtn.addEventListener('click', function () {
+      if (!generatedLink) return;
+      var msg = document.getElementById('maLinkCopyMsg');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(generatedLink.link).then(function () {
+          if (msg) msg.textContent = 'Link copiado.';
+        }, function () {
+          if (msg) msg.textContent = 'Não foi possível copiar automaticamente — selecione e copie manualmente.';
+        });
+      } else if (msg) {
+        msg.textContent = 'Não foi possível copiar automaticamente — selecione e copie manualmente.';
+      }
+    });
+    var closeLinkBtn = document.getElementById('maCloseLinkPanel');
+    if (closeLinkBtn) closeLinkBtn.addEventListener('click', function () { generatedLink = null; renderUserModalRoot(); });
+
+    var confirmYes = document.getElementById('maConfirmYes');
+    if (confirmYes) confirmYes.addEventListener('click', executeConfirmedAction);
+    var confirmNo = document.getElementById('maConfirmNo');
+    if (confirmNo) confirmNo.addEventListener('click', function () { pendingConfirm = null; renderUserModalRoot(); });
   }
 
   // Gate 17: UX-only echo of the real RPC's own authoritative
@@ -1113,7 +1232,7 @@
           inFlight.generateLink = false;
           pendingConfirm = null;
           generatedLink = { tipo: subtype, link: result.link };
-          renderPanel();
+          renderUserModalRoot();
         },
         function (err) {
           inFlight.generateLink = false;
@@ -1137,7 +1256,7 @@
             msg = CONTINUATION_ERROR_COPY[err.code] || msg;
           }
           pendingConfirm.error = msg;
-          renderPanel();
+          renderUserModalRoot();
         }
       );
       return;
@@ -1209,7 +1328,7 @@
       };
       auditState = { loading: false, loaded: false, error: null, rows: [] };
       auditDetailId = null;
-      auditModalTriggerEl = null;
+      nxModalTriggerEl = null;
       var staleModalRoot = document.getElementById('nxModalRoot');
       if (staleModalRoot) { staleModalRoot.innerHTML = ''; staleModalRoot.setAttribute('aria-hidden', 'true'); }
       document.body.classList.remove('maudModalOpen');

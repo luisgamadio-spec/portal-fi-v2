@@ -186,9 +186,9 @@ def main():
         # all) -- open a detail to exercise the actual masking path.
         page.eval_on_selector(".maTable tbody tr[data-key='u1']", "el => el.click()")
         page.wait_for_timeout(100)
-        detail_html = page.inner_html("#maPanel")
-        check("15: CPF never rendered in full, only masked form, in the detail panel", "11111111111" not in detail_html and "***.***.**" in detail_html)
-        page.click("#maCloseDetail")
+        detail_html = page.inner_html("#nxModalRoot")
+        check("15: CPF never rendered in full, only masked form, in the detail modal", "11111111111" not in detail_html and "***.***.**" in detail_html)
+        page.click("#maudModalCloseBtn")
         page.wait_for_timeout(100)
         check("16: auth_user_id never rendered anywhere (not even in raw payload)", "auth_user_id" not in list_html and "auth-user" not in list_html.lower())
         check("17: no invite/continuation token ever rendered", "token" not in list_html.lower() and "continuacao" not in list_html.lower())
@@ -222,7 +222,8 @@ def main():
         first_row.focus()
         page.keyboard.press("Enter")
         page.wait_for_timeout(100)
-        check("29: Enter key on a focused row opens detail (keyboard-operable, not click-only)", "maDetail" in page.inner_html("#maPanel"))
+        check("29: Enter key on a focused row opens the detail modal (keyboard-operable, not click-only)",
+              "maudModalDialog" in page.inner_html("#nxModalRoot") and page.get_attribute("#nxModalRoot", "aria-hidden") == "false")
         page.close()
 
         # ---------- 24-27: double-submit, confirmations (mocked mutation, never real) ----------
@@ -305,7 +306,7 @@ def main():
         page.wait_for_timeout(100)
         page.click("#maToggleActiveBtn")
         page.wait_for_timeout(100)
-        confirm_html = page.inner_html("#maPanel")
+        confirm_html = page.inner_html("#nxModalRoot")
         check("25: block action shows a destructive confirmation before any RPC call", "maConfirm" in confirm_html and "modBtnDanger" in confirm_html and len(update_calls) == 0)
         page.close()
 
@@ -323,7 +324,7 @@ def main():
         page.select_option("#maEditPerfil", "GERENTE")
         page.eval_on_selector("#maEditForm", "el => el.requestSubmit()")
         page.wait_for_timeout(100)
-        check("27: edit requires explicit confirmation before RPC call", "maConfirm" in page.inner_html("#maPanel"))
+        check("27: edit requires explicit confirmation before RPC call", "maConfirm" in page.inner_html("#nxModalRoot"))
         page.close()
 
         # ---------- 13-14: duplicate/conflict normalization on mutation ----------
@@ -362,7 +363,8 @@ def main():
         page.wait_for_timeout(100)
         page.click("#maConfirmYes")
         page.wait_for_timeout(200)
-        check("14: conflict (55000) normalized, no raw backend text", "modErrorState" not in page.inner_html("#maOutlet") or "55000" not in page.inner_html("#maOutlet"))
+        full_html_14 = page.inner_html("#maOutlet") + page.inner_html("#nxModalRoot")
+        check("14: conflict (55000) normalized, no raw backend text", "modErrorState" not in full_html_14 or "55000" not in full_html_14)
         page.close()
 
         # ---------- 38: resend success -- two-step chain (RPC then same admin-invite-user Edge Function) ----------
@@ -476,9 +478,12 @@ def main():
         page.wait_for_timeout(100)
         page.click("#maConfirmYes")
         page.wait_for_timeout(300)
-        post_html = page.inner_html("#maOutlet")
-        check("40: AFTER block -- success message shown", "bloqueado com sucesso" in post_html.lower())
-        check("41: AFTER block -- admin state badge shows Bloqueado (list AND detail), invite state unchanged (Convidado still present, not masked/replaced)",
+        # Gate 13 (PM-4B.4): the success message + the refreshed detail
+        # now render inside the modal (#nxModalRoot), not below the list
+        # -- both regions must be combined to see the full picture.
+        post_html = page.inner_html("#maOutlet") + page.inner_html("#nxModalRoot")
+        check("40: AFTER block -- success message shown (inside the modal)", "bloqueado com sucesso" in post_html.lower())
+        check("41: AFTER block -- admin state badge shows Bloqueado (list AND modal detail), invite state unchanged (Convidado still present, not masked/replaced)",
               post_html.count("Bloqueado") >= 2 and "aguardando aceite" in post_html)
         check("41b: button toggled to Reativar", "Reativar" in post_html and "id=\"maToggleActiveBtn\"" in post_html)
         page.close()
@@ -496,7 +501,7 @@ def main():
         page.wait_for_timeout(100)
         page.click("#maConfirmYes")
         page.wait_for_timeout(300)
-        fail_html = page.inner_html("#maOutlet")
+        fail_html = page.inner_html("#maOutlet") + page.inner_html("#nxModalRoot")
         check("42: block RPC failure -> no success message, badge still shows Ativo (no fake transition)", "com sucesso" not in fail_html.lower() and "Bloqueado" not in fail_html)
         page.close()
 
@@ -514,7 +519,8 @@ def main():
         page.wait_for_timeout(100)
         page.click("#maConfirmYes")
         page.wait_for_timeout(300)
-        check("43: resend success -> visible confirmation message shown", "reenviado com sucesso" in page.inner_html("#maOutlet").lower())
+        check("43: resend success -> visible confirmation message shown (inside the modal)",
+              "reenviado com sucesso" in (page.inner_html("#maOutlet") + page.inner_html("#nxModalRoot")).lower())
         page.close()
 
         # ---------- 44: Edge Function failure AFTER RPC success -> no success message ----------
@@ -531,7 +537,8 @@ def main():
         page.wait_for_timeout(100)
         page.click("#maConfirmYes")
         page.wait_for_timeout(300)
-        check("44: RPC success + Edge Function failure -> no success message ever shown (Gate 9)", "reenviado com sucesso" not in page.inner_html("#maOutlet").lower())
+        check("44: RPC success + Edge Function failure -> no success message ever shown (Gate 9)",
+              "reenviado com sucesso" not in (page.inner_html("#maOutlet") + page.inner_html("#nxModalRoot")).lower())
         page.close()
 
         # ==================== Painel Master Phase PM-4B.3 ====================
@@ -554,7 +561,7 @@ def main():
             page.wait_for_timeout(100)
             btn = page.query_selector("#maGenerateLinkBtn")
             text = btn.text_content() if btn else None
-            page.click("#maCloseDetail")
+            page.click("#maudModalCloseBtn")
             page.wait_for_timeout(100)
             return text
 
@@ -579,18 +586,18 @@ def main():
         page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
         page.eval_on_selector(".maTable tbody tr[data-key='u2']", "el => el.click()")
         page.wait_for_timeout(100)
-        check("46: no link panel shown before any action taken", "maGeneratedLinkInput" not in page.inner_html("#maPanel"))
+        check("46: no link panel shown before any action taken", "maGeneratedLinkInput" not in page.inner_html("#nxModalRoot"))
         page.click("#maGenerateLinkBtn")
         page.wait_for_timeout(100)
-        check("46: explicit confirmation step shown before calling the backend (zero calls yet)", "maConfirm" in page.inner_html("#maPanel") and len(link_calls) == 0)
+        check("46: explicit confirmation step shown before calling the backend (zero calls yet)", "maConfirm" in page.inner_html("#nxModalRoot") and len(link_calls) == 0)
         page.click("#maConfirmYes")
         page.wait_for_timeout(200)
         check("46: exactly one call to admin-generate-user-access-link", len(link_calls) == 1)
         if link_calls:
             check("46: correct usuario_id and tipo='activation' sent", link_calls[0].get("usuario_id") == "u2" and link_calls[0].get("tipo") == "activation")
             check("MASTER_USERS_ACTION security: no cpf/email/actor field ever sent in the payload", not any(k in link_calls[0] for k in ("cpf", "email", "actor", "master_id", "auth_uid")))
-        check("46: link only shown AFTER generation succeeds (present now)", "maGeneratedLinkInput" in page.inner_html("#maPanel"))
-        check("46: the mock link string never appears anywhere except inside the readonly input value (no console/log leak surface in this render)", page.inner_html("#maPanel").count("TEST-ONLY-MOCK") == 1)
+        check("46: link only shown AFTER generation succeeds (present now)", "maGeneratedLinkInput" in page.inner_html("#nxModalRoot"))
+        check("46: the mock link string never appears anywhere except inside the readonly input value (no console/log leak surface in this render)", page.inner_html("#nxModalRoot").count("TEST-ONLY-MOCK") == 1)
         page.close()
 
         # ---------- 47: copy button only meaningful once a link exists; never auto-copies ----------
@@ -615,10 +622,10 @@ def main():
         page.click("#maCopyLinkBtn")
         page.wait_for_timeout(100)
         check("47: explicit 'Copiar link' click copies the exact generated link", page.evaluate("window.__clipboardWrites") == ["https://TEST-ONLY-MOCK.example/token-b"])
-        check("47: visible feedback shown after copying", "copiado" in page.inner_text("#maPanel").lower())
+        check("47: visible feedback shown after copying", "copiado" in page.inner_text("#nxModalRoot").lower())
         page.click("#maCloseLinkPanel")
         page.wait_for_timeout(100)
-        check("47: link panel fully cleared after Fechar (nothing lingers)", "maGeneratedLinkInput" not in page.inner_html("#maPanel"))
+        check("47: link panel fully cleared after Fechar (nothing lingers)", "maGeneratedLinkInput" not in page.inner_html("#nxModalRoot"))
         page.close()
 
         # ---------- 48: continuation link -- different backend shape (RPC, not Edge Function), same UX ----------
@@ -663,9 +670,9 @@ def main():
         page.wait_for_timeout(100)
         page.click("#maConfirmYes")
         page.wait_for_timeout(200)
-        confirm_text = page.inner_text("#maPanel")
+        confirm_text = page.inner_text("#nxModalRoot")
         check("49: RATE_LIMIT normalized to real V1 copy (minutes, not raw codigo)", "minuto" in confirm_text.lower() and "RATE_LIMIT" not in confirm_text)
-        check("49: confirm dialog stays open on failure (never silently closed, never a false success)", "maConfirm" in page.inner_html("#maPanel") and "maGeneratedLinkInput" not in page.inner_html("#maPanel"))
+        check("49: confirm dialog stays open on failure (never silently closed, never a false success)", "maConfirm" in page.inner_html("#nxModalRoot") and "maGeneratedLinkInput" not in page.inner_html("#nxModalRoot"))
         page.close()
 
         # ---------- 50: MASTER-only server-side (403) normalized, no raw backend text ----------
@@ -681,7 +688,7 @@ def main():
         page.wait_for_timeout(100)
         page.click("#maConfirmYes")
         page.wait_for_timeout(200)
-        check("50: 403 normalized, no raw backend text leaked", "Apenas usuário MASTER ativo" not in page.inner_html("#maPanel"))
+        check("50: 403 normalized, no raw backend text leaked", "Apenas usuário MASTER ativo" not in page.inner_html("#nxModalRoot"))
         page.close()
 
         # ---------- 51: duplicate-submit guard on link generation ----------
@@ -705,6 +712,129 @@ def main():
         page.eval_on_selector("#maConfirmYes", "el => { el.click(); el.click(); }")
         page.wait_for_timeout(500)
         check("51: duplicate-submit guard (exactly 1 call despite 2 clicks)", len(dup_link_calls) == 1)
+        page.close()
+
+        # ==================== Painel Master Phase PM-4B.4 ====================
+        # Human UAT decision: user detail must open as a MODAL over the
+        # current list context -- the SAME UX class of fix already
+        # Human-approved for Auditoria at PM-4B.3 -- never render below a
+        # long user list forcing a scroll. Gate 24 A-R. Administrative-
+        # action availability/eligibility (K/L) and link generation/copy
+        # (M/N) are already proven above (tests 45-51), now exercised
+        # entirely through this same modal -- not duplicated here.
+        MANY_USERS = [dict(USERS[3], id="mu%d" % i, nome="Usuario Massa %d" % i, email_auth="massa%d@example.com" % i)
+                      for i in range(60)]
+        LONG_NAME_USER = dict(USERS[3], id="ulong",
+                               nome="Usuário Com Nome Extremamente Longo Para Teste De Quebra De Linha No Modal De Detalhe",
+                               email_auth="usuario.com.email.consideravelmente.longo.para.teste.de.responsividade@example.com")
+
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": MANY_USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        last_key = MANY_USERS[-1]["id"]
+        page.eval_on_selector(f".maTable tbody tr[data-key='{last_key}']", "el => el.scrollIntoView()")
+        scroll_before = page.evaluate("window.scrollY")
+        page.eval_on_selector(f".maTable tbody tr[data-key='{last_key}']", "el => el.click()")
+        page.wait_for_timeout(150)
+        check("A: clicking a user opens a real modal (role=dialog, aria-modal=true)",
+              page.eval_on_selector("#maudModalDialog", "el => el.getAttribute('role') === 'dialog' && el.getAttribute('aria-modal') === 'true'"))
+        check("B: the correct user (last of 60, not a re-sorted/wrong one) is shown", MANY_USERS[-1]["nome"] in page.inner_text("#maudModalDialog"))
+        check("C: the detail is NOT rendered below the list itself (single canonical presentation, below-list surface retired)",
+              "maDetailField" not in page.inner_html("#maPanel"))
+        check("C: #maPanel itself is completely unaffected by opening the modal (list still intact)", "maTable" in page.inner_html("#maPanel"))
+        scroll_after_open = page.evaluate("window.scrollY")
+        check("D: opening the modal does not scroll/jump the page position", abs(scroll_after_open - scroll_before) < 2)
+
+        # E/F: closing via the X preserves scroll and fully clears the modal
+        page.click("#maudModalCloseBtn")
+        page.wait_for_timeout(150)
+        scroll_after_close = page.evaluate("window.scrollY")
+        check("E: closing the modal preserves the exact same list scroll position", abs(scroll_after_close - scroll_before) < 2)
+        check("F: the X/Fechar button closes the modal", page.inner_html("#nxModalRoot").strip() == "")
+
+        # G: Esc closes
+        page.eval_on_selector(f".maTable tbody tr[data-key='{last_key}']", "el => el.click()")
+        page.wait_for_timeout(150)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(150)
+        check("G: Esc closes the modal", page.inner_html("#nxModalRoot").strip() == "")
+
+        # H: backdrop click closes; clicking inside the dialog never does
+        page.eval_on_selector(f".maTable tbody tr[data-key='{last_key}']", "el => el.click()")
+        page.wait_for_timeout(150)
+        page.eval_on_selector("#maudModalBackdrop", "el => el.click()")
+        page.wait_for_timeout(150)
+        check("H: clicking the backdrop closes the modal", page.inner_html("#nxModalRoot").strip() == "")
+        page.eval_on_selector(f".maTable tbody tr[data-key='{last_key}']", "el => el.click()")
+        page.wait_for_timeout(150)
+        page.eval_on_selector("#maudModalDialog", "el => el.click()")
+        page.wait_for_timeout(150)
+        check("H: clicking INSIDE the dialog (not the backdrop) never closes it", page.inner_html("#nxModalRoot").strip() != "")
+
+        # I/J: focus management (dialog from the H check above is still open)
+        check("I: focus enters the dialog on open", page.evaluate("document.activeElement && document.activeElement.id") == "maudModalDialog")
+        page.click("#maudModalCloseBtn")
+        page.wait_for_timeout(150)
+        check("J: focus returns to the exact trigger row on close, never left on <body>",
+              page.evaluate("document.activeElement && document.activeElement.getAttribute('data-key')") == last_key)
+        page.close()
+
+        # O/P: a generated link disappears once the WHOLE modal closes
+        # (not just the link panel's own Fechar), and reopening the SAME
+        # user never resurrects a stale link merely from lingering
+        # frontend state.
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": USERS, "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, CONVITES))
+        page.route(ACCESS_LINK_EDGE_URL + "*", json_route(200, {"ok": True, "link": "https://TEST-ONLY-MOCK.example/token-op"}))
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.eval_on_selector(".maTable tbody tr[data-key='u4']", "el => el.click()")
+        page.wait_for_timeout(100)
+        page.click("#maGenerateLinkBtn")
+        page.wait_for_timeout(100)
+        page.click("#maConfirmYes")
+        page.wait_for_timeout(200)
+        check("O: link generated and visible before closing", "maGeneratedLinkInput" in page.inner_html("#nxModalRoot"))
+        page.click("#maudModalCloseBtn")
+        page.wait_for_timeout(150)
+        check("O: generated link fully gone once the modal itself closes", page.inner_html("#nxModalRoot").strip() == "")
+        page.eval_on_selector(".maTable tbody tr[data-key='u4']", "el => el.click()")
+        page.wait_for_timeout(150)
+        check("P: reopening the SAME user never resurrects the stale link merely from lingering frontend state",
+              "maGeneratedLinkInput" not in page.inner_html("#nxModalRoot") and "TEST-ONLY-MOCK" not in page.inner_html("#nxModalRoot"))
+        page.close()
+
+        # Q/R: mobile modal + long name/e-mail never clip
+        page = new_page(browser)
+        page.route(SEC_URL + "*", json_route(200, {"users": [LONG_NAME_USER], "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        mount(page)
+        page.wait_for_function("document.getElementById('maPanel').innerHTML.includes('maTable')", timeout=5000)
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.wait_for_timeout(100)
+        page.eval_on_selector(".maMobileCard[data-key='ulong']", "el => el.click()")
+        page.wait_for_timeout(150)
+        check("Q: mobile modal opens correctly (role=dialog) for a card click",
+              page.eval_on_selector("#maudModalDialog", "el => el.getAttribute('role') === 'dialog'"))
+        modal_text_mobile = page.inner_text("#maudModalDialog")
+        check("R: long name fully present in the mobile modal, not truncated", LONG_NAME_USER["nome"] in modal_text_mobile)
+        check("R: long e-mail fully present in the mobile modal, not truncated", LONG_NAME_USER["email_auth"] in modal_text_mobile)
+        no_overflow_mobile_modal = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1")
+        check("R: no BODY horizontal overflow with the long-content mobile modal open", no_overflow_mobile_modal)
+        # R: the dialog's own box must not be forced wider than itself by
+        # an unbroken long value (a real bug found during this Phase's own
+        # screenshot check -- flexbox's default min-width:auto let a long
+        # e-mail overflow .maDetailValue and widen the whole dialog,
+        # clipping it at the right edge; same defect class as PM-4B.2,
+        # different mechanism -- fixed via min-width:0 + overflow-wrap).
+        dialog_self_overflow = page.evaluate("""() => {
+            const d = document.querySelector('.maudModalDialog');
+            return d.scrollWidth > d.clientWidth + 1;
+        }""")
+        check("R: the modal dialog itself never grows wider than its own box from a long e-mail (real clipping check, not just presence-in-DOM)", not dialog_self_overflow)
         page.close()
 
         browser.close()

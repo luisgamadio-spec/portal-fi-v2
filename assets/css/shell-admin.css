@@ -94,8 +94,13 @@
 .maDetailHead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .maDetailHead h2 { margin: 0; font-size: 16px; }
 .maDetailField { display: flex; justify-content: space-between; gap: var(--space-2); padding: 4px 0; border-bottom: 1px solid var(--mod-border); }
-.maDetailLabel { color: var(--color-text-secondary); font-size: 12.5px; }
-.maDetailValue { font-weight: 500; }
+.maDetailLabel { color: var(--color-text-secondary); font-size: 12.5px; flex-shrink: 0; }
+/* Painel Master Phase PM-4B.4: a flex item's default min-width is
+   "auto" (content-based), so an unbroken long value (e.g. an e-mail,
+   no spaces to wrap at) forced this row -- and the whole dialog -- wider
+   than the modal, clipping it at the right edge (same defect class as
+   PM-4B.2, different mechanism: flexbox min-width, not table auto-layout). */
+.maDetailValue { font-weight: 500; min-width: 0; overflow-wrap: anywhere; text-align: right; }
 .maDetailActions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
 .maWarnNote { color: var(--color-warning-strong, #8a6d1a); font-size: 12.5px; }
 .maFieldError { color: var(--mod-critical); font-size: 12.5px; }
