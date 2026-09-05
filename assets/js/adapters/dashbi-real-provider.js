@@ -106,7 +106,70 @@
     });
   }
 
+  // Local-calendar-date helpers, same principle as V1's own secure adapter
+  // (analise-geral-grupo-secure-adapter.js's safeDate()/iso()) -- params.start/
+  // end travel as "YYYY-MM-DD" strings (dashbi.js's currentDateStart/End),
+  // never as Date/toISOString(), so the day never shifts across a UTC
+  // boundary (Gate 8, this Wave's brief -- NOT the Score UTC defect).
+  function parseLocalDate(value) {
+    var parts = String(value || '').split('-').map(Number);
+    return parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : null;
+  }
+  function formatLocalDate(date) {
+    return date ? date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0') : null;
+  }
+
+  // FC-1 (GAP-001): dual-period orchestration -- SAME_PIPELINE_DIFFERENT_
+  // PERIOD (this Wave's brief, Gate 10). The previous comparable period is
+  // computed with the exact same day-aligned rule V1's own secure adapter
+  // uses (getPreviousMonthComparablePeriod, byte-identical extraction --
+  // dashbi.adapter.js), then fetched through the SAME loadDashbiReal() used
+  // for the current period -- no separate/simplified fetch path.
+  //
+  // Both periods are fetched IN PARALLEL (Gate 13, this Wave's brief:
+  // "preferir execução paralela quando segura, não serializar sem motivo")
+  // -- there is no dependency between them, so the previous fetch is fired
+  // alongside the current one, not chained after it. Independent .then/
+  // .catch on each keeps the failure mode below (Gate 12) intact even
+  // though both start together: current failing still rejects this whole
+  // promise; previous failing alone never does.
+  //
+  // Failure mode (Gate 12, this Wave's brief): current period is primary.
+  //   CURRENT rejects       -> this promise rejects (normal error state).
+  //   CURRENT resolves,
+  //   PREVIOUS rejects       -> resolves with previous:null, previousError
+  //                            set (dashboard renders, comparison omitted).
+  //   Both resolve           -> resolves with both payloads.
+  function loadDashbiRealWithComparison(params) {
+    params = params || {};
+    if (!params.start || !params.end) {
+      return Promise.reject({ state: 'INVALID_FILTER', message: 'Informe um período válido.' });
+    }
+    var A = window.NX_DASHBI_ADAPTER;
+    var previousPeriod = A && A.getPreviousMonthComparablePeriod
+      ? A.getPreviousMonthComparablePeriod(parseLocalDate(params.start), parseLocalDate(params.end))
+      : { start: null, end: null };
+    var previousStart = formatLocalDate(previousPeriod.start);
+    var previousEnd = formatLocalDate(previousPeriod.end);
+
+    var currentPromise = loadDashbiReal(params);
+    var previousPromise = (!previousStart || !previousEnd)
+      ? Promise.resolve(null)
+      : loadDashbiReal({ start: previousStart, end: previousEnd }).then(
+          function (previousPayload) { return { payload: previousPayload, error: null }; },
+          function (err) { return { payload: null, error: err }; }
+        );
+
+    return currentPromise.then(function (currentPayload) {
+      return previousPromise.then(function (previousResult) {
+        if (!previousResult) return { current: currentPayload, previous: null, previousError: null };
+        return { current: currentPayload, previous: previousResult.payload, previousError: previousResult.error };
+      });
+    });
+  }
+
   window.NX_DASHBI_REAL_PROVIDER = {
-    loadDashbiReal: loadDashbiReal
+    loadDashbiReal: loadDashbiReal,
+    loadDashbiRealWithComparison: loadDashbiRealWithComparison
   };
 })();

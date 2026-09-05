@@ -106,6 +106,26 @@
 .dbKpiDetailToggleWrap { margin: 0 0 var(--space-4); }
 .dbKpiDetailPanel { border: 1px solid var(--color-hairline); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); background: var(--color-surface-2); margin: 0 0 var(--space-4); }
 
+/* FC-1 (GAP-001) -- previous-period comparison delta badge. Icon + percent
+   text always present (Gate 19, this Wave's brief: never color alone).
+   Up/down colors reuse the same success/critical hue family as the Share
+   card above -- a pure math direction (Gate 18: NOT a reinterpretation of
+   whether the change is "good", every surface this appears on is a
+   generically-more-is-better metric, same uncontextualized coloring
+   production itself uses). */
+.dbDelta { display: inline-flex; align-items: center; gap: 3px; margin-left: 5px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dbDeltaUp { color: var(--color-success); }
+.dbDeltaDown { color: var(--color-critical); }
+.dbDeltaFlat, .dbDeltaNA { color: var(--color-text-muted); }
+.dbDeltaShort { font-size: 10px; }
+.dbKpiCompare { margin-top: var(--space-1); display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+.dbKpiComparePrev { font-size: 10.5px; color: var(--color-text-muted); }
+/* Gate 20 (responsive): the delta occupies its own compact secondary line
+   inside table cells/mobile cards rather than sitting inline with the
+   primary value, so it never forces a cell to overflow at 390px. */
+.dbTable .dbNumCol .dbDelta, .dbMobileValue .dbDelta { display: block; margin-top: 2px; }
+.dbFamilyMetricBox .dbV .dbDelta { display: block; margin-top: 2px; font-size: 10px; }
+
 .dbPlanGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-2); }
 .dbPlanCard { border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); padding: var(--space-3); border-left: 3px solid var(--color-hairline-strong); }
 .dbPlanCard .dbK { font-size: 11px; font-weight: 600; letter-spacing: .03em; }

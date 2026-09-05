@@ -111,8 +111,6 @@ FUTURE WAVE:              same admin-tooling Wave as every prior
 
 DEPENDENCY:    medal cards (renderRanking, addMedals, medalha,
               rankingHeroHtml, renderRankingCard, renderRankingGrid),
-              previous-period comparison deltas
-              (calcDelta/formatDelta/comparisonBlock/metricCompareBlock),
               CSV export (exportarResumoCSV), the multi-tab shell
               chrome (showTab)
 SURFACE:              presentation only
@@ -120,7 +118,10 @@ REASON:                  V2 builds its own Red Precision presentation
                        from the extracted data, same precedent as
                        every prior module -- these are HTML-string
                        builders, not business logic.
-FUTURE WAVE:              N/A -- not a data gap, a presentation choice.
+FUTURE WAVE:              CSV export (exportarResumoCSV) is FC-2's target
+                       (V1×V2 Feature Completeness Audit, GAP-004);
+                       medal cards/showTab remain a presentation choice,
+                       N/A.
 ```
 
 **PORTAL-NEXT-07.1 correction**: `rankingFromViews` (the actual Ranking business
@@ -132,6 +133,30 @@ discovered at all in PORTAL-NEXT-07 (Novos por Loja was missed entirely, not
 deliberately deferred); see `docs/NOVOS-POR-LOJA-FUNCTION-MAP.md`. 96 functions
 extracted as of this Wave (94 + `rankingFromViews` + `buildNovosLojaRows`), still 0
 mismatches against an independently re-extracted reference.
+
+**FC-1 (GAP-001) correction**: `calcDelta`/`formatDelta`/`comparisonBlock`/
+`metricCompareBlock`/`getPreviousMonthComparablePeriod`/`sameDayPreviousMonth` were
+bucketed above as "presentation only" through PORTAL-NEXT-07 -- the V1×V2 Feature
+Completeness Audit (2026-09-04) found that framing incomplete, not wrong about
+`formatDelta`/`comparisonBlock`/`metricCompareBlock` (genuinely HTML-string
+builders, DUAL_PERIOD_DATA_ORCHESTRATION_REQUIRED does not apply to those three) but
+incomplete about the other three: `calcDelta` is pure math with documented edge-case
+behavior (previous=0/null/non-finite -> null), and the previous-comparable-period
+functions require a SECOND, independently-computed aggregate the pre-FC-1 adapter's
+`compute(fixture)` had no way to produce (single-period signature, no second
+"previous period" parameter) -- restoring the comparison is dual-period data
+orchestration (SAME_PIPELINE_DIFFERENT_PERIOD: `compute()` called twice, once per
+period), not a UI-only change. FC-1 extracted `calcDelta`/`getPreviousMonthComparablePeriod`/
+`sameDayPreviousMonth` byte-identical into dashbi.adapter.js (business-logic layer,
+`_internal`-adjacent exports) and added dual-period fetch orchestration to
+dashbi-real-provider.js (`loadDashbiRealWithComparison`) and dashbi.js (fixture mode:
+a second, explicitly-picked comparison fixture; real mode: the previous comparable
+period fetched via the same RPCs). `formatDelta`/`comparisonBlock`/`metricCompareBlock`
+stay presentation-only, reimplemented in dashbi.js as `deltaHtml`/`kpiCompareHtml`
+using V2's own class vocabulary (Gate 18, FC-1 brief) -- consistent with every other
+module's "V2 builds its own presentation from the extracted data" precedent. See
+`docs/DASHBI-COMPARISON-CONTRACT.md` for the restored surface set and edge-case
+matrix.
 
 ## Functional diff audit (Gate 124)
 

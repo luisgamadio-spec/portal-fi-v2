@@ -62,6 +62,11 @@
 
   var fixturesData = null;
   var currentFixtureId = 'multi_loja_vendedor';
+  // FC-1 (GAP-001): '' means "no comparison" -- fixture mode has no date
+  // range to derive a previous period from (compute() is period-agnostic,
+  // Gate 9, this Wave's brief), so the previous period is a second,
+  // explicitly-picked fixture rather than an auto-computed date range.
+  var currentComparisonFixtureId = '';
   var currentDeptView = 'Grupo';
   var currentFamily = 'OUTLANDER';
   var currentPreset = 'CUSTOM';
@@ -103,6 +108,7 @@
   }
   var renderSeq = 0;
   var realOut = null;
+  var previousRealOut = null;
 
   var STATE_COPY = {
     PERMISSION_DENIED: { title: 'Sem permissão', body: 'Sua conta não tem acesso a esta análise.' },
@@ -238,8 +244,44 @@
   // tables, mobile cards, Model Analysis, etc.) is untouched — these 3
   // functions are the only callers of dbKpiCardPrimary/dbK/dbV/dbHint,
   // confirmed via grep before this edit.
-  function kpiPrimary(label, value, hint) {
-    return '<div class="modKpiCard"><div class="modKpiLabel">' + esc(label) + '</div><div class="modKpiValue">' + value + '</div>' + (hint ? '<div class="modKpiHint">' + hint + '</div>' : '') + '</div>';
+  function kpiPrimary(label, value, hint, compareHtml) {
+    return '<div class="modKpiCard"><div class="modKpiLabel">' + esc(label) + '</div><div class="modKpiValue">' + value + '</div>' + (hint ? '<div class="modKpiHint">' + hint + '</div>' : '') + (compareHtml || '') + '</div>';
+  }
+
+  // FC-1 (GAP-001) -- presentation layer only, business math is
+  // A.calcDelta() (byte-identical extraction, dashbi.adapter.js). Mirrors
+  // production's formatDelta() semantics (origin/main lines 3156-3163:
+  // ▲/▼/▬, "— sem base anterior" when previous is 0/null/non-finite) using
+  // V2's own class vocabulary, not V1's HTML/CSS (Gate 18, this Wave's
+  // brief). Gate 18 also requires NOT reinterpreting up/down as good/bad --
+  // every surface this delta is used on (Vendas, Financiamentos, Receita,
+  // Produção, Retorno, Modelos) is a "more is generically better" metric in
+  // both V1 and V2, same as V1's own uncontextualized coloring, so this is
+  // not a reinterpretation. Gate 19 accessibility: icon + percent text +
+  // aria-label, never color alone.
+  function deltaHtml(A, currentValue, previousValue, short) {
+    var d = A.calcDelta(currentValue, previousValue);
+    var cls = short ? 'dbDelta dbDeltaShort' : 'dbDelta';
+    if (d === null || !isFinite(d)) {
+      return '<span class="' + cls + ' dbDeltaNA">— sem base anterior</span>';
+    }
+    var direction = d > 0 ? 'up' : (d < 0 ? 'down' : 'flat');
+    var icon = d > 0 ? '▲' : (d < 0 ? '▼' : '▬');
+    var pct = Math.abs(d).toLocaleString('pt-BR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    var sign = d >= 0 ? '+' : '';
+    var label = pct + (d > 0 ? ' acima' : (d < 0 ? ' abaixo' : ' igual ao')) + ' do período anterior';
+    return '<span class="' + cls + ' dbDelta' + direction.charAt(0).toUpperCase() + direction.slice(1) + '" aria-label="' + esc(label) + '">' + icon + ' ' + sign + esc(pct) + '</span>';
+  }
+
+  // A previous-period block for the KPI grid: label + formatted previous
+  // value + delta, mirroring production's comparisonBlock() (origin/main
+  // lines 3164-3168). previousValue == null means "no previous period was
+  // computed at all" (fixture: no comparison fixture picked; real: previous
+  // fetch failed, Gate 12) -- rendered as nothing, not a "sem base" badge,
+  // which is reserved for previousValue === 0 (a real, comparable zero).
+  function kpiCompareHtml(A, currentValue, previousValue, previousFormatted) {
+    if (previousValue == null) return '';
+    return '<div class="dbKpiCompare"><span class="dbKpiComparePrev">Anterior: ' + esc(previousFormatted) + '</span>' + deltaHtml(A, currentValue, previousValue) + '</div>';
   }
 
   // PORTAL-NEXT-07.5 — Share/Penetração threshold reconfirmed against the
@@ -248,14 +290,16 @@
   // assumed from a prior wave — re-checked against source this Wave.
   function shareEmphasisClass(v) { return v < 0.40 ? 'modKpiCardCritical' : 'modKpiCardSuccess'; }
 
-  function kpiShareCardHtml(A, v) {
+  function kpiShareCardHtml(A, v, prevV) {
     var cls = shareEmphasisClass(v);
     var statusLabel = v < 0.40 ? 'Abaixo da meta (40%)' : 'Dentro da meta';
-    return '<div class="modKpiCard ' + cls + '"><div class="modKpiLabel">Share</div><div class="modKpiValue">' + esc(A.pct(v)) + '</div><div class="modKpiHint">' + esc(statusLabel) + '</div></div>';
+    var compareHtml = prevV == null ? '' : kpiCompareHtml(A, v, prevV, A.pct(prevV));
+    return '<div class="modKpiCard ' + cls + '"><div class="modKpiLabel">Share</div><div class="modKpiValue">' + esc(A.pct(v)) + '</div><div class="modKpiHint">' + esc(statusLabel) + '</div>' + compareHtml + '</div>';
   }
 
-  function kpiReceitaTotalCardHtml(A, v) {
-    return '<div class="modKpiCard modKpiCardInfo"><div class="modKpiLabel">Receita Total</div><div class="modKpiValue">' + esc(A.money(v)) + '</div></div>';
+  function kpiReceitaTotalCardHtml(A, v, prevV) {
+    var compareHtml = prevV == null ? '' : kpiCompareHtml(A, v, prevV, A.money(prevV));
+    return '<div class="modKpiCard modKpiCardInfo"><div class="modKpiLabel">Receita Total</div><div class="modKpiValue">' + esc(A.money(v)) + '</div>' + compareHtml + '</div>';
   }
 
   function buildFixtureInput(id) {
@@ -315,18 +359,22 @@
   // own spec — both always a short integer; Share/Produção Total/
   // Receita Total each full width), built from the SAME v/f/share
   // values the desktop row already computed. No recalculation.
-  function dbPrimaryMetricFieldsHtml(A, v, f, share) {
-    return dbMobileField('Vendas', String(v.qtd), 'dbMobileFieldPair') +
-      dbMobileField('Financiamentos', String(f.qtd), 'dbMobileFieldPair') +
-      dbMobileField('Share', penetracaoCellHtml(A, share), 'dbMobileFieldEmph') +
-      dbMobileField('Produção Total', esc(A.money(f.producao || 0))) +
-      dbMobileField('Receita Total', esc(A.money(f.receitaTotal || 0)));
+  function dbPrimaryMetricFieldsHtml(A, v, f, share, prev) {
+    var cmp = prev
+      ? { vendas: deltaHtml(A, v.qtd, prev.v.qtd, true), fin: deltaHtml(A, f.qtd, prev.f.qtd, true), share: deltaHtml(A, share, prev.share, true), producao: deltaHtml(A, f.producao || 0, prev.f.producao || 0, true), receitaTotal: deltaHtml(A, f.receitaTotal || 0, prev.f.receitaTotal || 0, true) }
+      : null;
+    return dbMobileField('Vendas', String(v.qtd) + (cmp ? cmp.vendas : ''), 'dbMobileFieldPair') +
+      dbMobileField('Financiamentos', String(f.qtd) + (cmp ? cmp.fin : ''), 'dbMobileFieldPair') +
+      dbMobileField('Share', penetracaoCellHtml(A, share) + (cmp ? cmp.share : ''), 'dbMobileFieldEmph') +
+      dbMobileField('Produção Total', esc(A.money(f.producao || 0)) + (cmp ? cmp.producao : '')) +
+      dbMobileField('Receita Total', esc(A.money(f.receitaTotal || 0)) + (cmp ? cmp.receitaTotal : ''));
   }
 
-  function storeTableHtml(A, results) {
+  function storeTableHtml(A, results, previousResults) {
     var A_ = results.aggs;
     var lojas = Object.keys(A_.vendasLoja);
     var finLojaMap = A_.finLoja;
+    var prevA = previousResults ? previousResults.aggs : null;
     var ns = 'storeTable';
     var desktopRows = [];
     var mobileCards = [];
@@ -334,22 +382,34 @@
       var v = A_.vendasLoja[loja] || { qtd: 0 };
       var f = finLojaMap[loja] || { qtd: 0, producao: 0, receita: 0, receitaSPF: 0, receitaTotal: 0 };
       var share = v.qtd ? f.qtd / v.qtd : 0;
+      var prev = null;
+      if (prevA) {
+        var prevV = prevA.vendasLoja[loja] || { qtd: 0 };
+        var prevF = prevA.finLoja[loja] || { qtd: 0, producao: 0, receita: 0, receitaSPF: 0, receitaTotal: 0 };
+        prev = { v: prevV, f: prevF, share: prevV.qtd ? prevF.qtd / prevV.qtd : 0 };
+      }
       var detailGroups = [
         { label: 'Financeiro (complementar)', items: [
-          { label: 'Receita', value: esc(A.money(f.receita || 0)) },
-          { label: 'Receita SPF', value: esc(A.money(f.receitaSPF || 0)) },
-          { label: 'Retorno', value: esc(A.pct(retornoFromFin(f))) }
+          { label: 'Receita', value: esc(A.money(f.receita || 0)) + (prev ? deltaHtml(A, f.receita || 0, prev.f.receita || 0) : '') },
+          { label: 'Receita SPF', value: esc(A.money(f.receitaSPF || 0)) + (prev ? deltaHtml(A, f.receitaSPF || 0, prev.f.receitaSPF || 0) : '') },
+          { label: 'Retorno', value: esc(A.pct(retornoFromFin(f))) + (prev ? deltaHtml(A, retornoFromFin(f), retornoFromFin(prev.f)) : '') }
         ] }
       ];
-      desktopRows.push(expandableRow(ns, loja, [loja, v.qtd, f.qtd, { raw: penetracaoCellHtml(A, share) }, A.money(f.producao || 0), A.money(f.receitaTotal || 0)], 1, 7, detailGroups, STORE_HEADERS));
-      mobileCards.push(dbMobileCard(ns, loja, loja, null, dbPrimaryMetricFieldsHtml(A, v, f, share), detailGroups));
+      var vendasCell = String(v.qtd) + (prev ? deltaHtml(A, v.qtd, prev.v.qtd, true) : '');
+      var finCell = String(f.qtd) + (prev ? deltaHtml(A, f.qtd, prev.f.qtd, true) : '');
+      var producaoCell = A.money(f.producao || 0) + (prev ? deltaHtml(A, f.producao || 0, prev.f.producao || 0, true) : '');
+      var receitaTotalCell = A.money(f.receitaTotal || 0) + (prev ? deltaHtml(A, f.receitaTotal || 0, prev.f.receitaTotal || 0, true) : '');
+      var shareCell = penetracaoCellHtml(A, share) + (prev ? deltaHtml(A, share, prev.share, true) : '');
+      desktopRows.push(expandableRow(ns, loja, [loja, { raw: vendasCell }, { raw: finCell }, { raw: shareCell }, { raw: producaoCell }, { raw: receitaTotalCell }], 1, 7, detailGroups, STORE_HEADERS));
+      mobileCards.push(dbMobileCard(ns, loja, loja, null, dbPrimaryMetricFieldsHtml(A, v, f, share, prev), detailGroups));
     });
     return '<div class="dbDesktopOnly">' + expandableTableHtml(STORE_HEADERS, 1, desktopRows, 7) + '</div>' + dbMobileListHtml(mobileCards);
   }
 
-  function sellerTableHtml(A, results) {
+  function sellerTableHtml(A, results, previousResults) {
     var A_ = results.aggs;
     var keys = Object.keys(A_.vendasVendDept);
+    var prevA = previousResults ? previousResults.aggs : null;
     var ns = 'sellerTable';
     var desktopRows = [];
     var mobileCards = [];
@@ -358,16 +418,27 @@
       var v = A_.vendasVendDept[key] || { qtd: 0 };
       var f = A_.finVendDept[key] || { qtd: 0, producao: 0, receita: 0, receitaSPF: 0, receitaTotal: 0 };
       var share = v.qtd ? f.qtd / v.qtd : 0;
+      var prev = null;
+      if (prevA) {
+        var prevV = prevA.vendasVendDept[key] || { qtd: 0 };
+        var prevF = prevA.finVendDept[key] || { qtd: 0, producao: 0, receita: 0, receitaSPF: 0, receitaTotal: 0 };
+        prev = { v: prevV, f: prevF, share: prevV.qtd ? prevF.qtd / prevV.qtd : 0 };
+      }
       var detailGroups = [
         { label: 'Detalhe', items: [
           { label: 'Depto', value: esc(parts[1] || '') },
-          { label: 'Receita', value: esc(A.money(f.receita || 0)) },
-          { label: 'Receita SPF', value: esc(A.money(f.receitaSPF || 0)) },
-          { label: 'Retorno', value: esc(A.pct(retornoFromFin(f))) }
+          { label: 'Receita', value: esc(A.money(f.receita || 0)) + (prev ? deltaHtml(A, f.receita || 0, prev.f.receita || 0) : '') },
+          { label: 'Receita SPF', value: esc(A.money(f.receitaSPF || 0)) + (prev ? deltaHtml(A, f.receitaSPF || 0, prev.f.receitaSPF || 0) : '') },
+          { label: 'Retorno', value: esc(A.pct(retornoFromFin(f))) + (prev ? deltaHtml(A, retornoFromFin(f), retornoFromFin(prev.f)) : '') }
         ] }
       ];
-      desktopRows.push(expandableRow(ns, key, [parts[0], v.qtd, f.qtd, { raw: penetracaoCellHtml(A, share) }, A.money(f.producao || 0), A.money(f.receitaTotal || 0)], 1, 7, detailGroups, SELLER_HEADERS));
-      mobileCards.push(dbMobileCard(ns, key, parts[0], parts[1] || null, dbPrimaryMetricFieldsHtml(A, v, f, share), detailGroups));
+      var vendasCell = String(v.qtd) + (prev ? deltaHtml(A, v.qtd, prev.v.qtd, true) : '');
+      var finCell = String(f.qtd) + (prev ? deltaHtml(A, f.qtd, prev.f.qtd, true) : '');
+      var producaoCell = A.money(f.producao || 0) + (prev ? deltaHtml(A, f.producao || 0, prev.f.producao || 0, true) : '');
+      var receitaTotalCell = A.money(f.receitaTotal || 0) + (prev ? deltaHtml(A, f.receitaTotal || 0, prev.f.receitaTotal || 0, true) : '');
+      var shareCell = penetracaoCellHtml(A, share) + (prev ? deltaHtml(A, share, prev.share, true) : '');
+      desktopRows.push(expandableRow(ns, key, [parts[0], { raw: vendasCell }, { raw: finCell }, { raw: shareCell }, { raw: producaoCell }, { raw: receitaTotalCell }], 1, 7, detailGroups, SELLER_HEADERS));
+      mobileCards.push(dbMobileCard(ns, key, parts[0], parts[1] || null, dbPrimaryMetricFieldsHtml(A, v, f, share, prev), detailGroups));
     });
     return '<div class="dbDesktopOnly">' + expandableTableHtml(SELLER_HEADERS, 1, desktopRows, 7) + '</div>' + dbMobileListHtml(mobileCards);
   }
@@ -473,12 +544,20 @@
   var MODEL_PRIMARY_ALWAYS = ['volume', 'financiada', 'penetracao'];
   var MODEL_PRIMARY_DESKTOP = ['producao', 'receitaTotal', 'ticket', 'retornoMedio'];
 
-  function modelCellHtml(A, c, r) {
+  function modelCellHtml(A, c, r, prevByModelo) {
     var val = r[c.key];
-    return c.penetracao ? penetracaoCellHtml(A, val) : esc(String(c.f(A, val)));
+    var formatted = c.penetracao ? penetracaoCellHtml(A, val) : esc(String(c.f(A, val)));
+    if (!prevByModelo) return formatted;
+    var prevRow = prevByModelo[r.Modelo];
+    if (!prevRow) return formatted;
+    return formatted + deltaHtml(A, val, prevRow[c.key], true);
   }
 
-  function modelPrimaryDetailTableHtml(A, modelRows) {
+  // FC-1 (GAP-001): all 19 non-identity columns compared, same set
+  // production compares in Model Analysis (origin/main lines 4093-4114,
+  // MODEL_TABLE_COLUMNS above already mirrors that 1:1). prevByModelo is
+  // null when no previous period was computed.
+  function modelPrimaryDetailTableHtml(A, modelRows, prevByModelo) {
     var byKey = {};
     MODEL_TABLE_COLUMNS.forEach(function (c) { byKey[c.key] = c; });
     var alwaysCols = MODEL_PRIMARY_ALWAYS.map(function (k) { return byKey[k]; });
@@ -503,11 +582,11 @@
     var body = modelRows.map(function (r) {
       var key = r.Modelo;
       var groups = detailGroupOrder.map(function (label) {
-        return { label: label, items: detailGroupsByLabel[label].map(function (c) { return { label: c.label, value: modelCellHtml(A, c, r) }; }) };
+        return { label: label, items: detailGroupsByLabel[label].map(function (c) { return { label: c.label, value: modelCellHtml(A, c, r, prevByModelo) }; }) };
       });
       return '<tr><td>' + esc(r.Modelo) + '</td>' +
-        alwaysCols.map(function (c) { return '<td class="dbNumCol">' + modelCellHtml(A, c, r) + '</td>'; }).join('') +
-        desktopCols.map(function (c) { return '<td class="dbNumCol dbDesktopCol">' + modelCellHtml(A, c, r) + '</td>'; }).join('') +
+        alwaysCols.map(function (c) { return '<td class="dbNumCol">' + modelCellHtml(A, c, r, prevByModelo) + '</td>'; }).join('') +
+        desktopCols.map(function (c) { return '<td class="dbNumCol dbDesktopCol">' + modelCellHtml(A, c, r, prevByModelo) + '</td>'; }).join('') +
         '<td class="dbDetailToggleCell">' + detailToggleHtml(ns, key) + '</td></tr>' +
         detailRowHtml(ns, key, colspan, groups);
     }).join('');
@@ -515,30 +594,45 @@
       '<tbody>' + (body || '<tr><td colspan="' + colspan + '" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
   }
 
-  function familyMetricGridHtml(A, results, modelRows) {
-    var totals = modelRows.reduce(function (a, r) {
+  function modelTotals(modelRows) {
+    return modelRows.reduce(function (a, r) {
       a.volume += r.volume; a.financiada += r.financiada; a.producao += r.producao;
       a.receita += r.receita; a.receitaSPF += r.receitaSPF; a.receitaTotal += r.receitaTotal;
       return a;
     }, { volume: 0, financiada: 0, producao: 0, receita: 0, receitaSPF: 0, receitaTotal: 0 });
+  }
+
+  function familyMetricGridHtml(A, results, modelRows, previousResults, previousModelRows) {
+    var totals = modelTotals(modelRows);
     var pen = totals.volume ? totals.financiada / totals.volume : 0;
     var ticket = totals.financiada ? totals.producao / totals.financiada : 0;
     var extraFam = A.familyExtraMetrics(results, modelRows);
-    function box(label, value) { return '<div class="dbFamilyMetricBox"><div class="dbK">' + esc(label) + '</div><div class="dbV">' + value + '</div></div>'; }
+    var prev = null;
+    if (previousResults && previousModelRows) {
+      var prevTotals = modelTotals(previousModelRows);
+      var prevPen = prevTotals.volume ? prevTotals.financiada / prevTotals.volume : 0;
+      var prevTicket = prevTotals.financiada ? prevTotals.producao / prevTotals.financiada : 0;
+      var prevExtraFam = A.familyExtraMetrics(previousResults, previousModelRows);
+      prev = { totals: prevTotals, pen: prevPen, ticket: prevTicket, extraFam: prevExtraFam };
+    }
+    function box(label, value, curNum, prevNum) {
+      var cmp = prev ? deltaHtml(A, curNum, prevNum, true) : '';
+      return '<div class="dbFamilyMetricBox"><div class="dbK">' + esc(label) + '</div><div class="dbV">' + value + cmp + '</div></div>';
+    }
     return '<div class="dbFamilyMetricGrid">' +
-      box('Volume vendido', A.num(totals.volume)) +
-      box('Financiamentos', A.num(totals.financiada)) +
-      box('Penetração', A.pct(pen)) +
-      box('Produção', A.money(totals.producao)) +
-      box('Receita', A.money(totals.receita)) +
-      box('Receita SPF', A.money(totals.receitaSPF)) +
-      box('Receita Total', A.money(totals.receitaTotal)) +
-      box('Ticket médio', A.money(ticket)) +
-      box('Média de retorno', A.pct(extraFam.retornoMedio)) +
-      box('Prazo médio', A.num(extraFam.prazoMedio, 1) + 'x') +
-      box('Média de parcela', A.money(extraFam.pmtMed)) +
-      box('Entrada média', A.money(extraFam.entradaMed)) +
-      box('% Entrada médio', A.pct(extraFam.entradaPct)) +
+      box('Volume vendido', A.num(totals.volume), totals.volume, prev ? prev.totals.volume : null) +
+      box('Financiamentos', A.num(totals.financiada), totals.financiada, prev ? prev.totals.financiada : null) +
+      box('Penetração', A.pct(pen), pen, prev ? prev.pen : null) +
+      box('Produção', A.money(totals.producao), totals.producao, prev ? prev.totals.producao : null) +
+      box('Receita', A.money(totals.receita), totals.receita, prev ? prev.totals.receita : null) +
+      box('Receita SPF', A.money(totals.receitaSPF), totals.receitaSPF, prev ? prev.totals.receitaSPF : null) +
+      box('Receita Total', A.money(totals.receitaTotal), totals.receitaTotal, prev ? prev.totals.receitaTotal : null) +
+      box('Ticket médio', A.money(ticket), ticket, prev ? prev.ticket : null) +
+      box('Média de retorno', A.pct(extraFam.retornoMedio), extraFam.retornoMedio, prev ? prev.extraFam.retornoMedio : null) +
+      box('Prazo médio', A.num(extraFam.prazoMedio, 1) + 'x', extraFam.prazoMedio, prev ? prev.extraFam.prazoMedio : null) +
+      box('Média de parcela', A.money(extraFam.pmtMed), extraFam.pmtMed, prev ? prev.extraFam.pmtMed : null) +
+      box('Entrada média', A.money(extraFam.entradaMed), extraFam.entradaMed, prev ? prev.extraFam.entradaMed : null) +
+      box('% Entrada médio', A.pct(extraFam.entradaPct), extraFam.entradaPct, prev ? prev.extraFam.entradaPct : null) +
       '</div>';
   }
 
@@ -548,7 +642,11 @@
       '<p class="dbMuted">Classificação oficial por operação, mesma prioridade de Análise F&I do Grupo e Coparticipado: Código IF 999 ou SUBSIDIADO; Código IF 777 ou REVERSÃO; TC Devolvida 1 ou COPARTICIPADO; Balão PMT maior que zero; demais = LINEAR. Faz parte da Análise por Modelos em produção (mesma seção/aba real), não uma visão geral separada.</p>';
   }
 
-  function modelAnalysisHtml(A, results, counts, isReal) {
+  // FC-1 (GAP-001): factored out of modelAnalysisHtml so the SAME
+  // construction (isReal branch + fixture-only plan-count merge) runs
+  // unchanged for both the current and the previous period -- SAME_
+  // PIPELINE_DIFFERENT_PERIOD, no separate/simplified previous-period logic.
+  function modelRowsForAnalysis(A, results, isReal) {
     // Dashbi Phase 2, Gate B3/B7: real transport builds modelRows DIRECTLY
     // from operational_model_metrics's own real per-model aggregates
     // (dashbi-real-view-model.js) rather than through modelRowsUnified()'s
@@ -584,6 +682,17 @@
         r.coparticipadoQtd = p ? p.Coparticipado : 0;
       });
     }
+    return modelRows;
+  }
+
+  function modelAnalysisHtml(A, results, counts, isReal, previousOut) {
+    var modelRows = modelRowsForAnalysis(A, results, isReal);
+    var previousModelRows = previousOut ? modelRowsForAnalysis(A, previousOut, isReal) : null;
+    var prevByModelo = null;
+    if (previousModelRows) {
+      prevByModelo = {};
+      previousModelRows.forEach(function (r) { prevByModelo[r.Modelo] = r; });
+    }
     // inconsistenciaTritonRows() looks for a literal "INCONSISTÊNCIA
     // TRITON" sentinel modelo value that only Base01/Base02 cross-
     // validation (fixture-only, no equivalent for a single real source of
@@ -605,10 +714,10 @@
       '<h2>Análise por Modelos (Novos)</h2>' +
       '<p class="dbMuted">Selecione uma família para abrir os indicadores específicos dos modelos Novos.</p>' +
       vehicleSelectorHtml() +
-      familyMetricGridHtml(A, results, modelRows) +
+      familyMetricGridHtml(A, results, modelRows, previousOut, previousModelRows) +
       '<h3 class="dbSubHeading">' + esc(currentFamily) + ' · Indicadores por modelo</h3>' +
       '<p class="dbMuted">Volume/Financiamentos/Penetração por modelo — clique em "+ Detalhes" para abrir Produção/Receita/Ticket/Retorno/Parcelamento (Prazo Médio, Parcela Média)/Entrada/Planos (Qtd Linear/Balão/Reversão, Balão Médio). Nenhuma métrica fica escondida, sem rolagem lateral.</p>' +
-      modelPrimaryDetailTableHtml(A, modelRows) +
+      modelPrimaryDetailTableHtml(A, modelRows, prevByModelo) +
       tritonHtml +
       '</div>';
   }
@@ -733,7 +842,7 @@
   // buildRealOut()) into #dbPanel. Kept transport-agnostic: every branch
   // that actually differs between fixture/real lives in modelAnalysisHtml
   // (Gate B7) or in the diagnostic footer below, gated by isReal.
-  function renderPanel(out, isReal) {
+  function renderPanel(out, isReal, previousOut) {
     var A = window.NX_DASHBI_ADAPTER;
     var panel = document.getElementById('dbPanel');
 
@@ -743,6 +852,14 @@
         '. A produção real também interrompe o processamento neste caso (mesmo comportamento reproduzido aqui — nenhum resultado parcial é exibido).</div>';
       return;
     }
+
+    // FC-1 (GAP-001): the previous period is complementary, never a reason
+    // to fail/alter the current one (Gate 12, this Wave's brief) -- a
+    // missing-seller block on the previous period only means "no
+    // comparison available", same treatment as previousOut being absent
+    // entirely (no comparison fixture picked / previous RPC fetch failed).
+    var validPreviousOut = (previousOut && !previousOut.blocked) ? previousOut : null;
+    var prevKpi = validPreviousOut ? A.kpiMetricsFor(validPreviousOut, currentDeptView) : null;
 
     var kpi = A.kpiMetricsFor(out, currentDeptView);
     var period = { min: null, max: null };
@@ -772,32 +889,32 @@
     if (modesForView(currentDeptView).indexOf(currentMode) === -1) currentMode = 'overview';
 
     var complementaryHtml = '';
-    if (currentMode === 'modelos') complementaryHtml = modelAnalysisHtml(A, out, counts, isReal);
+    if (currentMode === 'modelos') complementaryHtml = modelAnalysisHtml(A, out, counts, isReal, validPreviousOut);
     else if (currentMode === 'ranking') complementaryHtml = rankingHtml(A, out, salesView, finsView);
     else if (currentMode === 'novosLoja') complementaryHtml = novosLojaHtml(A, out);
     else complementaryHtml = '<p class="dbMuted dbModeHint">Selecione uma análise complementar acima (Análise por Modelos, Ranking ou Novos por Loja) para abrir seus indicadores.</p>';
 
     var html =
       '<div class="modKpiGrid">' +
-      kpiPrimary('Vendas', kpi.vendas, currentDeptView) +
-      kpiPrimary('Financiamentos', kpi.fins) +
-      kpiShareCardHtml(A, kpi.share) +
-      kpiPrimary('Produção Total', A.money(kpi.producao)) +
-      kpiReceitaTotalCardHtml(A, kpi.receitaTotal) +
+      kpiPrimary('Vendas', kpi.vendas, currentDeptView, prevKpi ? kpiCompareHtml(A, kpi.vendas, prevKpi.vendas, A.num(prevKpi.vendas)) : '') +
+      kpiPrimary('Financiamentos', kpi.fins, null, prevKpi ? kpiCompareHtml(A, kpi.fins, prevKpi.fins, A.num(prevKpi.fins)) : '') +
+      kpiShareCardHtml(A, kpi.share, prevKpi ? prevKpi.share : null) +
+      kpiPrimary('Produção Total', A.money(kpi.producao), null, prevKpi ? kpiCompareHtml(A, kpi.producao, prevKpi.producao, A.money(prevKpi.producao)) : '') +
+      kpiReceitaTotalCardHtml(A, kpi.receitaTotal, prevKpi ? prevKpi.receitaTotal : null) +
       '</div>' +
       '<div class="dbKpiDetailToggleWrap">' + detailToggleHtml('kpiDetail', 'main') + '</div>' +
       kpiDetailPanelHtml('kpiDetail', 'main', [
         { label: 'Complementares', items: [
-          { label: 'Receita', value: esc(A.money(kpi.receita)) },
-          { label: 'Receita SPF', value: esc(A.money(kpi.receitaSPF)) },
-          { label: 'Retorno Médio', value: esc(A.pct(kpi.retorno)) }
+          { label: 'Receita', value: esc(A.money(kpi.receita)) + (prevKpi ? deltaHtml(A, kpi.receita, prevKpi.receita, true) : '') },
+          { label: 'Receita SPF', value: esc(A.money(kpi.receitaSPF)) + (prevKpi ? deltaHtml(A, kpi.receitaSPF, prevKpi.receitaSPF, true) : '') },
+          { label: 'Retorno Médio', value: esc(A.pct(kpi.retorno)) + (prevKpi ? deltaHtml(A, kpi.retorno, prevKpi.retorno, true) : '') }
         ] }
       ]) +
       (closed ? '<div class="dbFechamentoBar"><span class="dbFechamento">FECHAMENTO</span><span class="dbMuted">Período filtrado corresponde a um mês fechado.</span></div>' : '') +
 
-      '<h2>Vendas e Financiamentos por Loja</h2>' + storeTableHtml(A, out) +
+      '<h2>Vendas e Financiamentos por Loja</h2>' + storeTableHtml(A, out, validPreviousOut) +
 
-      '<h2>Vendas e Financiamentos por Vendedor</h2>' + sellerTableHtml(A, out) +
+      '<h2>Vendas e Financiamentos por Vendedor</h2>' + sellerTableHtml(A, out, validPreviousOut) +
 
       modeNavHtml() +
       complementaryHtml +
@@ -841,10 +958,13 @@
       var A = window.NX_DASHBI_ADAPTER;
       var input = buildFixtureInput(currentFixtureId);
       var out = A.compute(input);
-      renderPanel(out, false);
+      // FC-1 (GAP-001): SAME_PIPELINE_DIFFERENT_PERIOD -- A.compute() called
+      // again, unchanged, against the comparison fixture's own raw rows.
+      var previousOut = currentComparisonFixtureId ? A.compute(buildFixtureInput(currentComparisonFixtureId)) : null;
+      renderPanel(out, false, previousOut);
       return;
     }
-    if (realOut) { renderPanel(realOut, true); return; }
+    if (realOut) { renderPanel(realOut, true, previousRealOut); return; }
     loadReal();
   }
 
@@ -852,11 +972,17 @@
     var mySeq = ++renderSeq;
     var panel = document.getElementById('dbPanel');
     if (panel) panel.innerHTML = loadingHtml();
-    window.NX_DASHBI_REAL_PROVIDER.loadDashbiReal({ start: currentDateStart, end: currentDateEnd }).then(
+    // FC-1 (GAP-001): loadDashbiRealWithComparison fetches current+previous
+    // as one logical request pair -- renderSeq (mySeq check below) already
+    // treats them as a unit, so a superseded pair can never overwrite a
+    // newer one (Gate 22, this Wave's brief), same technique already used
+    // for the single-period fetch it replaces here.
+    window.NX_DASHBI_REAL_PROVIDER.loadDashbiRealWithComparison({ start: currentDateStart, end: currentDateEnd }).then(
       function (payload) {
         if (mySeq !== renderSeq) return;
-        realOut = window.NX_DASHBI_REAL_VIEW_MODEL.buildRealOut(payload.metrics, payload.modelMetrics);
-        renderPanel(realOut, true);
+        realOut = window.NX_DASHBI_REAL_VIEW_MODEL.buildRealOut(payload.current.metrics, payload.current.modelMetrics);
+        previousRealOut = payload.previous ? window.NX_DASHBI_REAL_VIEW_MODEL.buildRealOut(payload.previous.metrics, payload.previous.modelMetrics) : null;
+        renderPanel(realOut, true, previousRealOut);
       },
       function (err) {
         if (mySeq !== renderSeq) return;
@@ -882,14 +1008,17 @@
     }
     document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.toggle('dbBtnActive', b.dataset.preset === preset); });
     realOut = null;
+    previousRealOut = null;
     render();
   }
 
   function wireEvents() {
     var fixtureSelect = document.getElementById('dbFixtureSelect');
     if (fixtureSelect) fixtureSelect.addEventListener('change', function (e) { currentFixtureId = e.target.value; render(); });
-    document.getElementById('dbDateStart').addEventListener('change', function (e) { currentDateStart = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); }); realOut = null; render(); });
-    document.getElementById('dbDateEnd').addEventListener('change', function (e) { currentDateEnd = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); }); realOut = null; render(); });
+    var comparisonSelect = document.getElementById('dbComparisonFixtureSelect');
+    if (comparisonSelect) comparisonSelect.addEventListener('change', function (e) { currentComparisonFixtureId = e.target.value; render(); });
+    document.getElementById('dbDateStart').addEventListener('change', function (e) { currentDateStart = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); }); realOut = null; previousRealOut = null; render(); });
+    document.getElementById('dbDateEnd').addEventListener('change', function (e) { currentDateEnd = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); }); realOut = null; previousRealOut = null; render(); });
     document.querySelectorAll('.dbPresetBtn').forEach(function (btn) { btn.addEventListener('click', function () { applyPresetAndRender(btn.dataset.preset); }); });
     document.querySelectorAll('.dbViewBtn').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -939,8 +1068,16 @@
     var fixtureBanner = '';
     if (isFixtureMode) {
       var fixtureOptions = fixturesData.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === currentFixtureId ? ' selected' : '') + '>' + esc(c.id) + '</option>'; }).join('');
+      // FC-1 (GAP-001): fixture mode has no date range to derive a previous
+      // period from (compute() is period-agnostic), so comparison here is
+      // an explicit second fixture pick, defaulting to "Nenhuma" (no
+      // comparison) -- never auto-selected, so every pre-existing golden-
+      // fixture screenshot/test that never touches this control is
+      // unaffected (Gate 26, this Wave's brief).
+      var comparisonOptions = '<option value="">Nenhuma</option>' + fixturesData.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === currentComparisonFixtureId ? ' selected' : '') + '>' + esc(c.id) + '</option>'; }).join('');
       fixtureBanner = '<div class="modFixtureBanner"><span class="modFixtureLabel">DADOS DE TESTE (NEXT_LOCAL)</span>' +
-        '<label for="dbFixtureSelect">fixture:</label><select id="dbFixtureSelect">' + fixtureOptions + '</select></div>';
+        '<label for="dbFixtureSelect">fixture:</label><select id="dbFixtureSelect">' + fixtureOptions + '</select>' +
+        '<label for="dbComparisonFixtureSelect">comparar com (período anterior):</label><select id="dbComparisonFixtureSelect">' + comparisonOptions + '</select></div>';
     }
     return '<div class="dbPage">' +
       '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise Geral do Grupo</h1><p class="modSubtitle">Visão analítica geral do Grupo Brabus Mitsubishi.</p></div></div>' +

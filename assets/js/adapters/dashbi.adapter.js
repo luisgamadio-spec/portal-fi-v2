@@ -1521,6 +1521,24 @@
   return b.getDate() === lastDay;
 }
 
+  // FC-1 (GAP-001): byte-identical extraction, origin/main:modules/analise-
+  // geral-grupo-secure-original-layout.html lines 3112-3125 -- day-aligned
+  // previous-comparable-period math (NOT naive "previous calendar month").
+  function lastDayOfMonth(y,m){ return new Date(y, m + 1, 0).getDate(); }
+  function sameDayPreviousMonth(d){
+  if(!d) return null;
+  const y = d.getFullYear();
+  const m = d.getMonth() - 1;
+  const targetY = m < 0 ? y - 1 : y;
+  const targetM = (m + 12) % 12;
+  const day = Math.min(d.getDate(), lastDayOfMonth(targetY, targetM));
+  return new Date(targetY, targetM, day);
+}
+  function getPreviousMonthComparablePeriod(start, end){
+  if(!start || !end) return {start:null,end:null};
+  return { start:sameDayPreviousMonth(start), end:sameDayPreviousMonth(end) };
+}
+
   function kpiMetricsFor(results, deptView){
   const salesView = deptView === "Grupo" ? (results.sales||[]) : (results.sales||[]).filter(x=>x.dept===deptView);
   const finsView = deptView === "Grupo" ? (results.fins||[]) : (results.fins||[]).filter(x=>x.dept===deptView);
@@ -1540,6 +1558,14 @@
 
   function getReceitaTotal(registros){
   return (registros || []).reduce((s,r)=>s + (Number(r.receita || 0)) + (Number(r.receitaSPF || 0)), 0);
+}
+
+  // FC-1 (GAP-001): byte-identical extraction, origin/main:modules/analise-
+  // geral-grupo-secure-original-layout.html lines 3151-3155.
+  function calcDelta(currentValue, previousValue){
+  const c = Number(currentValue || 0), p = Number(previousValue || 0);
+  if(!p) return null;
+  return (c - p) / p;
 }
   // ==== END byte-identical extraction ====
 
@@ -1587,6 +1613,11 @@
     kpiMetricsFor: kpiMetricsFor,
     getReceitaSPF: getReceitaSPF,
     getReceitaTotal: getReceitaTotal,
+    // FC-1 (GAP-001): dual-period comparison primitives (byte-identical
+    // extraction, see docs/DASHBI-FUNCTION-MAP.md's FC-1 correction).
+    getPreviousMonthComparablePeriod: getPreviousMonthComparablePeriod,
+    sameDayPreviousMonth: sameDayPreviousMonth,
+    calcDelta: calcDelta,
     rankingFromViews: rankingFromViews,
     buildNovosLojaRows: buildNovosLojaRows,
     adaptarBase01NovaLocal: adaptarBase01NovaLocal,

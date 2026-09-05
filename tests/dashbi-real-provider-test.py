@@ -169,31 +169,80 @@ def main():
         page.close()
 
         # ---------- 3-7: real transport, exact argument mapping + auth headers, both RPCs ----------
+        # FC-1 (GAP-001): loadDashbiRealWithComparison now fires operational_metrics/
+        # operational_model_metrics TWICE (current period, then the day-aligned
+        # previous comparable period) -- captured_calls is a list per URL (not a
+        # single overwritten dict) so both are inspectable, current-period
+        # assertions (3-7c) unchanged in what they check, FC-1's own dual-fetch
+        # is verified separately (33-35 below).
         page = new_page(browser, configured=True, token="mock-access-token-abc")
+        captured_calls = {"metrics": [], "model_metrics": []}
         captured = {}
 
         def capture_metrics(route):
+            body = _json.loads(route.request.post_data or "{}")
+            captured_calls["metrics"].append(body)
             captured["metrics_url"] = route.request.url
             captured["metrics_headers"] = route.request.headers
-            captured["metrics_body"] = _json.loads(route.request.post_data or "{}")
+            captured["metrics_body"] = body
             route.fulfill(status=200, content_type="application/json", body=_json.dumps(SAMPLE_METRICS))
 
         def capture_model_metrics(route):
+            body = _json.loads(route.request.post_data or "{}")
+            captured_calls["model_metrics"].append(body)
             captured["model_metrics_url"] = route.request.url
-            captured["model_metrics_body"] = _json.loads(route.request.post_data or "{}")
+            captured["model_metrics_body"] = body
             route.fulfill(status=200, content_type="application/json", body=_json.dumps(SAMPLE_MODEL_METRICS))
 
         page.route(METRICS_URL + "*", capture_metrics)
         page.route(MODEL_METRICS_URL + "*", capture_model_metrics)
         mount(page)
         page.wait_for_function("document.getElementById('dbPanel').innerHTML.includes('modKpiGrid')", timeout=5000)
+        # Two Promise.all pairs settle asynchronously (current, then previous);
+        # wait for the second metrics call to land before asserting on it.
+        for _ in range(50):
+            if len(captured_calls["metrics"]) >= 2:
+                break
+            page.wait_for_timeout(50)
+        current_metrics_calls = [b for b in captured_calls["metrics"] if b.get("p_start") == "2026-01-01" and b.get("p_end") == "2026-12-31"]
+        previous_metrics_calls = [b for b in captured_calls["metrics"] if b.get("p_start") == "2025-12-01" and b.get("p_end") == "2026-11-30"]
         check("3: real transport calls operational_metrics", captured.get("metrics_url", "").startswith(METRICS_URL))
         check("4: real transport calls operational_model_metrics", captured.get("model_metrics_url", "").startswith(MODEL_METRICS_URL))
         check("5: Authorization header carries the session's own token, nothing constructed", captured.get("metrics_headers", {}).get("authorization") == "Bearer mock-access-token-abc")
         check("6: apikey header present (existing publishable key, not a secret)", captured.get("metrics_headers", {}).get("apikey") == "mock-anon-key")
-        check("7: Stage A frozen -- p_group_view always sent true, no scope invented client-side", captured.get("metrics_body", {}).get("p_group_view") is True and captured.get("model_metrics_body", {}).get("p_group_view") is True)
-        check("7b: p_start/p_end mapped from the selected period (Gate B5 -- no fixture-era date disconnect)", captured.get("metrics_body", {}).get("p_start") == "2026-01-01" and captured.get("metrics_body", {}).get("p_end") == "2026-12-31")
+        check("7: Stage A frozen -- p_group_view always sent true, no scope invented client-side", all(b.get("p_group_view") is True for b in captured_calls["metrics"]) and all(b.get("p_group_view") is True for b in captured_calls["model_metrics"]))
+        check("7b: p_start/p_end mapped from the selected period (Gate B5 -- no fixture-era date disconnect)", len(current_metrics_calls) == 1)
         check("7c: no fixture banner in real mode", "DADOS DE TESTE" not in page.inner_html("#dbOutlet"))
+        check("33 (FC-1): previous comparable period fetched too, day-aligned (not naive calendar month)", len(previous_metrics_calls) == 1)
+        check("34 (FC-1): previous period fetched for BOTH real RPCs (operational_metrics and operational_model_metrics)", len([b for b in captured_calls["model_metrics"] if b.get("p_start") == "2025-12-01" and b.get("p_end") == "2026-11-30"]) == 1)
+        page.close()
+
+        # ---------- 35 (FC-1, Gate 12): previous period fails -> current still renders, comparison omitted ----------
+        page = new_page(browser, configured=True)
+
+        def metrics_fail_previous_only(route):
+            body = _json.loads(route.request.post_data or "{}")
+            if body.get("p_start") == "2026-01-01":
+                route.fulfill(status=200, content_type="application/json", body=_json.dumps(SAMPLE_METRICS))
+            else:
+                route.fulfill(status=500, content_type="application/json", body=_json.dumps({"code": "57014", "message": "backend detail not for users"}))
+
+        page.route(METRICS_URL + "*", metrics_fail_previous_only)
+        page.route(MODEL_METRICS_URL + "*", json_route(200, SAMPLE_MODEL_METRICS))
+        mount(page)
+        page.wait_for_function("document.getElementById('dbPanel').innerHTML.includes('modKpiGrid')", timeout=5000)
+        panel_html = page.inner_html("#dbPanel")
+        check("35a (FC-1, Gate 12): current period renders normally when only the previous fetch fails", "modKpiGrid" in panel_html and "modErrorState" not in panel_html)
+        check("35b (FC-1, Gate 12): comparison omitted (no delta badge) when previous fetch failed, not a crash/blank comparison", "dbDelta" not in panel_html)
+        page.close()
+
+        # ---------- 36 (FC-1, Gate 12): current period fails -> normal error state (current is primary) ----------
+        page = new_page(browser, configured=True)
+        page.route(METRICS_URL + "*", json_route(500, {"code": "57014", "message": "backend detail not for users"}))
+        page.route(MODEL_METRICS_URL + "*", json_route(200, EMPTY_MODEL_METRICS))
+        mount(page)
+        page.wait_for_function("document.getElementById('dbPanel').innerHTML.includes('modErrorState') || document.getElementById('dbPanel').innerHTML.includes('modKpiGrid')", timeout=5000)
+        check("36 (FC-1, Gate 12): current period failing still yields the normal error state, regardless of previous", "modErrorState" in page.inner_html("#dbPanel"))
         page.close()
 
         # ---------- 8-10: KPI numbers are exact sums from operational_metrics, no client recalculation ----------
