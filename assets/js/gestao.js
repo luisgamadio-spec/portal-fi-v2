@@ -167,6 +167,38 @@
     return tableHtml(headers, body);
   }
 
+  // FI-UX-1 (Human-reported defect, root cause part 2): with no colgroup,
+  // table-layout:fixed still divides the FULL table width EQUALLY among
+  // all columns -- confirmed live: both the 7-column Novos and 5-column
+  // Seminovos tables stretched to the identical 1318px wrapper width,
+  // each column an equal 188px/264px share, regardless of actual content
+  // (these cells hold small integer quantities, not currency). Fixed
+  // per-column-TYPE widths below (px, not %) so Novos/Seminovos share
+  // IDENTICAL absolute column geometry (Gate 21: table-to-table
+  // consistency) while the table itself is NOT forced to width:100% (see
+  // .gePlanMatrixTable in gestao.css) -- Seminovos (fewer columns)
+  // therefore renders naturally narrower instead of stretching sparse
+  // values across the same total width (Gate 20, Option B+C combined).
+  // Widths are grounded in actual content, not arbitrary (Gate 19):
+  // "Loja" needs real room for store names (same order of magnitude as
+  // Dash BI's own human-approved .dbColName=170px, FC-1.3); plan/total
+  // columns hold small integers plus a 2-line-wrapped header (module-wide
+  // wrapping already enabled above), needing far less than an auto-
+  // divided ~188-264px share.
+  // Widths themselves live in gestao.css (.gePlanColLoja/Plan/Total), NOT
+  // as inline <col style>: an inline style's specificity can't be
+  // overridden by the existing @media(max-width:768px) card-layout
+  // breakpoint (confirmed live -- an inline pixel width kept the table
+  // wider than its viewport even after td/th switched to flex display),
+  // while a class-based width is cleanly overridden by a later same-
+  // specificity rule, same as every other override in this stylesheet.
+  function gePlanMatrixColGroup(headers) {
+    return '<colgroup>' + headers.map(function (h, i) {
+      var cls = i === 0 ? 'gePlanColLoja' : (i === headers.length - 1 ? 'gePlanColTotal' : 'gePlanColPlan');
+      return '<col class="' + cls + '">';
+    }).join('') + '</colgroup>';
+  }
+
   // Pivots plans_by_store_department (long: store/department/plan_type/
   // quantity) into the per-department matrix table -- canonical array
   // stays long, only this render helper projects it (Gate 12).
@@ -188,7 +220,7 @@
       var cells = types.map(function (t) { return b[t] || 0; }).concat([b.total]);
       return '<tr><td data-th="' + esc(headers[0]) + '">' + esc(displayStore(s)) + '</td>' + cells.map(function (c, i) { return '<td class="modNumCol" data-th="' + esc(headers[i + 1]) + '">' + c + '</td>'; }).join('') + '</tr>';
     });
-    return '<div class="modTableWrap"><table class="modTable"><thead><tr>' + headerRow(headers) + '</tr></thead>' +
+    return '<div class="modTableWrap"><table class="modTable gePlanMatrixTable">' + gePlanMatrixColGroup(headers) + '<thead><tr>' + headerRow(headers) + '</tr></thead>' +
       '<tbody>' + (body.length ? body.join('') : '<tr><td colspan="' + headers.length + '" class="modMuted">Nenhuma loja encontrada.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -376,14 +408,38 @@
     });
   }
 
+  // FI-UX-1 (Gate 9/22): local-calendar-date formatting -- NEVER
+  // .toISOString(), which shifts the calendar date for hosts whose local
+  // timezone sits ahead of UTC. Same small, independently-duplicated
+  // pattern already validated in coparticipado.js's own localIso()
+  // (FC-2.4) -- not extracted into a shared cross-module file for this
+  // narrow fix (Gate 10: computePeriodPreset() itself is this module's
+  // own private adapter function, not shared with Score/Dashbi, so no
+  // cross-module coupling risk either way -- kept local regardless).
+  function localIso(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
   function applyPresetAndRender(preset) {
     currentPreset = preset;
     if (preset !== 'CUSTOM') {
-      var today = new Date(2026, 7, 30); // fixed reference date (NEXT_LOCAL fixture mode -- deterministic, not wall-clock, so UAT is reproducible)
+      // FI-UX-1 (Human-reported defect, root cause): this line previously
+      // read `new Date(2026, 7, 30)` UNCONDITIONALLY, in BOTH fixture and
+      // real mode -- a fixed reference date introduced for fixture-only
+      // determinism at PORTAL-NEXT-06's original migration (7808b6b),
+      // before real-data transport existed, never branched afterward.
+      // "Mês atual" resolved to 01/08->30/08 regardless of the genuine
+      // current date. Fixture mode's own deterministic UAT/test behavior
+      // is unchanged; only real mode now uses the genuine current local
+      // date. computePeriodPreset() itself (gestao.adapter.js) is
+      // untouched -- its calendar math was already correct; only the
+      // `today` it receives, and the unsafe .toISOString() formatting of
+      // its result, were wrong.
+      var today = isRealTransport() ? new Date() : new Date(2026, 7, 30);
       var r = window.NX_GESTAO_ADAPTER.computePeriodPreset(preset, today);
       if (r) {
-        currentDateStart = r.start.toISOString().slice(0, 10);
-        currentDateEnd = r.end.toISOString().slice(0, 10);
+        currentDateStart = localIso(r.start);
+        currentDateEnd = localIso(r.end);
         document.getElementById('geDateStart').value = currentDateStart;
         document.getElementById('geDateEnd').value = currentDateEnd;
       }

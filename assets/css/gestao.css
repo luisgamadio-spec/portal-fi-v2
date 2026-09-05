@@ -186,6 +186,47 @@
    already come from the shared .modTable, not re-declared. */
 .gePage .modTable { table-layout: fixed; }
 .gePage .modTable thead th, .gePage .modTable td { white-space: normal; overflow-wrap: break-word; }
+/* FI-UX-1 (Human-reported defect, root cause part 1): module-system.css's
+   own .modTable thead th{text-align:left} (a compound element+class
+   selector) out-specifies the plain .modNumCol{text-align:right} class
+   alone, so every numeric header in this module rendered LEFT-aligned
+   over a RIGHT-aligned value beneath it -- confirmed via computed style
+   (th.modNumCol computed text-align:left, td.modNumCol computed
+   text-align:right) -- exactly the "weak visual anchoring" Human
+   reported. headerRow()'s own .modNumCol class on <th> was already the
+   correct intent; only the specificity war was broken. Corrective,
+   module-wide (every Gestão table with a numeric column benefits, not
+   just the two plan-matrix tables) -- not a redesign. */
+.gePage .modTable thead th.modNumCol { text-align: right; }
+
+/* FI-UX-1 -- "Planos por Loja e Departamento" (Novos/Seminovos) only,
+   via the colgroup gestao.js now emits (gePlanMatrixColGroup()). Table
+   is NOT stretched to the wrapper's full width -- narrower than the
+   shared .modTable{width:100%} default on purpose (Gate 20/21): the
+   Seminovos table (fewer columns) then renders visibly narrower than
+   Novos instead of stretching the same few values across a full-width
+   table, while both tables' shared column widths (the colgroup) still
+   line up identically -- same LOJA column edge, same numeric column
+   rhythm, one coherent analytical section. */
+.gePlanMatrixTable { width: auto; }
+.gePlanMatrixTable td, .gePlanMatrixTable th { overflow-wrap: anywhere; }
+.gePlanMatrixTable .gePlanColLoja { width: 170px; }
+.gePlanMatrixTable .gePlanColPlan { width: 78px; }
+.gePlanMatrixTable .gePlanColTotal { width: 90px; }
+
+/* The colgroup/auto-width above is a desktop-table-mode concern only --
+   below 768px this module already replaces <thead>/table geometry
+   entirely with a stacked card layout (existing @media rule below), so
+   the fixed per-column widths must not leak into that mode (confirmed
+   live: an INLINE <col style="width:Npx"> kept the table wider than the
+   viewport even after td/th switched to flex display -- a class-based
+   width, overridden here by a later same-specificity rule, does not). */
+@media (max-width: 768px) {
+  .gePlanMatrixTable { width: 100%; }
+  .gePlanMatrixTable .gePlanColLoja,
+  .gePlanMatrixTable .gePlanColPlan,
+  .gePlanMatrixTable .gePlanColTotal { width: auto; }
+}
 
 .geTableWrap { overflow-x: auto; border: 1px solid var(--color-hairline); border-radius: var(--radius-md); margin-bottom: var(--space-4); }
 .geTable { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12.5px; }

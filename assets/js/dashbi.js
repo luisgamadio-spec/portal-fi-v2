@@ -1147,17 +1147,39 @@
     );
   }
 
+  // FI-UX-1 (Gate 9/22): local-calendar-date formatting -- NEVER
+  // .toISOString(), which shifts the calendar date for hosts whose local
+  // timezone sits ahead of UTC. Same small, independently-duplicated
+  // pattern already validated in coparticipado.js's own localIso()
+  // (FC-2.4) -- not extracted into a shared cross-module file for this
+  // narrow fix (Gate 10: a small duplicated fix is safer here than a new
+  // shared-utility layer that would also have to avoid touching Score).
+  function localIso(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
   function applyPresetAndRender(preset) {
     currentPreset = preset;
-    var today = new Date(2026, 7, 30); // fixed reference date (NEXT_LOCAL fixture mode -- deterministic; real mode still uses it as "today" for preset math, matching V1's own real production behavior of computing presets off the actual current date -- see wireEvents note)
+    // FI-UX-1 (Human-reported defect, root cause): this line previously
+    // read `new Date(2026, 7, 30)` UNCONDITIONALLY, in BOTH fixture and
+    // real mode -- a fixed reference date introduced for fixture-only
+    // determinism back at PORTAL-NEXT-07's original migration (df67013),
+    // before real-data transport existed (742b298 added it later without
+    // ever branching this line). Its own comment claimed real mode
+    // "matches V1's own real production behavior of computing presets off
+    // the actual current date" while the code did the opposite -- "Mês
+    // atual" resolved to 01/08->30/08 regardless of the genuine current
+    // date. Fixture mode's own deterministic UAT/test behavior is
+    // unchanged; only real mode now uses the genuine current local date.
+    var today = isRealTransport() ? new Date() : new Date(2026, 7, 30);
     var start, end = today;
     if (preset === 'currentMonth') start = new Date(today.getFullYear(), today.getMonth(), 1);
     else if (preset === 'lastMonth') { start = new Date(today.getFullYear(), today.getMonth() - 1, 1); end = new Date(today.getFullYear(), today.getMonth(), 0); }
     else if (preset === 'last6') start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
     else if (preset === 'lastYear') start = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
     if (start) {
-      currentDateStart = start.toISOString().slice(0, 10);
-      currentDateEnd = end.toISOString().slice(0, 10);
+      currentDateStart = localIso(start);
+      currentDateEnd = localIso(end);
       document.getElementById('dbDateStart').value = currentDateStart;
       document.getElementById('dbDateEnd').value = currentDateEnd;
     }
