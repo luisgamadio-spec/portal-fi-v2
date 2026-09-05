@@ -52,7 +52,15 @@
    no dedicated Design System tabs pattern exists to authorize one. Plain
    buttons, not an ARIA tablist (no arrow-key semantics implemented, so
    none are claimed). */
-.dbModeGroup { display: flex; gap: var(--space-1); flex-wrap: wrap; padding-top: var(--space-2); margin: var(--space-2) 0 var(--space-4); border-top: 1px solid var(--color-hairline); }
+/* FC-1.1, CHANGE-03 (Human UAT): #dbSubnav is a static shell slot between
+   the module header and the filters (assets/js/dashbi.js's pageShellHtml),
+   not inside #dbPanel's own rebuilt content -- reachable without scrolling
+   past KPIs/tables. .dbModeGroup itself is unchanged (still flex-wrap for
+   narrow widths, Gate 25), only its border flips from top to bottom since
+   it now separates FROM the content below it, not from content above. */
+.dbSubnav:empty { display: none; }
+.dbSubnav { margin-bottom: var(--space-4); }
+.dbModeGroup { display: flex; gap: var(--space-1); flex-wrap: wrap; padding-bottom: var(--space-2); margin: 0; border-top: none; border-bottom: 1px solid var(--color-hairline); }
 .dbModeBtn { position: relative; }
 .dbModeBtn.dbBtnActive::after { content: ""; position: absolute; left: var(--space-2); right: var(--space-2); bottom: -7px; height: 2px; background: var(--color-accent-primary); }
 .dbModeHint { padding: var(--space-4) 0; }
@@ -106,25 +114,34 @@
 .dbKpiDetailToggleWrap { margin: 0 0 var(--space-4); }
 .dbKpiDetailPanel { border: 1px solid var(--color-hairline); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); background: var(--color-surface-2); margin: 0 0 var(--space-4); }
 
-/* FC-1 (GAP-001) -- previous-period comparison delta badge. Icon + percent
-   text always present (Gate 19, this Wave's brief: never color alone).
-   Up/down colors reuse the same success/critical hue family as the Share
-   card above -- a pure math direction (Gate 18: NOT a reinterpretation of
-   whether the change is "good", every surface this appears on is a
-   generically-more-is-better metric, same uncontextualized coloring
-   production itself uses). */
-.dbDelta { display: inline-flex; align-items: center; gap: 3px; margin-left: 5px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.dbDeltaUp { color: var(--color-success); }
-.dbDeltaDown { color: var(--color-critical); }
-.dbDeltaFlat, .dbDeltaNA { color: var(--color-text-muted); }
-.dbDeltaShort { font-size: 10px; }
+/* FC-1.1 (Human UAT revision, GAP-001 presentation) -- previous value +
+   direction arrow, replacing FC-1's percent-delta badge (not approved).
+   Previous value itself stays muted/secondary (Gate 6, this Wave's brief:
+   "não transformar o valor anterior inteiro em elemento visual
+   dominante" -- the current value above/beside it remains the
+   protagonist); only the ARROW carries the up/down/flat color, reusing
+   the same success/critical hue family as the Share card above (Gate 18:
+   a pure math direction, not a performance judgment). Percent text and
+   the "Anterior:" label are gone by design (Gate 3) -- visually. Gate 29:
+   assistive tech still gets the equivalent context via .srOnly, never
+   shown visually. */
+.dbPrevValue { display: inline-flex; align-items: baseline; gap: 4px; margin-left: 5px; font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
+.dbPrevValueShort { font-size: 10px; }
+.dbPrevValueNA { font-weight: 600; }
+.dbPrevArrow { font-weight: 700; }
+.dbPrevArrowUp { color: var(--color-success); }
+.dbPrevArrowDown { color: var(--color-critical); }
+.dbPrevArrowFlat { color: var(--color-text-muted); }
 .dbKpiCompare { margin-top: var(--space-1); display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
-.dbKpiComparePrev { font-size: 10.5px; color: var(--color-text-muted); }
-/* Gate 20 (responsive): the delta occupies its own compact secondary line
-   inside table cells/mobile cards rather than sitting inline with the
-   primary value, so it never forces a cell to overflow at 390px. */
-.dbTable .dbNumCol .dbDelta, .dbMobileValue .dbDelta { display: block; margin-top: 2px; }
-.dbFamilyMetricBox .dbV .dbDelta { display: block; margin-top: 2px; font-size: 10px; }
+/* Visually hidden but available to assistive tech (Gate 29) -- standard
+   sr-only clip pattern, no dependency on any utility framework. */
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* Gate 20/25 (responsive): the previous-value line occupies its own
+   compact secondary line inside table cells/mobile cards rather than
+   sitting inline with the primary value, so it never forces a cell to
+   overflow at 390px. */
+.dbTable .dbNumCol .dbPrevValue, .dbMobileValue .dbPrevValue { display: flex; margin-top: 2px; margin-left: 0; }
+.dbFamilyMetricBox .dbV .dbPrevValue { display: flex; margin-top: 2px; margin-left: 0; font-size: 10px; }
 
 .dbPlanGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-2); }
 .dbPlanCard { border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); padding: var(--space-3); border-left: 3px solid var(--color-hairline-strong); }

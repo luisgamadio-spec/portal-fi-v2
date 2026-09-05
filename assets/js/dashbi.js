@@ -259,29 +259,46 @@
   // both V1 and V2, same as V1's own uncontextualized coloring, so this is
   // not a reinterpretation. Gate 19 accessibility: icon + percent text +
   // aria-label, never color alone.
-  function deltaHtml(A, currentValue, previousValue, short) {
-    var d = A.calcDelta(currentValue, previousValue);
-    var cls = short ? 'dbDelta dbDeltaShort' : 'dbDelta';
-    if (d === null || !isFinite(d)) {
-      return '<span class="' + cls + ' dbDeltaNA">— sem base anterior</span>';
+  // FC-1.1 (Human UAT revision): the percent-delta presentation (▲ +20,4%,
+  // "Anterior: X") was NOT approved. New rule: show the previous value
+  // itself (same formatter as current, Gate 7) plus a plain direction
+  // arrow -- no percent, no "Anterior:" label. The arrow is a MATH
+  // direction, not a performance judgment (Gate 5/18, unchanged from FC-1).
+  //
+  // previousValue == null means "no previous value at all for this
+  // specific row/metric" (e.g. a Modelo absent from the previous period's
+  // own fixture/aggregate) -> rendered as "—", distinct from previous = 0
+  // (a real, comparable zero, e.g. "5 / 0 ▲" -- Gate 8). This is UNRELATED
+  // to "no previous PERIOD was computed at all" (fixture: no comparison
+  // picked; real: previous fetch failed) -- that case is still handled by
+  // every call site's own `prev ? ... : ''` guard, which omits this
+  // function entirely rather than calling it with previousValue=null.
+  function previousValueHtml(A, currentValue, previousValue, previousFormatted, short) {
+    var cls = 'dbPrevValue' + (short ? ' dbPrevValueShort' : '');
+    if (previousValue == null) {
+      return '<span class="' + cls + ' dbPrevValueNA" aria-label="sem valor anterior disponível">—</span>';
     }
-    var direction = d > 0 ? 'up' : (d < 0 ? 'down' : 'flat');
-    var icon = d > 0 ? '▲' : (d < 0 ? '▼' : '▬');
-    var pct = Math.abs(d).toLocaleString('pt-BR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    var sign = d >= 0 ? '+' : '';
-    var label = pct + (d > 0 ? ' acima' : (d < 0 ? ' abaixo' : ' igual ao')) + ' do período anterior';
-    return '<span class="' + cls + ' dbDelta' + direction.charAt(0).toUpperCase() + direction.slice(1) + '" aria-label="' + esc(label) + '">' + icon + ' ' + sign + esc(pct) + '</span>';
+    var c = Number(currentValue) || 0, p = Number(previousValue) || 0;
+    var direction = c > p ? 'up' : (c < p ? 'down' : 'flat');
+    var arrow = c > p ? '▲' : (c < p ? '▼' : '→');
+    var changeWord = c > p ? 'aumentou' : (c < p ? 'diminuiu' : 'permaneceu igual');
+    // Gate 29: visually only previous value + arrow; assistive tech gets
+    // the equivalent context via a visually-hidden sr-only span, not a
+    // visible "Anterior:"/percent label.
+    var srText = 'valor anterior ' + previousFormatted + '; valor atual ' + changeWord;
+    return '<span class="' + cls + '">' +
+      '<span aria-hidden="true">' + esc(previousFormatted) + ' <span class="dbPrevArrow dbPrevArrow' + direction.charAt(0).toUpperCase() + direction.slice(1) + '">' + arrow + '</span></span>' +
+      '<span class="srOnly">' + esc(srText) + '</span>' +
+      '</span>';
   }
 
-  // A previous-period block for the KPI grid: label + formatted previous
-  // value + delta, mirroring production's comparisonBlock() (origin/main
-  // lines 3164-3168). previousValue == null means "no previous period was
-  // computed at all" (fixture: no comparison fixture picked; real: previous
-  // fetch failed, Gate 12) -- rendered as nothing, not a "sem base" badge,
-  // which is reserved for previousValue === 0 (a real, comparable zero).
+  // A previous-period block for the KPI grid: current value stays the
+  // protagonist (Gate 6); this renders only the secondary previous+arrow
+  // line below it. previousValue == null (the WHOLE previous period is
+  // unavailable, not just this one metric) -> nothing at all, same as FC-1.
   function kpiCompareHtml(A, currentValue, previousValue, previousFormatted) {
     if (previousValue == null) return '';
-    return '<div class="dbKpiCompare"><span class="dbKpiComparePrev">Anterior: ' + esc(previousFormatted) + '</span>' + deltaHtml(A, currentValue, previousValue) + '</div>';
+    return '<div class="dbKpiCompare">' + previousValueHtml(A, currentValue, previousValue, previousFormatted) + '</div>';
   }
 
   // PORTAL-NEXT-07.5 — Share/Penetração threshold reconfirmed against the
@@ -352,7 +369,6 @@
   function retornoFromFin(f) { return f.producao ? (f.receitaTotal || 0) / f.producao : 0; }
 
   var STORE_HEADERS = ['Loja', 'Vendas', 'Financiamentos', 'Share', 'Produção Total', 'Receita Total'];
-  var SELLER_HEADERS = ['Vendedor', 'Vendas', 'Financiamentos', 'Share', 'Produção Total', 'Receita Total'];
 
   // PORTAL-NEXT-07.6.4 — shared by store/seller: the 5 primary metrics
   // as mobile-card fields (Vendas+Financiamentos paired, per the human's
@@ -361,7 +377,7 @@
   // values the desktop row already computed. No recalculation.
   function dbPrimaryMetricFieldsHtml(A, v, f, share, prev) {
     var cmp = prev
-      ? { vendas: deltaHtml(A, v.qtd, prev.v.qtd, true), fin: deltaHtml(A, f.qtd, prev.f.qtd, true), share: deltaHtml(A, share, prev.share, true), producao: deltaHtml(A, f.producao || 0, prev.f.producao || 0, true), receitaTotal: deltaHtml(A, f.receitaTotal || 0, prev.f.receitaTotal || 0, true) }
+      ? { vendas: previousValueHtml(A, v.qtd, prev.v.qtd, A.num(prev.v.qtd), true), fin: previousValueHtml(A, f.qtd, prev.f.qtd, A.num(prev.f.qtd), true), share: previousValueHtml(A, share, prev.share, A.pct(prev.share), true), producao: previousValueHtml(A, f.producao || 0, prev.f.producao || 0, A.money(prev.f.producao || 0), true), receitaTotal: previousValueHtml(A, f.receitaTotal || 0, prev.f.receitaTotal || 0, A.money(prev.f.receitaTotal || 0), true) }
       : null;
     return dbMobileField('Vendas', String(v.qtd) + (cmp ? cmp.vendas : ''), 'dbMobileFieldPair') +
       dbMobileField('Financiamentos', String(f.qtd) + (cmp ? cmp.fin : ''), 'dbMobileFieldPair') +
@@ -369,6 +385,17 @@
       dbMobileField('Produção Total', esc(A.money(f.producao || 0)) + (cmp ? cmp.producao : '')) +
       dbMobileField('Receita Total', esc(A.money(f.receitaTotal || 0)) + (cmp ? cmp.receitaTotal : ''));
   }
+
+  // FC-1.1, CHANGE-02: sellerTableHtml ("Vendas e Financiamentos por
+  // Vendedor") was removed from Visão Geral by explicit human decision
+  // (REDUNDANT_WITH_RANKING -- Ranking already covers seller-level
+  // performance). Its only caller was that one heading in renderPanel
+  // (removed below); the underlying data (aggs.vendasVendDept/finVendDept)
+  // is untouched in the adapter -- this deletion removes presentation
+  // only. See docs/DASHBI-COMPARISON-CONTRACT.md for the capability-parity
+  // check against Ranking (DETAIL_CAPABILITY_PRESERVED_BY_RANKING, with a
+  // disclosed nuance: Ranking shows top 10 by Receita Total, this table
+  // showed every seller sorted by Vendas qtd -- same metric set either way).
 
   function storeTableHtml(A, results, previousResults) {
     var A_ = results.aggs;
@@ -390,57 +417,20 @@
       }
       var detailGroups = [
         { label: 'Financeiro (complementar)', items: [
-          { label: 'Receita', value: esc(A.money(f.receita || 0)) + (prev ? deltaHtml(A, f.receita || 0, prev.f.receita || 0) : '') },
-          { label: 'Receita SPF', value: esc(A.money(f.receitaSPF || 0)) + (prev ? deltaHtml(A, f.receitaSPF || 0, prev.f.receitaSPF || 0) : '') },
-          { label: 'Retorno', value: esc(A.pct(retornoFromFin(f))) + (prev ? deltaHtml(A, retornoFromFin(f), retornoFromFin(prev.f)) : '') }
+          { label: 'Receita', value: esc(A.money(f.receita || 0)) + (prev ? previousValueHtml(A, f.receita || 0, prev.f.receita || 0, A.money(prev.f.receita || 0)) : '') },
+          { label: 'Receita SPF', value: esc(A.money(f.receitaSPF || 0)) + (prev ? previousValueHtml(A, f.receitaSPF || 0, prev.f.receitaSPF || 0, A.money(prev.f.receitaSPF || 0)) : '') },
+          { label: 'Retorno', value: esc(A.pct(retornoFromFin(f))) + (prev ? previousValueHtml(A, retornoFromFin(f), retornoFromFin(prev.f), A.pct(retornoFromFin(prev.f))) : '') }
         ] }
       ];
-      var vendasCell = String(v.qtd) + (prev ? deltaHtml(A, v.qtd, prev.v.qtd, true) : '');
-      var finCell = String(f.qtd) + (prev ? deltaHtml(A, f.qtd, prev.f.qtd, true) : '');
-      var producaoCell = A.money(f.producao || 0) + (prev ? deltaHtml(A, f.producao || 0, prev.f.producao || 0, true) : '');
-      var receitaTotalCell = A.money(f.receitaTotal || 0) + (prev ? deltaHtml(A, f.receitaTotal || 0, prev.f.receitaTotal || 0, true) : '');
-      var shareCell = penetracaoCellHtml(A, share) + (prev ? deltaHtml(A, share, prev.share, true) : '');
+      var vendasCell = String(v.qtd) + (prev ? previousValueHtml(A, v.qtd, prev.v.qtd, A.num(prev.v.qtd), true) : '');
+      var finCell = String(f.qtd) + (prev ? previousValueHtml(A, f.qtd, prev.f.qtd, A.num(prev.f.qtd), true) : '');
+      var producaoCell = A.money(f.producao || 0) + (prev ? previousValueHtml(A, f.producao || 0, prev.f.producao || 0, A.money(prev.f.producao || 0), true) : '');
+      var receitaTotalCell = A.money(f.receitaTotal || 0) + (prev ? previousValueHtml(A, f.receitaTotal || 0, prev.f.receitaTotal || 0, A.money(prev.f.receitaTotal || 0), true) : '');
+      var shareCell = penetracaoCellHtml(A, share) + (prev ? previousValueHtml(A, share, prev.share, A.pct(prev.share), true) : '');
       desktopRows.push(expandableRow(ns, loja, [loja, { raw: vendasCell }, { raw: finCell }, { raw: shareCell }, { raw: producaoCell }, { raw: receitaTotalCell }], 1, 7, detailGroups, STORE_HEADERS));
       mobileCards.push(dbMobileCard(ns, loja, loja, null, dbPrimaryMetricFieldsHtml(A, v, f, share, prev), detailGroups));
     });
     return '<div class="dbDesktopOnly">' + expandableTableHtml(STORE_HEADERS, 1, desktopRows, 7) + '</div>' + dbMobileListHtml(mobileCards);
-  }
-
-  function sellerTableHtml(A, results, previousResults) {
-    var A_ = results.aggs;
-    var keys = Object.keys(A_.vendasVendDept);
-    var prevA = previousResults ? previousResults.aggs : null;
-    var ns = 'sellerTable';
-    var desktopRows = [];
-    var mobileCards = [];
-    keys.sort(function (a, b) { return (A_.vendasVendDept[b].qtd || 0) - (A_.vendasVendDept[a].qtd || 0); }).forEach(function (key) {
-      var parts = key.split(' | ');
-      var v = A_.vendasVendDept[key] || { qtd: 0 };
-      var f = A_.finVendDept[key] || { qtd: 0, producao: 0, receita: 0, receitaSPF: 0, receitaTotal: 0 };
-      var share = v.qtd ? f.qtd / v.qtd : 0;
-      var prev = null;
-      if (prevA) {
-        var prevV = prevA.vendasVendDept[key] || { qtd: 0 };
-        var prevF = prevA.finVendDept[key] || { qtd: 0, producao: 0, receita: 0, receitaSPF: 0, receitaTotal: 0 };
-        prev = { v: prevV, f: prevF, share: prevV.qtd ? prevF.qtd / prevV.qtd : 0 };
-      }
-      var detailGroups = [
-        { label: 'Detalhe', items: [
-          { label: 'Depto', value: esc(parts[1] || '') },
-          { label: 'Receita', value: esc(A.money(f.receita || 0)) + (prev ? deltaHtml(A, f.receita || 0, prev.f.receita || 0) : '') },
-          { label: 'Receita SPF', value: esc(A.money(f.receitaSPF || 0)) + (prev ? deltaHtml(A, f.receitaSPF || 0, prev.f.receitaSPF || 0) : '') },
-          { label: 'Retorno', value: esc(A.pct(retornoFromFin(f))) + (prev ? deltaHtml(A, retornoFromFin(f), retornoFromFin(prev.f)) : '') }
-        ] }
-      ];
-      var vendasCell = String(v.qtd) + (prev ? deltaHtml(A, v.qtd, prev.v.qtd, true) : '');
-      var finCell = String(f.qtd) + (prev ? deltaHtml(A, f.qtd, prev.f.qtd, true) : '');
-      var producaoCell = A.money(f.producao || 0) + (prev ? deltaHtml(A, f.producao || 0, prev.f.producao || 0, true) : '');
-      var receitaTotalCell = A.money(f.receitaTotal || 0) + (prev ? deltaHtml(A, f.receitaTotal || 0, prev.f.receitaTotal || 0, true) : '');
-      var shareCell = penetracaoCellHtml(A, share) + (prev ? deltaHtml(A, share, prev.share, true) : '');
-      desktopRows.push(expandableRow(ns, key, [parts[0], { raw: vendasCell }, { raw: finCell }, { raw: shareCell }, { raw: producaoCell }, { raw: receitaTotalCell }], 1, 7, detailGroups, SELLER_HEADERS));
-      mobileCards.push(dbMobileCard(ns, key, parts[0], parts[1] || null, dbPrimaryMetricFieldsHtml(A, v, f, share, prev), detailGroups));
-    });
-    return '<div class="dbDesktopOnly">' + expandableTableHtml(SELLER_HEADERS, 1, desktopRows, 7) + '</div>' + dbMobileListHtml(mobileCards);
   }
 
   var VEHICLE_IMAGES = {
@@ -549,8 +539,11 @@
     var formatted = c.penetracao ? penetracaoCellHtml(A, val) : esc(String(c.f(A, val)));
     if (!prevByModelo) return formatted;
     var prevRow = prevByModelo[r.Modelo];
-    if (!prevRow) return formatted;
-    return formatted + deltaHtml(A, val, prevRow[c.key], true);
+    // prevRow absent (this Modelo has no row at all in the previous
+    // period) -> "—" (Gate 8, FC-1.1), not silently omitted as in FC-1.
+    var prevVal = prevRow ? prevRow[c.key] : null;
+    var prevFormatted = prevRow ? (c.penetracao ? A.pct(prevVal) : String(c.f(A, prevVal))) : null;
+    return formatted + previousValueHtml(A, val, prevVal, prevFormatted, true);
   }
 
   // FC-1 (GAP-001): all 19 non-identity columns compared, same set
@@ -615,24 +608,31 @@
       var prevExtraFam = A.familyExtraMetrics(previousResults, previousModelRows);
       prev = { totals: prevTotals, pen: prevPen, ticket: prevTicket, extraFam: prevExtraFam };
     }
-    function box(label, value, curNum, prevNum) {
-      var cmp = prev ? deltaHtml(A, curNum, prevNum, true) : '';
+    // formatter mirrors whichever A.xxx() call built `value`, applied to
+    // prevNum too (Gate 7: previous MUST use the exact same formatter as
+    // current).
+    function box(label, value, curNum, prevNum, formatter) {
+      var cmp = (prev && prevNum != null) ? previousValueHtml(A, curNum, prevNum, formatter(prevNum), true) : '';
       return '<div class="dbFamilyMetricBox"><div class="dbK">' + esc(label) + '</div><div class="dbV">' + value + cmp + '</div></div>';
     }
+    var fmtNum = function (v) { return A.num(v); };
+    var fmtMoney = function (v) { return A.money(v); };
+    var fmtPct = function (v) { return A.pct(v); };
+    var fmtPrazo = function (v) { return A.num(v, 1) + 'x'; };
     return '<div class="dbFamilyMetricGrid">' +
-      box('Volume vendido', A.num(totals.volume), totals.volume, prev ? prev.totals.volume : null) +
-      box('Financiamentos', A.num(totals.financiada), totals.financiada, prev ? prev.totals.financiada : null) +
-      box('Penetração', A.pct(pen), pen, prev ? prev.pen : null) +
-      box('Produção', A.money(totals.producao), totals.producao, prev ? prev.totals.producao : null) +
-      box('Receita', A.money(totals.receita), totals.receita, prev ? prev.totals.receita : null) +
-      box('Receita SPF', A.money(totals.receitaSPF), totals.receitaSPF, prev ? prev.totals.receitaSPF : null) +
-      box('Receita Total', A.money(totals.receitaTotal), totals.receitaTotal, prev ? prev.totals.receitaTotal : null) +
-      box('Ticket médio', A.money(ticket), ticket, prev ? prev.ticket : null) +
-      box('Média de retorno', A.pct(extraFam.retornoMedio), extraFam.retornoMedio, prev ? prev.extraFam.retornoMedio : null) +
-      box('Prazo médio', A.num(extraFam.prazoMedio, 1) + 'x', extraFam.prazoMedio, prev ? prev.extraFam.prazoMedio : null) +
-      box('Média de parcela', A.money(extraFam.pmtMed), extraFam.pmtMed, prev ? prev.extraFam.pmtMed : null) +
-      box('Entrada média', A.money(extraFam.entradaMed), extraFam.entradaMed, prev ? prev.extraFam.entradaMed : null) +
-      box('% Entrada médio', A.pct(extraFam.entradaPct), extraFam.entradaPct, prev ? prev.extraFam.entradaPct : null) +
+      box('Volume vendido', A.num(totals.volume), totals.volume, prev ? prev.totals.volume : null, fmtNum) +
+      box('Financiamentos', A.num(totals.financiada), totals.financiada, prev ? prev.totals.financiada : null, fmtNum) +
+      box('Penetração', A.pct(pen), pen, prev ? prev.pen : null, fmtPct) +
+      box('Produção', A.money(totals.producao), totals.producao, prev ? prev.totals.producao : null, fmtMoney) +
+      box('Receita', A.money(totals.receita), totals.receita, prev ? prev.totals.receita : null, fmtMoney) +
+      box('Receita SPF', A.money(totals.receitaSPF), totals.receitaSPF, prev ? prev.totals.receitaSPF : null, fmtMoney) +
+      box('Receita Total', A.money(totals.receitaTotal), totals.receitaTotal, prev ? prev.totals.receitaTotal : null, fmtMoney) +
+      box('Ticket médio', A.money(ticket), ticket, prev ? prev.ticket : null, fmtMoney) +
+      box('Média de retorno', A.pct(extraFam.retornoMedio), extraFam.retornoMedio, prev ? prev.extraFam.retornoMedio : null, fmtPct) +
+      box('Prazo médio', A.num(extraFam.prazoMedio, 1) + 'x', extraFam.prazoMedio, prev ? prev.extraFam.prazoMedio : null, fmtPrazo) +
+      box('Média de parcela', A.money(extraFam.pmtMed), extraFam.pmtMed, prev ? prev.extraFam.pmtMed : null, fmtMoney) +
+      box('Entrada média', A.money(extraFam.entradaMed), extraFam.entradaMed, prev ? prev.extraFam.entradaMed : null, fmtMoney) +
+      box('% Entrada médio', A.pct(extraFam.entradaPct), extraFam.entradaPct, prev ? prev.extraFam.entradaPct : null, fmtPct) +
       '</div>';
   }
 
@@ -845,11 +845,18 @@
   function renderPanel(out, isReal, previousOut) {
     var A = window.NX_DASHBI_ADAPTER;
     var panel = document.getElementById('dbPanel');
+    // FC-1.1, CHANGE-03: subnav now lives in its own static shell slot
+    // (#dbSubnav, positioned above the filters in pageShellHtml), not
+    // inside #dbPanel's own rebuilt HTML -- rendered here, alongside the
+    // panel, so it stays in sync with currentDeptView/currentMode on every
+    // render() without duplicating the "single active region" logic.
+    var subnav = document.getElementById('dbSubnav');
 
     if (out.blocked) {
       panel.innerHTML = '<div class="dbBlockedNotice"><b>Atenção:</b> existem ' + out.missingSellers.length +
         ' vendedor(es)/NBS não localizados na Base de Vendedores: ' + out.missingSellers.map(esc).join(', ') +
         '. A produção real também interrompe o processamento neste caso (mesmo comportamento reproduzido aqui — nenhum resultado parcial é exibido).</div>';
+      if (subnav) subnav.innerHTML = '';
       return;
     }
 
@@ -887,6 +894,7 @@
     // uniformly to both, closing that gap rather than reproducing it,
     // per this Wave's explicit "no blank page, no stale content" gate.
     if (modesForView(currentDeptView).indexOf(currentMode) === -1) currentMode = 'overview';
+    if (subnav) subnav.innerHTML = modeNavHtml();
 
     var complementaryHtml = '';
     if (currentMode === 'modelos') complementaryHtml = modelAnalysisHtml(A, out, counts, isReal, validPreviousOut);
@@ -905,18 +913,19 @@
       '<div class="dbKpiDetailToggleWrap">' + detailToggleHtml('kpiDetail', 'main') + '</div>' +
       kpiDetailPanelHtml('kpiDetail', 'main', [
         { label: 'Complementares', items: [
-          { label: 'Receita', value: esc(A.money(kpi.receita)) + (prevKpi ? deltaHtml(A, kpi.receita, prevKpi.receita, true) : '') },
-          { label: 'Receita SPF', value: esc(A.money(kpi.receitaSPF)) + (prevKpi ? deltaHtml(A, kpi.receitaSPF, prevKpi.receitaSPF, true) : '') },
-          { label: 'Retorno Médio', value: esc(A.pct(kpi.retorno)) + (prevKpi ? deltaHtml(A, kpi.retorno, prevKpi.retorno, true) : '') }
+          { label: 'Receita', value: esc(A.money(kpi.receita)) + (prevKpi ? previousValueHtml(A, kpi.receita, prevKpi.receita, A.money(prevKpi.receita), true) : '') },
+          { label: 'Receita SPF', value: esc(A.money(kpi.receitaSPF)) + (prevKpi ? previousValueHtml(A, kpi.receitaSPF, prevKpi.receitaSPF, A.money(prevKpi.receitaSPF), true) : '') },
+          { label: 'Retorno Médio', value: esc(A.pct(kpi.retorno)) + (prevKpi ? previousValueHtml(A, kpi.retorno, prevKpi.retorno, A.pct(prevKpi.retorno), true) : '') }
         ] }
       ]) +
       (closed ? '<div class="dbFechamentoBar"><span class="dbFechamento">FECHAMENTO</span><span class="dbMuted">Período filtrado corresponde a um mês fechado.</span></div>' : '') +
 
+      // FC-1.1, CHANGE-02: "Vendas e Financiamentos por Vendedor" removed
+      // from Visão Geral by explicit human decision (redundant with
+      // Ranking, which is the dedicated seller-performance surface) --
+      // see the note above sellerTableHtml's deletion.
       '<h2>Vendas e Financiamentos por Loja</h2>' + storeTableHtml(A, out, validPreviousOut) +
 
-      '<h2>Vendas e Financiamentos por Vendedor</h2>' + sellerTableHtml(A, out, validPreviousOut) +
-
-      modeNavHtml() +
       complementaryHtml +
 
       // Dashbi Phase 2D, Gate 8: DIAGNOSTIC_PRODUCTION_VISIBILITY_DEBT --
@@ -1042,9 +1051,11 @@
       render();
     });
     // .dbModeBtn is re-created every render() too (its own available set
-    // depends on currentDeptView), same delegation pattern as the vehicle
-    // cards above.
-    document.getElementById('dbPanel').addEventListener('click', function (e) {
+    // depends on currentDeptView) -- FC-1.1, CHANGE-03: delegated on
+    // #dbSubnav now (its own static shell slot, above the filters), not
+    // #dbPanel, since modeNavHtml() no longer renders inside #dbPanel.
+    var subnavEl = document.getElementById('dbSubnav');
+    if (subnavEl) subnavEl.addEventListener('click', function (e) {
       var btn = e.target.closest('.dbModeBtn');
       if (!btn) return;
       currentMode = btn.dataset.mode;
@@ -1081,6 +1092,17 @@
     }
     return '<div class="dbPage">' +
       '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise Geral do Grupo</h1><p class="modSubtitle">Visão analítica geral do Grupo Brabus Mitsubishi.</p></div></div>' +
+      // FC-1.1, CHANGE-03 (Human UAT): subnav (Visão Geral/Análise por
+      // Modelos/Ranking/Novos por Loja) moved here, right after the header
+      // and BEFORE the filters -- it used to render at the bottom of
+      // #dbPanel, reachable only after a long scroll past KPIs/tables
+      // (Gate 16-17, this Wave's brief). This is the ONE subnav instance
+      // (Gate 19: no duplicate at the old bottom position); its content is
+      // filled by renderPanel() on every render (modeNavHtml() depends on
+      // currentDeptView/currentMode, both of which can change). Distinct
+      // from the "Visão" filter (Grupo/Novos/Seminovos) below -- two
+      // different components, not merged (Gate 18).
+      '<div id="dbSubnav" class="dbSubnav"></div>' +
       fixtureBanner +
       '<div class="modFilters">' +
       '<div class="modField"><label>Visão</label><div class="dbViewGroup">' +
