@@ -63,7 +63,19 @@
   // Double-submit guards (Gate 24) — one per distinct mutation action,
   // never a single shared flag (two different actions must not block
   // each other).
-  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false };
+  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false };
+
+  // Painel Master Phase 3B -- Acessos aos Módulos section state. Kept
+  // entirely separate from the Usuários vars above (own load/error/
+  // success lifecycle) since the two sections load independent
+  // datasets and must never leak state into each other. MODULE x
+  // PROFILE x DEPARTMENT only (Phase 3A Gate 3/Phase 3B Gate 1
+  // fingerprint) -- no per-user field exists here, on purpose.
+  var acessosState = {
+    loading: false, loaded: false, saving: false, error: null,
+    modules: [], serverSnapshot: {}, serverUpdatedAt: {}, localPermissions: {},
+    dirty: false, successMessage: null, conflictMessage: null
+  };
 
   // Create/Edit form working state — reset on view change.
   var createForm = null;
@@ -316,9 +328,11 @@
   // ---------- confirmation step (inline, two-step reveal — no modal
   // primitive exists yet in this codebase; Gate 10 forbids introducing
   // a new parallel component for this alone) ----------
-  function confirmHtml(title, body, confirmLabel, destructive) {
+  function confirmHtml(title, body, confirmLabel, destructive, bodyHtml) {
     return '<div class="maConfirm" role="alertdialog" aria-labelledby="maConfirmTitle">' +
-      '<h3 id="maConfirmTitle">' + esc(title) + '</h3><p>' + esc(body) + '</p>' +
+      '<h3 id="maConfirmTitle">' + esc(title) + '</h3>' +
+      (body ? '<p>' + esc(body) + '</p>' : '') +
+      (bodyHtml || '') +
       '<div class="maDetailActions">' +
       '<button type="button" class="modBtn' + (destructive ? ' modBtnDanger' : '') + '" id="maConfirmYes">' + esc(confirmLabel) + '</button>' +
       '<button type="button" class="modBtnGhost" id="maConfirmNo">Cancelar</button>' +
@@ -329,7 +343,7 @@
   // clusters without rewrite) ----------
   var SECTIONS = [
     { id: 'usuarios', label: 'Usuários', active: true },
-    { id: 'acessos', label: 'Acessos aos Módulos', active: false },
+    { id: 'acessos', label: 'Acessos aos Módulos', active: true },
     { id: 'auditoria', label: 'Auditoria', active: false },
     { id: 'revisoes', label: 'Revisões Cadastrais', active: false }
   ];
@@ -338,14 +352,251 @@
       if (!s.active) {
         return '<span class="maSectionItem maSectionItemDisabled" aria-disabled="true">' + esc(s.label) + ' <span class="maSectionSoon">Em breve</span></span>';
       }
-      return '<span class="maSectionItem maSectionItemActive" aria-current="page">' + esc(s.label) + '</span>';
+      if (s.id === currentSection) {
+        return '<span class="maSectionItem maSectionItemActive" aria-current="page">' + esc(s.label) + '</span>';
+      }
+      return '<button type="button" class="maSectionItem maSectionItemLink" data-section="' + esc(s.id) + '">' + esc(s.label) + '</button>';
     }).join('') + '</nav>';
+  }
+
+  // Gate 13 -- tab/route exit protection. Uses the SAME in-page confirm
+  // pattern as every other confirmation in this file (never a native
+  // confirm()/alert(), and never an inescapable modal loop: Cancelar
+  // always returns to the current section untouched).
+  function requestSectionSwitch(targetId) {
+    if (targetId === currentSection) return;
+    if (currentSection === 'acessos' && acessosState.dirty && !acessosState.saving) {
+      pendingConfirm = {
+        kind: 'discardAcessosAndSwitch', targetSection: targetId,
+        title: 'Descartar alterações de acesso?',
+        body: 'Existem alterações de acesso não salvas. Elas serão descartadas se você sair desta seção agora.',
+        confirmLabel: 'Descartar e sair', destructive: true
+      };
+      renderPanel();
+      return;
+    }
+    switchSection(targetId);
+  }
+
+  function switchSection(targetId) {
+    currentSection = targetId;
+    currentDetailId = null;
+    editForm = null;
+    pendingConfirm = null;
+    successMessage = null;
+    var newUserBtn = document.getElementById('maNewUserBtn');
+    if (newUserBtn) newUserBtn.hidden = (currentSection !== 'usuarios');
+    if (currentSection === 'acessos') {
+      acessosEnter();
+    } else {
+      renderPanel();
+    }
+  }
+
+  // ---------- Acessos aos Módulos (Painel Master Phase 3B) ----------
+
+  // Gate 11: on section activation -- paint loading, call the real RPC,
+  // validate response (provider already rejects MALFORMED_RESPONSE),
+  // build the closed matrix, retain each cell's original permitido +
+  // atualizado_em, establish a clean baseline, only then allow editing.
+  // FAILS CLOSED: on any error, no matrix is rendered at all (Gate 11) --
+  // never a synthesized/partial one.
+  function acessosEnter() {
+    if (acessosState.loaded || acessosState.loading) { renderPanel(); return; }
+    acessosLoad();
+  }
+
+  function acessosLoad() {
+    acessosState.loading = true;
+    acessosState.error = null;
+    renderPanel();
+    window.NX_MASTER_ACESSOS_PROVIDER.loadAccessMatrix({}).then(
+      function (payload) {
+        var vm = window.NX_MASTER_ACESSOS_VIEW_MODEL.buildMatrixState(payload);
+        acessosState.modules = vm.modules;
+        acessosState.serverSnapshot = vm.serverSnapshot;
+        acessosState.serverUpdatedAt = vm.serverUpdatedAt;
+        acessosState.localPermissions = vm.localPermissions;
+        acessosState.dirty = false;
+        acessosState.loading = false;
+        acessosState.loaded = true;
+        renderPanel();
+      },
+      function (err) {
+        acessosState.loading = false;
+        acessosState.loaded = false;
+        acessosState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  function acessosCheckbox(moduleId, col) {
+    var vm = window.NX_MASTER_ACESSOS_VIEW_MODEL;
+    var key = vm.cellKey(moduleId, col.perfil, col.departamento);
+    var checked = acessosState.localPermissions[key] ? ' checked' : '';
+    var label = vm.moduleLabel(moduleId) + ' — ' + vm.columnLabel(col.perfil, col.departamento);
+    return '<input type="checkbox" class="mamCell" data-module="' + esc(moduleId) +
+      '" data-perfil="' + esc(col.perfil) + '" data-departamento="' + esc(col.departamento) +
+      '" aria-label="' + esc(label) + '"' + checked + (acessosState.saving ? ' disabled' : '') + '>';
+  }
+
+  function availBadgeHtml(avail) {
+    return '<div class="mamAvailBadge mamAvail' + esc(avail.state) + '">' + esc(avail.label) + '</div>';
+  }
+
+  function renderAcessosDesktopTable() {
+    var vm = window.NX_MASTER_ACESSOS_VIEW_MODEL;
+    var headCols = vm.COLUMNS.map(function (c) {
+      return '<th scope="col">' + esc(c.label) + (c.sub ? '<br><span class="mamColSub">' + esc(c.sub) + '</span>' : '') + '</th>';
+    }).join('');
+    var rows = acessosState.modules.map(function (m) {
+      var cells = vm.COLUMNS.map(function (c) { return '<td class="mamCellTd">' + acessosCheckbox(m.id, c) + '</td>'; }).join('');
+      return '<tr><td class="mamRowLabel">' + esc(vm.moduleLabel(m.id)) + availBadgeHtml(vm.availabilityFor(m.id)) + '</td>' + cells + '</tr>';
+    }).join('');
+    return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable mamTable">' +
+      '<thead><tr><th scope="col">Módulo</th>' + headCols + '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  }
+
+  function renderAcessosMobileCards() {
+    var vm = window.NX_MASTER_ACESSOS_VIEW_MODEL;
+    var cards = acessosState.modules.map(function (m) {
+      var scopes = vm.COLUMNS.map(function (c) {
+        return '<label class="mamMobileScopeRow">' + acessosCheckbox(m.id, c) + '<span>' + esc(vm.columnLabel(c.perfil, c.departamento)) + '</span></label>';
+      }).join('');
+      return '<div class="mamMobileCard"><div class="mamMobileCardHead"><span class="mamModuleLabel">' + esc(vm.moduleLabel(m.id)) + '</span>' +
+        availBadgeHtml(vm.availabilityFor(m.id)) + '</div>' + scopes + '</div>';
+    }).join('');
+    return '<div class="maMobileOnly">' + cards + '</div>';
+  }
+
+  function renderAcessosSection() {
+    if (acessosState.error) {
+      return errorStateHtml(acessosState.error.state, acessosState.error.message) +
+        '<div class="maDetailActions"><button type="button" class="modBtn" id="mamRetryBtn">Tentar novamente</button></div>';
+    }
+    if (acessosState.loading || !acessosState.loaded) {
+      return '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando permissões dos módulos...</div>';
+    }
+    var html = '';
+    if (acessosState.successMessage) {
+      html += '<div class="modSuccessState" role="status">' + esc(acessosState.successMessage) + '</div>';
+      acessosState.successMessage = null;
+    }
+    if (acessosState.conflictMessage) {
+      html += '<div class="modErrorState"><div class="modStateTitle">Alterações em outra sessão</div>' + esc(acessosState.conflictMessage) + '</div>';
+      acessosState.conflictMessage = null;
+    }
+    html += '<p class="modSubtitle">Defina quais módulos ficam disponíveis para cada perfil. Alterações de acesso não modificam o escopo de dados permitido dentro de cada módulo.</p>';
+    html += '<div class="mamMasterNotice">🔒 <b>MASTER</b> possui acesso permanente aos módulos configuráveis e não pode ser restringido por esta configuração.</div>';
+    if (acessosState.dirty) {
+      html += '<div class="mamDirtyBanner">Alterações não salvas — o banco de dados continua com os valores originais.</div>';
+    }
+    html += renderAcessosDesktopTable() + renderAcessosMobileCards();
+    html += '<div class="maDetailActions">' +
+      '<button type="button" class="modBtnGhost" id="mamDiscardBtn"' + ((!acessosState.dirty || acessosState.saving) ? ' disabled' : '') + '>Descartar alterações</button>' +
+      '<button type="button" class="modBtn" id="mamSaveBtn"' + ((!acessosState.dirty || acessosState.saving) ? ' disabled' : '') + '>' + (acessosState.saving ? 'Salvando...' : 'Salvar permissões') + '</button>' +
+      '</div>';
+    return html;
+  }
+
+  function acessosDiscard() {
+    if (acessosState.saving) return;
+    acessosState.localPermissions = Object.assign({}, acessosState.serverSnapshot);
+    acessosState.dirty = false;
+    renderPanel();
+  }
+
+  // Gate 14: confirmation generated from the delta only.
+  function acessosOpenSaveConfirm() {
+    if (acessosState.saving) return;
+    var vm = window.NX_MASTER_ACESSOS_VIEW_MODEL;
+    var delta = vm.buildDelta(acessosState.localPermissions, acessosState.serverSnapshot, acessosState.serverUpdatedAt);
+    if (!delta.length) return; // Gate 12: zero-delta cannot save
+    pendingConfirm = {
+      kind: 'saveAcessos', delta: delta,
+      title: 'Salvar permissões de acesso?',
+      body: '', bodyHtml: '<div class="mamConfirmSummary">' + vm.buildConfirmSummaryHtml(delta) + '</div>',
+      confirmLabel: 'Confirmar alterações', destructive: false
+    };
+    renderPanel();
+  }
+
+  // Gate 16/17: single in-flight save; on resolution ALWAYS reload the
+  // canonical matrix from the backend (never assume local=banco, never
+  // silently overwrite on conflict) and classify the outcome precisely
+  // (Gate 17: all-applied / all-conflict / partial).
+  function acessosExecuteSave(delta) {
+    if (inFlight.saveAcessos) return;
+    inFlight.saveAcessos = true;
+    acessosState.saving = true;
+    renderPanel();
+
+    window.NX_MASTER_ACESSOS_PROVIDER.saveAccessChanges(delta, {}).then(
+      function (result) {
+        var aplicadas = result.aplicadas || [];
+        var conflitos = result.conflitos || [];
+        acessosState.loaded = false;
+        window.NX_MASTER_ACESSOS_PROVIDER.loadAccessMatrix({}).then(
+          function (payload) {
+            var vm = window.NX_MASTER_ACESSOS_VIEW_MODEL.buildMatrixState(payload);
+            acessosState.modules = vm.modules;
+            acessosState.serverSnapshot = vm.serverSnapshot;
+            acessosState.serverUpdatedAt = vm.serverUpdatedAt;
+            acessosState.localPermissions = vm.localPermissions;
+            acessosState.dirty = false;
+            acessosState.loaded = true;
+            acessosState.saving = false;
+            inFlight.saveAcessos = false;
+            pendingConfirm = null;
+            if (conflitos.length === 0) {
+              acessosState.successMessage = aplicadas.length + ' permissão(ões) salva(s) com sucesso.';
+            } else if (aplicadas.length === 0) {
+              acessosState.conflictMessage = 'Nenhuma alteração foi salva — estas permissões foram alteradas em outra sessão. A matriz foi recarregada com os valores mais recentes; revise e tente novamente se necessário.';
+            } else {
+              acessosState.conflictMessage = aplicadas.length + ' alteração(ões) aplicada(s); ' + conflitos.length + ' não puderam ser aplicadas porque foram alteradas em outra sessão. A matriz foi recarregada — revise o estado atual antes de tentar novamente.';
+            }
+            renderPanel();
+          },
+          function (err) {
+            // Save itself succeeded server-side; the confirming reload
+            // failed. Never claim a stale local state is current --
+            // force the section back to its loading/error path instead
+            // of silently trusting pre-save local values.
+            acessosState.loaded = false;
+            acessosState.saving = false;
+            inFlight.saveAcessos = false;
+            pendingConfirm = null;
+            acessosState.error = err || { state: 'RPC_ERROR' };
+            renderPanel();
+          }
+        );
+      },
+      function (err) {
+        acessosState.saving = false;
+        inFlight.saveAcessos = false;
+        pendingConfirm = null;
+        acessosState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
   }
 
   // ---------- master render ----------
   function renderPanel() {
     var panel = document.getElementById('maPanel');
     if (!panel) return;
+    renderSectionNav();
+
+    if (currentSection === 'acessos') {
+      var htmlA = renderAcessosSection();
+      if (pendingConfirm) {
+        htmlA += confirmHtml(pendingConfirm.title, pendingConfirm.body, pendingConfirm.confirmLabel, pendingConfirm.destructive, pendingConfirm.bodyHtml);
+      }
+      panel.innerHTML = htmlA;
+      wireInteraction();
+      return;
+    }
 
     if (loadError) {
       panel.innerHTML = errorStateHtml(loadError.state, loadError.message);
@@ -374,7 +625,7 @@
       html += detailRow ? renderDetail(detailRow) : '';
     }
     if (pendingConfirm) {
-      html += confirmHtml(pendingConfirm.title, pendingConfirm.body, pendingConfirm.confirmLabel, pendingConfirm.destructive);
+      html += confirmHtml(pendingConfirm.title, pendingConfirm.body, pendingConfirm.confirmLabel, pendingConfirm.destructive, pendingConfirm.bodyHtml);
     }
     panel.innerHTML = html;
     wireInteraction();
@@ -384,7 +635,43 @@
   function openDetail(id) { currentDetailId = id; editForm = null; pendingConfirm = null; successMessage = null; renderPanel(); }
   function closeDetail() { currentDetailId = null; editForm = null; pendingConfirm = null; successMessage = null; renderPanel(); }
 
+  // Painel Master Phase 3B fix: the section nav reflects `currentSection`
+  // (which item is the inert "active" span vs. a clickable link) and
+  // must be regenerated every render, not just once at mount -- an
+  // earlier version baked sectionNavHtml() into the outlet a single
+  // time in render(), so switching to Acessos left "Usuários" a
+  // permanently inert span with no data-section attr and no listener
+  // (caught by this Phase's own Gate 28 dirty-exit-guard test: a second
+  // section switch became impossible). Re-rendering the wrapper's
+  // innerHTML each time also means listeners never stack (old nodes are
+  // discarded whole), unlike the previous document-wide querySelectorAll
+  // approach this replaces.
+  function renderSectionNav() {
+    var wrap = document.getElementById('maSectionNavWrap');
+    if (!wrap) return;
+    wrap.innerHTML = sectionNavHtml();
+    wrap.querySelectorAll('.maSectionItemLink[data-section]').forEach(function (el) {
+      el.addEventListener('click', function () { requestSectionSwitch(el.getAttribute('data-section')); });
+    });
+  }
+
   function wireInteraction() {
+    document.querySelectorAll('.mamCell').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var vm = window.NX_MASTER_ACESSOS_VIEW_MODEL;
+        var key = vm.cellKey(el.getAttribute('data-module'), el.getAttribute('data-perfil'), el.getAttribute('data-departamento'));
+        acessosState.localPermissions[key] = el.checked;
+        acessosState.dirty = vm.isDirty(acessosState.localPermissions, acessosState.serverSnapshot);
+        renderPanel();
+      });
+    });
+    var mamDiscard = document.getElementById('mamDiscardBtn');
+    if (mamDiscard) mamDiscard.addEventListener('click', acessosDiscard);
+    var mamSave = document.getElementById('mamSaveBtn');
+    if (mamSave) mamSave.addEventListener('click', acessosOpenSaveConfirm);
+    var mamRetry = document.getElementById('mamRetryBtn');
+    if (mamRetry) mamRetry.addEventListener('click', acessosLoad);
+
     document.querySelectorAll('.maTable tbody tr, .maMobileCard').forEach(function (el) {
       el.addEventListener('click', function () { openDetail(el.getAttribute('data-key')); });
       el.addEventListener('keydown', function (e) {
@@ -514,6 +801,21 @@
   function executeConfirmedAction() {
     if (!pendingConfirm) return;
     var kind = pendingConfirm.kind;
+
+    if (kind === 'discardAcessosAndSwitch') {
+      var target = pendingConfirm.targetSection;
+      pendingConfirm = null;
+      acessosState.localPermissions = Object.assign({}, acessosState.serverSnapshot);
+      acessosState.dirty = false;
+      switchSection(target);
+      return;
+    }
+    if (kind === 'saveAcessos') {
+      var delta = pendingConfirm.delta;
+      acessosExecuteSave(delta);
+      return;
+    }
+
     var flagKey = kind === 'toggleActive' ? 'toggleActive' : kind === 'resend' ? 'resend' : kind === 'edit' ? 'edit' : 'invite';
     if (inFlight[flagKey]) return; // double-submit guard
     inFlight[flagKey] = true;
@@ -565,6 +867,7 @@
 
   window.NX_SHELL_ADMIN_PAGE = {
     render: function (outlet) {
+      currentSection = 'usuarios';
       currentView = 'list';
       currentDetailId = null;
       searchQuery = ''; filterPerfil = ''; filterLoja = ''; filterStatus = '';
@@ -572,14 +875,20 @@
       usersRows = [];
       renderSeq = 0;
       isLoading = false;
+      acessosState = {
+        loading: false, loaded: false, saving: false, error: null,
+        modules: [], serverSnapshot: {}, serverUpdatedAt: {}, localPermissions: {},
+        dirty: false, successMessage: null, conflictMessage: null
+      };
       outlet.innerHTML =
         '<div class="maPage">' +
         '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Painel Master</h1><p class="modSubtitle">Administração de usuários e acessos.</p></div>' +
         '<button type="button" class="modBtn" id="maNewUserBtn">+ Novo usuário</button></div>' +
-        sectionNavHtml() +
+        '<div id="maSectionNavWrap"></div>' +
         '<div id="maPanel"></div>' +
         '</div>';
       document.getElementById('maNewUserBtn').addEventListener('click', function () { createForm = emptyCreateForm(); currentView = 'create'; renderPanel(); });
+      renderSectionNav();
       loadUsers();
       return Promise.resolve();
     }

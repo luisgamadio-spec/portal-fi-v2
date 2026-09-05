@@ -212,6 +212,13 @@ def main():
         page.close()
 
         # ---------- 35: future subroute architecture -- disabled sections never expose unfinished pages ----------
+        # Painel Master Phase 3B: Acessos aos Módulos is now a real,
+        # implemented, active section (its own module + deterministic
+        # suite: master-acessos-provider-test.py) -- only Auditoria and
+        # Revisões Cadastrais remain the placeholder/disabled state this
+        # test originally asserted for all three. Updated here because
+        # the underlying product behavior genuinely changed this Phase,
+        # not because the test was wrong before.
         page = new_page(browser, "{initialSession: null, profileRow: " + MASTER_ROW + ", allowedModuleIds: []}")
         page.goto(BASE)
         login(page, "master@example.com")
@@ -222,11 +229,14 @@ def main():
         # already documented in auth-foundation-test.py's own test #20) --
         # inner_text reflects rendered case ("EM BREVE"), match
         # case-insensitively.
-        check("35: only Usuários is an active section; Acessos/Auditoria/Revisões show as disabled 'Em breve', not clickable pages",
+        check("35: Usuários and Acessos aos Módulos are active sections; Auditoria/Revisões still show as disabled 'Em breve', not clickable pages",
               "Acessos aos Módulos" in section_text and "Auditoria" in section_text and "em breve" in section_text.lower())
-        # confirm the disabled items are not real links/buttons
+        # confirm the still-disabled items (Auditoria, Revisões Cadastrais)
+        # are not real links/buttons
         disabled_count = page.eval_on_selector_all(".maSectionItemDisabled", "els => els.length")
-        check("35b: disabled sections are non-interactive spans, not buttons/links", disabled_count == 3)
+        check("35b: remaining disabled sections (Auditoria, Revisões Cadastrais) are non-interactive spans, not buttons/links", disabled_count == 2)
+        acessos_is_link = page.eval_on_selector('[data-section="acessos"]', "el => el.tagName") if page.query_selector('[data-section="acessos"]') else None
+        check("35c: Acessos aos Módulos is now a real, clickable nav item (a <button>, not a disabled span)", acessos_is_link == "BUTTON")
         page.close()
 
         browser.close()

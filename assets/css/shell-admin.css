@@ -16,6 +16,12 @@
 .maSectionItemActive { color: var(--color-canvas); background: var(--color-text-primary); }
 .maSectionItemDisabled { opacity: .5; }
 .maSectionSoon { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; }
+/* Painel Master Phase 3B: section nav items with a live sibling section
+   are real <button>s (needed a click handler) -- reset native button
+   chrome so they stay visually identical to the inert <span> items. */
+.maSectionItemLink { font: inherit; border: none; background: transparent; cursor: pointer; }
+.maSectionItemLink:hover, .maSectionItemLink:focus-visible { background: var(--mod-surface-panel-2); }
+.maSectionItemLink:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
 
 .maDesktopOnly { display: block; }
 .maMobileOnly { display: none; }
@@ -54,3 +60,34 @@
   .maDetailActions { flex-direction: column; }
   .maDetailActions .modBtn, .maDetailActions .modBtnGhost { width: 100%; }
 }
+
+/* Painel Master Phase 3B -- Acessos aos Módulos. Desktop matrix reuses
+   .modTable/.modTableWrap (own overflow-x:auto container, Gate 9 --
+   never BODY overflow); mobile uses grouped per-module cards, same
+   .maDesktopOnly/.maMobileOnly 767px breakpoint as Usuários above, one
+   data source (shell-admin.js's acessosState), zero duplicated logic. */
+.mamMasterNotice { padding: var(--mod-space-compact); border: 1px solid var(--mod-border-strong); border-radius: var(--radius-sm); background: var(--mod-surface-panel-2); font-size: 12.5px; }
+.mamDirtyBanner { padding: var(--mod-space-compact); border-radius: var(--radius-sm); background: var(--color-warning-soft, #fff3cd); color: var(--color-warning-strong, #8a6d1a); font-size: 12.5px; }
+
+.mamTable th, .mamTable td { text-align: center; vertical-align: middle; }
+.mamRowLabel { text-align: left; font-weight: 500; white-space: nowrap; }
+.mamColSub { font-weight: 400; color: var(--color-text-secondary); font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; }
+.mamCellTd input[type="checkbox"] { width: 18px; height: 18px; }
+.mamCellTd input[type="checkbox"]:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+.mamAvailBadge { margin-top: 2px; font-size: 10.5px; font-weight: 500; }
+.mamAvailAVAILABLE { color: var(--color-success-strong, #1a7f37); }
+.mamAvailLEGACY_ONLY { color: var(--color-warning-strong, #8a6d1a); }
+.mamAvailCOMING_SOON { color: var(--color-text-secondary); }
+
+.mamMobileCard { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--mod-space-compact); border: 1px solid var(--mod-border); border-radius: var(--radius-sm); margin-bottom: var(--space-2); }
+.mamMobileCardHead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.mamModuleLabel { font-weight: 600; }
+.mamMobileScopeRow { display: flex; align-items: center; gap: var(--space-2); padding: 4px 0; border-bottom: 1px solid var(--mod-border); font-size: 12.5px; }
+.mamMobileScopeRow:last-child { border-bottom: none; }
+.mamMobileScopeRow input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
+
+.mamConfirmSummary { display: flex; flex-direction: column; gap: var(--space-2); max-height: 240px; overflow-y: auto; }
+.mamConfirmItem { padding: var(--space-1) var(--mod-space-compact); border-radius: var(--radius-sm); font-size: 12.5px; border-left: 3px solid var(--mod-border-strong); }
+.mamConfirmGood { border-left-color: var(--color-success-strong, #1a7f37); }
+.mamConfirmBad { border-left-color: var(--mod-critical, #c22); }
