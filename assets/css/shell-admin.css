@@ -203,3 +203,53 @@ body.maudModalOpen { overflow: hidden; }
   .maudModalBackdrop { padding: 0; align-items: flex-end; }
   .maudModalDialog { max-width: 100%; max-height: 100vh; height: 100%; border-radius: 0; }
 }
+
+/* Painel Master Phase PM-4C.2 -- Pendências Cadastrais. Reuses .maBadge,
+   .modTable/.modTableWrap, .maDesktopOnly/.maMobileOnly, .maNameCell/
+   .maSubtle, .modField/.modFilters, .maDetailField/.maDetailActions and
+   the shared #nxModalRoot dialog wholesale (Gate 26/46) -- only the
+   genuinely new pieces (severity badges, tab pills, summary cards, the
+   numeric occurrences column, exceptions rows, and the deep-linked
+   field highlight) get their own rules below. */
+.pcSevUrgente { background: var(--color-critical-soft, #fde2e2); color: var(--color-critical, #c22); }
+.pcSevAtencao { background: var(--color-warning-soft, #fff3cd); color: var(--color-warning-strong, #8a6d1a); }
+.pcSevInformativo { background: var(--color-accent-soft, #e6f0ff); color: var(--color-accent-primary, #1a56db); }
+
+.pcTabs { display: flex; gap: var(--space-2); flex-wrap: wrap; margin: var(--space-2) 0; }
+.pcAbaSwitch { margin-bottom: var(--mod-space-control-gap); }
+
+/* Gate 17/53: summary cards are explicitly filter-scoped (the note
+   above them says so in copy) -- this grid is intentionally plain, not
+   styled as an authoritative global KPI dashboard. */
+.pcSummaryCards { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: var(--space-2); margin-bottom: var(--mod-space-control-gap); }
+.pcCard { border: 1px solid var(--mod-border); border-radius: var(--radius-sm); padding: var(--space-2); background: var(--mod-surface-panel-2); }
+.pcCardK { font-size: 11px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+.pcCardV { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pcSummaryNote { margin-bottom: var(--space-1); }
+
+.pcNumCell { text-align: right; font-variant-numeric: tabular-nums; }
+.pcModalSubhead { margin: var(--space-2) 0 0; font-size: 13px; }
+.pcCheckLabel { display: flex; align-items: center; gap: var(--space-1); font-size: 13px; }
+.pcCheckLabel input { min-width: 0; width: auto; }
+
+/* Gate 34: the field row this Phase's Users deep-link scrolls to and
+   highlights -- a visual pointer only, never a new edit affordance. */
+.pcFocoDestaque { background: var(--color-accent-soft, #e6f0ff); border-radius: var(--radius-sm); }
+
+/* Exceções tab -- one row per exception, same field-row building block
+   already used everywhere else in this file (.maDetailField), never a
+   second table primitive. */
+.pcExcRow { border: 1px solid var(--mod-border); border-radius: var(--radius-sm); padding: var(--space-2); margin-bottom: var(--space-2); display: flex; flex-direction: column; gap: 4px; }
+/* .pcExcRow's own .maDetailField children rely on the column flex
+   parent's default align-items:stretch (full row width) to keep their
+   own internal justify-content:space-between meaningful -- but that
+   same default blockifies a bare .maBadge <span> child to the full row
+   width too (a real visual bug found while screenshotting: the ATIVA/
+   REVOGADA pill rendered as a full-width bar, not an inline pill).
+   Scoped align-self here, not a parent-wide align-items change, so the
+   field rows keep their own correct stretch behavior. */
+.pcExcRow > .maBadge { align-self: flex-start; }
+
+@media (max-width: 640px) {
+  .pcSummaryCards { grid-template-columns: repeat(2, 1fr); }
+}

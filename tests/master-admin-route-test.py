@@ -212,36 +212,34 @@ def main():
         page.close()
 
         # ---------- 35: future subroute architecture -- disabled sections never expose unfinished pages ----------
-        # Painel Master Phase PM-4B: Auditoria is now a real, implemented,
-        # active section (its own module + deterministic suite,
-        # master-audit-provider-test.py) alongside Usuários (Phase 2A) and
-        # Acessos aos Módulos (Phase 3B) -- only Revisões Cadastrais
-        # remains the placeholder/disabled state this test originally
-        # asserted for all four (and, per the PM-4B human product
-        # decision, Revisões Cadastrais will stay DO_NOT_MIGRATE rather
-        # than eventually flip active too). Updated here because the
-        # underlying product behavior genuinely changed this Phase, not
-        # because the test was wrong before.
+        # Painel Master Phase PM-4C.2: Pendências Cadastrais is now a real,
+        # implemented, active section (its own module + deterministic
+        # suite, master-pendencias-provider-test.py) alongside Usuários
+        # (Phase 2A), Acessos aos Módulos (Phase 3B) and Auditoria
+        # (Phase PM-4B) -- all four are now active. Revisões Cadastrais'
+        # own disabled "Em breve" placeholder is RETIRED this Phase (per
+        # its own Gate 2/15 and the PM-4C.1 human product decision that
+        # it is permanently superseded, never migrated as a separate
+        # surface) -- there is no longer any disabled section at all.
+        # Updated here because the underlying product behavior genuinely
+        # changed this Phase, not because the test was wrong before.
         page = new_page(browser, "{initialSession: null, profileRow: " + MASTER_ROW + ", allowedModuleIds: []}")
         page.goto(BASE)
         login(page, "master@example.com")
         page.evaluate("window.NX_ROUTER.navigate('shell-admin')")
         page.wait_for_timeout(400)
         section_text = page.inner_text("#nxContentOutlet")
-        # .maSectionSoon renders text-transform:uppercase (same lesson
-        # already documented in auth-foundation-test.py's own test #20) --
-        # inner_text reflects rendered case ("EM BREVE"), match
-        # case-insensitively.
-        check("35: Usuários, Acessos aos Módulos and Auditoria are active sections; Revisões still shows as disabled 'Em breve', not a clickable page",
-              "Acessos aos Módulos" in section_text and "Auditoria" in section_text and "em breve" in section_text.lower())
-        # confirm the still-disabled item (Revisões Cadastrais) is not a
-        # real link/button
+        check("35: Usuários, Acessos aos Módulos, Pendências Cadastrais and Auditoria are all active sections; Revisões Cadastrais no longer appears at all",
+              "Acessos aos Módulos" in section_text and "Pendências Cadastrais" in section_text and "Auditoria" in section_text and "Revisões Cadastrais" not in section_text)
+        # zero disabled placeholders remain -- Revisões was the only one.
         disabled_count = page.eval_on_selector_all(".maSectionItemDisabled", "els => els.length")
-        check("35b: remaining disabled section (Revisões Cadastrais) is a non-interactive span, not a button/link", disabled_count == 1)
+        check("35b: zero disabled sections remain (Revisões' placeholder fully retired, not merely relabeled)", disabled_count == 0)
         acessos_is_link = page.eval_on_selector('[data-section="acessos"]', "el => el.tagName") if page.query_selector('[data-section="acessos"]') else None
         check("35c: Acessos aos Módulos is a real, clickable nav item (a <button>, not a disabled span)", acessos_is_link == "BUTTON")
         auditoria_is_link = page.eval_on_selector('[data-section="auditoria"]', "el => el.tagName") if page.query_selector('[data-section="auditoria"]') else None
         check("35d: Auditoria is now a real, clickable nav item (a <button>, not a disabled span)", auditoria_is_link == "BUTTON")
+        pendencias_is_link = page.eval_on_selector('[data-section="pendenciasCadastrais"]', "el => el.tagName") if page.query_selector('[data-section="pendenciasCadastrais"]') else None
+        check("35e: Pendências Cadastrais is a real, clickable nav item (a <button>, not a disabled span)", pendencias_is_link == "BUTTON")
         page.close()
 
         browser.close()

@@ -63,7 +63,7 @@
   // Double-submit guards (Gate 24) — one per distinct mutation action,
   // never a single shared flag (two different actions must not block
   // each other).
-  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false };
+  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false, pcMutate: false, pcExcecao: false };
 
   // Painel Master Phase 3B -- Acessos aos Módulos section state. Kept
   // entirely separate from the Usuários vars above (own load/error/
@@ -84,6 +84,23 @@
   // interferes with a Usuários row's own currentDetailId.
   var auditState = { loading: false, loaded: false, error: null, rows: [] };
   var auditDetailId = null;
+
+  // Painel Master Phase PM-4C.2 -- Pendências Cadastrais section state.
+  // Own load/error lifecycle, own detail id (pcDetailId, never reusing
+  // currentDetailId/auditDetailId -- same independence discipline as
+  // Auditoria above). `rows` holds the RPC's own server-filtered result
+  // for the current tab/tipo/origem (Gate 22: server ORDER BY preserved,
+  // never client-re-sorted); `filtros.busca` is a purely client-side
+  // refinement over that same set (Gate 21), never sent to the RPC.
+  // `excecoes` is a fully separate sub-lifecycle for the "Exceções" aba
+  // (its own 3 RPCs), deliberately not merged into the alertas state.
+  var pcState = {
+    loading: false, loaded: false, error: null, rows: [], total: 0,
+    aba: 'alertas', tab: 'PENDENTES', filtros: { tipo: '', origem: '', busca: '' },
+    excecoes: { loading: false, loaded: false, error: null, rows: [], filtroTipo: '', filtroAtivo: true, formError: null }
+  };
+  var pcDetailId = null;
+  var pcSearchDebounce = null;
 
   // Create/Edit form working state — reset on view change.
   var createForm = null;
@@ -409,11 +426,19 @@
 
   // ---------- section nav (Gate 9: structure ready for future
   // clusters without rewrite) ----------
+  // Painel Master Phase PM-4C.2: the disabled "Revisões Cadastrais"
+  // placeholder is retired here (presentation-only change, shell-
+  // admin.js's own nav array -- no registry/navigation surface outside
+  // this file was involved) -- the human product decision that it is
+  // permanently superseded by Pendências Cadastrais (PM-4C.1) is now
+  // explicit, so a disabled "coming soon" placeholder implying a future
+  // build would be actively misleading. No second Revisões section is
+  // added back, per this Phase's own Gate 2/15.
   var SECTIONS = [
     { id: 'usuarios', label: 'Usuários', active: true },
     { id: 'acessos', label: 'Acessos aos Módulos', active: true },
-    { id: 'auditoria', label: 'Auditoria', active: true },
-    { id: 'revisoes', label: 'Revisões Cadastrais', active: false }
+    { id: 'pendenciasCadastrais', label: 'Pendências Cadastrais', active: true },
+    { id: 'auditoria', label: 'Auditoria', active: true }
   ];
   function sectionNavHtml() {
     return '<nav class="maSectionNav" aria-label="Áreas administrativas">' + SECTIONS.map(function (s) {
@@ -454,6 +479,7 @@
     successMessage = null;
     generatedLink = null;
     auditDetailId = null;
+    pcDetailId = null;
     // Never leave either section's modal open behind a section switch --
     // a blunt clear (no focus-return) is correct here, since the trigger
     // row itself is about to be discarded along with the whole section.
@@ -465,6 +491,8 @@
       acessosEnter();
     } else if (currentSection === 'auditoria') {
       auditEnter();
+    } else if (currentSection === 'pendenciasCadastrais') {
+      pcEnter();
     } else {
       renderPanel();
     }
@@ -801,7 +829,7 @@
   // silent no-op -- fall back to the freshly-rendered row/card carrying
   // the same data-key, rather than leaving focus stranded on <body>.
   function findListTriggerByKey(key) {
-    var candidates = document.querySelectorAll('.maTable tbody tr[data-key], .maMobileCard[data-key], .maudRow[data-key], .maudMobileCard[data-key]');
+    var candidates = document.querySelectorAll('.maTable tbody tr[data-key], .maMobileCard[data-key], .maudRow[data-key], .maudMobileCard[data-key], .pcRow[data-key], .pcMobileCard[data-key]');
     for (var i = 0; i < candidates.length; i++) {
       if (candidates[i].getAttribute('data-key') === String(key)) return candidates[i];
     }
@@ -822,6 +850,7 @@
     if (e.key !== 'Escape') return;
     if (auditDetailId) { e.preventDefault(); closeAuditModal(); }
     else if (currentDetailId) { e.preventDefault(); closeUserModal(); }
+    else if (pcDetailId) { e.preventDefault(); closePcModal(); }
   }
 
   function auditModalBodyHtml(r) {
@@ -864,7 +893,7 @@
     wireUserModalInteraction();
   }
 
-  function openUserModal(id, triggerEl) {
+  function openUserModal(id, triggerEl, opts) {
     currentDetailId = id;
     editForm = null;
     pendingConfirm = null;
@@ -872,6 +901,11 @@
     generatedLink = null;
     nxModalTriggerEl = triggerEl || null;
     renderUserModalRoot();
+    // Painel Master Phase PM-4C.2 -- external deep-link entry point
+    // (Pendências Cadastrais' "Ver usuário"/foco). `opts` is undefined
+    // for every pre-existing call site (row/card click), so this is
+    // additive only, never a behavior change for normal Users navigation.
+    if (opts && opts.foco) pcHighlightUserField(opts.foco);
   }
 
   function closeUserModal() {
@@ -904,6 +938,558 @@
     return html;
   }
 
+  // ---------- Pendências Cadastrais (Painel Master Phase PM-4C.2) ----------
+  // Real backend authority proven ready by PM-4C.1's own audit: 7
+  // already-deployed MASTER-only RPCs, zero new backend. Detail surface
+  // reuses the SAME #nxModalRoot primitives Auditoria/Usuários already
+  // established (renderNxModal/clearNxModal/returnFocusToTrigger) --
+  // ONE Painel Master modal pattern, not a third parallel one.
+
+  function pcEnter() {
+    if (pcState.loaded || pcState.loading) { renderPanel(); return; }
+    pcLoad();
+  }
+
+  function pcParamsAtuais() {
+    var vm = window.NX_MASTER_PENDENCIAS_VIEW_MODEL;
+    var tabDef = (vm.PC_TABS.filter(function (t) { return t[0] === pcState.tab; })[0] || vm.PC_TABS[0])[2];
+    return {
+      status: tabDef.status || null,
+      severidade: tabDef.severidade || null,
+      tipo: pcState.filtros.tipo || null,
+      origem: pcState.filtros.origem || null
+    };
+  }
+
+  // Gate 21: busca is a purely client-side refinement, never sent to
+  // the RPC -- same technique already proven for Usuários/Auditoria.
+  function pcFilteredRows() {
+    return window.NX_MASTER_PENDENCIAS_VIEW_MODEL.filtrarBusca(pcState.rows, pcState.filtros.busca);
+  }
+
+  function pcRowById(id) {
+    return pcState.rows.filter(function (r) { return String(r.id) === String(id); })[0] || null;
+  }
+
+  function pcLoad() {
+    pcState.loading = true;
+    pcState.error = null;
+    renderPanel();
+    window.NX_MASTER_PENDENCIAS_PROVIDER.loadAlertas(pcParamsAtuais(), {}).then(function (payload) {
+      var vm = window.NX_MASTER_PENDENCIAS_VIEW_MODEL.buildAlertasViewModel(payload);
+      pcState.rows = vm.rows;
+      pcState.total = vm.total;
+      pcState.loading = false;
+      pcState.loaded = true;
+      renderPanel();
+    }, function (err) {
+      pcState.loading = false;
+      pcState.loaded = false;
+      pcState.error = err || { state: 'RPC_ERROR' };
+      renderPanel();
+    });
+  }
+
+  function pcSetAba(aba) {
+    pcState.aba = aba;
+    if (aba === 'excecoes' && !pcState.excecoes.loaded && !pcState.excecoes.loading) {
+      pcExcecoesLoad();
+    } else {
+      renderPanel();
+    }
+  }
+
+  function pcAbaSwitchHtml() {
+    return '<div class="pcTabs pcAbaSwitch">' +
+      '<button type="button" class="' + (pcState.aba === 'alertas' ? 'modBtn' : 'modBtnGhost') + ' pcAbaBtn" data-aba="alertas">Alertas</button>' +
+      '<button type="button" class="' + (pcState.aba === 'excecoes' ? 'modBtn' : 'modBtnGhost') + ' pcAbaBtn" data-aba="excecoes">Exceções</button>' +
+      '</div>';
+  }
+
+  function pcSeverityBadgeHtml(info) {
+    return '<span class="maBadge ' + esc(info.cls) + '">' + esc(info.emoji + ' ' + info.label.toUpperCase()) + '</span>';
+  }
+  function pcStatusBadgeHtml(r) {
+    return '<span class="maBadge ' + esc(r.statusClasse) + '">' + esc(r.statusLabel) + '</span>';
+  }
+  function pcDetailBtnHtml(r) {
+    return '<button type="button" class="modBtnGhost pcDetailBtn" data-key="' + esc(r.id) + '" aria-label="Ver detalhes da pendência de ' + esc(r.pessoaDisplay) + '">Ver detalhes</button>';
+  }
+
+  // Gate 16: canonical 8-column desktop list -- Severidade/Pessoa-
+  // Identificador/Origem/Motivo/Ocorrências/Última ocorrência/Status/
+  // Ação. All mutation actions live in the modal (Gate 26), never
+  // inline in the row -- matches the established Usuários/Auditoria
+  // convention (a scan-oriented table, contextual detail for action).
+  function renderPcDesktopTable(rows) {
+    var body = rows.map(function (r) {
+      return '<tr class="pcRow" tabindex="0" role="button" data-key="' + esc(r.id) + '" aria-label="Ver detalhes da pendência de ' + esc(r.pessoaDisplay) + '">' +
+        '<td>' + pcSeverityBadgeHtml(r.severidadeInfo) + '</td>' +
+        '<td class="maNameCell">' + esc(r.pessoaDisplay) + (r.loginNbsEncontrado ? '<div class="maSubtle">NBS: ' + esc(r.loginNbsEncontrado) + '</div>' : '') + '</td>' +
+        '<td>' + esc(r.origemLabel) + '</td>' +
+        '<td>' + esc(r.tipoLabel) + '</td>' +
+        '<td class="pcNumCell">' + esc(r.quantidadeOcorrencias) + '</td>' +
+        '<td>' + esc(r.ultimaOcorrenciaEmFormatted) + '</td>' +
+        '<td>' + pcStatusBadgeHtml(r) + '</td>' +
+        '<td class="maudDetailCol">' + pcDetailBtnHtml(r) + '</td>' +
+        '</tr>';
+    }).join('');
+    return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable pcTable">' +
+      '<thead><tr><th scope="col">Severidade</th><th scope="col">Pessoa / Identificador</th><th scope="col">Origem</th><th scope="col">Motivo</th><th scope="col">Ocorrências</th><th scope="col">Última ocorrência</th><th scope="col">Status</th><th scope="col">Ação</th></tr></thead>' +
+      '<tbody>' + body + '</tbody></table></div></div>';
+  }
+  function renderPcMobileCards(rows) {
+    var cards = rows.map(function (r) {
+      return '<div class="maMobileCard pcMobileCard" tabindex="0" role="button" data-key="' + esc(r.id) + '" aria-label="Ver detalhes da pendência de ' + esc(r.pessoaDisplay) + '">' +
+        '<div class="maMobileName">' + esc(r.pessoaDisplay) + '</div>' +
+        '<div class="maSubtle">' + esc(r.tipoLabel) + ' · ' + esc(r.origemLabel) + '</div>' +
+        '<div class="maMobileMeta">' + esc(r.ultimaOcorrenciaEmFormatted) + '</div>' +
+        pcSeverityBadgeHtml(r.severidadeInfo) + ' ' + pcStatusBadgeHtml(r) +
+        '<div class="maudMobileActions">' + pcDetailBtnHtml(r) + '</div>' +
+        '</div>';
+    }).join('');
+    return '<div class="maMobileOnly">' + cards + '</div>';
+  }
+
+  function pcResultsAreaHtml() {
+    var filtered = pcFilteredRows();
+    if (!filtered.length) {
+      return '<div class="modEmptyState"><div class="modStateTitle">Nenhuma pendência cadastral</div>Nenhuma pendência cadastral encontrada para os filtros selecionados.</div>';
+    }
+    return renderPcDesktopTable(filtered) + renderPcMobileCards(filtered);
+  }
+  // Gate 21 (avoid the input-focus-loss risk of a full-panel re-render
+  // on every keystroke): only #pcResultsArea's own innerHTML is touched
+  // by search -- #pcSearch itself is never recreated mid-typing. Same
+  // scoped-partial-repaint technique V1's own pcRenderResultados() uses.
+  function pcRenderResultsArea() {
+    var area = document.getElementById('pcResultsArea');
+    if (!area) return;
+    area.innerHTML = pcResultsAreaHtml();
+    wirePcResultsInteraction();
+  }
+  function pcSetBusca(v) {
+    pcState.filtros.busca = v;
+    clearTimeout(pcSearchDebounce);
+    pcSearchDebounce = setTimeout(pcRenderResultsArea, 200);
+  }
+
+  // Gate 17/53: computed over pcState.rows (the current tab/tipo/origem
+  // server-filtered set) -- NOT re-filtered by the client-side busca
+  // text, matching V1's own real behavior exactly. Explicitly labeled
+  // as filter-scoped, never presented as a global database total.
+  function pcSummaryCardsHtml() {
+    var s = window.NX_MASTER_PENDENCIAS_VIEW_MODEL.buildSummaryCards(pcState.rows);
+    return '<p class="modSubtitle pcSummaryNote">Resumo calculado sobre os resultados carregados para os filtros atuais — não é um total geral do banco de dados.</p>' +
+      '<div class="pcSummaryCards">' +
+      '<div class="pcCard"><div class="pcCardK">Pendentes</div><div class="pcCardV">' + s.pendentes + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Urgentes (pendentes)</div><div class="pcCardV">' + s.urgentesPendentes + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Ignorados</div><div class="pcCardV">' + s.ignorados + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Resolvidos</div><div class="pcCardV">' + s.resolvidos + '</div></div>' +
+      '</div>';
+  }
+
+  function pcTabsHtml() {
+    return '<div class="pcTabs">' + window.NX_MASTER_PENDENCIAS_VIEW_MODEL.PC_TABS.map(function (t) {
+      return '<button type="button" class="' + (pcState.tab === t[0] ? 'modBtn' : 'modBtnGhost') + ' pcTabBtn" data-tab="' + esc(t[0]) + '">' + esc(t[1]) + '</button>';
+    }).join('') + '</div>';
+  }
+
+  function pcFiltersHtml() {
+    var vm = window.NX_MASTER_PENDENCIAS_VIEW_MODEL;
+    var tipoOptions = ['<option value="">Todos os tipos</option>'].concat(
+      Object.keys(vm.PC_TIPOS).map(function (t) { return '<option value="' + esc(t) + '"' + (pcState.filtros.tipo === t ? ' selected' : '') + '>' + esc(vm.PC_TIPOS[t]) + '</option>'; })
+    ).join('');
+    var origemOptions = ['<option value="">Todas as origens</option>'].concat(
+      Object.keys(vm.PC_ORIGENS).map(function (o) { return '<option value="' + esc(o) + '"' + (pcState.filtros.origem === o ? ' selected' : '') + '>' + esc(vm.PC_ORIGENS[o]) + '</option>'; })
+    ).join('');
+    return '<div class="modFilters">' +
+      '<div class="modField"><label for="pcFilterTipo">Tipo</label><select id="pcFilterTipo">' + tipoOptions + '</select></div>' +
+      '<div class="modField"><label for="pcFilterOrigem">Origem</label><select id="pcFilterOrigem">' + origemOptions + '</select></div>' +
+      '<div class="modField"><label for="pcSearch">Buscar</label><input id="pcSearch" type="text" value="' + esc(pcState.filtros.busca) + '" placeholder="Nome, NBS, loja, departamento ou candidato"></div>' +
+      '</div>';
+  }
+
+  // ---------- Pendências detail modal ----------
+  var PC_FOCO_LABEL = { loja: 'Loja', departamento: 'Departamento' };
+  function isPcModalConfirmKind(kind) {
+    return kind === 'pcResolver' || kind === 'pcIgnorar' || kind === 'pcExcluir' || kind === 'pcCorrigirNbs';
+  }
+  function pcRecomendacaoBtnHtml(rec) {
+    if (rec.kind === 'CORRIGIR_NBS') return '<button type="button" class="modBtn" id="pcCorrigirNbsBtn">Corrigir Login NBS</button>';
+    if (rec.kind === 'VER_USUARIO') return '<button type="button" class="modBtn" id="pcVerUsuarioBtn">Ver usuário</button>';
+    if (rec.kind === 'REVISAR_USUARIOS') return '<button type="button" class="modBtnGhost" id="pcIrUsuariosBtn">Ir para Usuários</button>';
+    if (rec.kind === 'CADASTRAR_CONVIDAR') return '<button type="button" class="modBtn" id="pcCadastrarBtn">Cadastrar / convidar usuário</button>';
+    return '';
+  }
+  // Gate 27: distinct sections (problema / o que a base achou / o que o
+  // cadastro tem hoje / recomendação / histórico / ações), never a raw
+  // JSON dump. "O que o cadastro possui hoje" reuses the ALREADY-loaded
+  // Usuários dataset (rowById -- same #maPanel dataset, no second
+  // fetch) -- deliberately omits Login NBS there: master_admin_
+  // security_data()'s own `users` shape (PM-4C.1 forensics) never
+  // returns login_nbs at all, unlike V1's separate carregarUsuariosSupabase();
+  // extending that RPC would be a real backend change, out of scope
+  // this Phase (Gate 4/8) -- omitted honestly rather than faked.
+  function pcModalBodyHtml(r) {
+    var out = '';
+    if (successMessage) {
+      out += '<div class="modSuccessState" role="status">' + esc(successMessage) + '</div>';
+      successMessage = null;
+    }
+    out += '<p class="modSubtitle">' + esc(r.explicacao) + '</p>';
+    var relacionadas = window.NX_MASTER_PENDENCIAS_VIEW_MODEL.ocorrenciasRelacionadas(pcState.rows, r);
+    if (relacionadas > 0) {
+      out += '<p class="maWarnNote">' + relacionadas + ' outro(s) alerta(s) pendente(s) carregado(s) nesta lista está(ão) relacionado(s) a este mesmo identificador. Ignorar com "não alertar novamente" trata todos de uma vez.</p>';
+    }
+    out += '<h3 class="pcModalSubhead">O que a base informou</h3>' +
+      fieldRow('Nome', r.nomeEncontrado || '—') + fieldRow('Login NBS', r.loginNbsEncontrado || '—') +
+      fieldRow('Identificador', (r.identificadorTipo ? r.identificadorTipo + ': ' : '') + (r.identificadorMascarado || '—')) +
+      fieldRow('Loja', r.lojaEncontrada || '—') + fieldRow('Departamento', r.departamentoEncontrado || '—') +
+      fieldRow('Origem', r.origemLabel) + fieldRow('Primeira ocorrência', r.primeiraOcorrenciaEmFormatted) +
+      fieldRow('Última ocorrência', r.ultimaOcorrenciaEmFormatted) + fieldRow('Quantidade de ocorrências', String(r.quantidadeOcorrencias)) +
+      '<div class="maDetailField"><span class="maDetailLabel">Status</span>' + pcStatusBadgeHtml(r) + '</div>';
+    if (r.usuarioCandidatoId) {
+      var cand = rowById(r.usuarioCandidatoId);
+      out += '<h3 class="pcModalSubhead">O que o cadastro possui hoje</h3>' +
+        fieldRow('Nome', (cand && cand.nome) || r.nomeUsuarioCandidato || '—') +
+        fieldRow('Perfil', (cand && cand.perfil) || '—') +
+        fieldRow('Loja', (cand && cand.loja) || '—') +
+        fieldRow('Departamento', (cand && cand.status) || '—');
+    }
+    var historico = '';
+    if (r.status === 'IGNORADO' && r.ignoradoEmFormatted) historico += fieldRow('Ignorado em', r.ignoradoEmFormatted);
+    if (r.status === 'RESOLVIDO' && r.resolvidoEmFormatted) historico += fieldRow('Resolvido em', r.resolvidoEmFormatted);
+    if (r.status === 'EXCLUIDO' && r.excluidoEmFormatted) historico += fieldRow('Excluído em', r.excluidoEmFormatted);
+    if (r.motivoAcao) historico += fieldRow('Motivo da ação', r.motivoAcao);
+    if (historico) out += '<h3 class="pcModalSubhead">Histórico da decisão</h3>' + historico;
+    if (r.status === 'PENDENTE') {
+      out += '<h3 class="pcModalSubhead">O que precisa ser feito</h3><p class="modSubtitle">' + esc(r.recomendacao.texto) + '</p>';
+      var recBtn = pcRecomendacaoBtnHtml(r.recomendacao);
+      if (recBtn) out += '<div class="maDetailActions">' + recBtn + '</div>';
+      out += '<div class="maDetailActions">' +
+        '<button type="button" class="modBtn" id="pcResolverBtn">Marcar como resolvido manualmente</button>' +
+        '<button type="button" class="modBtn" id="pcIgnorarBtn">Ignorar</button>' +
+        '<button type="button" class="modBtn modBtnDanger" id="pcExcluirBtn">Excluir</button>' +
+        '</div>';
+    }
+    if (pendingConfirm && isPcModalConfirmKind(pendingConfirm.kind)) {
+      out += confirmHtml(pendingConfirm.title, pendingConfirm.body, pendingConfirm.confirmLabel, pendingConfirm.destructive, pendingConfirm.bodyHtml, pendingConfirm.error);
+    }
+    return out;
+  }
+
+  function renderPcModalRoot() {
+    var r = pcDetailId ? pcRowById(pcDetailId) : null;
+    if (!r) {
+      if (pcDetailId) pcDetailId = null;
+      clearNxModal();
+      return;
+    }
+    renderNxModal(r.tipoLabel, pcModalBodyHtml(r), closePcModal);
+    wirePcModalInteraction();
+  }
+  function openPcModal(id, triggerEl) {
+    pcDetailId = id;
+    pendingConfirm = null;
+    successMessage = null;
+    nxModalTriggerEl = triggerEl || null;
+    renderPcModalRoot();
+  }
+  function closePcModal() {
+    var closedId = pcDetailId;
+    pcDetailId = null;
+    pendingConfirm = null;
+    successMessage = null;
+    clearNxModal();
+    returnFocusToTrigger(closedId);
+  }
+
+  // Gate 34/35: deep-link into the ALREADY-APPROVED Usuários modal --
+  // never a second detail renderer/edit form/mutation provider. Closes
+  // the Pendência's own modal first (matches V1's own real precedent:
+  // pcFecharDrawer() before abrirMasterUsuarioDeep(), never a stacked
+  // dialog), sourcing the Users-modal's trigger element from the
+  // Pendência's OWN still-live list row (never re-rendered by this
+  // whole detour) so that closing the Users modal returns focus to the
+  // exact row that started this journey -- a controlled close/switch/
+  // return transition through the one shared #nxModalRoot, never modal-
+  // over-modal.
+  function pcVerUsuario(usuarioId, foco) {
+    if (!usuarioId) return;
+    var pendTrigger = findListTriggerByKey(pcDetailId);
+    closePcModal();
+    openUserModal(usuarioId, pendTrigger, { foco: foco });
+  }
+  function pcFecharEIrPara(sectionId) {
+    closePcModal();
+    switchSection(sectionId);
+  }
+  function pcAbrirCadastrarUsuario() {
+    closePcModal();
+    switchSection('usuarios');
+    createForm = emptyCreateForm();
+    currentView = 'create';
+    renderPanel();
+  }
+  // Gate 34 "optionally focus/scroll to a relevant field" -- the
+  // smallest real implementation: scroll the matching field row into
+  // view inside the (already rendered) Users modal and highlight it.
+  // Never a new field/edit affordance (Gate 34 forbids duplicating the
+  // edit form) -- purely a visual pointer to an EXISTING read-only row.
+  function pcHighlightUserField(foco) {
+    var label = PC_FOCO_LABEL[foco];
+    if (!label) return;
+    var fields = document.querySelectorAll('#nxModalRoot .maDetailField');
+    for (var i = 0; i < fields.length; i++) {
+      var labelEl = fields[i].querySelector('.maDetailLabel');
+      if (labelEl && labelEl.textContent === label) {
+        fields[i].scrollIntoView({ block: 'center' });
+        fields[i].classList.add('pcFocoDestaque');
+        break;
+      }
+    }
+  }
+
+  function wirePcModalInteraction() {
+    var r = pcDetailId ? pcRowById(pcDetailId) : null;
+    var resolverBtn = document.getElementById('pcResolverBtn');
+    if (resolverBtn && r) resolverBtn.addEventListener('click', function () { pcOpenResolverConfirm(r); });
+    var ignorarBtn = document.getElementById('pcIgnorarBtn');
+    if (ignorarBtn && r) ignorarBtn.addEventListener('click', function () { pcOpenIgnorarConfirm(r); });
+    var excluirBtn = document.getElementById('pcExcluirBtn');
+    if (excluirBtn && r) excluirBtn.addEventListener('click', function () { pcOpenExcluirConfirm(r); });
+    var corrigirBtn = document.getElementById('pcCorrigirNbsBtn');
+    if (corrigirBtn && r) corrigirBtn.addEventListener('click', function () { pcOpenCorrigirNbsConfirm(r); });
+    var verUsuarioBtn = document.getElementById('pcVerUsuarioBtn');
+    if (verUsuarioBtn && r) verUsuarioBtn.addEventListener('click', function () { pcVerUsuario(r.recomendacao.usuarioId, r.recomendacao.foco); });
+    var irUsuariosBtn = document.getElementById('pcIrUsuariosBtn');
+    if (irUsuariosBtn) irUsuariosBtn.addEventListener('click', function () { pcFecharEIrPara('usuarios'); });
+    var cadastrarBtn = document.getElementById('pcCadastrarBtn');
+    if (cadastrarBtn) cadastrarBtn.addEventListener('click', pcAbrirCadastrarUsuario);
+
+    var confirmYes = document.getElementById('maConfirmYes');
+    if (confirmYes) confirmYes.addEventListener('click', executeConfirmedAction);
+    var confirmNo = document.getElementById('maConfirmNo');
+    if (confirmNo) confirmNo.addEventListener('click', function () { pendingConfirm = null; renderPcModalRoot(); });
+  }
+
+  function wirePcResultsInteraction() {
+    document.querySelectorAll('.pcRow, .pcMobileCard').forEach(function (el) {
+      el.addEventListener('click', function () { openPcModal(el.getAttribute('data-key'), el); });
+      el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPcModal(el.getAttribute('data-key'), el); }
+      });
+    });
+    // Explicit button calls the exact same controller as the row/card
+    // click -- never a second flow (Gate 6 precedent). Own class
+    // (.pcDetailBtn), never .maudDetailBtn -- that class is already
+    // wired to openAuditModal elsewhere and must not be shared.
+    document.querySelectorAll('.pcDetailBtn').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openPcModal(el.getAttribute('data-key'), el);
+      });
+    });
+  }
+
+  // ---------- Pendências mutation confirms ----------
+  function pcOpenResolverConfirm(r) {
+    pendingConfirm = {
+      kind: 'pcResolver', target: r,
+      title: 'Marcar como resolvido manualmente',
+      body: 'Esta ação não altera o cadastro. Use somente se o problema já tiver sido corrigido por outro meio — confirme apenas se a situação já foi tratada fora deste alerta.',
+      bodyHtml: '<div class="modField"><label for="pcResolverMotivo">Observação (opcional)</label><input id="pcResolverMotivo" type="text" placeholder="Ex.: cadastro corrigido manualmente em DD/MM"></div>',
+      confirmLabel: 'Confirmar resolução', destructive: false
+    };
+    renderPcModalRoot();
+  }
+  function pcOpenIgnorarConfirm(r) {
+    var elegivel = !!(r.identificadorTipo && r.identificadorMascarado);
+    var motivoOpts = window.NX_MASTER_PENDENCIAS_VIEW_MODEL.PC_MOTIVOS_IGNORAR.map(function (m) { return '<option value="' + esc(m[0]) + '">' + esc(m[1]) + '</option>'; }).join('');
+    var bodyHtml = '<div class="modField"><label for="pcIgnorarMotivo">Motivo</label><select id="pcIgnorarMotivo"><option value="">Selecione...</option>' + motivoOpts + '</select></div>' +
+      '<div class="modField"><label for="pcIgnorarObs">Observação (opcional)</label><input id="pcIgnorarObs" type="text" placeholder="Detalhe adicional"></div>' +
+      (elegivel ? '<div class="modField"><label class="pcCheckLabel"><input id="pcIgnorarExcecao" type="checkbox"> Não alertar novamente para este identificador</label><p class="maSubtle">Novas ocorrências com este CPF/Login NBS serão suprimidas enquanto a exceção estiver ativa.</p></div>' : '');
+    pendingConfirm = {
+      kind: 'pcIgnorar', target: r,
+      title: 'Ignorar pendência',
+      body: 'O alerta deixará de aparecer na fila de pendentes.',
+      bodyHtml: bodyHtml,
+      confirmLabel: 'Ignorar', destructive: false
+    };
+    renderPcModalRoot();
+  }
+  function pcOpenExcluirConfirm(r) {
+    pendingConfirm = {
+      kind: 'pcExcluir', target: r,
+      title: 'Excluir pendência',
+      body: 'Este alerta será removido da fila operacional, mas permanecerá registrado no histórico administrativo (Gate 31: não é uma exclusão física).',
+      bodyHtml: '<div class="modField"><label for="pcExcluirMotivo">Motivo</label><input id="pcExcluirMotivo" type="text" placeholder="Ex.: registro duplicado"></div>',
+      confirmLabel: 'Excluir', destructive: true
+    };
+    renderPcModalRoot();
+  }
+  function pcOpenCorrigirNbsConfirm(r) {
+    pendingConfirm = {
+      kind: 'pcCorrigirNbs', target: r,
+      title: 'Corrigir Login NBS',
+      body: 'Login NBS encontrado na base: ' + (r.loginNbsEncontrado || '—') + '. Confirme ou ajuste o valor correto.',
+      bodyHtml: '<div class="modField"><label for="pcNovoNbs">Novo Login NBS</label><input id="pcNovoNbs" type="text" value="' + esc(r.loginNbsEncontrado || '') + '" placeholder="Confirme ou ajuste o valor"></div>' +
+        '<div class="modField"><label for="pcNovoNbsObs">Observação (opcional)</label><input id="pcNovoNbsObs" type="text" placeholder="Detalhe adicional"></div>',
+      confirmLabel: 'Confirmar alteração do Login NBS', destructive: false
+    };
+    renderPcModalRoot();
+  }
+  function pcOpenRevogarExcecaoConfirm(excecaoId) {
+    pendingConfirm = {
+      kind: 'pcRevogarExcecao', target: { id: excecaoId },
+      title: 'Revogar exceção',
+      body: 'Novas ocorrências voltarão a gerar alertas.',
+      confirmLabel: 'Revogar', destructive: true
+    };
+    renderPanel();
+  }
+
+  var PC_NBS_ERROR_COPY = {
+    NBS_VINCULADO_OUTRO_USUARIO: 'Este Login NBS já está vinculado a outro usuário ativo.',
+    NBS_CPF_DIVERGENTE: 'Este Login NBS está vinculado, na base de vendedores, a um CPF diferente do deste usuário.',
+    VALOR_OBRIGATORIO: 'Informe um valor válido.',
+    SEM_CANDIDATO: 'Não há um cadastro candidato para corrigir.',
+    TIPO_INCOMPATIVEL: 'Este alerta não é do tipo Login NBS divergente.',
+    STATUS_INCOMPATIVEL: 'Este alerta não está mais pendente.',
+    JA_RESOLVIDO: 'Este alerta já foi resolvido.'
+  };
+  var PC_GENERIC_ERROR_COPY = {
+    MOTIVO_INVALIDO: 'Selecione um motivo válido.',
+    MOTIVO_OBRIGATORIO: 'Informe o motivo.',
+    ALERTA_NAO_ENCONTRADO: 'Pendência não encontrada.',
+    CONFLITO_CONCORRENCIA: 'Esta pendência foi alterada em outra sessão. Atualize a lista e tente novamente.',
+    IDENTIFICADOR_TIPO_INVALIDO: 'Selecione um tipo de identificador válido.',
+    IDENTIFICADOR_VALOR_INVALIDO: 'Informe um identificador válido.',
+    EXCECAO_JA_ATIVA: 'Já existe uma exceção ativa para este identificador.',
+    EXCECAO_NAO_ENCONTRADA: 'Exceção não encontrada.'
+  };
+  // Gate 33: real backend codes normalized to controlled human copy,
+  // never a raw SQL/stack trace surfaced to the Master.
+  function pcMutationErrorCopy(err) {
+    if (err && err.codigo) {
+      return PC_NBS_ERROR_COPY[err.codigo] || PC_GENERIC_ERROR_COPY[err.codigo] || ('Não foi possível concluir: ' + err.codigo);
+    }
+    return (STATE_COPY[err && err.state] || STATE_COPY.RPC_ERROR).body;
+  }
+
+  // ---------- Exceções ----------
+  function pcExcecoesLoad() {
+    pcState.excecoes.loading = true;
+    pcState.excecoes.error = null;
+    renderPanel();
+    window.NX_MASTER_PENDENCIAS_PROVIDER.loadExcecoes({ ativo: pcState.excecoes.filtroAtivo, tipo: pcState.excecoes.filtroTipo }, {}).then(function (payload) {
+      var vm = window.NX_MASTER_PENDENCIAS_VIEW_MODEL.buildExcecoesViewModel(payload);
+      pcState.excecoes.rows = vm.rows;
+      pcState.excecoes.loading = false;
+      pcState.excecoes.loaded = true;
+      renderPanel();
+    }, function (err) {
+      pcState.excecoes.loading = false;
+      pcState.excecoes.loaded = false;
+      pcState.excecoes.error = err || { state: 'RPC_ERROR' };
+      renderPanel();
+    });
+  }
+  function pcExcecaoRowHtml(e) {
+    return '<div class="adminListRow pcExcRow" data-key="' + esc(e.id) + '">' +
+      '<div class="maDetailField"><span class="maDetailLabel">' + esc(e.identificadorTipo) + '</span><span class="maDetailValue">' + esc(e.identificadorMascarado || '—') + '</span></div>' +
+      '<div class="maSubtle">' + esc(e.motivo || '') + (e.observacao ? ' — ' + esc(e.observacao) : '') + '</div>' +
+      '<div class="maDetailField"><span class="maDetailLabel">Criada por</span><span class="maDetailValue">' + esc(e.criadoPorNome) + '</span></div>' +
+      '<div class="maSubtle">' + esc(e.criadoEmFormatted) + '</div>' +
+      '<div class="maDetailField"><span class="maDetailLabel">Ocorrências suprimidas</span><span class="maDetailValue">' + esc(e.ocorrenciasSuprimidas) + '</span></div>' +
+      (e.ativo ? '<span class="maBadge maBadgeActive">ATIVA</span>' : '<span class="maBadge maBadgeInvited">REVOGADA</span>') +
+      (e.ativo ? '<div class="maDetailActions"><button type="button" class="modBtn modBtnDanger pcRevogarBtn" data-key="' + esc(e.id) + '">Revogar exceção</button></div>' : '') +
+      '</div>';
+  }
+  function renderExcecoesTab() {
+    var st = pcState.excecoes;
+    if (st.error) {
+      return errorStateHtml(st.error.state, st.error.message) + '<div class="maDetailActions"><button type="button" class="modBtn" id="pcExcRetryBtn">Tentar novamente</button></div>';
+    }
+    if (st.loading || !st.loaded) {
+      return '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando exceções...</div>';
+    }
+    var tipoSel = '<select id="pcExcFilterTipo"><option value="">TODOS</option><option value="CPF"' + (st.filtroTipo === 'CPF' ? ' selected' : '') + '>CPF</option><option value="NBS"' + (st.filtroTipo === 'NBS' ? ' selected' : '') + '>NBS</option></select>';
+    var ativoSel = '<select id="pcExcFilterAtivo"><option value="true"' + (st.filtroAtivo === true ? ' selected' : '') + '>Ativas</option><option value="false"' + (st.filtroAtivo === false ? ' selected' : '') + '>Revogadas</option></select>';
+    var rowsHtml = st.rows.map(pcExcecaoRowHtml).join('');
+    var listHtml = '<div class="adminListWrap">' + (rowsHtml || '<p class="modSubtitle">Nenhuma exceção cadastrada.</p>') + '</div>';
+    var motivoOpts = window.NX_MASTER_PENDENCIAS_VIEW_MODEL.PC_MOTIVOS_IGNORAR.map(function (m) { return '<option value="' + esc(m[0]) + '">' + esc(m[1]) + '</option>'; }).join('');
+    var html = '<p class="modSubtitle">Exceções suprimem novas ocorrências de alertas para um CPF ou Login NBS específico (ex.: frota, revenda). Identificador forte apenas — nunca por nome.</p>';
+    if (successMessage) { html += '<div class="modSuccessState" role="status">' + esc(successMessage) + '</div>'; successMessage = null; }
+    html += '<div class="modFilters"><div class="modField"><label for="pcExcFilterTipo">Tipo</label>' + tipoSel + '</div><div class="modField"><label for="pcExcFilterAtivo">Status</label>' + ativoSel + '</div></div>' +
+      listHtml;
+    if (pendingConfirm && pendingConfirm.kind === 'pcRevogarExcecao') {
+      html += confirmHtml(pendingConfirm.title, pendingConfirm.body, pendingConfirm.confirmLabel, pendingConfirm.destructive, pendingConfirm.bodyHtml, pendingConfirm.error);
+    }
+    html += '<h3 class="pcModalSubhead">Criar exceção manual</h3>' +
+      '<p class="modSubtitle">Use para cadastrar previamente identificadores que nunca devem gerar alerta (ex.: frota, revenda), antes mesmo de uma nova importação.</p>' +
+      (st.formError ? '<p class="maFieldError" role="alert">' + esc(st.formError) + '</p>' : '') +
+      '<div class="modFilters">' +
+      '<div class="modField"><label for="pcExcTipo">Tipo</label><select id="pcExcTipo"><option value="">Selecione...</option><option value="CPF">CPF</option><option value="NBS">NBS</option></select></div>' +
+      '<div class="modField"><label for="pcExcValor">Identificador</label><input id="pcExcValor" placeholder="CPF ou Login NBS"></div>' +
+      '<div class="modField"><label for="pcExcMotivo">Motivo</label><select id="pcExcMotivo"><option value="">Selecione...</option>' + motivoOpts + '</select></div>' +
+      '<div class="modField"><label for="pcExcObs">Observação (opcional)</label><input id="pcExcObs" placeholder="Detalhe adicional"></div>' +
+      '</div>' +
+      '<div class="maDetailActions"><button type="button" class="modBtn" id="pcExcSalvarBtn"' + (inFlight.pcExcecao ? ' disabled' : '') + '>Criar exceção</button></div>';
+    return html;
+  }
+  function pcSalvarExcecaoManual() {
+    var tipo = (document.getElementById('pcExcTipo') || {}).value || '';
+    var valor = (document.getElementById('pcExcValor') || {}).value || '';
+    var motivo = (document.getElementById('pcExcMotivo') || {}).value || '';
+    var obs = (document.getElementById('pcExcObs') || {}).value || null;
+    if (!tipo || !valor.trim() || !motivo) {
+      pcState.excecoes.formError = 'Preencha tipo, identificador e motivo.';
+      renderPanel();
+      return;
+    }
+    if (inFlight.pcExcecao) return;
+    inFlight.pcExcecao = true;
+    window.NX_MASTER_PENDENCIAS_PROVIDER.criarExcecao(tipo, valor, motivo, obs, {}).then(function (resp) {
+      inFlight.pcExcecao = false;
+      pcState.excecoes.formError = null;
+      var propagados = Number(resp.propagados) || 0;
+      successMessage = 'Exceção criada.' + (propagados > 0 ? ' ' + propagados + ' pendência(s) do mesmo identificador ' + (propagados === 1 ? 'foi ignorada' : 'foram ignoradas') + '.' : '');
+      pcState.excecoes.loaded = false;
+      pcExcecoesLoad();
+    }, function (err) {
+      inFlight.pcExcecao = false;
+      pcState.excecoes.formError = pcMutationErrorCopy(err);
+      renderPanel();
+    });
+  }
+
+  // Gate 16 (canonical column set) + Gate 24 (empty state, not error).
+  function renderPendenciasSection() {
+    var html = '<p class="modSubtitle">Governança dos alertas gerados automaticamente pela reconciliação de vendedores das Bases 01/02. Nenhum dado financeiro ou de cliente é exibido aqui.</p>';
+    html += pcAbaSwitchHtml();
+    if (pcState.aba === 'excecoes') {
+      return html + renderExcecoesTab();
+    }
+    if (pcState.error) {
+      return html + errorStateHtml(pcState.error.state, pcState.error.message) +
+        '<div class="maDetailActions"><button type="button" class="modBtn" id="pcRetryBtn">Tentar novamente</button></div>';
+    }
+    if (pcState.loading || !pcState.loaded) {
+      return html + '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando pendências cadastrais...</div>';
+    }
+    if (successMessage && !pcDetailId) {
+      html += '<div class="modSuccessState" role="status">' + esc(successMessage) + '</div>';
+      successMessage = null;
+    }
+    html += pcSummaryCardsHtml();
+    html += pcTabsHtml();
+    html += pcFiltersHtml();
+    html += '<div id="pcResultsArea">' + pcResultsAreaHtml() + '</div>';
+    return html;
+  }
+
   // ---------- master render ----------
   function renderPanel() {
     var panel = document.getElementById('maPanel');
@@ -922,6 +1508,33 @@
 
     if (currentSection === 'auditoria') {
       panel.innerHTML = renderAuditoriaSection();
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'pendenciasCadastrais') {
+      // Modal-root sync FIRST (may null pcDetailId if the row fell out
+      // of the just-reloaded, currently-filtered server result -- a
+      // real possibility here, unlike Usuários, since a status-changing
+      // mutation can remove a row from a status-filtered tab entirely).
+      // Only after that is settled does the main panel decide whether
+      // the success banner belongs here or inside the modal (Gate 13
+      // discipline, extended to handle a modal that may have just
+      // auto-closed).
+      //
+      // Skipped while pcState.loading: a mutation's own success handler
+      // sets successMessage THEN calls pcLoad(), whose own FIRST render
+      // (the "Carregando..." tick, before the fresh rows arrive) would
+      // otherwise find the modal's row still present with its OLD
+      // (stale, pre-mutation) data and consume/display the success
+      // message right there -- one render too early, against data that
+      // hasn't actually changed yet. Leaving #nxModalRoot's previous
+      // content untouched for that one tick means the message is still
+      // available to show once the FRESH, post-mutation render actually
+      // runs, with no visible flicker in between (the modal simply
+      // keeps showing what it already showed).
+      if (!pcState.loading) renderPcModalRoot();
+      panel.innerHTML = renderPendenciasSection();
       wireInteraction();
       return;
     }
@@ -1031,6 +1644,36 @@
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openUserModal(el.getAttribute('data-key'), el); }
       });
     });
+
+    // ---- Pendências Cadastrais (Painel Master Phase PM-4C.2) ----
+    document.querySelectorAll('.pcAbaBtn').forEach(function (el) {
+      el.addEventListener('click', function () { pcSetAba(el.getAttribute('data-aba')); });
+    });
+    var pcRetry = document.getElementById('pcRetryBtn');
+    if (pcRetry) pcRetry.addEventListener('click', pcLoad);
+    document.querySelectorAll('.pcTabBtn').forEach(function (el) {
+      el.addEventListener('click', function () { pcState.tab = el.getAttribute('data-tab'); pcLoad(); });
+    });
+    var pcFilterTipo = document.getElementById('pcFilterTipo');
+    if (pcFilterTipo) pcFilterTipo.addEventListener('change', function (e) { pcState.filtros.tipo = e.target.value; pcLoad(); });
+    var pcFilterOrigem = document.getElementById('pcFilterOrigem');
+    if (pcFilterOrigem) pcFilterOrigem.addEventListener('change', function (e) { pcState.filtros.origem = e.target.value; pcLoad(); });
+    var pcSearch = document.getElementById('pcSearch');
+    if (pcSearch) pcSearch.addEventListener('input', function (e) { pcSetBusca(e.target.value); });
+    wirePcResultsInteraction();
+
+    // ---- Pendências: Exceções aba ----
+    var pcExcRetry = document.getElementById('pcExcRetryBtn');
+    if (pcExcRetry) pcExcRetry.addEventListener('click', pcExcecoesLoad);
+    var pcExcFilterTipo = document.getElementById('pcExcFilterTipo');
+    if (pcExcFilterTipo) pcExcFilterTipo.addEventListener('change', function (e) { pcState.excecoes.filtroTipo = e.target.value; pcState.excecoes.loaded = false; pcExcecoesLoad(); });
+    var pcExcFilterAtivo = document.getElementById('pcExcFilterAtivo');
+    if (pcExcFilterAtivo) pcExcFilterAtivo.addEventListener('change', function (e) { pcState.excecoes.filtroAtivo = (e.target.value === 'true'); pcState.excecoes.loaded = false; pcExcecoesLoad(); });
+    document.querySelectorAll('.pcRevogarBtn').forEach(function (el) {
+      el.addEventListener('click', function () { pcOpenRevogarExcecaoConfirm(el.getAttribute('data-key')); });
+    });
+    var pcExcSalvar = document.getElementById('pcExcSalvarBtn');
+    if (pcExcSalvar) pcExcSalvar.addEventListener('click', pcSalvarExcecaoManual);
 
     var search = document.getElementById('maSearch');
     if (search) search.addEventListener('input', function (e) { searchQuery = e.target.value; renderPanel(); });
@@ -1218,6 +1861,112 @@
       acessosExecuteSave(delta);
       return;
     }
+
+    // ---- Pendências Cadastrais mutations (Painel Master Phase PM-4C.2) ----
+    // Gate 43: EVERY branch below reloads the canonical list from the
+    // RPC on success (pcLoad()) rather than patching local state --
+    // Ignorar alone can affect many rows via server-side propagation,
+    // so a canonical reload is the only way the UI can ever agree with
+    // the real backend effect.
+    if (kind === 'pcResolver') {
+      if (inFlight.pcMutate) return;
+      inFlight.pcMutate = true;
+      var motivoR = (document.getElementById('pcResolverMotivo') || {}).value || null;
+      window.NX_MASTER_PENDENCIAS_PROVIDER.resolverAlerta(pendingConfirm.target.id, motivoR, {}).then(function () {
+        inFlight.pcMutate = false;
+        pendingConfirm = null;
+        successMessage = 'Pendência marcada como resolvida.';
+        pcLoad();
+      }, function (err) {
+        inFlight.pcMutate = false;
+        pendingConfirm.error = pcMutationErrorCopy(err);
+        renderPcModalRoot();
+      });
+      return;
+    }
+    if (kind === 'pcIgnorar') {
+      var pcIgnorarMotivoEl = document.getElementById('pcIgnorarMotivo');
+      var motivoI = (pcIgnorarMotivoEl || {}).value || '';
+      if (!motivoI) { pendingConfirm.error = 'Selecione um motivo.'; renderPcModalRoot(); return; }
+      var obsI = (document.getElementById('pcIgnorarObs') || {}).value || null;
+      var criarExc = !!(document.getElementById('pcIgnorarExcecao') || {}).checked;
+      if (inFlight.pcMutate) return;
+      inFlight.pcMutate = true;
+      window.NX_MASTER_PENDENCIAS_PROVIDER.ignorarAlerta(pendingConfirm.target.id, motivoI, obsI, criarExc, {}).then(function (resp) {
+        inFlight.pcMutate = false;
+        pendingConfirm = null;
+        var msg = 'Pendência ignorada.';
+        if (resp.codigo === 'IGNORADO_COM_EXCECAO') msg += ' Exceção criada.';
+        if (resp.codigo === 'IGNORADO_SEM_EXCECAO') msg += ' Não foi possível criar a exceção (identificador não elegível).';
+        // Gate 30: never hide a propagated mutation -- surface the
+        // backend-reported count verbatim, never re-derived client-side.
+        var propagados = Number(resp.propagados) || 0;
+        if (propagados > 0) msg += ' Mais ' + propagados + ' pendência(s) do mesmo identificador também ' + (propagados === 1 ? 'foi ignorada' : 'foram ignoradas') + '.';
+        successMessage = msg;
+        pcLoad();
+      }, function (err) {
+        inFlight.pcMutate = false;
+        pendingConfirm.error = pcMutationErrorCopy(err);
+        renderPcModalRoot();
+      });
+      return;
+    }
+    if (kind === 'pcExcluir') {
+      var motivoE = (document.getElementById('pcExcluirMotivo') || {}).value || '';
+      if (!motivoE.trim()) { pendingConfirm.error = 'Informe o motivo.'; renderPcModalRoot(); return; }
+      if (inFlight.pcMutate) return;
+      inFlight.pcMutate = true;
+      window.NX_MASTER_PENDENCIAS_PROVIDER.excluirAlerta(pendingConfirm.target.id, motivoE, {}).then(function () {
+        inFlight.pcMutate = false;
+        pendingConfirm = null;
+        successMessage = 'Pendência excluída.';
+        pcLoad();
+      }, function (err) {
+        inFlight.pcMutate = false;
+        pendingConfirm.error = pcMutationErrorCopy(err);
+        renderPcModalRoot();
+      });
+      return;
+    }
+    if (kind === 'pcCorrigirNbs') {
+      var novoNbs = ((document.getElementById('pcNovoNbs') || {}).value || '').trim();
+      if (!novoNbs) { pendingConfirm.error = 'Informe um valor válido.'; renderPcModalRoot(); return; }
+      var obsN = (document.getElementById('pcNovoNbsObs') || {}).value || null;
+      if (inFlight.pcMutate) return;
+      inFlight.pcMutate = true;
+      window.NX_MASTER_PENDENCIAS_PROVIDER.corrigirLoginNbs(pendingConfirm.target.id, novoNbs, obsN, {}).then(function (resp) {
+        inFlight.pcMutate = false;
+        pendingConfirm = null;
+        var extras = Number(resp.alertas_resolvidos) || 0;
+        var msg = 'Login NBS corrigido.';
+        if (extras === 1) msg += ' Alerta resolvido.';
+        else if (extras > 1) msg += ' ' + extras + ' alertas relacionados resolvidos automaticamente.';
+        successMessage = msg;
+        pcLoad();
+      }, function (err) {
+        inFlight.pcMutate = false;
+        pendingConfirm.error = pcMutationErrorCopy(err);
+        renderPcModalRoot();
+      });
+      return;
+    }
+    if (kind === 'pcRevogarExcecao') {
+      if (inFlight.pcExcecao) return;
+      inFlight.pcExcecao = true;
+      window.NX_MASTER_PENDENCIAS_PROVIDER.revogarExcecao(pendingConfirm.target.id, {}).then(function () {
+        inFlight.pcExcecao = false;
+        pendingConfirm = null;
+        successMessage = 'Exceção revogada.';
+        pcState.excecoes.loaded = false;
+        pcExcecoesLoad();
+      }, function (err) {
+        inFlight.pcExcecao = false;
+        pendingConfirm.error = pcMutationErrorCopy(err);
+        renderPanel();
+      });
+      return;
+    }
+
     if (kind === 'generateAccessLink') {
       if (inFlight.generateLink) return;
       inFlight.generateLink = true;
@@ -1328,6 +2077,12 @@
       };
       auditState = { loading: false, loaded: false, error: null, rows: [] };
       auditDetailId = null;
+      pcState = {
+        loading: false, loaded: false, error: null, rows: [], total: 0,
+        aba: 'alertas', tab: 'PENDENTES', filtros: { tipo: '', origem: '', busca: '' },
+        excecoes: { loading: false, loaded: false, error: null, rows: [], filtroTipo: '', filtroAtivo: true, formError: null }
+      };
+      pcDetailId = null;
       nxModalTriggerEl = null;
       var staleModalRoot = document.getElementById('nxModalRoot');
       if (staleModalRoot) { staleModalRoot.innerHTML = ''; staleModalRoot.setAttribute('aria-hidden', 'true'); }
