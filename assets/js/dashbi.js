@@ -132,10 +132,20 @@
       .then(function (data) { fixturesData = data.cases; return fixturesData; });
   }
 
-  function headerRow(headers, numericFrom) {
+  // FC-1.3 (DASHBI_ANALYTICAL_TABLE_NUMERIC_READABILITY_DEFECT) -- colClasses
+  // (optional, one entry per header, '' where none applies) adds a semantic
+  // column-type class (dbColName/dbColCount/dbColPercent/dbColMoney/
+  // dbColRank -- dashbi.css) alongside the existing numericFrom-based
+  // dbNumCol, so table-layout:fixed can give money columns real width
+  // instead of an even 1/N split. Omitted, every existing caller is
+  // byte-identical to before.
+  function headerRow(headers, numericFrom, colClasses) {
     numericFrom = numericFrom == null ? 1 : numericFrom;
     return headers.map(function (h, i) {
-      return '<th' + (i >= numericFrom ? ' class="dbNumCol"' : '') + '>' + esc(h) + '</th>';
+      var classes = [];
+      if (i >= numericFrom) classes.push('dbNumCol');
+      if (colClasses && colClasses[i]) classes.push(colClasses[i]);
+      return '<th' + (classes.length ? ' class="' + classes.join(' ') + '"' : '') + '>' + esc(h) + '</th>';
     }).join('');
   }
   function row(cells) {
@@ -393,8 +403,8 @@
       detailRowHtml(ns, key, colspan, detailGroups);
   }
 
-  function expandableTableHtml(headers, numericFrom, bodyRowsHtml, colCount) {
-    return '<div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' + headerRow(headers.concat(['']), numericFrom) + '</tr></thead>' +
+  function expandableTableHtml(headers, numericFrom, bodyRowsHtml, colCount, colClasses, tableClass) {
+    return '<div class="dbTableWrap"><table class="dbTable dbTableExpandable' + (tableClass ? ' ' + tableClass : '') + '"><thead><tr>' + headerRow(headers.concat(['']), numericFrom, colClasses) + '</tr></thead>' +
       '<tbody>' + (bodyRowsHtml.length ? bodyRowsHtml.join('') : '<tr><td colspan="' + colCount + '" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -404,7 +414,17 @@
   // already on finLoja/finVendDept, not a new business rule.
   function retornoFromFin(f) { return f.producao ? (f.receitaTotal || 0) / f.producao : 0; }
 
-  var STORE_HEADERS = ['Loja', 'Vendas', 'Financiamentos', 'Share', 'Produção Total', 'Receita Total'];
+  // FC-1.3 (Gate 13): a soft hyphen (­) after "Financia" gives the
+  // browser a real, sensible hyphenation point ("FINANCIA-"/"MENTOS") to
+  // prefer over an arbitrary mid-word character break ("FINANCIAMENT"/"OS",
+  // the ugly fragmentation the human's screenshots showed and Gate 13
+  // explicitly forbids) when dbColCount's width is narrower than the full
+  // label at some viewport. Invisible unless an actual break happens there;
+  // "Financiamentos" as a word/term is completely unchanged.
+  var STORE_HEADERS = ['Loja', 'Vendas', 'Financia­mentos', 'Share', 'Produção Total', 'Receita Total'];
+  // FC-1.3: money columns (Produção/Receita Total) get real width instead
+  // of an even 1/N split with count/percent columns -- Gate 10/24.
+  var STORE_HEADER_COL_CLASSES = ['dbColName', 'dbColCount', 'dbColCount', 'dbColPercent', 'dbColMoney', 'dbColMoney'];
 
   // PORTAL-NEXT-07.6.4 — shared by store/seller: the 5 primary metrics
   // as mobile-card fields (Vendas+Financiamentos paired, per the human's
@@ -472,7 +492,7 @@
       desktopRows.push(expandableRow(ns, loja, [loja, { raw: vendasCell }, { raw: finCell }, { raw: shareCell }, { raw: producaoCell }, { raw: receitaTotalCell }], 1, 7, detailGroups, STORE_HEADERS));
       mobileCards.push(dbMobileCard(ns, loja, loja, null, dbPrimaryMetricFieldsHtml(A, v, f, share, prev), detailGroups));
     });
-    return '<div class="dbDesktopOnly">' + expandableTableHtml(STORE_HEADERS, 1, desktopRows, 7) + '</div>' + dbMobileListHtml(mobileCards);
+    return '<div class="dbDesktopOnly">' + expandableTableHtml(STORE_HEADERS, 1, desktopRows, 7, STORE_HEADER_COL_CLASSES, 'dbTableLoja') + '</div>' + dbMobileListHtml(mobileCards);
   }
 
   var VEHICLE_IMAGES = {
@@ -519,7 +539,7 @@
   var MODEL_TABLE_COLUMNS = [
     { group: null, key: 'Modelo', label: 'Modelo' },
     { group: 'Volume', key: 'volume', label: 'Volume', f: function (A, v) { return A.num(v); } },
-    { group: 'Volume', key: 'financiada', label: 'Financiamentos', f: function (A, v) { return A.num(v); } },
+    { group: 'Volume', key: 'financiada', label: 'Financia­mentos', f: function (A, v) { return A.num(v); } },
     { group: 'Volume', key: 'penetracao', label: 'Penetração', f: function (A, v) { return A.pct(v); }, penetracao: true },
     { group: 'Financeiro', key: 'producao', label: 'Produção', f: function (A, v) { return A.money(v); } },
     { group: 'Financeiro', key: 'receita', label: 'Receita', f: function (A, v) { return A.money(v); } },
@@ -575,6 +595,16 @@
   // metric in exactly one place regardless of viewport.
   var MODEL_PRIMARY_ALWAYS = ['volume', 'financiada', 'penetracao'];
   var MODEL_PRIMARY_DESKTOP = ['producao', 'receitaTotal', 'ticket', 'retornoMedio'];
+  // FC-1.3 (DASHBI_ANALYTICAL_TABLE_NUMERIC_READABILITY_DEFECT, Gate 11):
+  // only the 7 keys that ever appear in the PRIMARY row need a width class
+  // -- the other 12 MODEL_TABLE_COLUMNS entries render inside the +
+  // Detalhes grid panel (.dbDetailPanel), which lays out items in its own
+  // minmax(0,160px) grid, not a fixed-layout table column, so they don't
+  // need (or use) this classification.
+  var MODEL_COL_TYPE = {
+    volume: 'dbColCount', financiada: 'dbColCount', penetracao: 'dbColPercent',
+    producao: 'dbColMoney', receitaTotal: 'dbColMoney', ticket: 'dbColMoney', retornoMedio: 'dbColPercent'
+  };
 
   function modelCellHtml(A, c, r, prevByModelo) {
     var val = r[c.key];
@@ -611,9 +641,14 @@
       detailGroupsByLabel[c.group].push(c);
     });
 
-    var headCells = '<th scope="col">Modelo</th>' +
-      alwaysCols.map(function (c) { return '<th class="dbNumCol" scope="col">' + esc(c.label) + '</th>'; }).join('') +
-      desktopCols.map(function (c) { return '<th class="dbNumCol dbDesktopCol" scope="col">' + esc(c.label) + '</th>'; }).join('') +
+    // FC-1.3 (Gate 11): money columns (Produção/Receita Total/Ticket Médio)
+    // get real width instead of an even 1/N split with the compact count/
+    // percent columns -- this is exactly what made Produção/Receita Total/
+    // Ticket Médio visually collide in the human's screenshots.
+    var colType = function (key) { return MODEL_COL_TYPE[key] || 'dbColCount'; };
+    var headCells = '<th class="dbColName" scope="col">Modelo</th>' +
+      alwaysCols.map(function (c) { return '<th class="dbNumCol ' + colType(c.key) + '" scope="col">' + esc(c.label) + '</th>'; }).join('') +
+      desktopCols.map(function (c) { return '<th class="dbNumCol dbDesktopCol ' + colType(c.key) + '" scope="col">' + esc(c.label) + '</th>'; }).join('') +
       '<th scope="col"></th>';
     var colspan = 1 + alwaysCols.length + desktopCols.length + 1;
     var ns = 'modelIndicators';
@@ -628,7 +663,7 @@
         '<td class="dbDetailToggleCell">' + detailToggleHtml(ns, key) + '</td></tr>' +
         detailRowHtml(ns, key, colspan, groups);
     }).join('');
-    return '<div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' + headCells + '</tr></thead>' +
+    return '<div class="dbTableWrap"><table class="dbTable dbTableExpandable dbTableModelos"><thead><tr>' + headCells + '</tr></thead>' +
       '<tbody>' + (body || '<tr><td colspan="' + colspan + '" class="dbMuted">Nenhum dado encontrado.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -810,8 +845,15 @@
     if (!list.length) return '<h3 class="dbSubHeading">' + esc(title) + '</h3><p class="dbMuted">Sem dados.</p>';
     var built = rankingRowHtml(A, list, kind);
     return '<h3 class="dbSubHeading">' + esc(title) + '</h3>' +
-      '<div class="dbDesktopOnly"><div class="dbTableWrap"><table class="dbTable dbTableExpandable"><thead><tr>' +
-      headerRow(['#', 'Nome', 'Vendas', 'Financiamentos', 'Share', 'Produção Total', 'Receita Total', ''], 2) +
+      '<div class="dbDesktopOnly"><div class="dbTableWrap"><table class="dbTable dbTableExpandable dbTableRanking"><thead><tr>' +
+      // FC-1.3 (Gate 12, Ranking column priority): '#' is Ranking's actual
+      // first-child, NOT the identity column -- the shared .dbTableExpandable
+      // thead th:first-child{width:34%} rule (correct for Loja/Modelo, whose
+      // identity column really is first) was misapplied here, starving
+      // "Nome" (2nd column) of width instead. Explicit dbColRank/dbColName
+      // classes fix this regardless of column position.
+      headerRow(['#', 'Nome', 'Vendas', 'Financia­mentos', 'Share', 'Produção Total', 'Receita Total', ''], 2,
+        ['dbColRank', 'dbColName', 'dbColCount', 'dbColCount', 'dbColPercent', 'dbColMoney', 'dbColMoney']) +
       '</tr></thead><tbody>' + built.rowsHtml + '</tbody></table></div></div>' +
       dbMobileListHtml(built.cards);
   }
