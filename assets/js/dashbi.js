@@ -72,6 +72,13 @@
   var currentPreset = 'CUSTOM';
   var currentDateStart = '2026-01-01';
   var currentDateEnd = '2026-12-31';
+  // FC-2 (GAP-004): the last successfully computed `out` (fixture, via
+  // A.compute(), or real, via NX_DASHBI_REAL_VIEW_MODEL.buildRealOut()),
+  // captured by renderPanel() below -- the export reads out.aggs.shareLojaDept
+  // directly from this, the SAME already-authorized/already-computed object
+  // the panel itself was drawn from (no bypassing direct fetch, Gate 11).
+  var currentOut = null;
+  var lastExportAt = 0;
 
   // PORTAL-NEXT-07.2 — selective analytical navigation. Mirrors production's
   // own single-active-region tab switcher (showTab(): exactly one of
@@ -944,8 +951,16 @@
         ' vendedor(es)/NBS não localizados na Base de Vendedores: ' + out.missingSellers.map(esc).join(', ') +
         '. A produção real também interrompe o processamento neste caso (mesmo comportamento reproduzido aqui — nenhum resultado parcial é exibido).</div>';
       if (subnav) subnav.innerHTML = '';
+      currentOut = null;
       return;
     }
+    // FC-2 (GAP-004): captured BEFORE any currentDeptView filtering below --
+    // V1's exportarResumoCSV() read lastResults.aggs.shareLojaDept, i.e. the
+    // full cross-department "Loja | Dept" aggregate computed once over the
+    // whole authorized dataset, never the department-filtered deptOut used
+    // by the on-screen "Vendas e Financiamentos por Loja" table. Preserving
+    // that same full-dataset scope here, independent of currentDeptView.
+    currentOut = out;
 
     // FC-1 (GAP-001): the previous period is complementary, never a reason
     // to fail/alter the current one (Gate 12, this Wave's brief) -- a
@@ -1048,7 +1063,14 @@
       // from Visão Geral by explicit human decision (redundant with
       // Ranking, which is the dedicated seller-performance surface) --
       // see the note above sellerTableHtml's deletion.
-      '<h2>Vendas e Financiamentos por Loja</h2>' + storeTableHtml(A, deptOut, deptPreviousOut) +
+      '<h2>Vendas e Financiamentos por Loja</h2>' +
+      // FC-2 (GAP-004): restores V1's exportarResumoCSV() (orphaned/unreachable
+      // in V1 production -- confirmed via grep, no button ever wired to it
+      // there) as a discoverable-but-not-dominant action next to this table,
+      // not a global "Exportar" -- Gate 27, this Wave's brief.
+      '<div class="dbExportBar"><button type="button" class="dbBtn dbExportResumoBtn" id="dbExportResumoBtn">Exportar Excel</button>' +
+      '<span id="dbExportResumoStatus" class="dbMuted dbExportStatus" role="status" aria-live="polite"></span></div>' +
+      storeTableHtml(A, deptOut, deptPreviousOut) +
 
       complementaryHtml +
 
@@ -1193,6 +1215,64 @@
       toggleExpanded(btn.dataset.detailNs, btn.dataset.detailKey);
       render();
     });
+    // FC-2 (GAP-004)
+    document.getElementById('dbPanel').addEventListener('click', function (e) {
+      var btn = e.target.closest('.dbExportResumoBtn');
+      if (!btn) return;
+      exportResumoLojaXlsx(btn);
+    });
+  }
+
+  // FC-2 (GAP-004): dataset/column contract ported field-for-field from V1's
+  // exportarResumoCSV() (analise-geral-grupo-secure-original-layout.html) --
+  // same 14 columns, same order, same rowsFromAgg(shareLojaDept,"Grupo")
+  // source (already available byte-identically as
+  // NX_DASHBI_ADAPTER.rowsFromAgg/aggregate). Two deliberate V2 adaptations,
+  // both presentation-only (no business-value change), documented per
+  // Gate 23/29:
+  //  1) V1 wrote XLSX.writeFile(wb,"resumo_fi_brabus.csv") -- a ".csv"
+  //     extension on a workbook built via XLSX.utils.book_new(), which
+  //     SheetJS's own extension-sniffing turns into an actual CSV on disk
+  //     despite the "Excel export" framing. V2 writes a genuine .xlsx file
+  //     with a self-describing name instead of reproducing that defect.
+  //  2) Real header-fill/number-format styling (xlsx-js-style via the
+  //     shared helper) instead of V1's plain, unstyled json_to_sheet output.
+  function exportResumoLojaXlsx(btn) {
+    var now = Date.now();
+    if (now - lastExportAt < 800) return; // debounce accidental double-click
+    lastExportAt = now;
+    var statusEl = document.getElementById('dbExportResumoStatus');
+    var A = window.NX_DASHBI_ADAPTER;
+    var rows = A.rowsFromAgg(currentOut.aggs.shareLojaDept, 'Grupo');
+    if (!rows.length) {
+      if (statusEl) statusEl.textContent = 'Nenhum dado disponível para exportação no período/filtro selecionado.';
+      return;
+    }
+    var headers = ['Grupo', 'Vendas', 'Financiamentos', 'Penetracao', 'Receita', 'ReceitaSPF', 'ReceitaTotal', 'Producao', 'Retorno', 'MediaParcelas', 'MediaPMT', 'Balao', 'Linear', 'ValorMedioBalao'];
+    var dataRows = rows.map(function (r) {
+      return [
+        r.Grupo, r.vendas || 0, r.fin || 0, r.penetracao || 0,
+        r.receita || 0, r.receitaSPF || 0, r.receitaTotal || ((r.receita || 0) + (r.receitaSPF || 0)),
+        r.producao || 0, r.retorno || 0, r.parcelasMed || 0, r.pmtMed || 0,
+        r.balaoQtd || 0, r.linearQtd || 0, r.balaoMed || 0
+      ];
+    });
+    var columnTypes = {
+      moneyCols: new Set(['Receita', 'ReceitaSPF', 'ReceitaTotal', 'Producao', 'MediaPMT', 'ValorMedioBalao']),
+      pctCols: new Set(['Penetracao', 'Retorno']),
+      intCols: new Set(['Vendas', 'Financiamentos', 'Balao', 'Linear']),
+      textCols: new Set(['Grupo'])
+    };
+    btn.disabled = true;
+    try {
+      var filename = 'DashBI_Resumo_Loja_' + window.NX_XLSX_EXPORT_HELPER.excelFileStamp() + '.xlsx';
+      window.NX_XLSX_EXPORT_HELPER.downloadWorkbook(headers, dataRows, 'Resumo', filename, columnTypes);
+      if (statusEl) statusEl.textContent = 'Exportado: ' + filename;
+    } catch (err) {
+      if (statusEl) statusEl.textContent = 'Falha ao gerar o arquivo Excel. Tente novamente.';
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   // Dashbi Phase 2, Gate B4 -- pageShellHtml(isFixtureMode) keeps the

@@ -73,6 +73,11 @@
 .dbPage h2 { font-family: var(--font-ui); font-weight: 400; font-size: 17px; margin: var(--space-6) 0 var(--space-3); }
 .dbPage h2:first-of-type { margin-top: 0; }
 .dbMuted { color: var(--color-text-muted); font-size: 12px; margin: 0 0 var(--space-3); }
+/* FC-2 (GAP-004): discoverable-but-not-dominant export action, reusing the
+   existing .dbBtn segmented-control look rather than a new visual language. */
+.dbExportBar { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-3); flex-wrap: wrap; }
+.dbExportStatus { margin: 0; }
+.dbExportResumoBtn:disabled { opacity: .55; cursor: default; }
 .dbDiagJson { font-family: var(--font-mono); overflow-wrap: anywhere; }
 
 /* Wave 3A: the top-tier KPI grid (Vendas/Financiamentos/Share/Produção

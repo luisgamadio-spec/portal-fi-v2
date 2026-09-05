@@ -1591,6 +1591,10 @@
     processBase02: processBase02,
     buildB03Index: buildB03Index,
     aggregate: aggregate,
+    // FC-2 (GAP-004): exposed so dashbi.js's export can build the exact
+    // same rows the on-screen tables already build from -- no separate
+    // export-only data path.
+    rowsFromAgg: rowsFromAgg,
     modelRowsUnified: modelRowsUnified,
     planRowsByModel: planRowsByModel,
     planRowsByStoreForFamily: planRowsByStoreForFamily,

@@ -86,6 +86,14 @@ if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
 <script src="assets/js/module-registry.js"></script>
 <script src="assets/js/design-trace.js"></script>
 <script src="assets/js/landing.js"></script>
+<!-- FC-2 (GAP-003/GAP-004): xlsx-js-style is the EXACT library+version V1's
+     own Score export (exportarCoparticipados(), modules/score.html) already
+     uses -- a styled SheetJS fork (supports cell.s formatting: header fill/
+     bold, number formats, column widths), a strict superset of plain xlsx
+     (which V1's Dash BI export used). One library serves both exports
+     (Gate 14/15: prefer existing capability, avoid a second library). -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" integrity="sha384-OUW9euuUyxyHcAhTqbhI+Iyb8LMssXt/cpz0yXhs9UWG2/R/uaWdakx/4cfww7Vb" crossorigin="anonymous"></script>
+<script src="assets/js/lib/xlsx-export-helper.js"></script>
 <script src="assets/js/adapters/score.adapter.js"></script>
 <script src="assets/js/adapters/score-real-provider.js"></script>
 <script src="assets/js/adapters/score-real-view-model.js"></script>

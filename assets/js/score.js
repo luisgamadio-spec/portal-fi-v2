@@ -12,6 +12,25 @@
   var fixturesData = null;
   var currentRows = [];
   var currentDetailKey = null;
+  // FC-2 (GAP-003): raw fins[] behind the currently rendered currentRows --
+  // calcScores() only keeps per-seller aggregates, so the export needs its
+  // own reference to the same already-computed/already-authorized fins
+  // array (fixture: render()'s caseData.fins; real: loadReal()'s
+  // mapped.fins), never a second fetch.
+  var currentFins = [];
+  // FC-2 (GAP-003), fixture mode only: mirrors the Coparticipado module's
+  // OWN established convention (coparticipado.adapter.js's compute(fixture)
+  // -- "DATA.taxasCopart = fixture.taxasCopart || {}") rather than
+  // hardcoding a rate table in this file. Every existing golden Score
+  // fixture case simply has no taxasCopart key, so this is always {} for
+  // them today -- combined with golden fins[] rows also lacking `modelo`
+  // (Gate 13 privacy-minimization predates this Wave), every row
+  // naturally falls back to calcCoparticipacaoDetalhe()'s own existing
+  // "Modelo não encontrado" result, exactly as V1 itself already renders
+  // for an unmatched model (Gate: accept the graceful fallback, this is
+  // not a defect to work around).
+  var currentTaxasCopart = {};
+  var lastScExportAt = 0;
 
   // Score Phase 2A (Real Data Integration Foundation) -- the ONE place
   // transport is decided, same rule as gestao.js/dashbi.js/
@@ -259,6 +278,8 @@
       var fixtureSelect = document.getElementById('scFixtureSelect');
       var currentId = fixtureSelect ? fixtureSelect.value : FIXTURE_IDS[0];
       var caseData = fixturesData.filter(function (c) { return c.id === currentId; })[0];
+      currentFins = caseData.fins || [];
+      currentTaxasCopart = caseData.taxasCopart || {};
       renderPanel(window.NX_SCORE_ADAPTER.compute(caseData.sales, caseData.fins));
       return;
     }
@@ -306,6 +327,7 @@
           if (r2) r2.innerHTML = errorStateHtml(e && e.state, e && e.message);
           return;
         }
+        currentFins = mapped.fins || [];
         realResult = window.NX_SCORE_ADAPTER.compute(mapped.sales, mapped.fins);
         renderPanel(realResult);
       },
@@ -377,6 +399,96 @@
     }
   }
 
+  // FC-2 (GAP-003): restores V1's exportarCoparticipados() (modules/
+  // score.html -- confirmed orphaned/unreachable in V1 production, no
+  // button ever wired to it there). Column contract, order, labels, row-
+  // value derivations and the "Modelo não encontrado na tabela de taxa"
+  // string-in-a-numeric-column fallback are ported field-for-field from
+  // V1's own source, including V1's "Prazo" reading r.parcelas (installment
+  // COUNT) and "Parcela" reading r.pmt (installment VALUE) -- an odd-
+  // looking but deliberate V1 naming that this export preserves rather
+  // than silently "fixing" (Gate: no undocumented reinterpretation of a
+  // frozen V1 contract). Coparticipação/rebate math is NEVER recomputed
+  // here -- calcCoparticipacaoDetalhe()/findTaxaCopart() are the SAME
+  // formula-frozen functions already reused by the separate Coparticipado
+  // module (window.NX_COPARTICIPADO_ADAPTER), not a second classifier.
+  //
+  // REAL-MODE FIELD GAP (this Wave's central finding, documented in the
+  // FC-2 audit): score-real-view-model.js's buildFins() deliberately omits
+  // modelo/cliente/chassi/data/parcelas/pmt/situacaoB3/valorVenda from real
+  // Score data (a documented Gate-13 privacy-minimization decision from an
+  // earlier wave, NOT reversed here without human authorization) -- every
+  // one of those fields is required by this export's own contract. Shipping
+  // a "working" real-mode button would silently produce a workbook with
+  // nearly every column blank/fallback for every row, which is a
+  // misleading export, not a degraded-but-honest one. Real mode is
+  // therefore gated off with a clear, visible reason rather than
+  // implemented in a broken/misleading form.
+  function exportCoparticipadosXlsx(btn) {
+    var now = Date.now();
+    if (now - lastScExportAt < 800) return; // debounce accidental double-click
+    lastScExportAt = now;
+    var statusEl = document.getElementById('scExportStatus');
+    var fins = (currentFins || []).filter(function (f) { return f.plano === 'COPARTICIPADO'; });
+    if (!fins.length) {
+      if (statusEl) statusEl.textContent = 'Nenhum coparticipado encontrado no filtro atual.';
+      return;
+    }
+    var CA = window.NX_COPARTICIPADO_ADAPTER;
+    // Transient cross-module state write (Gate: reuse, not duplicate, the
+    // frozen classifier) -- harmless: the Coparticipado module's own
+    // compute()/buildRealResult() path resets DATA.taxasCopart from ITS
+    // OWN fixture/real payload on every render, so this never leaves stale
+    // rate data behind for that module.
+    CA.setTaxasCopart(currentTaxasCopart);
+    var NAO_ENCONTRADO = 'Modelo não encontrado na tabela de taxa';
+    var headers = ['Nome do cliente', 'Vendedor', 'Loja vinculada', 'Modelo do carro', 'Modelo tabela taxa', 'Família do carro', 'Valor de venda', 'Valor de entrada', 'Percentual de entrada', 'Valor financiado', 'Rebate Total', 'Rebate Parte Brabus', 'Valor do Rebate Total', 'Valor da Coparticipação', 'Situação', 'Prazo', 'Parcela', 'Data da venda', 'Chassi'];
+    var dataRows = fins.map(function (r) {
+      var c = CA.calcCoparticipacaoDetalhe(r) || {};
+      var valorVenda = Number(r.valorVenda) || 0;
+      var valorFinanciado = Number(r.valorFinanciado) || 0;
+      var entrada = Math.max(0, valorVenda - valorFinanciado);
+      return [
+        r.cliente || '',
+        r.vendedor || '',
+        r.loja || '',
+        r.modelo || '',
+        c.modeloTabela || NAO_ENCONTRADO,
+        r.familia || '',
+        valorVenda,
+        entrada,
+        valorVenda ? entrada / valorVenda : 0,
+        valorFinanciado,
+        c.ok ? (Number(c.rebateTotal) || 0) : NAO_ENCONTRADO,
+        c.ok ? (Number(c.parteBrabus) || 0) : NAO_ENCONTRADO,
+        c.ok ? (Number(c.valorRebateTotal) || 0) : NAO_ENCONTRADO,
+        c.ok ? (Number(c.coparticipacao) || 0) : NAO_ENCONTRADO,
+        r.situacaoB3 || '',
+        r.parcelas ? Number(r.parcelas) : '',
+        r.pmt ? Number(r.pmt) : '',
+        window.NX_XLSX_EXPORT_HELPER.excelDateValue(r.data) || '',
+        r.chassi || ''
+      ];
+    });
+    var columnTypes = {
+      moneyCols: new Set(['Valor de venda', 'Valor de entrada', 'Valor financiado', 'Valor do Rebate Total', 'Valor da Coparticipação', 'Parcela']),
+      pctCols: new Set(['Percentual de entrada', 'Rebate Total', 'Rebate Parte Brabus']),
+      dateCols: new Set(['Data da venda']),
+      intCols: new Set(['Prazo']),
+      textCols: new Set(['Nome do cliente', 'Vendedor', 'Loja vinculada', 'Modelo do carro', 'Modelo tabela taxa', 'Família do carro', 'Situação', 'Chassi'])
+    };
+    btn.disabled = true;
+    try {
+      var filename = 'Coparticipados_Score_FI_' + window.NX_XLSX_EXPORT_HELPER.excelFileStamp() + '.xlsx';
+      window.NX_XLSX_EXPORT_HELPER.downloadWorkbook(headers, dataRows, 'Coparticipados', filename, columnTypes);
+      if (statusEl) statusEl.textContent = 'Exportado: ' + filename;
+    } catch (err) {
+      if (statusEl) statusEl.textContent = 'Falha ao gerar o arquivo Excel. Tente novamente.';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   window.NX_SCORE_PAGE = {
     // PORTAL-NEXT-07.7B — exposed read-only for deterministic band
     // boundary/invalid-input testing (tests/score-band-test.py), same
@@ -436,9 +548,20 @@
             '<label for="scFixtureSelect">fixture:</label>' +
             '<select id="scFixtureSelect">' + options + '</select></div>';
         }
+        // FC-2 (GAP-003): discoverable-but-not-dominant, next to the
+        // header rather than a global "Exportar" (Gate 27). Real mode
+        // renders the button disabled with an explicit reason (see
+        // exportCoparticipadosXlsx's own comment) instead of hiding the
+        // action entirely or shipping a silently-broken export.
+        var exportDisabledMsg = 'Exportação de Coparticipados disponível apenas em modo de teste (fixture) nesta versão -- o backend real ainda não retorna os dados de modelo/cliente/chassi necessários para este relatório (decisão pendente de autorização humana).';
+        var exportBarHtml = '<div class="scExportBar">' +
+          '<button type="button" class="modBtn modBtnGhost scExportCopaBtn" id="scExportCopaBtn"' + (isFixtureMode ? '' : ' disabled aria-disabled="true"') + '>Exportar Coparticipados</button>' +
+          '<span id="scExportStatus" class="modMuted scExportStatus" role="status" aria-live="polite">' + (isFixtureMode ? '' : esc(exportDisabledMsg)) + '</span>' +
+          '</div>';
         outlet.innerHTML =
           '<div class="scPage">' +
           '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise de Score Vendedores</h1><p class="modSubtitle">Ranking de performance F&amp;I por vendedor.</p></div></div>' +
+          exportBarHtml +
           fixtureBanner +
           (isFixtureMode ? '' : periodFilterHtml()) +
           '<div id="scTableRegion"></div>' +
@@ -449,6 +572,8 @@
         } else {
           wireFilterEvents();
         }
+        var exportBtn = document.getElementById('scExportCopaBtn');
+        if (exportBtn) exportBtn.addEventListener('click', function () { exportCoparticipadosXlsx(exportBtn); });
         render();
       }
 
