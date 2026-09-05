@@ -90,6 +90,20 @@
         loja: r.store || '',
         dept: mapDept(r.department),
         modelo: r.model || 'NÃO INFORMADO',
+        // FC-2.3 (GAP-003 export, relocated here from Score): familia and
+        // valorVenda were absent from this mapping (this file's own
+        // buildSales() already carries valorVenda; V1's own real secure
+        // adapter, score-coparticipated-secure-adapter.js, sets BOTH on
+        // finance records too) -- neither is a new capability, both were
+        // simply never read by this module's own pre-export render
+        // functions (renderCoparticipadosTable/renderSubsidiadosTable
+        // don't show either column). Added now because the export's own
+        // validated contract needs them; familiaModelo() is the same
+        // function this file's own buildSales() already calls elsewhere
+        // in the codebase (exposed on NX_COPARTICIPADO_ADAPTER, not
+        // reimplemented).
+        familia: A.familiaModelo(r.model),
+        valorVenda: Number(r.sale_value) || 0,
         valorFinanciado: Number(r.financed_value) || 0,
         retorno: Number(r.return_value) || 0,
         receitaSPF: Number(r.spf_value) || 0,

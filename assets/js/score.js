@@ -12,27 +12,6 @@
   var fixturesData = null;
   var currentRows = [];
   var currentDetailKey = null;
-  // FC-2 (GAP-003): raw fins[] behind the currently rendered currentRows --
-  // calcScores() only keeps per-seller aggregates, so the export needs its
-  // own reference to the same already-computed/already-authorized fins
-  // array (fixture: render()'s caseData.fins; real: loadReal()'s
-  // mapped.fins), never a second fetch.
-  var currentFins = [];
-  // FC-2 (GAP-003): mirrors the Coparticipado module's OWN established
-  // convention (coparticipado.adapter.js's compute(fixture) --
-  // "DATA.taxasCopart = fixture.taxasCopart || {}") rather than
-  // hardcoding a rate table in this file. Fixture mode: from
-  // caseData.taxasCopart (every existing golden Score fixture case has no
-  // such key, so this is always {} for them -- combined with golden
-  // fins[] lacking `modelo`, every row naturally falls back to
-  // calcCoparticipacaoDetalhe()'s own existing "Modelo não encontrado"
-  // result, exactly as V1 itself already renders for an unmatched model --
-  // not a defect to work around). FC-2.2, real mode: from
-  // score-real-view-model.js's buildRealResult().taxasCopart, built from
-  // the real payload.rates[] the same way (Gate 19: canonical rate source,
-  // no fixture-only table in real mode).
-  var currentTaxasCopart = {};
-  var lastScExportAt = 0;
 
   // Score Phase 2A (Real Data Integration Foundation) -- the ONE place
   // transport is decided, same rule as gestao.js/dashbi.js/
@@ -264,21 +243,6 @@
       '</div>';
   }
 
-  // FC-2.2 (GAP-003, Gate 24): the export button's own region lives in
-  // the static shell (painted once by paintShell), outside #scTableRegion/
-  // #scDetailRegion -- renderPanel() alone doesn't cover every state
-  // transition (loading and error states never call renderPanel at all),
-  // so this is called directly from every place real-mode transport state
-  // changes: loadReal()'s own start/success/error, and render()'s
-  // invalid-filter-contract branch. Fixture mode never calls this with
-  // enabled=false (mechanics are always synchronous/local there).
-  function setExportButtonState(enabled, message) {
-    var btn = document.getElementById('scExportCopaBtn');
-    var statusEl = document.getElementById('scExportStatus');
-    if (btn) btn.disabled = !enabled;
-    if (statusEl) statusEl.textContent = message || '';
-  }
-
   function renderPanel(rows) {
     currentRows = rows;
     var tableHtml = renderTable(currentRows);
@@ -295,9 +259,6 @@
       var fixtureSelect = document.getElementById('scFixtureSelect');
       var currentId = fixtureSelect ? fixtureSelect.value : FIXTURE_IDS[0];
       var caseData = fixturesData.filter(function (c) { return c.id === currentId; })[0];
-      currentFins = caseData.fins || [];
-      currentTaxasCopart = caseData.taxasCopart || {};
-      setExportButtonState(true);
       renderPanel(window.NX_SCORE_ADAPTER.compute(caseData.sales, caseData.fins));
       return;
     }
@@ -310,11 +271,9 @@
       if (badRegion) badRegion.innerHTML = invalidFilterHtml(filterErr);
       var badDetail = document.getElementById('scDetailRegion');
       if (badDetail) badDetail.innerHTML = '';
-      // FC-2.2 (Gate 24): no export during a contract failure.
-      setExportButtonState(false, 'Selecione um período válido para habilitar a exportação.');
       return;
     }
-    if (realResult) { setExportButtonState(true); renderPanel(realResult); return; }
+    if (realResult) { renderPanel(realResult); return; }
     loadReal();
   }
 
@@ -335,8 +294,6 @@
     if (region) region.innerHTML = loadingHtml();
     var detailRegion = document.getElementById('scDetailRegion');
     if (detailRegion) detailRegion.innerHTML = '';
-    // FC-2.2 (Gate 24): no export while a real fetch is in flight.
-    setExportButtonState(false, 'Carregando dados do Score…');
 
     window.NX_SCORE_REAL_PROVIDER.loadScoreReal({ start: currentDateStart, end: currentDateEnd, signal: controller.signal }).then(
       function (payload) {
@@ -347,19 +304,9 @@
         } catch (e) {
           var r2 = document.getElementById('scTableRegion');
           if (r2) r2.innerHTML = errorStateHtml(e && e.state, e && e.message);
-          // FC-2.2 (Gate 24): a contract failure (e.g. MALFORMED_RESPONSE)
-          // must not leave the button enabled against no valid dataset.
-          setExportButtonState(false, 'Exportação indisponível: não foi possível interpretar os dados do período.');
           return;
         }
-        currentFins = mapped.fins || [];
-        currentTaxasCopart = mapped.taxasCopart || {};
         realResult = window.NX_SCORE_ADAPTER.compute(mapped.sales, mapped.fins);
-        // FC-2.2: real data loaded successfully -- export becomes
-        // available (Gate 25/38: a zero-COPARTICIPADO period still
-        // enables the button; the click-time empty-state message,
-        // already in exportCoparticipadosXlsx(), covers that case).
-        setExportButtonState(true);
         renderPanel(realResult);
       },
       function (err) {
@@ -367,8 +314,6 @@
         if (err && err.state === 'ABORTED') return; // not a user-facing error -- superseded request
         var region2 = document.getElementById('scTableRegion');
         if (region2) region2.innerHTML = errorStateHtml(err && err.state, err && err.message);
-        // FC-2.2 (Gate 24): no export during a transport/authorization failure.
-        setExportButtonState(false, 'Exportação indisponível: não foi possível carregar os dados do Score.');
       }
     );
   }
@@ -432,96 +377,6 @@
     }
   }
 
-  // FC-2 (GAP-003): restores V1's exportarCoparticipados() (modules/
-  // score.html -- confirmed orphaned/unreachable in V1 production, no
-  // button ever wired to it there). Column contract, order, labels, row-
-  // value derivations and the "Modelo não encontrado na tabela de taxa"
-  // string-in-a-numeric-column fallback are ported field-for-field from
-  // V1's own source, including V1's "Prazo" reading r.parcelas (installment
-  // COUNT) and "Parcela" reading r.pmt (installment VALUE) -- an odd-
-  // looking but deliberate V1 naming that this export preserves rather
-  // than silently "fixing" (Gate: no undocumented reinterpretation of a
-  // frozen V1 contract). Coparticipação/rebate math is NEVER recomputed
-  // here -- calcCoparticipacaoDetalhe()/findTaxaCopart() are the SAME
-  // formula-frozen functions already reused by the separate Coparticipado
-  // module (window.NX_COPARTICIPADO_ADAPTER), not a second classifier.
-  //
-  // REAL MODE (FC-2.2, accepting FC-2.1's audit): score-real-view-model.js
-  // now retains modelo/cliente/chassi/data/parcelas/pmt/situacaoB3/
-  // valorVenda/familia on real fins/sales too -- FC-2.1 proved these add 0
-  // new browser-side exposure (every field, or its already-masked
-  // equivalent, is already sent by the same RPC to this same caller today,
-  // and already retained field-for-field by the sibling Coparticipado
-  // module's own real view-model). This function itself is transport-
-  // agnostic -- it reads currentFins/currentTaxasCopart exactly the same
-  // way regardless of which mode populated them; eligibility (loading/
-  // error/no-data states) is handled by setExportButtonState(), not by
-  // this function refusing to run in real mode.
-  function exportCoparticipadosXlsx(btn) {
-    var now = Date.now();
-    if (now - lastScExportAt < 800) return; // debounce accidental double-click
-    lastScExportAt = now;
-    var statusEl = document.getElementById('scExportStatus');
-    var fins = (currentFins || []).filter(function (f) { return f.plano === 'COPARTICIPADO'; });
-    if (!fins.length) {
-      if (statusEl) statusEl.textContent = 'Nenhum coparticipado encontrado no filtro atual.';
-      return;
-    }
-    var CA = window.NX_COPARTICIPADO_ADAPTER;
-    // Transient cross-module state write (Gate: reuse, not duplicate, the
-    // frozen classifier) -- harmless: the Coparticipado module's own
-    // compute()/buildRealResult() path resets DATA.taxasCopart from ITS
-    // OWN fixture/real payload on every render, so this never leaves stale
-    // rate data behind for that module.
-    CA.setTaxasCopart(currentTaxasCopart);
-    var NAO_ENCONTRADO = 'Modelo não encontrado na tabela de taxa';
-    var headers = ['Nome do cliente', 'Vendedor', 'Loja vinculada', 'Modelo do carro', 'Modelo tabela taxa', 'Família do carro', 'Valor de venda', 'Valor de entrada', 'Percentual de entrada', 'Valor financiado', 'Rebate Total', 'Rebate Parte Brabus', 'Valor do Rebate Total', 'Valor da Coparticipação', 'Situação', 'Prazo', 'Parcela', 'Data da venda', 'Chassi'];
-    var dataRows = fins.map(function (r) {
-      var c = CA.calcCoparticipacaoDetalhe(r) || {};
-      var valorVenda = Number(r.valorVenda) || 0;
-      var valorFinanciado = Number(r.valorFinanciado) || 0;
-      var entrada = Math.max(0, valorVenda - valorFinanciado);
-      return [
-        r.cliente || '',
-        r.vendedor || '',
-        r.loja || '',
-        r.modelo || '',
-        c.modeloTabela || NAO_ENCONTRADO,
-        r.familia || '',
-        valorVenda,
-        entrada,
-        valorVenda ? entrada / valorVenda : 0,
-        valorFinanciado,
-        c.ok ? (Number(c.rebateTotal) || 0) : NAO_ENCONTRADO,
-        c.ok ? (Number(c.parteBrabus) || 0) : NAO_ENCONTRADO,
-        c.ok ? (Number(c.valorRebateTotal) || 0) : NAO_ENCONTRADO,
-        c.ok ? (Number(c.coparticipacao) || 0) : NAO_ENCONTRADO,
-        r.situacaoB3 || '',
-        r.parcelas ? Number(r.parcelas) : '',
-        r.pmt ? Number(r.pmt) : '',
-        window.NX_XLSX_EXPORT_HELPER.excelDateValue(r.data) || '',
-        r.chassi || ''
-      ];
-    });
-    var columnTypes = {
-      moneyCols: new Set(['Valor de venda', 'Valor de entrada', 'Valor financiado', 'Valor do Rebate Total', 'Valor da Coparticipação', 'Parcela']),
-      pctCols: new Set(['Percentual de entrada', 'Rebate Total', 'Rebate Parte Brabus']),
-      dateCols: new Set(['Data da venda']),
-      intCols: new Set(['Prazo']),
-      textCols: new Set(['Nome do cliente', 'Vendedor', 'Loja vinculada', 'Modelo do carro', 'Modelo tabela taxa', 'Família do carro', 'Situação', 'Chassi'])
-    };
-    btn.disabled = true;
-    try {
-      var filename = 'Coparticipados_Score_FI_' + window.NX_XLSX_EXPORT_HELPER.excelFileStamp() + '.xlsx';
-      window.NX_XLSX_EXPORT_HELPER.downloadWorkbook(headers, dataRows, 'Coparticipados', filename, columnTypes);
-      if (statusEl) statusEl.textContent = 'Exportado: ' + filename;
-    } catch (err) {
-      if (statusEl) statusEl.textContent = 'Falha ao gerar o arquivo Excel. Tente novamente.';
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
   window.NX_SCORE_PAGE = {
     // PORTAL-NEXT-07.7B — exposed read-only for deterministic band
     // boundary/invalid-input testing (tests/score-band-test.py), same
@@ -581,20 +436,9 @@
             '<label for="scFixtureSelect">fixture:</label>' +
             '<select id="scFixtureSelect">' + options + '</select></div>';
         }
-        // FC-2 (GAP-003): discoverable-but-not-dominant, next to the
-        // header rather than a global "Exportar" (Gate 27). FC-2.2:
-        // real-mode data completion (FC-2.1's audit + Option A) lifted
-        // the earlier unconditional real-mode disable -- eligibility is
-        // now dynamic, driven by transport state (setExportButtonState(),
-        // called from render()/loadReal() below), not a fixed per-mode flag.
-        var exportBarHtml = '<div class="scExportBar">' +
-          '<button type="button" class="modBtn modBtnGhost scExportCopaBtn" id="scExportCopaBtn">Exportar Coparticipados</button>' +
-          '<span id="scExportStatus" class="modMuted scExportStatus" role="status" aria-live="polite"></span>' +
-          '</div>';
         outlet.innerHTML =
           '<div class="scPage">' +
           '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Análise de Score Vendedores</h1><p class="modSubtitle">Ranking de performance F&amp;I por vendedor.</p></div></div>' +
-          exportBarHtml +
           fixtureBanner +
           (isFixtureMode ? '' : periodFilterHtml()) +
           '<div id="scTableRegion"></div>' +
@@ -605,8 +449,6 @@
         } else {
           wireFilterEvents();
         }
-        var exportBtn = document.getElementById('scExportCopaBtn');
-        if (exportBtn) exportBtn.addEventListener('click', function () { exportCoparticipadosXlsx(exportBtn); });
         render();
       }
 

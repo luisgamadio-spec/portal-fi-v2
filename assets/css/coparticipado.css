@@ -151,6 +151,12 @@
 /* ACTIVE — scoped so it only affects this module's own captions */
 .cpPage .modMuted b { color: var(--color-text-secondary); }
 
+/* FC-2.3 (GAP-003): discoverable-but-not-dominant export action, reusing
+   module-system.css's .modBtn/.modBtnGhost/.modMuted primitives -- no new
+   visual language. Only ever rendered inside Visão Coparticipados. */
+.cpExportBar { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-4); flex-wrap: wrap; }
+.cpExportStatus { margin: 0; }
+
 /* Wave 3C — Subsidiados' 3-stat summary superseded by the shared
    .modKpiGrid + .modKpiCard.modKpiCardSecondary (same shape as Gestão's
    "Indicadores de Apoio" cards), 0 remaining reference. */

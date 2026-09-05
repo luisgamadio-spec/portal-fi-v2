@@ -10,12 +10,6 @@
 
 .scPage { max-width: 1100px; }
 
-/* FC-2 (GAP-003): discoverable-but-not-dominant export action, reusing
-   module-system.css's .modBtn/.modBtnGhost/.modMuted primitives -- no new
-   visual language. */
-.scExportBar { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-3) 0; flex-wrap: wrap; }
-.scExportStatus { margin: 0; }
-
 /* Wave 3D — page header and fixture banner migrated to the shared
    module-system.css primitives (.modPageHeader/.modFixtureBanner).
    Rules below superseded, 0 remaining reference (grep-verified before

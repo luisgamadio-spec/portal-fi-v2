@@ -247,11 +247,9 @@ def main():
               any(any(b["label"] == "Mix de planos (diversidade)" for b in r.get("scoreBreakdown", [])) for r in computed if r["dept"] == "Novos"))
         page.close()
 
-        # ---------- FC-2.2 (GAP-003 real export data completion) ----------
-        # Gate 27 row-set invariant + Gate 6-14 field retention, proven
-        # directly against buildRealResult(), independent of the score
-        # ranking table's own presentation (which never reads these fields
-        # at all, per check 18 above -- still true, unmodified).
+        # ---------- generic row-set fidelity, independent of the GAP-003
+        # export (which no longer lives in Score, FC-2.3) -- proves
+        # buildRealResult() still maps every row, in order, 1:1 ----------
         page = new_page(browser, configured=True)
         page.route(RPC_URL + "*", json_route(200, SAMPLE_PAYLOAD))
         mount(page)
@@ -260,39 +258,28 @@ def main():
             "(payload) => window.NX_SCORE_REAL_VIEW_MODEL.buildRealResult(payload)",
             SAMPLE_PAYLOAD,
         )
-        check("24: row-set invariant -- mapped.sales.length == payload.sales.length (no row added/dropped)",
-              len(mapped["sales"]) == len(SAMPLE_PAYLOAD["sales"]))
-        check("24b: row-set invariant -- mapped.fins.length == payload.finance.length (no row added/dropped)",
-              len(mapped["fins"]) == len(SAMPLE_PAYLOAD["finance"]))
+        check("24: row-set invariant -- mapped.sales/fins.length == payload.sales/finance.length (no row added/dropped)",
+              len(mapped["sales"]) == len(SAMPLE_PAYLOAD["sales"]) and len(mapped["fins"]) == len(SAMPLE_PAYLOAD["finance"]))
         # Index-aligned: buildFins/buildSales are .map() with no filter/sort,
         # so row i of the input must correspond to row i of the output.
-        check("24c: row identity preserved index-for-index (vendedor/valorFinanciado)",
+        check("24b: row identity preserved index-for-index (vendedor/valorFinanciado)",
               all(mapped["fins"][i]["vendedor"] == SAMPLE_PAYLOAD["finance"][i]["seller"]
                   and abs(mapped["fins"][i]["valorFinanciado"] - SAMPLE_PAYLOAD["finance"][i]["financed_value"]) < 0.01
                   for i in range(len(SAMPLE_PAYLOAD["finance"]))))
-
-        check("25: cliente is ALWAYS the protected constant, never a real name (fins)",
-              all(f["cliente"] == "Operação protegida" for f in mapped["fins"]))
-        check("25b: cliente is ALWAYS the protected constant, never a real name (sales)",
-              all(s["cliente"] == "Operação protegida" for s in mapped["sales"]))
-        check("26: chassi == the exact masked operation_reference, never combined/derived (fins)",
-              all(mapped["fins"][i]["chassi"] == SAMPLE_PAYLOAD["finance"][i]["operation_reference"]
-                  for i in range(len(SAMPLE_PAYLOAD["finance"]))))
-        check("27: modelo is the RAW model string, no re-normalization applied here",
-              all(mapped["fins"][i]["modelo"] == SAMPLE_PAYLOAD["finance"][i]["model"]
-                  for i in range(len(SAMPLE_PAYLOAD["finance"]))))
-        check("28: parcelas/pmt/situacaoB3/valorVenda retained with correct numeric/string types",
-              all(isinstance(f["parcelas"], (int, float)) and isinstance(f["pmt"], (int, float))
-                  and isinstance(f["situacaoB3"], str) and isinstance(f["valorVenda"], (int, float))
+        # FC-2.3 (Gate 32): the export-only fields FC-2.2 briefly added here
+        # (modelo/cliente/chassi/data/parcelas/pmt/situacaoB3/valorVenda/
+        # familia-on-fins/taxasCopart) must be gone now that the export
+        # lives in Coparticipado -- restored data-minimization discipline.
+        check("24c: export-only fields (modelo/cliente/chassi/parcelas/pmt/situacaoB3/valorVenda) are ABSENT from mapped fins (Gate 9, FC-2.3 cleanup)",
+              all(("modelo" not in f and "cliente" not in f and "chassi" not in f and "parcelas" not in f
+                   and "pmt" not in f and "situacaoB3" not in f and "valorVenda" not in f and "data" not in f)
                   for f in mapped["fins"]))
-        check("29: familia present on fins too (matches V1's own real secure adapter, needed for GAP-003's 'Família do carro')",
-              all(f.get("familia") for f in mapped["fins"]))
-        check("30: taxasCopart returned as a plain object (possibly empty when payload.rates is empty)",
-              isinstance(mapped.get("taxasCopart"), dict))
+        check("24d: taxasCopart is no longer part of buildRealResult()'s output (Score has no rate lookup)",
+              "taxasCopart" not in mapped)
         page.close()
 
-        # ---------- FC-2.2: sensitive-shape guard still fails closed with
-        # the richer mapping in place (Gate 16 -- must not have weakened) ----------
+        # ---------- sensitive-shape guard still fails closed (Gate 16 --
+        # unrelated to the FC-2.3 cleanup, must not have regressed) ----------
         for flag in ["contains_client_identity", "contains_personal_documents", "contains_full_chassis"]:
             page = new_page(browser, configured=True)
             bad_payload = dict(EMPTY_PAYLOAD)
@@ -300,9 +287,29 @@ def main():
             page.route(RPC_URL + "*", json_route(200, bad_payload))
             mount(page)
             page.wait_for_function("document.getElementById('scTableRegion').innerHTML.includes('modErrorState')", timeout=5000)
-            check("31." + flag + ": still rejected as MALFORMED_RESPONSE (privacy guard unweakened)",
+            check("25." + flag + ": still rejected as MALFORMED_RESPONSE (privacy guard unweakened)",
                   "modErrorState" in page.inner_html("#scTableRegion"))
             page.close()
+
+        # ---------- FC-2.3 (Gate 32): Score renders NO export action, in
+        # either mode -- the capability moved to Coparticipado, not
+        # duplicated ----------
+        page = new_page(browser, configured=False)
+        mount(page)
+        page.wait_for_timeout(300)
+        html_fixture = page.inner_html("#scOutlet")
+        check("26: fixture mode has NO 'Exportar Coparticipados' button/text", "Exportar Coparticipados" not in html_fixture)
+        check("26b: fixture mode has no export-related element id", "scExportCopaBtn" not in html_fixture and "scExportStatus" not in html_fixture)
+        page.close()
+
+        page = new_page(browser, configured=True)
+        page.route(RPC_URL + "*", json_route(200, SAMPLE_PAYLOAD))
+        mount(page)
+        page.wait_for_function("document.getElementById('scTableRegion').innerHTML.includes('scTable')", timeout=5000)
+        html_real = page.inner_html("#scOutlet")
+        check("27: real mode has NO 'Exportar Coparticipados' button/text", "Exportar Coparticipados" not in html_real)
+        check("27b: real mode has no export-related element id", "scExportCopaBtn" not in html_real and "scExportStatus" not in html_real)
+        page.close()
 
         browser.close()
 

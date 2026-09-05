@@ -14,6 +14,11 @@
 <html><head><meta charset="utf-8"></head>
 <body>
 <div id="cpOutlet"></div>
+<!-- FC-2.3 (GAP-003, relocated): mirrors index.html's own script order
+     (xlsx-js-style + shared helper loaded ahead of the module script that
+     uses them). -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" integrity="sha384-OUW9euuUyxyHcAhTqbhI+Iyb8LMssXt/cpz0yXhs9UWG2/R/uaWdakx/4cfww7Vb" crossorigin="anonymous"></script>
+<script src="../assets/js/lib/xlsx-export-helper.js"></script>
 <script src="../assets/js/adapters/coparticipado.adapter.js"></script>
 <script src="../assets/js/adapters/coparticipado-real-provider.js"></script>
 <script src="../assets/js/adapters/coparticipado-real-view-model.js"></script>

@@ -145,6 +145,14 @@
     // module's closure) -- zero behavior change, one more pure
     // function on the existing export list.
     taxaKey: taxaKey,
+    // FC-2.3 (GAP-003 export, relocated here from Score): exposed the
+    // same way taxaKey was above -- familiaModelo was private to this
+    // module's closure; the export's "Família do carro" column needs it
+    // on real fins (V1's own real secure adapter, score-coparticipated-
+    // secure-adapter.js, already computes familia on finance records
+    // too). Zero behavior change, one more pure function on the existing
+    // export list.
+    familiaModelo: familiaModelo,
     classifyPlan: classifyPlan,
     parseDate: parseDate,
     money: money,

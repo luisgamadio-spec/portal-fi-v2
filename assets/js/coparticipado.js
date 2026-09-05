@@ -60,6 +60,13 @@
   var renderSeq = 0;
   var realResult = null;
   var currentAbortController = null;
+  // FC-2.3 (GAP-003 export, relocated here from Score after Human UAT
+  // corrected product placement): the SAME already-filtered fins
+  // renderPanel() computes for the on-screen table -- export reads this,
+  // never a second fetch/filter pass, so it always represents exactly
+  // what the Loja/Departamento/Data filters currently show.
+  var currentFilteredFins = [];
+  var lastCpExportAt = 0;
 
   var STATE_COPY = {
     PERMISSION_DENIED: { title: 'Sem permissão', body: 'Sua conta não tem acesso a esta análise.' },
@@ -186,6 +193,15 @@
     }).join('');
     return '<h2>Planos Coparticipados</h2>' +
       '<p class="modMuted">Coparticipação calculada pela tabela <b>taxa coparticipado.xlsx</b>: Modelo × Rebate Total × Rebate Parte Brabus.</p>' +
+      // FC-2.3 (GAP-003): restores V1's OWN Coparticipado module export
+      // (exportarCoparticipados(), modules/coparticipado.html -- a real,
+      // wired V1 production button, confirmed by direct source read; NOT
+      // the separate, orphaned Score export this capability was briefly
+      // and incorrectly placed under in FC-2/FC-2.2, corrected here by
+      // Human UAT). Placed next to the Coparticipados dataset it
+      // represents, only in this view -- never in Visão Subsidiados.
+      '<div class="cpExportBar"><button type="button" class="modBtn modBtnGhost cpExportCopaBtn" id="cpExportCopaBtn">Exportar Coparticipados</button>' +
+      '<span id="cpExportStatus" class="modMuted cpExportStatus" role="status" aria-live="polite"></span></div>' +
       '<div class="modTableWrap"><table class="modTable cpTableCopart">' + cpColGroup(h) +
       '<thead>' + cpHeadRow(h) + '</thead>' +
       '<tbody>' + (body || '<tr><td colspan="13" class="modMuted">Nenhum coparticipado encontrado no filtro atual.</td></tr>') + '</tbody></table></div>';
@@ -242,6 +258,10 @@
   // vs. the real provider+view-model), not here.
   function renderPanel(result) {
     var filteredFins = applyFilters(result.fins);
+    // FC-2.3 (GAP-003): the export reads exactly this array -- the same
+    // Loja/Departamento/Data-filtered rows the table below is about to
+    // render from, never a broader or re-fetched set.
+    currentFilteredFins = filteredFins;
 
     populateStoreOptions(result.fins, result.sales);
 
@@ -257,6 +277,13 @@
 
     document.getElementById('cpTabCopart').addEventListener('click', function () { currentView = 'COPARTICIPADO'; render(); });
     document.getElementById('cpTabSubs').addEventListener('click', function () { currentView = 'SUBSIDIADO'; render(); });
+
+    // FC-2.3 (GAP-003): only present when currentView === 'COPARTICIPADO'
+    // (renderCoparticipadosTable is the only renderer that emits it) --
+    // re-wired on every render() since #cpPanel's innerHTML is fully
+    // replaced above, same pattern as the tab listeners just above.
+    var exportBtn = document.getElementById('cpExportCopaBtn');
+    if (exportBtn) exportBtn.addEventListener('click', function () { exportCoparticipadosXlsx(exportBtn); });
   }
 
   // render() is the single entry point every UI handler calls. Fixture
@@ -359,6 +386,88 @@
       '</div>' +
       '<div class="cpPanel" id="cpPanel"></div>' +
       '</div>';
+  }
+
+  // FC-2.3 (GAP-003, relocated from Score by Human UAT product-placement
+  // correction): restores V1's OWN Coparticipado module export
+  // (exportarCoparticipados(), modules/coparticipado.html -- confirmed a
+  // real, wired V1 production button, not orphaned like Score's
+  // same-named function). Column contract, order, labels, row-value
+  // derivations, and the "Modelo não encontrado na tabela de taxa"
+  // string-in-a-numeric-column fallback are ported field-for-field from
+  // that source (byte-identical to Score's own version, which V1 itself
+  // apparently copy-pasted between the two modules) -- the validated
+  // workbook from FC-2.2's Human UAT is unchanged. Rebate/coparticipação
+  // math is NEVER recomputed here beyond reusing r.coparticipacaoDetalhe
+  // (already computed once, at load time, by compute()/buildRealResult()
+  // for every COPARTICIPADO row) or, defensively, calcCoparticipacaoDetalhe()
+  // directly -- same frozen function the on-screen table itself calls
+  // (renderCoparticipadosTable, above), never a second classifier.
+  function exportCoparticipadosXlsx(btn) {
+    var now = Date.now();
+    if (now - lastCpExportAt < 800) return; // debounce accidental double-click
+    lastCpExportAt = now;
+    var statusEl = document.getElementById('cpExportStatus');
+    var A = window.NX_COPARTICIPADO_ADAPTER;
+    var fins = (currentFilteredFins || []).filter(function (r) { return r.plano === 'COPARTICIPADO'; });
+    if (!fins.length) {
+      if (statusEl) statusEl.textContent = 'Nenhum coparticipado encontrado no filtro atual.';
+      return;
+    }
+    var NAO_ENCONTRADO = 'Modelo não encontrado na tabela de taxa';
+    var headers = ['Nome do cliente', 'Vendedor', 'Loja vinculada', 'Modelo do carro', 'Modelo tabela taxa', 'Família do carro', 'Valor de venda', 'Valor de entrada', 'Percentual de entrada', 'Valor financiado', 'Rebate Total', 'Rebate Parte Brabus', 'Valor do Rebate Total', 'Valor da Coparticipação', 'Situação', 'Prazo', 'Parcela', 'Data da venda', 'Chassi'];
+    var dataRows = fins.map(function (r) {
+      var c = r.coparticipacaoDetalhe || A.calcCoparticipacaoDetalhe(r);
+      var valorVenda = Number(r.valorVenda) || 0;
+      var valorFinanciado = Number(r.valorFinanciado) || 0;
+      var entrada = Math.max(0, valorVenda - valorFinanciado);
+      return [
+        r.cliente || '',
+        r.vendedor || '',
+        r.loja || '',
+        r.modelo || '',
+        c.modeloTabela || NAO_ENCONTRADO,
+        r.familia || '',
+        valorVenda,
+        entrada,
+        valorVenda ? entrada / valorVenda : 0,
+        valorFinanciado,
+        c.ok ? (Number(c.rebateTotal) || 0) : NAO_ENCONTRADO,
+        c.ok ? (Number(c.parteBrabus) || 0) : NAO_ENCONTRADO,
+        c.ok ? (Number(c.valorRebateTotal) || 0) : NAO_ENCONTRADO,
+        c.ok ? (Number(c.coparticipacao) || 0) : NAO_ENCONTRADO,
+        r.situacaoB3 || '',
+        r.parcelas ? Number(r.parcelas) : '',
+        r.pmt ? Number(r.pmt) : '',
+        window.NX_XLSX_EXPORT_HELPER.excelDateValue(r.data) || '',
+        r.chassi || ''
+      ];
+    });
+    var columnTypes = {
+      moneyCols: new Set(['Valor de venda', 'Valor de entrada', 'Valor financiado', 'Valor do Rebate Total', 'Valor da Coparticipação', 'Parcela']),
+      pctCols: new Set(['Percentual de entrada', 'Rebate Total', 'Rebate Parte Brabus']),
+      dateCols: new Set(['Data da venda']),
+      intCols: new Set(['Prazo']),
+      textCols: new Set(['Nome do cliente', 'Vendedor', 'Loja vinculada', 'Modelo do carro', 'Modelo tabela taxa', 'Família do carro', 'Situação', 'Chassi'])
+    };
+    btn.disabled = true;
+    try {
+      // FC-2.3: filename kept EXACTLY as validated in FC-2.2's Human UAT --
+      // investigated whether "_Score_FI_" was Score-specific leftover
+      // naming (this Wave's own Gate 19 asked this explicitly) and found
+      // it is NOT: V1's OWN Coparticipado module export (modules/
+      // coparticipado.html's exportarCoparticipados(), a real wired
+      // button) uses this EXACT SAME filename pattern independently --
+      // "Score_FI" is V1's own platform-wide F&I branding, not a
+      // Score-module artifact. No change made; see FC-2.3 report.
+      var filename = 'Coparticipados_Score_FI_' + window.NX_XLSX_EXPORT_HELPER.excelFileStamp() + '.xlsx';
+      window.NX_XLSX_EXPORT_HELPER.downloadWorkbook(headers, dataRows, 'Coparticipados', filename, columnTypes);
+      if (statusEl) statusEl.textContent = 'Exportado: ' + filename;
+    } catch (err) {
+      if (statusEl) statusEl.textContent = 'Falha ao gerar o arquivo Excel. Tente novamente.';
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   window.NX_COPARTICIPADO_PAGE = {
