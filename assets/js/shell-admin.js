@@ -209,7 +209,7 @@
         '<td>' + esc(r.perfil) + '</td>' +
         '<td>' + esc(r.loja || '—') + '</td>' +
         '<td>' + esc(r.status || '—') + '</td>' +
-        '<td>' + situationBadgesHtml(r) + '</td>' +
+        '<td class="maSituacaoCell">' + situationBadgesHtml(r) + '</td>' +
         '</tr>';
     }).join('');
     return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable maTable">' +
@@ -657,7 +657,7 @@
       return '<tr class="maudRow" tabindex="0" role="button" data-key="' + esc(r.id) + '" aria-label="Ver detalhes do evento ' + esc(r.tipo) + '">' +
         '<td>' + esc(r.criadoEmFormatted) + '</td>' +
         '<td>' + esc(r.tipo) + '</td>' +
-        '<td>' + esc(r.vendedor) + '</td>' +
+        '<td class="maudVendedorCell" title="' + esc(r.vendedor) + '">' + esc(r.vendedor) + '</td>' +
         '<td>' + auditBadgeHtml(r) + '</td>' +
         '<td class="maudDetailCol">' + auditDetailBtnHtml(r) + '</td>' +
         '</tr>';

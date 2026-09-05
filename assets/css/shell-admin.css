@@ -30,8 +30,54 @@
   .maMobileOnly { display: block; }
 }
 
-.maNameCell { display: flex; flex-direction: column; gap: 2px; }
-.maSubtle { color: var(--color-text-secondary); font-size: 12px; }
+/* Painel Master Phase PM-4B.2 (Human UAT finding: right-side content
+   clipping at intermediate desktop widths, e.g. ~1000-1366px). Root
+   cause: .modTable td's own global white-space:nowrap (module-
+   system.css, shared by every already-migrated module's table) forced
+   the Usuário name/e-mail cell and the Situação badges to stay single-
+   line -- with real long content (the Painel Master homolog's own real
+   60+ char name, or two badges side by side) this pushed the table's
+   natural width past the viewport, clipping the rightmost column at
+   the wrapper's own edge before any scroll. Fixed by letting these two
+   SPECIFIC cells wrap onto multiple lines instead -- never a hardcoded
+   column width, never a change to the shared .modTable/.modTableWrap
+   rule itself (which would touch every other module's table). This
+   lets the browser's own table layout algorithm reclaim the width
+   these cells no longer force, which is what actually removes the
+   overflow, not a breakpoint or scrollbar change. */
+/* max-width (not width) is load-bearing here, not decorative: a plain
+   table in table-layout:auto mode computes each column's preferred
+   width from content's un-wrapped/un-broken size and simply ignores
+   white-space/overflow-wrap when doing so (confirmed empirically --
+   white-space:normal + overflow-wrap:anywhere + min-width:0 alone left
+   the table exactly as wide as before). max-width is the one property
+   table auto-layout actually respects as a real constraint, which is
+   what lets these cells wrap instead of forcing the table wider. No
+   content is hidden or truncated -- full text still renders, just
+   across multiple lines (Gate 12: never sacrifice name/e-mail
+   legibility for width). 260px comfortably fits realistic names/
+   e-mails on 2-3 lines; not a per-column hardcode pattern (only this
+   one justified case), and never used with overflow:hidden/ellipsis
+   here (that treatment is reserved for Auditoria's own contextual
+   Vendedor/Usuário column below, which is a different tradeoff). */
+.maNameCell { display: flex; flex-direction: column; gap: 2px; white-space: normal; overflow-wrap: anywhere; max-width: 260px; }
+.maSubtle { color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+/* flex-wrap (not relying on inline-block's own text-flow wrapping) so
+   the two badges reliably stack onto their own lines as a group when
+   the cell is width-constrained -- inline-block wrapping alone left
+   the SECOND badge still overflowing even after the first one wrapped,
+   since the browser kept trying to fit it on the first badge's own
+   line whenever any room remained. */
+.maSituacaoCell { display: flex; flex-wrap: wrap; gap: 4px; max-width: 200px; }
+/* A single long invite-lifecycle label (e.g. "Conta criada — e-mail não
+   confirmado", ~37 chars) is itself an unbreakable inline-block pill --
+   the cell's own max-width doesn't stop THIS badge from overflowing its
+   own boundary, only the table's overall column-width contribution.
+   Scoped to .maSituacaoCell specifically (not .maBadge globally --
+   Auditoria's own short RESULTADO badge stays a single-line pill,
+   that's a different, already-fine case) so its text can wrap onto a
+   second line too, same never-truncate rule as the name/e-mail. */
+.maSituacaoCell .maBadge { white-space: normal; max-width: 100%; }
 
 .maMobileCard { display: flex; flex-direction: column; gap: 4px; padding: var(--mod-space-compact); border: 1px solid var(--mod-border); border-radius: var(--radius-sm); margin-bottom: var(--space-2); cursor: pointer; }
 .maMobileCard:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
@@ -99,3 +145,13 @@
 .maudDetailCol { white-space: nowrap; text-align: right; }
 .maudDetailBtn { font-size: 12.5px; }
 .maudMobileActions { margin-top: 2px; }
+
+/* Painel Master Phase PM-4B.2 -- Vendedor/Usuário can legitimately
+   contain long real names; unlike Usuários' own name/e-mail (never
+   truncated -- see .maNameCell above), this column is contextual log
+   content, not the primary action target, and the full value is always
+   still reachable via "Ver detalhes" -- so an ellipsis-with-title is
+   the right tradeoff here (Gate 13's own guidance), not wrapping. A
+   single, justified max-width on this one column only, not a pattern
+   applied broadly across columns. */
+.maudVendedorCell { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
