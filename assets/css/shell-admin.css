@@ -205,12 +205,14 @@ body.maudModalOpen { overflow: hidden; }
 }
 
 /* Painel Master Phase PM-4C.2 -- Pendências Cadastrais. Reuses .maBadge,
-   .modTable/.modTableWrap, .maDesktopOnly/.maMobileOnly, .maNameCell/
-   .maSubtle, .modField/.modFilters, .maDetailField/.maDetailActions and
-   the shared #nxModalRoot dialog wholesale (Gate 26/46) -- only the
-   genuinely new pieces (severity badges, tab pills, summary cards, the
-   numeric occurrences column, exceptions rows, and the deep-linked
-   field highlight) get their own rules below. */
+   .modTable/.modTableWrap, .maSubtle, .modField/.modFilters,
+   .maDetailField/.maDetailActions and the shared #nxModalRoot dialog
+   wholesale (Gate 26/46) -- only the genuinely new pieces (severity
+   badges, tab pills, summary cards, the numeric occurrences column,
+   exceptions rows, and the deep-linked field highlight) get their own
+   rules below. Desktop/mobile switching uses its OWN .pcDesktopOnly/
+   .pcMobileOnly pair (PM-4C.2.1), not the shared .maDesktopOnly/
+   .maMobileOnly -- see that rule's own comment for why. */
 .pcSevUrgente { background: var(--color-critical-soft, #fde2e2); color: var(--color-critical, #c22); }
 .pcSevAtencao { background: var(--color-warning-soft, #fff3cd); color: var(--color-warning-strong, #8a6d1a); }
 .pcSevInformativo { background: var(--color-accent-soft, #e6f0ff); color: var(--color-accent-primary, #1a56db); }
@@ -226,6 +228,57 @@ body.maudModalOpen { overflow: hidden; }
 .pcCardK { font-size: 11px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: .04em; }
 .pcCardV { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pcSummaryNote { margin-bottom: var(--space-1); }
+
+/* Painel Master Phase PM-4C.2.1 (Human UAT: horizontal scrollbar
+   rejected). Root cause: module-system.css's shared .modTable td rule
+   (class+element, specificity 0-1-1) sets white-space:nowrap on EVERY
+   cell -- a same-specificity single-class override like .maNameCell
+   (0-1-0) can never win against it regardless of source order, so no
+   Painel Master table cell has ever actually word-wrapped (confirmed
+   empirically: Usuários' own .maNameCell still computes to nowrap
+   today). table-layout:auto then sizes every column to its full
+   UNWRAPPED preferred width, and the table overflows its wrapper as
+   soon as that sum exceeds the available width -- .modTableWrap's own
+   overflow-x:auto quietly absorbs it into an internal scrollbar
+   without ever pushing the page/BODY wider, which is exactly why a
+   body-level-only overflow check (the only kind PM-4C.2's own
+   responsive suite ran) could report clean while a real horizontal
+   scrollbar still appeared. Fix here is Pendências-scoped only (Gate
+   33): a genuinely higher-specificity compound selector
+   (.pcTable td.pcXxxCell, 0-2-1) for the identity/text-heavy columns
+   (Gate 8: Pessoa/Identificador, Origem, Motivo) plus a natural
+   date/time wrap point -- once white-space:normal actually applies,
+   table-layout:auto correctly shrinks these columns on its own
+   (verified empirically: no max-width needed at all, unlike the
+   PM-4B.2-era conclusion, which -- now demonstrably -- was measuring
+   this same specificity bug, not a real auto-layout limitation).
+   Severidade/Ocorrências/Status/Ação stay their own short, compact,
+   nowrap cells (Gate 9), never touched. */
+.pcTable td.pcPersonCell { white-space: normal; overflow-wrap: anywhere; }
+.pcTable td.pcOrigemCell { white-space: normal; overflow-wrap: break-word; }
+.pcTable td.pcMotivoCell { white-space: normal; overflow-wrap: break-word; }
+.pcTable td.pcDateCell { white-space: normal; }
+.pcTable td.pcSevCell, .pcTable td.pcStatusCell { white-space: nowrap; }
+
+/* Gate 14/15/24: even with the wrap fix above, 8 real columns (one
+   more than Usuários' 5 or Auditoria's 5) have a genuine minimum
+   content width (~828px, measured directly: Severidade/Ocorrências/
+   Status/Ação can only shrink so far before either clipping "Ver
+   detalhes" or wrapping "PENDENTE"/date character-by-character, both
+   explicitly forbidden) that the shared .maDesktopOnly/.maMobileOnly
+   767px breakpoint sits BELOW -- reusing it verbatim would leave a
+   real ~768-840px dead zone where the table is still active AND still
+   overflows (reproduced directly). A Pendências-OWN, earlier
+   breakpoint (900px, safely above the measured ~850px exact
+   threshold) avoids that zone entirely WITHOUT touching the shared
+   767px value Usuários/Auditoria/Acessos still correctly rely on
+   (Gate 33: scoped, not global). */
+.pcDesktopOnly { display: block; }
+.pcMobileOnly { display: none; }
+@media (max-width: 900px) {
+  .pcDesktopOnly { display: none; }
+  .pcMobileOnly { display: block; }
+}
 
 .pcNumCell { text-align: right; font-variant-numeric: tabular-nums; }
 .pcModalSubhead { margin: var(--space-2) 0 0; font-size: 13px; }

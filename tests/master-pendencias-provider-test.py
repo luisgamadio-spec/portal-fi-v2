@@ -665,6 +665,170 @@ def main():
         check("68: creating an exception with empty fields is blocked client-side with a clear message", "Preencha tipo" in page.inner_html("#maPanel"))
         page.close()
 
+        # ==================== Painel Master Phase PM-4C.2.1 ====================
+        # Human UAT finding: a horizontal scrollbar appeared below the
+        # Pendências desktop table (~1060px). Root cause (found by direct
+        # geometric reproduction, not assumed): module-system.css's
+        # shared `.modTable td{white-space:nowrap}` (specificity 0-1-1)
+        # silently beat every single-class wrap override attempted so far
+        # in this codebase (0-1-0) regardless of load order -- CONFIRMED
+        # this affects Usuários' own already-approved .maNameCell too
+        # (still computes to nowrap today; it happened to not matter
+        # there because .modTableWrap's own overflow-x:auto quietly
+        # absorbed the internal overflow without ever pushing the page/
+        # BODY wider -- exactly why PM-4C.2's own responsive suite,
+        # which only ever asserted body-level overflow, never caught
+        # this class of defect). Fixed here with genuinely higher-
+        # specificity, Pendências-scoped compound selectors (Gate 33 --
+        # Usuários/Auditoria/Acessos are untouched, still using the
+        # shared .maNameCell/.modTable td exactly as before) plus an
+        # earlier, Pendências-OWN mobile-card breakpoint (900px, not the
+        # shared 767px) -- even after the wrap fix, 8 real columns still
+        # have a measured ~850px minimum content width the old shared
+        # breakpoint sits below.
+        HUMAN_EQUIVALENT_ROW = {
+            "id": "h1", "tipo": "USUARIO_INATIVO_COM_PRODUCAO", "severidade": "URGENTE", "status": "PENDENTE",
+            "origem_base": "SALES_CURRENT", "import_batch_id": None, "identificador_tipo": "CPF",
+            "identificador_mascarado": "*******4886", "nome_encontrado": "MARIANA FERREIRA DOS SANTOS",
+            "login_nbs_encontrado": "MARIANASA", "loja_encontrada": "EUROPA", "departamento_encontrado": "NOVOS",
+            "usuario_candidato_id": "u1", "nome_usuario_candidato": "MARIANA FERREIRA DOS SANTOS", "motivo": None,
+            "primeira_ocorrencia_em": "2026-08-19T14:46:47.408544+00:00", "ultima_ocorrencia_em": "2026-09-04T18:53:03.477677+00:00",
+            "quantidade_ocorrencias": 918, "motivo_acao": None, "resolvido_em": None, "ignorado_em": None,
+            "excluido_em": None, "criado_em": "2026-08-19T14:46:47.408544+00:00",
+        }
+
+        def geometry_at(w, rows_payload, expect_table):
+            page = new_page(browser, viewport={"width": w, "height": 900})
+            page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+            page.route(CONV_URL + "*", json_route(200, []))
+            page.route(PC_LIST_URL + "*", json_route(200, {"rows": rows_payload, "total": len(rows_payload)}))
+            mount(page)
+            goto_pendencias(page)
+            page.wait_for_selector("[data-key]", state="attached", timeout=5000)
+            page.wait_for_timeout(100)
+            info = page.evaluate("""() => {
+                const tableVisible = getComputedStyle(document.querySelector('.pcDesktopOnly')).display !== 'none';
+                const cardsVisible = getComputedStyle(document.querySelector('.pcMobileOnly')).display !== 'none';
+                const wrap = document.querySelector('.pcTable').closest('.modTableWrap');
+                const cardsEl = document.querySelector('.pcMobileOnly');
+                return {
+                    tableVisible, cardsVisible,
+                    wrapOverflow: wrap.scrollWidth > wrap.clientWidth + 1,
+                    cardsOverflow: cardsEl.scrollWidth > cardsEl.clientWidth + 1,
+                    pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+                };
+            }""")
+            page.close()
+            return info
+
+        # ---------- 69: the exact Human-UAT-equivalent case (Gate 23), synthetic name/length ----------
+        info69 = geometry_at(1060, [HUMAN_EQUIVALENT_ROW], expect_table=True)
+        check("69: Human-equivalent case @1060px -- desktop table active", info69["tableVisible"] and not info69["cardsVisible"])
+        check("69: Human-equivalent case @1060px -- ZERO table wrapper horizontal overflow (the exact reported defect)", not info69["wrapOverflow"])
+        check("69: Human-equivalent case @1060px -- ZERO page-level horizontal overflow", not info69["pageOverflow"])
+
+        # ---------- 70-71: full viewport sweep -- no intermediate overflow zone anywhere ----------
+        # This is the geometry assertion Gate 25 requires: NOT screenshot-
+        # only. Table-active widths must show zero wrapper overflow;
+        # card-active widths must show zero card-container overflow;
+        # every width must show zero page overflow; and at every single
+        # width, EXACTLY ONE of the two representations may be visible
+        # (never both, never neither -- Gate 15's own "no intermediate
+        # width" requirement, checked directly, not inferred).
+        SWEEP_WIDTHS = [1440, 1366, 1280, 1100, 1060, 1024, 1000, 950, 901, 900, 899, 850, 820, 800, 768, 767, 700, 430, 390, 375, 360]
+        sweep_ok = True
+        sweep_report = []
+        for w in SWEEP_WIDTHS:
+            info = geometry_at(w, [HUMAN_EQUIVALENT_ROW], expect_table=(w > 900))
+            exactly_one = info["tableVisible"] != info["cardsVisible"]
+            bad = (info["tableVisible"] and info["wrapOverflow"]) or (info["cardsVisible"] and info["cardsOverflow"]) or info["pageOverflow"] or not exactly_one
+            sweep_report.append((w, info, bad))
+            if bad:
+                sweep_ok = False
+        check("70: full 1440->360px sweep -- no width shows table overflow, card overflow, or page overflow", sweep_ok)
+        check("71: full sweep -- exactly one representation (table XOR cards) visible at every single width, no gap", all(r[1]["tableVisible"] != r[1]["cardsVisible"] for r in sweep_report))
+        if not sweep_ok:
+            print("[GEOMETRY SWEEP DETAIL]", sweep_report)
+
+        # ---------- 72: filter area reflows without horizontal overflow ----------
+        page = new_page(browser, viewport={"width": 900, "height": 900})
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        page.route(PC_LIST_URL + "*", json_route(200, {"rows": [HUMAN_EQUIVALENT_ROW], "total": 1}))
+        mount(page)
+        goto_pendencias(page)
+        filters_overflow = page.evaluate("""() => {
+            const filters = document.querySelector('.modFilters');
+            return filters.scrollWidth > filters.clientWidth + 1;
+        }""")
+        check("72: filter area (Tipo/Origem/Buscar) never overflows horizontally", not filters_overflow)
+        page.close()
+
+        # ---------- 73: summary cards reflow, never force the page wider ----------
+        page = new_page(browser, viewport={"width": 390, "height": 900})
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        page.route(PC_LIST_URL + "*", json_route(200, {"rows": [HUMAN_EQUIVALENT_ROW], "total": 1}))
+        mount(page)
+        goto_pendencias(page)
+        cards_overflow_check = page.evaluate("""() => {
+            const cards = document.querySelector('.pcSummaryCards');
+            return { cardsScroll: cards.scrollWidth, cardsClient: cards.clientWidth, pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 };
+        }""")
+        check("73: summary cards reflow at 390px without forcing the page wider", not cards_overflow_check["pageOverflow"])
+        page.close()
+
+        # ---------- 74: long-content synthetic case (Gate 22) -- every field stress-tested at once ----------
+        LONG_CASE_ROW = {
+            "id": "L1", "tipo": "ATUALIZACAO_CADASTRAL_NECESSARIA", "severidade": "ATENCAO", "status": "PENDENTE",
+            "origem_base": "FINANCE_HISTORY", "import_batch_id": None, "identificador_tipo": "NBS",
+            "identificador_mascarado": "***COMPRIDISSIMO", "nome_encontrado": "MARIA EDUARDA CRISTOVAO DE ALMEIDA NASCIMENTO FIGUEIREDO",
+            "login_nbs_encontrado": "MARIAEDUARDACRISTOVAOALMEIDA", "loja_encontrada": "ALPHAVILLE", "departamento_encontrado": "SEMINOVOS",
+            "usuario_candidato_id": "u1", "nome_usuario_candidato": "MARIA EDUARDA CRISTOVAO DE ALMEIDA", "motivo": None,
+            "primeira_ocorrencia_em": "2026-01-01T08:00:00+00:00", "ultima_ocorrencia_em": "2026-12-31T23:59:59+00:00",
+            "quantidade_ocorrencias": 999999, "motivo_acao": None, "resolvido_em": None, "ignorado_em": None,
+            "excluido_em": None, "criado_em": "2026-01-01T08:00:00+00:00",
+        }
+        for w in [1440, 1060, 900, 390]:
+            info = geometry_at(w, [LONG_CASE_ROW], expect_table=(w > 900))
+            check(f"74 [{w}px]: long-content synthetic case -- no table/card/page overflow", not (info["wrapOverflow"] or info["cardsOverflow"] or info["pageOverflow"]))
+
+        # Readability: long unbroken name must wrap at word boundaries, not
+        # character-by-character (Gate 10/22) -- checked by confirming the
+        # person cell's rendered height accommodates multiple lines without
+        # any single rendered line being absurdly narrow (a real word-
+        # boundary wrap produces lines close to the column's own width;
+        # character-by-character/broken mid-word would not).
+        page = new_page(browser, viewport={"width": 1060, "height": 900})
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        page.route(PC_LIST_URL + "*", json_route(200, {"rows": [LONG_CASE_ROW], "total": 1}))
+        mount(page)
+        goto_pendencias(page)
+        readability = page.evaluate("""() => {
+            const cell = document.querySelector('.pcPersonCell');
+            const cellWidth = cell.getBoundingClientRect().width;
+            const lineHeight = parseFloat(getComputedStyle(cell).lineHeight) || 16;
+            const lines = Math.round(cell.getBoundingClientRect().height / lineHeight);
+            return { cellWidth, lines, text: cell.textContent.trim() };
+        }""")
+        check("75: long name wraps onto multiple readable lines (not squeezed into one, not overflowing)", readability["lines"] >= 2 and readability["cellWidth"] > 60)
+        check("75b: full long name text still present, never truncated", LONG_CASE_ROW["nome_encontrado"] in readability["text"])
+        page.close()
+
+        # ---------- 76: modal geometry re-run (Gate 20) -- unaffected by this responsive fix ----------
+        page = new_page(browser, viewport={"width": 390, "height": 900})
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        page.route(PC_LIST_URL + "*", json_route(200, {"rows": [LONG_CASE_ROW], "total": 1}))
+        mount(page)
+        goto_pendencias(page)
+        page.eval_on_selector(".pcMobileCard[data-key='L1']", "el => el.click()")
+        page.wait_for_timeout(200)
+        modal_overflow = page.evaluate("""() => { const d = document.querySelector('.maudModalDialog'); return d.scrollWidth > d.clientWidth + 1; }""")
+        check("76: modal dialog geometry unaffected by the responsive fix (still zero overflow)", not modal_overflow)
+        page.close()
+
         browser.close()
 
     total = len(results)

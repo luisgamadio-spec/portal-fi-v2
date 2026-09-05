@@ -1024,17 +1024,24 @@
   function renderPcDesktopTable(rows) {
     var body = rows.map(function (r) {
       return '<tr class="pcRow" tabindex="0" role="button" data-key="' + esc(r.id) + '" aria-label="Ver detalhes da pendência de ' + esc(r.pessoaDisplay) + '">' +
-        '<td>' + pcSeverityBadgeHtml(r.severidadeInfo) + '</td>' +
-        '<td class="maNameCell">' + esc(r.pessoaDisplay) + (r.loginNbsEncontrado ? '<div class="maSubtle">NBS: ' + esc(r.loginNbsEncontrado) + '</div>' : '') + '</td>' +
-        '<td>' + esc(r.origemLabel) + '</td>' +
-        '<td>' + esc(r.tipoLabel) + '</td>' +
+        '<td class="pcSevCell">' + pcSeverityBadgeHtml(r.severidadeInfo) + '</td>' +
+        '<td class="pcPersonCell">' + esc(r.pessoaDisplay) + (r.loginNbsEncontrado ? '<div class="maSubtle">NBS: ' + esc(r.loginNbsEncontrado) + '</div>' : '') + '</td>' +
+        '<td class="pcOrigemCell">' + esc(r.origemLabel) + '</td>' +
+        '<td class="pcMotivoCell">' + esc(r.tipoLabel) + '</td>' +
         '<td class="pcNumCell">' + esc(r.quantidadeOcorrencias) + '</td>' +
-        '<td>' + esc(r.ultimaOcorrenciaEmFormatted) + '</td>' +
-        '<td>' + pcStatusBadgeHtml(r) + '</td>' +
+        '<td class="pcDateCell">' + esc(r.ultimaOcorrenciaEmFormatted) + '</td>' +
+        '<td class="pcStatusCell">' + pcStatusBadgeHtml(r) + '</td>' +
         '<td class="maudDetailCol">' + pcDetailBtnHtml(r) + '</td>' +
         '</tr>';
     }).join('');
-    return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable pcTable">' +
+    // Gate 14/15 (PM-4C.2.1): Pendências uses its OWN, earlier
+    // desktop/mobile breakpoint (.pcDesktopOnly/.pcMobileOnly, 900px)
+    // instead of the shared .maDesktopOnly/.maMobileOnly (767px) --
+    // 8 real columns have a measured minimum content width the shared,
+    // narrower breakpoint sits below, which would otherwise leave a
+    // real 768-840px zone where this table is active AND still
+    // horizontally overflows.
+    return '<div class="pcDesktopOnly"><div class="modTableWrap"><table class="modTable pcTable">' +
       '<thead><tr><th scope="col">Severidade</th><th scope="col">Pessoa / Identificador</th><th scope="col">Origem</th><th scope="col">Motivo</th><th scope="col">Ocorrências</th><th scope="col">Última ocorrência</th><th scope="col">Status</th><th scope="col">Ação</th></tr></thead>' +
       '<tbody>' + body + '</tbody></table></div></div>';
   }
@@ -1048,7 +1055,7 @@
         '<div class="maudMobileActions">' + pcDetailBtnHtml(r) + '</div>' +
         '</div>';
     }).join('');
-    return '<div class="maMobileOnly">' + cards + '</div>';
+    return '<div class="pcMobileOnly">' + cards + '</div>';
   }
 
   function pcResultsAreaHtml() {
