@@ -14,8 +14,10 @@
        Total/Coparticipação/Situação/Data/Chassi (exact column order)
      - Subsidiados table + its 3-stat summary (Operações/Lojas/
        Vendedores) -- exact production text
-     - Loja / Departamento (Grupo, Novos, Seminovos) + date-range
-       filters, same predicate as currentFiltered()
+     - Loja + date-range filters, same predicate as currentFiltered()
+       (FC-2.4: Departamento's Grupo/Novos/Seminovos selector removed by
+       Human product decision -- this module is NOVOS-only now, fixed in
+       applyFilters(), not user-selectable; see that function's own comment)
 
    NOT migrated (Gate 57 deferred, real reasons -- see
    docs/COPARTICIPADO-EXTRACTION-TRACE.md):
@@ -43,9 +45,17 @@
   var currentFixtureId = 'ALL';
   var currentView = 'COPARTICIPADO'; // matches production's currentCoparView default
   var currentStore = '';
-  var currentDept = 'Grupo';
   var currentDateStart = '';
   var currentDateEnd = '2026-12-31';
+  // FC-2.4 (Human product decision): this module is NOVOS-only -- the
+  // Departamento selector (Grupo/Novos/Seminovos) is removed from the UI.
+  // The RPC/fixture pipeline returns BOTH departments indiscriminately (no
+  // server-side department parameter exists, confirmed FC-2.1/2.2), so
+  // Novos-only is enforced here, in applyFilters() -- a fixed business
+  // filter, not a client-side authorization boundary (Gate 28's own
+  // distinction). currentDept is gone; there is no longer a variable
+  // dimension to hold.
+  var currentPreset = 'CUSTOM';
 
   // Coparticipado Phase 2 (Real Data Integration Foundation) -- the ONE
   // place transport is decided, same rule as gestao.js/dashbi.js's own
@@ -125,8 +135,12 @@
 
   // Same predicate as production's currentFiltered() (origin/main,
   // line ~491): dateIn() is the byte-identical extracted function;
-  // store/dept equality is copied verbatim from that same function's
-  // own filter logic (no new rule invented).
+  // store equality is copied verbatim from that same function's own
+  // filter logic (no new rule invented). FC-2.4: the department leg of
+  // that original predicate (currentDept !== 'Grupo' && r.dept !==
+  // currentDept) is replaced with a FIXED r.dept === 'Novos' requirement
+  // -- this module's own product scope (Gate 26-29), not a reproduction
+  // of a user-selectable production filter.
   function applyFilters(fins) {
     var A = window.NX_COPARTICIPADO_ADAPTER;
     var start = currentDateStart ? A.parseDate(currentDateStart) : null;
@@ -134,9 +148,56 @@
     return fins.filter(function (r) {
       if (!A.dateIn(r, start, end)) return false;
       if (currentStore && r.loja !== currentStore) return false;
-      if (currentDept !== 'Grupo' && r.dept !== currentDept) return false;
+      if (r.dept !== 'Novos') return false;
       return true;
     });
+  }
+
+  // FC-2.4 (Gate 22): local-calendar-date formatting -- NEVER
+  // .toISOString(), which shifts the calendar date for hosts whose local
+  // timezone sits ahead of UTC (the latent defect already present in both
+  // dashbi.js's applyPresetAndRender() and score.js's computePreset(),
+  // neither fixed here per this Wave's own explicit "do not fix Score's
+  // defect" boundary -- this is a NEW, independent, safe implementation
+  // for this module only). Mirrors score.js's own already-safe todayIso()
+  // pattern (getFullYear/getMonth/getDate, manually padded), generalized
+  // to format any Date, not just "today".
+  function localIso(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // FC-2.4 (Gate 19-21): SAME calendar math already shared by dashbi.js's
+  // applyPresetAndRender()/score.js's computePreset() (currentMonth = 1st
+  // of this month -> today; lastMonth = full previous calendar month;
+  // last6 = 1st of the month 5 months back -> today, a ROLLING window,
+  // not 6 full calendar months) -- only the unsafe .toISOString() output
+  // step is replaced with localIso() above. Genuine new Date() (not a
+  // fixed fixture reference date): this module's own fixture mode is
+  // scenario-based (fixture IDs), not date-driven, same reasoning already
+  // established for Score's own computePreset().
+  function computePreset(preset) {
+    var today = new Date();
+    var start, end = today;
+    if (preset === 'currentMonth') start = new Date(today.getFullYear(), today.getMonth(), 1);
+    else if (preset === 'lastMonth') { start = new Date(today.getFullYear(), today.getMonth() - 1, 1); end = new Date(today.getFullYear(), today.getMonth(), 0); }
+    else if (preset === 'last6') start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+    if (!start) return null;
+    return { start: localIso(start), end: localIso(end) };
+  }
+
+  function applyPresetAndRender(preset) {
+    var computed = computePreset(preset);
+    if (!computed) return;
+    currentPreset = preset;
+    currentDateStart = computed.start;
+    currentDateEnd = computed.end;
+    var dsEl = document.getElementById('cpDateStart');
+    var deEl = document.getElementById('cpDateEnd');
+    if (dsEl) dsEl.value = currentDateStart;
+    if (deEl) deEl.value = currentDateEnd;
+    document.querySelectorAll('.cpPresetBtn').forEach(function (b) { b.classList.toggle('modSegItemActive', b.dataset.preset === preset); });
+    realResult = null; // period changed -- server scope itself changes, must refetch
+    render();
   }
 
   // PORTAL-NEXT-07.6 — CP_TABLE_COLUMNS centralizes each table's header
@@ -235,6 +296,12 @@
       '<div class="modKpiCard modKpiCardSecondary"><div class="modKpiLabel">Lojas</div><div class="modKpiValue">' + A.num(Object.keys(lojas).length) + '</div></div>' +
       '<div class="modKpiCard modKpiCardSecondary"><div class="modKpiLabel">Vendedores</div><div class="modKpiValue">' + A.num(Object.keys(vendedores).length) + '</div></div>' +
       '</div>' +
+      // FC-2.4: restores V1's OWN exportarSubsidiados() (modules/
+      // coparticipado.html -- confirmed V1_SUBSIDIADOS_EXPORT_EXISTS_AND_WIRED,
+      // a real production button alongside exportarCoparticipados()'s own).
+      // Own export action, own view -- never shown in Visão Coparticipados.
+      '<div class="cpExportBar"><button type="button" class="modBtn modBtnGhost cpExportSubsBtn" id="cpExportSubsBtn">Exportar Subsidiados</button>' +
+      '<span id="cpExportStatus" class="modMuted cpExportStatus" role="status" aria-live="polite"></span></div>' +
       '<div class="modTableWrap"><table class="modTable cpTableSubs">' + cpColGroup(h) +
       '<thead>' + cpHeadRow(h) + '</thead>' +
       '<tbody>' + (body || '<tr><td colspan="11" class="modMuted">Nenhum subsidiado encontrado no filtro atual.</td></tr>') + '</tbody></table></div>';
@@ -284,6 +351,10 @@
     // replaced above, same pattern as the tab listeners just above.
     var exportBtn = document.getElementById('cpExportCopaBtn');
     if (exportBtn) exportBtn.addEventListener('click', function () { exportCoparticipadosXlsx(exportBtn); });
+    // FC-2.4: mutually exclusive with the button above -- #cpPanel only
+    // ever contains one view's markup at a time.
+    var exportSubsBtn = document.getElementById('cpExportSubsBtn');
+    if (exportSubsBtn) exportSubsBtn.addEventListener('click', function () { exportSubsidiadosXlsx(exportSubsBtn); });
   }
 
   // render() is the single entry point every UI handler calls. Fixture
@@ -343,19 +414,20 @@
       currentStore = e.target.value;
       render();
     });
-    document.getElementById('cpDeptFilter').addEventListener('change', function (e) {
-      // Same as above -- subtractive-only, no department override exists
-      // on the RPC either.
-      currentDept = e.target.value;
-      render();
+    document.querySelectorAll('.cpPresetBtn').forEach(function (btn) {
+      btn.addEventListener('click', function () { applyPresetAndRender(btn.dataset.preset); });
     });
     document.getElementById('cpDateStart').addEventListener('change', function (e) {
       currentDateStart = e.target.value;
+      currentPreset = 'CUSTOM';
+      document.querySelectorAll('.cpPresetBtn').forEach(function (b) { b.classList.remove('modSegItemActive'); });
       realResult = null; // period changed -- server scope itself changes, must refetch
       render();
     });
     document.getElementById('cpDateEnd').addEventListener('change', function (e) {
       currentDateEnd = e.target.value;
+      currentPreset = 'CUSTOM';
+      document.querySelectorAll('.cpPresetBtn').forEach(function (b) { b.classList.remove('modSegItemActive'); });
       realResult = null;
       render();
     });
@@ -379,8 +451,17 @@
       fixtureBanner +
       '<div class="modFilters">' +
       '<div class="modField"><label for="cpStoreFilter">Loja</label><select id="cpStoreFilter"><option value="">Todas as lojas</option></select></div>' +
-      '<div class="modField"><label for="cpDeptFilter">Departamento</label><select id="cpDeptFilter">' +
-      '<option value="Grupo" selected>Grupo</option><option value="Novos">Novos</option><option value="Seminovos">Seminovos</option></select></div>' +
+      // FC-2.4: Departamento removed (Human product decision -- this
+      // module is NOVOS-only, enforced in applyFilters(), not by a
+      // user-selectable dimension). Period-preset shortcuts added in its
+      // place, matching the existing shared Portal V2 convention
+      // (.modSegmentedGroup/.modSegItem, same markup already used by
+      // Score/Dash BI's own period filters -- Gate 17, reuse over new design).
+      '<div class="modField"><label>Período rápido</label><div class="modSegmentedGroup">' +
+      '<button type="button" class="modSegItem cpPresetBtn" data-preset="currentMonth">Mês atual</button>' +
+      '<button type="button" class="modSegItem cpPresetBtn" data-preset="lastMonth">Mês anterior</button>' +
+      '<button type="button" class="modSegItem cpPresetBtn" data-preset="last6">Últimos 6 meses</button>' +
+      '</div></div>' +
       '<div class="modField"><label for="cpDateStart">Data inicial</label><input id="cpDateStart" type="date" value="' + esc(currentDateStart) + '"></div>' +
       '<div class="modField"><label for="cpDateEnd">Data final</label><input id="cpDateEnd" type="date" value="' + esc(currentDateEnd) + '"></div>' +
       '</div>' +
@@ -470,7 +551,78 @@
     }
   }
 
+  // FC-2.4 (V1_SUBSIDIADOS_EXPORT_EXISTS_AND_WIRED): restores V1's OWN
+  // exportarSubsidiados() (modules/coparticipado.html -- a real, wired
+  // production button, <button onclick="exportarSubsidiados()">Exportar
+  // Subsidiados em Excel</button>, confirmed by direct source read,
+  // alongside exportarCoparticipados()'s own equally-real button in the
+  // SAME file). Column contract/order/labels/row derivations ported
+  // field-for-field from that source. No rate/rebate columns -- V1's own
+  // contract never had them for Subsidiados (not applicable to this plan
+  // type), so none are invented here either. Every field below already
+  // exists on Coparticipado's canonical fins rows in BOTH transports --
+  // 0 new fields needed (unlike Coparticipados' export, which needed 2
+  // additions to the real view-model in FC-2.3). "Departamento" will read
+  // "Novos" for every row now that this module is fixed to Novos-only
+  // (Gate 26-29) -- preserved as a V1 contract column regardless, not
+  // removed just because its value is now constant.
+  function exportSubsidiadosXlsx(btn) {
+    var now = Date.now();
+    if (now - lastCpExportAt < 800) return; // shared debounce with the Coparticipados export
+    lastCpExportAt = now;
+    var statusEl = document.getElementById('cpExportStatus');
+    var fins = (currentFilteredFins || []).filter(function (r) { return r.plano === 'SUBSIDIADO'; });
+    if (!fins.length) {
+      if (statusEl) statusEl.textContent = 'Nenhum subsidiado encontrado no filtro atual.';
+      return;
+    }
+    var headers = ['Nome do cliente', 'Vendedor', 'Loja vinculada', 'Departamento', 'Modelo do carro', 'Família do carro', 'Valor de venda', 'Valor financiado', 'Retorno', 'SPF Extra', 'Situação', 'Prazo', 'Parcela', 'Data da venda', 'Chassi'];
+    var dataRows = fins.map(function (r) {
+      return [
+        r.cliente || '',
+        r.vendedor || '',
+        r.loja || '',
+        r.dept || '',
+        r.modelo || '',
+        r.familia || '',
+        Number(r.valorVenda) || 0,
+        Number(r.valorFinanciado) || 0,
+        Number(r.retorno) || 0,
+        Number(r.receitaSPF) || 0,
+        r.situacaoB3 || '',
+        r.parcelas ? Number(r.parcelas) : '',
+        r.pmt ? Number(r.pmt) : '',
+        window.NX_XLSX_EXPORT_HELPER.excelDateValue(r.data) || '',
+        r.chassi || ''
+      ];
+    });
+    var columnTypes = {
+      moneyCols: new Set(['Valor de venda', 'Valor financiado', 'Retorno', 'SPF Extra', 'Parcela']),
+      dateCols: new Set(['Data da venda']),
+      intCols: new Set(['Prazo']),
+      textCols: new Set(['Nome do cliente', 'Vendedor', 'Loja vinculada', 'Departamento', 'Modelo do carro', 'Família do carro', 'Situação', 'Chassi'])
+    };
+    btn.disabled = true;
+    try {
+      // FC-2.4: same filename family as Coparticipados' own (V1's platform-
+      // wide F&I naming, not a Score artifact -- see FC-2.3 report); V1's
+      // own exportarSubsidiados() used exactly this pattern.
+      var filename = 'Subsidiados_Score_FI_' + window.NX_XLSX_EXPORT_HELPER.excelFileStamp() + '.xlsx';
+      window.NX_XLSX_EXPORT_HELPER.downloadWorkbook(headers, dataRows, 'Subsidiados', filename, columnTypes);
+      if (statusEl) statusEl.textContent = 'Exportado: ' + filename;
+    } catch (err) {
+      if (statusEl) statusEl.textContent = 'Falha ao gerar o arquivo Excel. Tente novamente.';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   window.NX_COPARTICIPADO_PAGE = {
+    // FC-2.4 -- exposed read-only for deterministic period-preset testing
+    // (tests/coparticipado-period-preset-test.py), same pattern already
+    // used for window.NX_SCORE_PAGE.classifyScoreBand.
+    computePreset: computePreset,
+    localIso: localIso,
     render: function (outlet) {
       if (isRealTransport()) {
         // The RPC requires a non-null p_start (Phase 1B, Gate 7) --

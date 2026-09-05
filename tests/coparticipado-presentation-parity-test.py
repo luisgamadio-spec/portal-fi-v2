@@ -61,7 +61,11 @@ def expected_rows(page, fixture_id, view):
                 return { vendorRows: c.vendorRows, taxasCopart: c.taxasCopart, b1Rows: c.b1Rows, b2Rows: c.b2Rows, b3Rows: c.b3Rows }; })();
           const result = A.compute(input);
           const plano = view === 'SUBSIDIADO' ? 'SUBSIDIADO' : 'COPARTICIPADO';
-          const rows = result.fins.filter(r => r.plano === plano);
+          // FC-2.4 (Human product decision): this module is NOVOS-only now
+          // (coparticipado.js's own applyFilters() enforces it) -- mirrored
+          // here so "expected" matches the CURRENT business rule, not the
+          // pre-FC-2.4 Grupo-wide one.
+          const rows = result.fins.filter(r => r.plano === plano && r.dept === 'Novos');
           const headers = view === 'SUBSIDIADO' ? suHeaders : coHeaders;
           function fmtCopart(r) {
             const c = r.coparticipacaoDetalhe || A.calcCoparticipacaoDetalhe(r);

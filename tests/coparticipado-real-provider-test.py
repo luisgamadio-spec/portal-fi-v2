@@ -100,7 +100,15 @@ SAMPLE_PAYLOAD = dict(EMPTY_PAYLOAD, sales=[
      "balloon_value": 0, "plan": "COPARTICIPADO",
      "status": "EM ANDAMENTO",  # NOT PAGA/FATURADA -- old rule would reject this as COPARTICIPADO
      "operation_reference": "***AB1234"},
-    {"date": "2026-08-02", "seller": "Real Seller B", "store": "SANTO AMARO", "department": "SEMINOVOS",
+    # FC-2.4 (Human product decision): this module is now NOVOS-only
+    # (coparticipado.js's own applyFilters() excludes Seminovos
+    # unconditionally) -- department changed from the original SEMINOVOS
+    # to NOVOS so check 14 (Subsidiados privacy/masking) still has a
+    # visible record. This record's own purpose (client placeholder +
+    # masked reference) was never about department scope; FC-2.4's own
+    # coparticipado-fc24-test.py separately, exhaustively proves Seminovos
+    # exclusion for both Coparticipados and Subsidiados.
+    {"date": "2026-08-02", "seller": "Real Seller B", "store": "SANTO AMARO", "department": "NOVOS",
      "model": "OUTLANDER HPE-S", "sale_value": 220000, "financed_value": 200000, "return_value": 12000,
      "spf_value": 0, "spf_count": 0, "installments": 36, "installment_value": 5800,
      "balloon_value": 0, "plan": "SUBSIDIADO", "status": "PAGA", "operation_reference": "***CD5678"},
