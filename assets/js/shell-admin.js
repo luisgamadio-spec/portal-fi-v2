@@ -63,7 +63,7 @@
   // Double-submit guards (Gate 24) — one per distinct mutation action,
   // never a single shared flag (two different actions must not block
   // each other).
-  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false, pcMutate: false, pcExcecao: false };
+  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false, pcMutate: false, pcExcecao: false, gbImport: false };
 
   // Painel Master Phase 3B -- Acessos aos Módulos section state. Kept
   // entirely separate from the Usuários vars above (own load/error/
@@ -101,6 +101,30 @@
   };
   var pcDetailId = null;
   var pcSearchDebounce = null;
+
+  // Painel Master Phase PM-5C -- Gestão de Bases section state. Own
+  // independent load lifecycle, same discipline as acessosState/
+  // auditState/pcState above (never leaks into another section's state).
+  // `sellersByNbs` mirrors V1's GB_SELLERS_CACHE (a client-side lookup
+  // used ONLY to enrich store/CPF for display+payload -- NOT to
+  // replicate the real seller/CPF/NBS identity-resolution the backend
+  // RPCs already own independently, confirmed by direct inspection of
+  // their live bodies, PM-5C Gate 13). `sessionFinanceBatch` mirrors
+  // V1's GB_SESSION.financeBatch (in-memory only, never persisted --
+  // lets a just-opened Base 02 batch's seller-less rows be silently
+  // re-resolved after Colaboradores is updated in the SAME browser
+  // session, without re-uploading the Base 02 file).
+  var gbState = {
+    loading: false, loaded: false, error: null,
+    officialBatches: {}, // SOURCE_ORDER id -> {validated}
+    sellersByNbs: null,
+    pendingSourceType: null,
+    processing: false,
+    progress: { done: 0, total: 0 },
+    modal: null, // null | {kind:'diagnostic'|'success'|'error', ...}
+    sessionFinanceBatch: null,
+    lastMissingSellers: []
+  };
 
   // Create/Edit form working state — reset on view change.
   var createForm = null;
@@ -434,9 +458,16 @@
   // explicit, so a disabled "coming soon" placeholder implying a future
   // build would be actively misleading. No second Revisões section is
   // added back, per this Phase's own Gate 2/15.
+  // Painel Master Phase PM-5C: 'gestaoBases' inserted BEFORE 'pendenciasCadastrais',
+  // not after -- Gate 27's own recommended ordering. Gestão de Bases is
+  // upstream data ingestion (it is what POPULATES the reconciliation
+  // signals); Pendências Cadastrais is the downstream queue that reviews
+  // exactly those signals. Identity/access sections (Usuários/Acessos)
+  // stay first, Auditoria (a pure read-only log of everything) stays last.
   var SECTIONS = [
     { id: 'usuarios', label: 'Usuários', active: true },
     { id: 'acessos', label: 'Acessos aos Módulos', active: true },
+    { id: 'gestaoBases', label: 'Gestão de Bases', active: true },
     { id: 'pendenciasCadastrais', label: 'Pendências Cadastrais', active: true },
     { id: 'auditoria', label: 'Auditoria', active: true }
   ];
@@ -480,6 +511,7 @@
     generatedLink = null;
     auditDetailId = null;
     pcDetailId = null;
+    gbState.modal = null;
     // Never leave either section's modal open behind a section switch --
     // a blunt clear (no focus-return) is correct here, since the trigger
     // row itself is about to be discarded along with the whole section.
@@ -493,6 +525,8 @@
       auditEnter();
     } else if (currentSection === 'pendenciasCadastrais') {
       pcEnter();
+    } else if (currentSection === 'gestaoBases') {
+      gbEnter();
     } else {
       renderPanel();
     }
@@ -851,6 +885,7 @@
     if (auditDetailId) { e.preventDefault(); closeAuditModal(); }
     else if (currentDetailId) { e.preventDefault(); closeUserModal(); }
     else if (pcDetailId) { e.preventDefault(); closePcModal(); }
+    else if (gbState.modal) { e.preventDefault(); gbCloseModal(); }
   }
 
   function auditModalBodyHtml(r) {
@@ -1497,6 +1532,451 @@
     return html;
   }
 
+  // ==================== Gestão de Bases (Painel Master Phase PM-5C) ====================
+  // Real backend reuse only -- 8 already-deployed, already-audited
+  // master_operational_* RPCs (PM-5C Gate 5/13/38), no new backend. This
+  // section's own homologation-mode gate lives in the PROVIDER (ported
+  // from V1's own gbRpc/GB_HOMOLOGATION_MODE, see master-gestao-bases-
+  // provider.js) -- every write RPC auto-simulates on any non-production
+  // hostname, so this file never needs its own separate safety check.
+  var GB_VM = window.NX_MASTER_GESTAO_BASES_VM;
+  var GB_PROVIDER = window.NX_MASTER_GESTAO_BASES_PROVIDER;
+
+  function gbEnter() {
+    if (gbState.loaded || gbState.loading) { renderPanel(); return; }
+    gbLoad();
+  }
+
+  function gbLoad() {
+    gbState.loading = true;
+    gbState.error = null;
+    renderPanel();
+    GB_PROVIDER.listBatches({}).then(
+      function (batches) {
+        gbState.officialBatches = GB_VM.selectOfficialBatches(batches);
+        gbState.loading = false;
+        gbState.loaded = true;
+        renderPanel();
+      },
+      function (err) {
+        gbState.loading = false;
+        gbState.loaded = false;
+        gbState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  function gbLoadSellersCache(force) {
+    if (gbState.sellersByNbs && !force) return Promise.resolve(gbState.sellersByNbs);
+    return GB_PROVIDER.listSellers({}).then(function (rows) {
+      var byNbs = {};
+      (rows || []).forEach(function (s) {
+        var nbs = GB_VM.gbNormalize(s.nbs);
+        if (nbs) byNbs[nbs] = s;
+      });
+      gbState.sellersByNbs = byNbs;
+      return byNbs;
+    });
+  }
+
+  function gbCardHtml(sourceType, info) {
+    var label = GB_VM.SOURCE_LABELS[sourceType];
+    var v = info && info.validated;
+    var pendingBadge = (sourceType === 'FINANCE_CURRENT' && gbState.sessionFinanceBatch)
+      ? '<div class="gbPendingNote">⏳ A Base 02 desta sessão está em validação — confirme-a para torná-la oficial.</div>'
+      : '';
+    var legadoNote = (sourceType === 'COLABORADORES')
+      ? '<p class="note gbLegadoNote">Não é mais necessário para que vendedores novos sejam reconhecidos — o cadastro no Portal (com Login NBS) já é suficiente. Use somente para enriquecer/atualizar dados históricos legados.</p>'
+      : '';
+    var body = v ? (
+      '<div class="gbRow"><span>Arquivo</span><b>' + esc(v.original_filename || '-') + '</b></div>' +
+      '<div class="gbRow"><span>Atualizado em</span><b>' + esc(GB_VM.gbFmtDateTime(v.completed_at)) + '</b></div>' +
+      '<div class="gbRow"><span>Período</span><b>' + esc(GB_VM.gbFmtDate(v.period_start)) + ' → ' + esc(GB_VM.gbFmtDate(v.period_end)) + '</b></div>' +
+      '<div class="gbRow"><span>Linhas lidas</span><b>' + esc(GB_VM.gbFmtNum(v.rows_read)) + '</b></div>' +
+      '<div class="gbRow"><span>Aceitas</span><b>' + esc(GB_VM.gbFmtNum(v.rows_accepted)) + '</b></div>' +
+      '<div class="gbRow"><span>Rejeitadas</span><b>' + esc(GB_VM.gbFmtNum(v.rows_rejected)) + '</b></div>' +
+      '<div class="gbRow"><span>Status</span><b class="gbStatusOk">VALIDADO</b></div>'
+    ) : '<p class="note">Nenhuma carga validada ainda para esta base.</p>';
+    return '<div class="gbCard">' +
+      '<h3>' + esc(label) + '</h3>' + body + pendingBadge + legadoNote +
+      '<button type="button" class="modBtn gbUpdateBtn" data-source-type="' + esc(sourceType) + '"' + (inFlight.gbImport ? ' disabled' : '') + '>ATUALIZAR</button>' +
+      '</div>';
+  }
+
+  function renderGestaoBasesSection() {
+    var homologBanner = (GB_PROVIDER.isHomologationMode())
+      ? '<p class="note gbWarn gbHomologBanner">🧪 MODO HOMOLOGAÇÃO — nenhuma alteração será gravada neste ambiente.</p>'
+      : '';
+    var html = '<h2>Gestão de Bases</h2>' +
+      '<p class="note">Bases operacionais do portal: Vendas, Financiamentos e Complementar. A base atual permanece válida até você confirmar a atualização.</p>' +
+      homologBanner;
+    if (gbState.error) {
+      html += errorStateHtml(gbState.error.state, gbState.error.message) +
+        '<button type="button" id="gbRetryBtn" class="modBtnGhost">Tentar novamente</button>';
+    } else if (gbState.loading || !gbState.loaded) {
+      html += '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando status das bases...</div>';
+    } else {
+      html += '<div class="gbGrid">' + GB_VM.SOURCE_ORDER.map(function (src) {
+        return gbCardHtml(src, gbState.officialBatches[src]);
+      }).join('') + '</div>';
+    }
+    html += '<input type="file" id="gbFileInput" accept=".xlsx,.xls" hidden>';
+    return html;
+  }
+
+  // ---------- modal root (shared #nxModalRoot, per this Phase's own Gate) ----------
+  function renderGbModalRoot() {
+    if (!gbState.modal) { if (currentSection === 'gestaoBases') clearNxModal(); return; }
+    var m = gbState.modal;
+    if (m.kind === 'diagnostic') renderNxModal(m.titulo + ' — VALIDAÇÃO', gbDiagnosticBodyHtml(m), gbCancelar);
+    else if (m.kind === 'progress') renderNxModal(m.titulo, gbProgressBodyHtml(), function () {});
+    else if (m.kind === 'success') renderNxModal((gbHomolog() ? '🧪 ' : '✅ ') + m.titulo, gbSuccessBodyHtml(m), gbCloseModalAndRefresh);
+    else if (m.kind === 'error') renderNxModal('Erro', gbErrorBodyHtml(m), gbCloseModal);
+    wireGbModalInteraction();
+  }
+  // Mirrors wireUserModalInteraction()'s own precedent: renderNxModal only
+  // wires the shared backdrop/close-X (via its own onClose param) -- any
+  // interactive element INSIDE the modal body needs its own wiring call
+  // right after the modal (re)renders, never folded into the outer
+  // wireInteraction() (which only runs after a full #maPanel re-render,
+  // never after a modal-only update like a diagnostic->success swap).
+  function wireGbModalInteraction() {
+    var gbFixColaboradores = document.querySelector('.gbFixColaboradoresBtn');
+    if (gbFixColaboradores) gbFixColaboradores.addEventListener('click', function () {
+      gbCancelar();
+      window.gbOnAtualizarClick('COLABORADORES');
+    });
+    var gbCancelarBtn = document.getElementById('gbCancelarBtn');
+    if (gbCancelarBtn) gbCancelarBtn.addEventListener('click', gbCancelar);
+    var gbConfirmarBtn = document.getElementById('gbConfirmarBtn');
+    if (gbConfirmarBtn) gbConfirmarBtn.addEventListener('click', gbConfirmarHandler);
+    var gbSuccessClose = document.getElementById('gbSuccessCloseBtn');
+    if (gbSuccessClose) gbSuccessClose.addEventListener('click', gbCloseModalAndRefresh);
+    var gbErrorClose = document.getElementById('gbErrorCloseBtn');
+    if (gbErrorClose) gbErrorClose.addEventListener('click', gbCloseModal);
+  }
+  function gbHomolog() { return GB_PROVIDER.isHomologationMode(); }
+  function gbCloseModal() { gbState.modal = null; clearNxModal(); }
+  function gbCloseModalAndRefresh() { gbState.modal = null; clearNxModal(); gbState.loaded = false; gbEnter(); }
+  function gbCancelar() { gbState.modal = null; clearNxModal(); }
+
+  // Double-submit guard (Gate 24/32 precedent, same discipline as every
+  // other mutation in this file -- one flag per distinct action).
+  function gbConfirmarHandler() {
+    if (inFlight.gbImport) return;
+    var onConfirmar = gbState.modal && gbState.modal.onConfirmar;
+    if (typeof onConfirmar !== 'function') return;
+    inFlight.gbImport = true;
+    var btn = document.getElementById('gbConfirmarBtn');
+    if (btn) btn.disabled = true;
+    onConfirmar().then(
+      function () { inFlight.gbImport = false; },
+      function (err) {
+        inFlight.gbImport = false;
+        var msg = document.getElementById('gbDiagMsg');
+        if (msg) msg.textContent = 'Erro ao confirmar: ' + String((err && err.message) || err);
+        if (btn) btn.disabled = false;
+      }
+    );
+  }
+
+  function gbDiagnosticBodyHtml(m) {
+    var ok = m.okOverride !== undefined ? m.okOverride : (m.aceitas > 0 || m.linhasLidas === 0);
+    var avisosHtml = (m.avisos && m.avisos.length)
+      ? '<div class="gbWarn">' + m.avisos.map(function (a) { return '<div>⚠️ ' + esc(a) + '</div>'; }).join('') + '</div>' : '';
+    var listaHtml = (m.listaPendente && m.listaPendente.length)
+      ? '<div class="gbMissingList">' + m.listaPendente.map(function (x) { return '<div>' + esc(x.nome) + ' <span class="gbMuted">(' + esc(x.nbs) + ')</span></div>'; }).join('') + '</div>' +
+        '<button type="button" class="modBtnGhost gbFixColaboradoresBtn">ATUALIZAR COLABORADORES</button>'
+      : '';
+    return '<div class="gbRow"><span>Arquivo</span><b>' + esc(m.arquivo) + '</b></div>' +
+      '<div class="gbRow"><span>Linhas lidas</span><b>' + esc(GB_VM.gbFmtNum(m.linhasLidas)) + '</b></div>' +
+      '<div class="gbRow"><span>Aceitas</span><b>' + esc(GB_VM.gbFmtNum(m.aceitas)) + '</b></div>' +
+      '<div class="gbRow"><span>Rejeitadas</span><b>' + esc(GB_VM.gbFmtNum(m.rejeitadas)) + '</b></div>' +
+      '<div class="gbRow"><span>Status</span><b class="' + (ok ? 'gbStatusOk' : 'gbStatusBad') + '">' + (ok ? '🟢 PRONTO PARA ATUALIZAÇÃO' : '🔴 ARQUIVO REJEITADO') + '</b></div>' +
+      listaHtml + (m.extraHtml || '') + avisosHtml +
+      '<p class="note">A base oficial atual continua sendo usada pelas análises até você confirmar.</p>' +
+      '<p id="gbDiagMsg" class="maSubtle gbErrText" role="status"></p>' +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="gbCancelarBtn">CANCELAR</button>' +
+      '<button type="button" class="modBtn" id="gbConfirmarBtn"' + (ok ? '' : ' disabled') + (inFlight.gbImport ? ' disabled' : '') + '>CONFIRMAR ATUALIZAÇÃO</button>' +
+      '</div>';
+  }
+  function gbProgressBodyHtml() {
+    return '<div class="gbProgressWrap"><div id="gbProgressBar" class="gbProgressBar"></div></div><p id="gbProgressText" class="note">Iniciando...</p>';
+  }
+  function gbSuccessBodyHtml(m) {
+    var tituloLinha = gbHomolog()
+      ? '<p class="gbSimNote"><b>🧪 SIMULAÇÃO CONCLUÍDA — nenhuma alteração foi realizada no banco</b></p>'
+      : '<p><b>BASE ATUALIZADA COM SUCESSO</b></p>';
+    return tituloLinha +
+      '<div class="gbRow"><span>Arquivo</span><b>' + esc(m.arquivo) + '</b></div>' +
+      '<div class="gbRow"><span>Registros</span><b>' + esc(GB_VM.gbFmtNum(m.registros)) + '</b></div>' +
+      '<div class="gbRow"><span>Data/hora</span><b>' + esc(GB_VM.gbFmtDateTime(new Date().toISOString())) + '</b></div>' +
+      (m.notaExtra ? '<p class="note">' + esc(m.notaExtra) + '</p>' : '') +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="gbSuccessCloseBtn">Fechar</button></div>';
+  }
+  function gbErrorBodyHtml(m) {
+    return '<p class="gbErrText">' + esc(m.message || 'Falha ao processar o arquivo.') + '</p>' +
+      '<p class="note">A base oficial anterior não foi alterada.</p>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="gbErrorCloseBtn">Fechar</button></div>';
+  }
+
+  function gbSetProgress(done, total) {
+    var pct = total ? Math.round((done / total) * 100) : 0;
+    var bar = document.getElementById('gbProgressBar');
+    var txt = document.getElementById('gbProgressText');
+    if (bar) bar.style.width = pct + '%';
+    if (txt) txt.textContent = GB_VM.gbFmtNum(done) + ' / ' + GB_VM.gbFmtNum(total) + ' registros (' + pct + '%)';
+  }
+  function gbShowProgress(titulo) {
+    gbState.modal = { kind: 'progress', titulo: titulo };
+    renderGbModalRoot();
+  }
+  function gbShowDiagnostic(opts) {
+    gbState.modal = {
+      kind: 'diagnostic', titulo: opts.titulo, arquivo: opts.arquivo, linhasLidas: opts.linhasLidas,
+      aceitas: opts.aceitas, rejeitadas: opts.rejeitadas, avisos: opts.avisos || [],
+      listaPendente: opts.listaPendente || [], extraHtml: opts.extraHtml || '',
+      okOverride: opts.okOverride, onConfirmar: opts.onConfirmar
+    };
+    renderGbModalRoot();
+  }
+  function gbShowSuccess(titulo, arquivo, registros, notaExtra) {
+    gbState.modal = { kind: 'success', titulo: titulo, arquivo: arquivo, registros: registros, notaExtra: notaExtra };
+    renderGbModalRoot();
+  }
+  function gbShowError(message) {
+    gbState.modal = { kind: 'error', message: message };
+    renderGbModalRoot();
+  }
+
+  function gbImportChunked(rpcFn, batchId, rows) {
+    var chunks = GB_VM.gbChunk(rows, GB_VM.CHUNK_SIZE);
+    var accepted = 0;
+    var i = 0;
+    function next() {
+      if (i >= chunks.length) return Promise.resolve(accepted);
+      return rpcFn(batchId, chunks[i]).then(function (count) {
+        accepted += Number(count) || 0;
+        i++;
+        gbSetProgress(Math.min(i * GB_VM.CHUNK_SIZE, rows.length), rows.length);
+        return next();
+      });
+    }
+    return next();
+  }
+
+  function gbAnchorFor(sourceType) { return GB_VM.HEADER_ANCHORS[sourceType]; }
+
+  window.gbOnAtualizarClick = function (sourceType) {
+    gbState.pendingSourceType = sourceType;
+    var input = document.getElementById('gbFileInput');
+    if (input) input.click();
+  };
+
+  function gbOnFileChosen(file) {
+    var sourceType = gbState.pendingSourceType;
+    if (!file || !sourceType) return;
+    gbShowProgress('Lendo ' + file.name + '...');
+    GB_VM.gbReadSheet(file, gbAnchorFor(sourceType)).then(function (sheet) {
+      if (!sheet.rows.length) return Promise.reject({ message: 'Arquivo vazio ou sem linhas de dados reconhecíveis.' });
+      return GB_VM.gbSha256Hex(sheet.buf).then(function (sha256) {
+        if (sourceType === 'SALES_CURRENT') return gbProcessarBase01(file, sheet.rows, sha256);
+        if (sourceType === 'FINANCE_CURRENT') return gbProcessarBase02(file, sheet.rows, sha256);
+        if (sourceType === 'SPF_CURRENT') return gbProcessarBase03(file, sheet.rows, sha256, sheet.date1904);
+        if (sourceType === 'COLABORADORES') return gbProcessarColaboradores(file, sheet.rows, sha256);
+        return Promise.reject({ message: 'Tipo de base desconhecido.' });
+      });
+    }).catch(function (e) {
+      gbShowError(String((e && e.message) || e));
+    });
+  }
+
+  function gbProcessarBase01(file, rawRows, sha256) {
+    return gbLoadSellersCache().then(function (sellersByNbs) {
+      var mapped = rawRows.map(function (r, i) { return GB_VM.gbBuildBase01Row(r, i + 1, sellersByNbs); });
+      var semDepartamento = mapped.filter(function (r) { return !r._diagOk; }).length;
+      var rowsToSend = mapped.map(function (r) { var c = {}; Object.keys(r).forEach(function (k) { if (k !== '_diagOk') c[k] = r[k]; }); return c; });
+
+      var missingByNbs = {};
+      var semVendedorNoArquivo = 0;
+      mapped.forEach(function (r) {
+        if (!r.seller_nbs || sellersByNbs[r.seller_nbs]) return;
+        if (r.seller_nbs === 'NBS') { semVendedorNoArquivo++; return; }
+        missingByNbs[r.seller_nbs] = { nbs: r.seller_nbs, nome: r.seller_source_name || r.seller_nbs };
+      });
+      var missingList = Object.keys(missingByNbs).map(function (k) { return missingByNbs[k]; });
+
+      gbSetProgress(0, rowsToSend.length);
+      return GB_PROVIDER.beginImport('SALES_CURRENT', file.name, sha256, rowsToSend.length).then(function (batchId) {
+        return gbImportChunked(GB_PROVIDER.importSales, batchId, rowsToSend).then(function (accepted) {
+          var rejected = rowsToSend.length - accepted;
+          var avisos = [];
+          if (semDepartamento) avisos.push(semDepartamento + ' registro(s) com departamento não reconhecido — foram enviados mesmo assim e podem ter sido rejeitados pela validação do servidor.');
+          if (missingList.length) avisos.push(missingList.length + ' código(s) de vendedor (coluna "Vendedor") não encontrado(s) no cadastro — a loja dessas linhas usou o texto do arquivo.');
+          if (semVendedorNoArquivo) avisos.push(GB_VM.gbFmtNum(semVendedorNoArquivo) + ' linha(s) sem vendedor individual identificado no próprio arquivo (código "NBS").');
+
+          gbShowDiagnostic({
+            titulo: 'BASE 01 — VENDAS', arquivo: file.name, linhasLidas: rowsToSend.length,
+            aceitas: accepted, rejeitadas: rejected, avisos: avisos, listaPendente: missingList,
+            onConfirmar: function () {
+              return GB_PROVIDER.finalizeImport(batchId, accepted, rejected, 'Gestão de Bases: ' + accepted + ' aceitas, ' + rejected + ' rejeitadas.')
+                .then(function () { gbShowSuccess('BASE 01 — VENDAS', file.name, accepted); });
+            }
+          });
+        });
+      });
+    });
+  }
+
+  function gbProcessarBase02(file, rawRows, sha256) {
+    return gbLoadSellersCache().then(function (sellersByNbs) {
+      var mapped = rawRows.map(function (r, i) { return GB_VM.gbBuildBase02Row(r, i + 1, sellersByNbs); });
+      var rowsToSend = mapped.map(function (r) { var c = {}; Object.keys(r).forEach(function (k) { if (k !== '_diagOk') c[k] = r[k]; }); return c; });
+
+      var missingByNbs = {};
+      mapped.forEach(function (r) {
+        if (!r.seller_cpf && r.seller_nbs) missingByNbs[r.seller_nbs] = { nbs: r.seller_nbs, nome: r.seller_source_name || r.seller_nbs };
+      });
+      var missingList = Object.keys(missingByNbs).map(function (k) { return missingByNbs[k]; });
+
+      gbSetProgress(0, rowsToSend.length);
+      return GB_PROVIDER.beginImport('FINANCE_CURRENT', file.name, sha256, rowsToSend.length).then(function (batchId) {
+        return gbImportChunked(GB_PROVIDER.importFinance, batchId, rowsToSend).then(function (accepted) {
+          var rejected = rowsToSend.length - accepted;
+          gbState.sessionFinanceBatch = {
+            batchId: batchId,
+            pendentesRaw: rawRows.map(function (raw, i) { return { raw: raw, rowNumber: i + 1 }; })
+              .filter(function (_, i) { return !mapped[i].seller_cpf && mapped[i].seller_nbs; })
+          };
+          gbState.lastMissingSellers = missingList;
+
+          gbShowDiagnostic({
+            titulo: 'BASE 02 — FINANCIAMENTOS', arquivo: file.name, linhasLidas: rowsToSend.length,
+            aceitas: accepted, rejeitadas: rejected,
+            avisos: missingList.length ? [missingList.length + ' registro(s) cujo vendedor (coluna "Vendedor") não foi encontrado no cadastro — loja/CPF ficaram em branco para essas linhas.'] : [],
+            listaPendente: missingList,
+            extraHtml: '<p class="note">Este lote permanece em validação até você confirmar. A Base 03 pode ser atualizada a qualquer momento, mesmo depois de confirmar esta Base 02 — ela localiza a versão oficial automaticamente.</p>',
+            onConfirmar: function () {
+              return GB_PROVIDER.finalizeImport(batchId, accepted, rejected, 'Gestão de Bases: ' + accepted + ' aceitas, ' + rejected + ' rejeitadas.')
+                .then(function () {
+                  gbState.sessionFinanceBatch = null;
+                  gbShowSuccess('BASE 02 — FINANCIAMENTOS', file.name, accepted);
+                });
+            }
+          });
+        });
+      });
+    });
+  }
+
+  function gbProcessarBase03(file, rawRows, sha256, date1904) {
+    gbSetProgress(0, rawRows.length);
+    var cls = GB_VM.gbClassifyBase03Rows(rawRows, date1904);
+    var financeRows = GB_VM.gbBuildBase03FinanceRows(rawRows);
+
+    gbSetProgress(0, 1);
+    return GB_PROVIDER.applyBase03(file.name, sha256, financeRows, cls.allRows, true).then(function (preview) {
+      gbSetProgress(1, 1);
+      var extraHtml = '<div class="gbRow"><span>Enriquecimento financeiro (clientes que serão atualizados na Base 02 oficial)</span><b>' + esc(GB_VM.gbFmtNum(preview.finance_rows_matched)) + '</b></div>' +
+        '<div class="gbRow"><span>Linhas operacionais principais</span><b>' + esc(GB_VM.gbFmtNum(cls.principalRows.length)) + '</b></div>' +
+        '<div class="gbRow"><span>Linhas SPF Extra (complementares)</span><b>' + esc(GB_VM.gbFmtNum(cls.spfRows.length)) + '</b></div>' +
+        (cls.discardedTotalRows ? '<div class="gbRow"><span>Linhas descartadas (subtotais/lixo de planilha)</span><b>' + esc(GB_VM.gbFmtNum(cls.discardedTotalRows)) + '</b></div>' : '') +
+        '<p class="note">A confirmação aplica tudo em uma única operação no banco: ou os dados financeiros e o SPF (principais + complementares) são atualizados juntos, ou nada é alterado.</p>' +
+        (gbHomolog() ? '<p class="note gbWarn">🧪 MODO HOMOLOGAÇÃO: ao confirmar, nenhuma escrita real ocorrerá — os números acima já vêm de uma consulta real (p_dry_run=true), só a gravação final é simulada.</p>' : '');
+
+      gbShowDiagnostic({
+        titulo: 'BASE 03 — COMPLEMENTAR / F&I', arquivo: file.name, linhasLidas: rawRows.length,
+        aceitas: cls.allLikelyAccepted, rejeitadas: cls.allLikelyRejected, avisos: [],
+        okOverride: cls.principalRows.length > 0 || rawRows.length === 0,
+        extraHtml: extraHtml,
+        onConfirmar: function () {
+          // Em homologação, o resultado é montado a partir dos números já
+          // comprovados pelo próprio dry_run acima (uma consulta real) --
+          // nunca inventa dado novo, só não grava. O gate da provider
+          // também bloquearia a chamada real aqui (defesa em profundidade),
+          // mas essa rota genérica devolveria zeros -- V1's own precedent
+          // (master-gestao-bases.js's gbProcessarBase03) always prefers
+          // the real dry-run numbers for the homologation success screen.
+          var resultPromise = gbHomolog()
+            ? Promise.resolve({
+                dry_run: false, simulated: true,
+                finance_batch_id: preview.finance_batch_id, finance_rows_matched: preview.finance_rows_matched,
+                spf_rows_received: cls.allRows.length, spf_accepted: cls.allLikelyAccepted, spf_rejected: cls.allLikelyRejected
+              })
+            : GB_PROVIDER.applyBase03(file.name, sha256, financeRows, cls.allRows, false);
+          return resultPromise.then(function (result) {
+            gbShowSuccess('BASE 03 — COMPLEMENTAR / F&I', file.name, result.spf_accepted || 0);
+          });
+        }
+      });
+    });
+  }
+
+  function gbProcessarColaboradores(file, rawRows, sha256) {
+    var mappedAll = rawRows.map(function (r) { return GB_VM.gbBuildColaboradorRow(r); });
+    var lastByCpf = {};
+    var cpfOrder = [];
+    var semCpfValido = [];
+    mappedAll.forEach(function (r) {
+      if (/^[0-9]{11}$/.test(r.cpf)) {
+        if (!(r.cpf in lastByCpf)) cpfOrder.push(r.cpf);
+        lastByCpf[r.cpf] = r;
+      } else {
+        semCpfValido.push(r);
+      }
+    });
+    var duplicados = mappedAll.length - cpfOrder.length - semCpfValido.length;
+    var mapped = cpfOrder.map(function (cpf) { return lastByCpf[cpf]; }).concat(semCpfValido);
+    gbSetProgress(0, mapped.length);
+
+    return GB_PROVIDER.beginImport('COLABORADORES', file.name, sha256, mappedAll.length).then(function (batchId) {
+      return gbImportChunked(GB_PROVIDER.importSellers, batchId, mapped).then(function (accepted) {
+        var rejected = mapped.length - accepted;
+        gbShowDiagnostic({
+          titulo: 'COLABORADORES / VENDEDORES', arquivo: file.name, linhasLidas: mappedAll.length,
+          aceitas: accepted, rejeitadas: rejected + duplicados,
+          avisos: duplicados ? [duplicados + ' CPF(s) apareciam mais de uma vez no arquivo — foi mantida apenas a linha mais recente de cada um.'] : [],
+          onConfirmar: function () {
+            return GB_PROVIDER.finalizeImport(batchId, accepted, rejected, 'Gestão de Bases: ' + accepted + ' aceitas, ' + rejected + ' rejeitadas.')
+              .then(function () { return gbLoadSellersCache(true); })
+              .then(function () { return gbReprocessarPendentesBase02(); })
+              .then(function (reprocessados) {
+                gbShowSuccess('COLABORADORES / VENDEDORES', file.name, accepted,
+                  reprocessados ? (reprocessados + ' linha(s) da Base 02 desta sessão foram atualizadas com o vendedor agora encontrado.') : '');
+              });
+          }
+        });
+      });
+    });
+  }
+
+  function gbReprocessarPendentesBase02() {
+    var fb = gbState.sessionFinanceBatch;
+    if (!fb || !fb.pendentesRaw || !fb.pendentesRaw.length) return Promise.resolve(0);
+    return gbLoadSellersCache().then(function (sellersByNbs) {
+      var resolvedRows = [];
+      var stillMissing = [];
+      fb.pendentesRaw.forEach(function (p) {
+        var row = GB_VM.gbBuildBase02Row(p.raw, p.rowNumber, sellersByNbs);
+        if (row.seller_cpf) {
+          var c = {}; Object.keys(row).forEach(function (k) { if (k !== '_diagOk') c[k] = row[k]; });
+          resolvedRows.push(c);
+        } else {
+          stillMissing.push(p);
+        }
+      });
+      var afterResolve = resolvedRows.length
+        ? gbImportChunked(GB_PROVIDER.importFinance, fb.batchId, resolvedRows)
+        : Promise.resolve(0);
+      return afterResolve.then(function () {
+        fb.pendentesRaw = stillMissing;
+        return resolvedRows.length;
+      });
+    });
+  }
+
   // ---------- master render ----------
   function renderPanel() {
     var panel = document.getElementById('maPanel');
@@ -1542,6 +2022,13 @@
       // keeps showing what it already showed).
       if (!pcState.loading) renderPcModalRoot();
       panel.innerHTML = renderPendenciasSection();
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'gestaoBases') {
+      renderGbModalRoot();
+      panel.innerHTML = renderGestaoBasesSection();
       wireInteraction();
       return;
     }
@@ -1681,6 +2168,19 @@
     });
     var pcExcSalvar = document.getElementById('pcExcSalvarBtn');
     if (pcExcSalvar) pcExcSalvar.addEventListener('click', pcSalvarExcecaoManual);
+
+    // ---- Gestão de Bases (Painel Master Phase PM-5C) ----
+    var gbFileInput = document.getElementById('gbFileInput');
+    if (gbFileInput) gbFileInput.addEventListener('change', function (e) {
+      var file = e.target.files && e.target.files[0];
+      e.target.value = ''; // allow re-selecting the exact same file next time
+      if (file) gbOnFileChosen(file);
+    });
+    var gbRetry = document.getElementById('gbRetryBtn');
+    if (gbRetry) gbRetry.addEventListener('click', gbLoad);
+    document.querySelectorAll('.gbUpdateBtn').forEach(function (el) {
+      el.addEventListener('click', function () { window.gbOnAtualizarClick(el.getAttribute('data-source-type')); });
+    });
 
     var search = document.getElementById('maSearch');
     if (search) search.addEventListener('input', function (e) { searchQuery = e.target.value; renderPanel(); });

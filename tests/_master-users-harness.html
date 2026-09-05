@@ -34,6 +34,12 @@
      this, master-audit-provider.js's modal code would silently no-op
      in this harness (real product always has this element). -->
 <div id="nxModalRoot" aria-hidden="true"></div>
+<!-- Painel Master Phase PM-5C: the real xlsx-js-style bundle that
+     index.html itself loads -- without it, `window.XLSX` is undefined
+     and master-gestao-bases-view-model.js's gbReadSheet() throws
+     immediately on every test that exercises real file parsing (same
+     harness-fidelity gap already found/fixed for tokens.css/shell.css). -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" integrity="sha384-OUW9euuUyxyHcAhTqbhI+Iyb8LMssXt/cpz0yXhs9UWG2/R/uaWdakx/4cfww7Vb" crossorigin="anonymous"></script>
 <script src="../assets/js/adapters/master-users-provider.js"></script>
 <script src="../assets/js/adapters/master-users-view-model.js"></script>
 <script src="../assets/js/adapters/master-acessos-provider.js"></script>
@@ -42,5 +48,7 @@
 <script src="../assets/js/adapters/master-audit-view-model.js"></script>
 <script src="../assets/js/adapters/master-pendencias-provider.js"></script>
 <script src="../assets/js/master-pendencias-view-model.js"></script>
+<script src="../assets/js/adapters/master-gestao-bases-provider.js"></script>
+<script src="../assets/js/master-gestao-bases-view-model.js"></script>
 <script src="../assets/js/shell-admin.js"></script>
 </body></html>

@@ -306,3 +306,31 @@ body.maudModalOpen { overflow: hidden; }
 @media (max-width: 640px) {
   .pcSummaryCards { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ==================== Gestão de Bases (Painel Master Phase PM-5C) ====================
+   Card-grid presentation, not a table -- Gate 28/29's "no horizontal
+   scroll" requirement is structurally satisfied here (a responsive grid
+   of cards reflows naturally; there is no wide row to overflow), unlike
+   Pendências' own table which needed a dedicated PM-4C.2.1 fix. */
+.gbGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
+.gbCard { border: 1px solid var(--mod-border); border-radius: var(--radius-md); padding: var(--mod-space-control-gap); background: var(--mod-surface-panel-2); display: flex; flex-direction: column; gap: 6px; }
+.gbCard h3 { margin: 0 0 4px 0; font-size: 14px; }
+.gbRow { display: flex; justify-content: space-between; gap: var(--space-2); font-size: 12.5px; padding: 2px 0; }
+.gbRow span { color: var(--color-text-secondary); }
+.gbStatusOk { color: var(--color-success-strong, #1a7f37); }
+.gbStatusBad { color: var(--color-critical, #c22); }
+.gbUpdateBtn { margin-top: var(--space-2); align-self: flex-start; }
+.gbPendingNote { font-size: 12px; color: var(--color-warning-strong, #8a6d1a); background: var(--color-warning-soft, #fff3cd); border-radius: var(--radius-sm); padding: 4px 8px; }
+.gbLegadoNote { margin-top: 4px; }
+.gbHomologBanner { color: var(--color-warning-strong, #8a6d1a); background: var(--color-warning-soft, #fff3cd); border-radius: var(--radius-sm); padding: var(--space-2); }
+.gbWarn { font-size: 12.5px; color: var(--color-warning-strong, #8a6d1a); background: var(--color-warning-soft, #fff3cd); border-radius: var(--radius-sm); padding: var(--space-2); margin-top: var(--space-2); }
+.gbSimNote { color: var(--color-warning-strong, #8a6d1a); }
+.gbErrText { color: var(--color-critical, #c22); }
+.gbMuted { color: var(--color-text-secondary); }
+.gbMissingList { max-height: 160px; overflow-y: auto; border: 1px solid var(--mod-border); border-radius: var(--radius-sm); padding: var(--space-2); font-size: 12.5px; margin-top: var(--space-2); }
+.gbProgressWrap { height: 8px; border-radius: 999px; background: var(--mod-border); overflow: hidden; margin-top: var(--space-2); }
+.gbProgressBar { height: 100%; width: 0; background: var(--color-accent-primary, #1a56db); transition: width var(--duration-fast, .15s) var(--ease-precise, ease); }
+
+@media (max-width: 480px) {
+  .gbGrid { grid-template-columns: 1fr; }
+}
