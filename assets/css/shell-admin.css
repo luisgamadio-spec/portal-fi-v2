@@ -60,7 +60,38 @@
    one justified case), and never used with overflow:hidden/ellipsis
    here (that treatment is reserved for Auditoria's own contextual
    Vendedor/Usuário column below, which is a different tradeoff). */
-.maNameCell { display: flex; flex-direction: column; gap: 2px; white-space: normal; overflow-wrap: anywhere; max-width: 260px; }
+/* PM-USERS-VISUAL-H1 (Human UAT: row separators show "buracos" between
+   USUÁRIO/PERFIL and between STATUS/SITUAÇÃO). Root cause was the exact
+   PM-5F-H3 anti-pattern applied twice over: BOTH .maNameCell and
+   .maSituacaoCell used to carry display:flex DIRECTLY on the <td>
+   itself, which removes a cell from the table's native row-height
+   algorithm (its box then sizes to its own flex content instead of
+   stretching to the row). Confirmed live via getBoundingClientRect:
+   with the Gate-13 mixed fixture, the row's real height was always set
+   by whichever of the two flexed cells happened to have the taller
+   intrinsic content in a given row (name+e-mail wrapping to 2 lines,
+   vs. two situação badges wrapping to 2 lines) -- the OTHER flexed
+   cell then fell up to 22.75px short of that height every time,
+   leaving its own border-bottom (and, for the first column, its own
+   OPAQUE sticky background from module-system.css's shared
+   td:first-child rule) short of the row's true bottom edge -- exactly
+   the disconnected "hole" the Human's screenshot showed, on whichever
+   side had the shorter content. Because either cell could be the
+   "tall" one depending on real data, this was NEVER purely a
+   .maNameCell-only or .maSituacaoCell-only defect. Fixed identically
+   to PM-5F-H3 for both: the flex layout now lives on an inner <div>
+   wrapper INSIDE the <td> (.maNameCellInner / .maSituacaoCellInner);
+   the <td> itself keeps only its wrap/max-width policy and native
+   table-cell layout, sized like every sibling. max-width stays on the
+   <td> itself, not the inner wrapper -- PM-4B.2 already established
+   (empirically, not by assumption) that table auto-layout only
+   respects max-width as a real column-width constraint when it sits
+   directly on the cell, so moving it to the inner div risked
+   reintroducing horizontal overflow; re-verified empirically this
+   round that it still does with the flex layout removed from the
+   <td>. */
+.maNameCell { white-space: normal; overflow-wrap: anywhere; max-width: 260px; }
+.maNameCellInner { display: flex; flex-direction: column; gap: 2px; }
 .maSubtle { color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
 /* flex-wrap (not relying on inline-block's own text-flow wrapping) so
    the two badges reliably stack onto their own lines as a group when
@@ -68,7 +99,8 @@
    the SECOND badge still overflowing even after the first one wrapped,
    since the browser kept trying to fit it on the first badge's own
    line whenever any room remained. */
-.maSituacaoCell { display: flex; flex-wrap: wrap; gap: 4px; max-width: 200px; }
+.maSituacaoCell { max-width: 200px; }
+.maSituacaoCellInner { display: flex; flex-wrap: wrap; gap: 4px; }
 /* A single long invite-lifecycle label (e.g. "Conta criada — e-mail não
    confirmado", ~37 chars) is itself an unbreakable inline-block pill --
    the cell's own max-width doesn't stop THIS badge from overflowing its

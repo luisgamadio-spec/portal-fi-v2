@@ -349,11 +349,11 @@
   function renderDesktopTable(rows) {
     var body = rows.map(function (r) {
       return '<tr tabindex="0" role="button" data-key="' + esc(rowKey(r)) + '" aria-label="Ver detalhes de ' + esc(r.nome) + '">' +
-        '<td class="maNameCell">' + esc(r.nome) + '<div class="maSubtle">' + esc(r.emailAuth) + '</div></td>' +
+        '<td class="maNameCell"><div class="maNameCellInner">' + esc(r.nome) + '<div class="maSubtle">' + esc(r.emailAuth) + '</div></div></td>' +
         '<td>' + esc(r.perfil) + '</td>' +
         '<td>' + esc(r.loja || '—') + '</td>' +
         '<td>' + esc(r.status || '—') + '</td>' +
-        '<td class="maSituacaoCell">' + situationBadgesHtml(r) + '</td>' +
+        '<td class="maSituacaoCell"><div class="maSituacaoCellInner">' + situationBadgesHtml(r) + '</div></td>' +
         '</tr>';
     }).join('');
     return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable maTable">' +

@@ -198,6 +198,84 @@ def main():
         check("20: lifecycle labels present for each real state (Convidado/confirmado/Ativo/Inativo)",
               "Convidado" in list_html and "primeiro acesso pendente" in list_html and "Ativo" in list_html and "Inativo" in list_html)
 
+        # PM-USERS-VISUAL-H1 (Human UAT: row separators show "buracos"
+        # between USUÁRIO/PERFIL and STATUS/SITUAÇÃO). Root cause was
+        # the exact PM-5F-H3 anti-pattern applied to BOTH .maNameCell
+        # AND .maSituacaoCell -- display:flex used to sit directly on
+        # each <td>, removing it from the table's native row-height
+        # algorithm. Whichever of the two flexed cells had the SHORTER
+        # intrinsic content in a given row fell short of the row's true
+        # bottom (up to 22.75px, measured live against this exact
+        # fixture -- row 0/1/2/3 all showed deltaBottom(Usuário,Perfil)
+        # = 22.75px before the fix, with display=flex on both ends of
+        # the row), leaving its own border-bottom -- and, for the first
+        # column, its own OPAQUE sticky background from module-
+        # system.css's shared td:first-child rule -- short of the row's
+        # true separator line. This check is written to genuinely fail
+        # against the pre-fix version (proven in this same session by
+        # temporarily restoring the prior committed file and re-running
+        # this exact suite against this exact fixture: every row failed
+        # with a 22.75px deltaBottom and display=flex on both the
+        # Usuário and Situação cells).
+        grid = page.evaluate("""
+() => {
+  const rows = [...document.querySelectorAll('.maTable tbody tr')];
+  let cellFailures = 0, borderMismatchRows = 0;
+  rows.forEach(row => {
+    const rowRect = row.getBoundingClientRect();
+    const borders = new Set();
+    [...row.children].forEach(td => {
+      const r = td.getBoundingClientRect();
+      const cs = getComputedStyle(td);
+      const topOk = Math.abs(r.top - rowRect.top) <= 1;
+      const bottomOk = Math.abs(r.bottom - rowRect.bottom) <= 1;
+      if (!topOk || !bottomOk || cs.display !== 'table-cell') cellFailures++;
+      borders.add(cs.borderBottomWidth + ' ' + cs.borderBottomStyle + ' ' + cs.borderBottomColor);
+    });
+    if (borders.size > 1) borderMismatchRows++;
+  });
+  return { rows: rows.length, cellFailures, borderMismatchRows };
+}
+""")
+        # 20b is the check that actually proves/disproves the Human's
+        # reported defect: module-system.css's border-bottom rule is a
+        # single shared declaration applied identically to every <td>
+        # regardless of this bug (confirmed: 20c below already passed
+        # against the PRE-FIX code too, since the border's declared
+        # width/style/color never varied -- only the Y COORDINATE at
+        # which it rendered did, because that coordinate is a function
+        # of each cell's own rendered height, which IS what 20b's
+        # top/bottom-delta check captures). 20c is kept as a separate,
+        # genuinely useful defense-in-depth check against a DIFFERENT
+        # future regression class (a per-column border override), not
+        # as proof of this specific defect.
+        check("20b (ROW GRID INTEGRITY): every <td> in every row matches its row's own top/bottom within 1px, native table-cell layout (no cell dropped out via display:flex on the <td> itself) -- this is the check that actually captures the Human-reported defect", grid["cellFailures"] == 0 and grid["rows"] > 0)
+        check("20c (BORDER STYLE CONSISTENCY, defense-in-depth): every <td> in a row shares the exact same declared border-bottom width/style/color (guards against a future per-column override, not this defect -- the border's Y position, which IS this defect, is covered by 20b)", grid["borderMismatchRows"] == 0)
+        check("20d (ROW GRID INTEGRITY): .maNameCell itself keeps display:table-cell -- the flex layout lives on an inner wrapper <div> (.maNameCellInner), never on the cell", all(
+            d == "table-cell" for d in page.eval_on_selector_all("td.maNameCell", "els => els.map(e => getComputedStyle(e).display)")
+        ))
+        check("20e (ROW GRID INTEGRITY): .maSituacaoCell itself keeps display:table-cell -- the flex layout lives on an inner wrapper <div> (.maSituacaoCellInner), never on the cell", all(
+            d == "table-cell" for d in page.eval_on_selector_all("td.maSituacaoCell", "els => els.map(e => getComputedStyle(e).display)")
+        ))
+        for w in (1440, 1366, 1280, 1100, 1024, 1000, 900, 768):
+            page.set_viewport_size({"width": w, "height": 1000})
+            page.wait_for_timeout(60)
+            wmeasure = page.evaluate("""
+() => {
+  const doc = document.documentElement;
+  const table = document.querySelector('.maTable');
+  const wrap = table ? table.closest('.modTableWrap') : null;
+  return {
+    doc_ok: doc.scrollWidth <= doc.clientWidth + 1,
+    wrap_ok: !wrap || wrap.scrollWidth <= wrap.clientWidth + 1
+  };
+}
+""")
+            check("20f (w=%d): no horizontal overflow at the page level (PORTAL_V2_ZERO_HORIZONTAL_SCROLL_GLOBAL_RULE)" % w, wmeasure["doc_ok"])
+            check("20g (w=%d): no CONTAINED horizontal overflow inside .modTableWrap either" % w, wmeasure["wrap_ok"])
+        page.set_viewport_size({"width": 1366, "height": 900})
+        page.wait_for_timeout(60)
+
         # ---------- 21-22: search / filters ----------
         page.fill("#maSearch", "Ativo")
         page.wait_for_timeout(100)
