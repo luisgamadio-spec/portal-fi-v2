@@ -2803,7 +2803,7 @@
       '<td><b>' + esc(a.nome_analista_ausente || '-') + '</b>' + (a.loja_origem ? '<br><span class="maSubtle">' + esc(a.loja_origem) + '</span>' : '') + '</td>' +
       '<td>' + esc(a.nome_analista_substituto || '-') + '</td>' +
       '<td>' + esc(a.loja_coberta || '-') + '</td>' +
-      '<td class="absColDate">' + esc(ABS_VM.fmtDateBR(a.data_inicio)) + ' → ' + esc(ABS_VM.fmtDateBR(a.data_fim)) + '</td>' +
+      '<td class="absColDate">' + esc(ABS_VM.fmtDateBR(a.data_inicio)) + ' →<br>' + esc(ABS_VM.fmtDateBR(a.data_fim)) + '</td>' +
       '<td>' + esc(a.motivo || '-') + '</td>' +
       '<td class="absColBadge"><span class="absStateBadge absState' + esc(state) + '">' + esc(ABS_VM.temporalLabel(state)) + '</span></td>' +
       '<td class="absColBadge">' + ativoBadge + '</td>' +
@@ -2812,20 +2812,59 @@
       '<button type="button" class="modBtnGhost absArchiveBtn" data-id="' + esc(a.id) + '">Arquivar</button>' +
       '</td></tr>';
   }
-  // PM-5F-H1: deliberate column-width contract (Gate 8), never an equal
-  // split -- names/store/motivo get the most room and are allowed to
-  // wrap onto multiple lines; dates and badges stay compact/nowrap
-  // since they reliably fit on one line at any of these widths.
+  // PM-5F-H2 (table density refinement, after Human retest of H1):
+  // real geometry was measured (not guessed) against a 21-row
+  // realistic synthetic fixture at 1440px before touching anything
+  // (ABSENCE COLUMN GEOMETRY BEFORE, see the final report), plus exact
+  // word-level pixel measurements (not estimates) for the longest real
+  // single-word values that can never wrap internally: "BANDEIRANTES"
+  // (Loja, 87px), "AFASTAMENTO" (Motivo, 84px), plus real badge widths
+  // (Situação ~83px, Status ~62px) and button-label widths (~52-58px
+  // each). Several static (non-responsive) distributions were tried
+  // and each was rejected by direct screenshot/measurement evidence:
+  // percentage-only columns tuned against 1440px caused Situação/
+  // Status badges to overlap at 900px (percentage columns shrink with
+  // viewport, badge content does not); making Ações accept 2-line
+  // button-stacking to free up width made the 21-row density
+  // measurement WORSE overall (1711px vs H1's 1237px -- stacking on
+  // every single row costs more height than the width saved bought
+  // back); weighting Motivo up enough to stop "COBERTURA TEMPORÁRIA"
+  // fragmenting into 5 lines at 768px, using only static percentages,
+  // then squeezed Substituto's own header ("SUBSTITUTO") into visible
+  // collision with its neighbors at 768px -- there is no single static
+  // distribution that is simultaneously excellent at 1440px (dense,
+  // no wasted space) and safe at 768px (no badge/date/button/store-
+  // word breaking, no header collision), because the fixed content
+  // (badges/date/button labels/longest single words) already consumes
+  // the majority of a 766px table on its own.
+  //
+  // FINAL: column widths are RESPONSIVE (CSS classes + a narrow-
+  // desktop media query), not a single static set -- exactly the
+  // "measure at every width, prove it" discipline this phase's brief
+  // demands. At wide desktop (>1024px) Ações stays 145px (both button
+  // labels side by side, proven the best density outcome there) and
+  // Analista ausente/Substituto get the majority share, since real
+  // person names always contain multiple words with real spaces to
+  // wrap at (extra wrapping there is never destructive). At narrow
+  // desktop (<=1024px, where the fixed badge/date/button budget alone
+  // would otherwise leave almost nothing for names) Ações shrinks to
+  // its single widest button label (stacking is explicitly acceptable
+  // per Gate 14, and only costs extra height at the narrow tier where
+  // rows are already taller from name-wrapping anyway), freeing real
+  // width back to Analista ausente/Substituto. Loja coberta/Motivo/
+  // Período/Situação/Status keep their real, measured, viewport-
+  // independent minimums at every width -- these never change,
+  // because their content genuinely does not change with viewport.
   function absColgroupHtml() {
     return '<colgroup>' +
-      '<col style="width:16%">' + // Analista ausente
-      '<col style="width:13%">' + // Substituto
-      '<col style="width:13%">' + // Loja coberta
-      '<col style="width:12%">' + // Período
-      '<col style="width:12%">' + // Motivo (widened so single-word values like "AFASTAMENTO" fit on one line down to 768px)
-      '<col style="width:13%">' + // Situação (badge, nowrap -- widened so "ENCERRADA" never breaks mid-word)
-      '<col style="width:10%">' + // Status (badge, nowrap)
-      '<col style="width:11%">' + // Ações (nowrap labels -- widened so "Arquivar" never breaks mid-word)
+      '<col class="absColAnalista">' +
+      '<col class="absColSubstituto">' +
+      '<col class="absColLoja">' + // real longest single word "BANDEIRANTES" needs 87px + padding, viewport-independent
+      '<col class="absColDate">' + // deliberate 2-line date, viewport-independent content
+      '<col class="absColMotivo">' + // real longest single word "AFASTAMENTO" needs 84px + padding, viewport-independent
+      '<col class="absColBadge absColSituacao">' + // badge content ~83px + cell padding, viewport-independent
+      '<col class="absColBadge absColStatus">' +  // badge content ~62px + cell padding, viewport-independent
+      '<col class="absColAcoes">' +
       '</colgroup>';
   }
   function absDesktopTableHtml() {

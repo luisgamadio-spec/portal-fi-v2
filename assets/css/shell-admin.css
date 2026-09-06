@@ -435,6 +435,40 @@ body.maudModalOpen { overflow: hidden; }
    never causes overflow (a short action label always fits one line
    once allowed to sit on its own row) and is always legible. */
 .absTable .absActions .modBtnGhost { white-space: nowrap; }
+
+/* PM-5F-H2: responsive column widths (Gate 8/15/18 combined). No
+   single static distribution survived both ends of the 1440-768
+   matrix (see absColgroupHtml's own comment for the full history of
+   rejected attempts) -- the fixed content (badges/date/button labels/
+   the longest real single words in Loja and Motivo) already consumes
+   most of a 766px table on its own, so a distribution generous enough
+   for Analista ausente/Substituto at 1440px starves them at 768px,
+   and a distribution safe at 768px wastes visible space at 1440px.
+   Loja coberta/Período/Motivo/Situação/Status keep the SAME real,
+   measured, viewport-independent minimum at every width (their
+   content does not change with viewport, so their column shouldn't
+   either). Only Ações (which CAN legitimately trade side-by-side
+   buttons for stacked ones, per Gate 14) and the Analista ausente/
+   Substituto split (which can legitimately absorb more wrapping at
+   narrow widths, since real names always have multiple word-break
+   points) actually change between the two tiers. */
+.absColLoja { width: 115px; }   /* real longest single word "BANDEIRANTES" = 87px content + 24px padding */
+col.absColDate { width: 105px; } /* deliberate 2-line date, viewport-independent content */
+.absColMotivo { width: 110px; } /* real longest single word "AFASTAMENTO" = 84px content + 24px padding */
+col.absColSituacao { width: 108px; } /* badge content ~83px + cell padding, viewport-independent */
+col.absColStatus { width: 86px; }    /* badge content ~62px + cell padding, viewport-independent */
+.absColAcoes { width: 145px; }  /* wide desktop: both button labels side by side on one line (proven best density there) */
+.absColAnalista { width: 56%; } /* wide desktop: majority share of whatever the fixed columns leave remaining */
+.absColSubstituto { width: 44%; }
+@media (max-width: 1024px) {
+  /* Narrow desktop: shrink Ações to its single widest button label
+     (stacks to 2 lines when a row needs both -- explicitly acceptable,
+     Gate 14) to free real width back to the name columns, which is
+     the higher-priority legibility need at this tier. */
+  .absColAcoes { width: 85px; }
+  .absColAnalista { width: 58%; }
+  .absColSubstituto { width: 42%; }
+}
 .absMobileCard .absActions { margin-top: var(--space-2); }
 .absStateBadge { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; }
 .absStatePASSADA { background: var(--mod-surface-muted, #eee); color: var(--color-text-secondary); }

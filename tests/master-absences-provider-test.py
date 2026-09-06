@@ -177,6 +177,13 @@ def main():
         check("7 (LONG CONTENT STRESS, Gate 10): very long analyst/store names never cause page-level horizontal overflow", measurements_long["doc_ok"])
         check("7c (LONG CONTENT STRESS, Gate 10): very long analyst/store names never cause CONTAINED overflow inside .modTableWrap either (this is the Human-UAT-reported defect's exact signature)", measurements_long["wrap_ok"])
         check("7b: long analyst name still renders in full (no silent truncation)", "Analista Com Nome Extremamente Longo" in body_text)
+        # PM-5F-H2 (table density refinement, Gate 22 -- robust, not
+        # fragile: checks real textContent, never exact pixel geometry)
+        badge_texts = page.eval_on_selector_all(".absStateBadge, td.absColBadge .maBadge", "els => els.map(e => e.textContent)")
+        check("7d (DENSITY REFINEMENT): every badge's own text renders as one complete, unbroken word in the DOM -- HTML wrapping is a visual line-break (CSS text-transform:uppercase), never a content split", all(t in ("Encerrada", "Em curso", "Futura", "-", "ATIVO", "INATIVO") for t in badge_texts))
+        button_texts = page.eval_on_selector_all(".absActions .modBtnGhost", "els => els.map(e => e.textContent)")
+        check("7e (DENSITY REFINEMENT): every action button's own label renders as one complete, unbroken word in the DOM", all(t in ("Inativar", "Ativar", "Arquivar") for t in button_texts))
+        check("7f (DENSITY REFINEMENT): the deliberate 2-line date format still round-trips both real dates intact in the DOM text", "01/08/2026" in body_text and "31/08/2026" in body_text)
         page.close()
 
         # ---------- 8-16: create flow -- validation, overlap warning (non-blocking), exact real payload shape ----------
