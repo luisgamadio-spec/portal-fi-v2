@@ -78,7 +78,7 @@ def mount(page):
 def goto_sc(page):
     page.wait_for_selector('[data-section="mudancaLoja"]', timeout=5000)
     page.click('[data-section="mudancaLoja"]')
-    page.wait_for_selector(".scTable, .modErrorState, .note", timeout=5000)
+    page.wait_for_selector(".scStoreTable, .scMobileCard, .modErrorState, .note", timeout=5000)
 
 
 def json_route(status, body):
@@ -128,16 +128,93 @@ def main():
         check("3: destination is shown as open-ended ('em aberto') -- there is no data_fim_destino column at all", "em aberto" in body_text)
         check("4: department pair renders when present (SEMINOVOS -> NOVOS)", "SEMINOVOS" in body_text and "NOVOS" in body_text)
         check("5: ALL real records stay ATIVO (matches confirmed production invariant: old records are never deactivated by a newer one)", body_text.count("ATIVO") >= 3)
+        # PM-5F-SC-H1 (Human UAT defect fix -- Gate 4/23/28 mandatory
+        # regression test): checking ONLY document.documentElement.
+        # scrollWidth is exactly what let this ship undetected -- the
+        # ORIGINAL version of this loop did exactly that and reported a
+        # clean PASS at every width even while .modTableWrap silently
+        # scrolled internally (2627px table against a 1438px wrapper,
+        # confirmed live) -- the same defect class PM-5F-H1 already
+        # hardened Férias/Ausências' own suite against. Both levels, plus
+        # the table's own rendered width against its wrapper, are
+        # asserted from here on. This check is written to genuinely fail
+        # against the pre-fix version (proven in this same session by
+        # temporarily restoring the prior committed file and re-running
+        # this exact suite: wrapper/table overflow was detected at every
+        # one of the 8 desktop widths, confirming this is a real
+        # regression test, not a rewritten expectation).
         for w in (1440, 1366, 1280, 1100, 1024, 1000, 900, 768, 430, 390, 375):
             page.set_viewport_size({"width": w, "height": 1000})
             page.wait_for_timeout(60)
-            no_overflow = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1")
-            check("6 (w=%d): no horizontal overflow (full mandatory matrix, Gate 69)" % w, no_overflow)
+            measurements = page.evaluate("""
+() => {
+  const doc = document.documentElement;
+  const table = document.querySelector('.scStoreTable, .scTable');
+  const wrap = table ? table.closest('.modTableWrap') : null;
+  const isDesktop = !!(table && table.offsetParent);
+  return {
+    doc_ok: doc.scrollWidth <= doc.clientWidth + 1,
+    wrap_ok: !wrap || !isDesktop || wrap.scrollWidth <= wrap.clientWidth + 1,
+    table_ok: !table || !isDesktop || table.getBoundingClientRect().width <= (wrap ? wrap.getBoundingClientRect().width + 1 : Infinity)
+  };
+}
+""")
+            check("6 (w=%d): no horizontal overflow at the page level (full mandatory matrix, Gate 69)" % w, measurements["doc_ok"])
+            check("6b (w=%d): no CONTAINED horizontal overflow inside .modTableWrap either -- the exact class of defect a page-only check misses" % w, measurements["wrap_ok"])
+            check("6c (w=%d): the table's own rendered width never exceeds its wrapper's" % w, measurements["table_ok"])
         page.set_viewport_size({"width": 1440, "height": 1000})
         page.wait_for_timeout(60)
-        no_overflow_long = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1")
-        check("7 (LONG CONTENT STRESS, Gate 69): very long seller/store/observação values never cause page horizontal overflow", no_overflow_long)
+        measurements_long = page.evaluate("""
+() => {
+  const doc = document.documentElement;
+  const table = document.querySelector('.scStoreTable, .scTable');
+  const wrap = table ? table.closest('.modTableWrap') : null;
+  return {
+    doc_ok: doc.scrollWidth <= doc.clientWidth + 1,
+    wrap_ok: !wrap || wrap.scrollWidth <= wrap.clientWidth + 1
+  };
+}
+""")
+        check("7 (LONG CONTENT STRESS, Gate 69): very long seller/store/observação values never cause page horizontal overflow", measurements_long["doc_ok"])
+        check("7c (LONG CONTENT STRESS): very long seller/store/observação values never cause CONTAINED overflow inside .modTableWrap either (this is the Human-UAT-reported defect's exact signature)", measurements_long["wrap_ok"])
         check("7b: long seller name still renders in full (no silent truncation)", "Vendedor Com Nome Extremamente Longo" in body_text)
+        # PM-5F-SC-H1 (Human UAT: "Vendedor invade Loja origem →
+        # destino" / row-grid integrity): every <td> in every row must
+        # match its own row's top/bottom (native table-cell layout,
+        # never a <td> with display:flex directly on it -- the exact
+        # PM-5F-H3 anti-pattern, confirmed present here too before this
+        # fix via the Ações <td>) AND no cell's own rendered box may
+        # intrude into its immediate neighbor's (the sticky-first-column
+        # overlap the Human's screenshot showed once the wrapper
+        # actually had to scroll).
+        grid_overlap = page.evaluate("""
+() => {
+  const table = document.querySelector('.scStoreTable, .scTable');
+  const rows = [...table.querySelectorAll('tbody tr')];
+  let gridFailures = 0, overlapFailures = 0;
+  rows.forEach(row => {
+    const rowRect = row.getBoundingClientRect();
+    const cells = [...row.children];
+    cells.forEach((td, i) => {
+      const r = td.getBoundingClientRect();
+      const display = getComputedStyle(td).display;
+      const topOk = Math.abs(r.top - rowRect.top) <= 1;
+      const bottomOk = Math.abs(r.bottom - rowRect.bottom) <= 1;
+      if (!topOk || !bottomOk || display !== 'table-cell') gridFailures++;
+      if (i < cells.length - 1) {
+        const next = cells[i + 1].getBoundingClientRect();
+        if (r.right > next.left + 1 && r.left < next.left) overlapFailures++;
+      }
+    });
+  });
+  return { rows: rows.length, gridFailures, overlapFailures };
+}
+""")
+        check("7d (ROW GRID INTEGRITY): every <td> in every row matches its row's own top/bottom within 1px (no cell dropped out of native table-cell layout)", grid_overlap["gridFailures"] == 0 and grid_overlap["rows"] > 0)
+        check("7e (ZERO OVERLAP): no cell's own rendered box intrudes into its immediate neighbor's (the sticky-first-column-onto-Loja collision the Human reported)", grid_overlap["overlapFailures"] == 0)
+        check("7f (ROW GRID INTEGRITY): the Ações <td> itself keeps display:table-cell -- the flex layout lives on an inner wrapper <div>, never on the cell", all(
+            d == "table-cell" for d in page.eval_on_selector_all("td.adminActions", "els => els.map(e => getComputedStyle(e).display)")
+        ))
         page.close()
 
         # ---------- 8-15: create flow -- chain guidance (non-blocking), validation, exact real payload shape ----------

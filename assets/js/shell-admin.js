@@ -3124,14 +3124,46 @@
       '<td>' + esc(SC_VM.fmtDateBR(r.data_inicio_destino)) + ' (em aberto)</td>' +
       '<td>' + esc(scDeptText(r)) + '</td>' +
       '<td>' + ativoBadge + '</td>' +
-      '<td class="adminActions scActions">' +
+      '<td class="adminActions"><div class="scActions">' +
       '<button type="button" class="modBtnGhost scEditDeptBtn" data-id="' + esc(r.id) + '">Editar departamentos</button>' +
       '<button type="button" class="modBtnGhost scToggleActiveBtn" data-id="' + esc(r.id) + '" data-active="' + (r.ativo !== false) + '">' + (r.ativo !== false ? 'Inativar' : 'Ativar') + '</button>' +
       '<button type="button" class="modBtnGhost scArchiveBtn" data-id="' + esc(r.id) + '">Arquivar</button>' +
-      '</td></tr>';
+      '</div></td></tr>';
+  }
+  // PM-5F-SC-H1: <colgroup> + table-layout:fixed, same technique as
+  // absTable (PM-5F-H2) -- widths below are the real, measured,
+  // viewport-independent minimums for this table's own content (probed
+  // live via getBoundingClientRect on the real classes/fonts, never
+  // guessed): longest real store word (~98px, e.g. "BANDEIRANTES") +
+  // arrow, wrapped 2-line "ORIGEM →\nDESTINO" (scColLoja); the date-range
+  // shape already proven for .absColDate, reused as-is (scColPeriodo);
+  // "DD/MM/AAAA" wrapped above the literal, always-present "(em aberto)"
+  // suffix (scColInicio); longest department enum word "SEMINOVOS"
+  // (scColDept); the ATIVO/INATIVO badge (scColStatus, same measured
+  // width as absColStatus); and the widest of the 3 real action button
+  // labels, "Editar departamentos" (~135px), which -- unlike Férias'
+  // 2-button Ações column -- cannot shrink at any desktop width without
+  // breaking that label mid-word, so scColAcoes stays constant across
+  // the whole table-mode range (no narrow-desktop override needed).
+  // Vendedor is the ONE column left with no explicit width -- per the
+  // table-layout:fixed spec, the single such column absorbs 100% of
+  // whatever space the other six don't claim, exactly the flexible
+  // "majority share" role absColAnalista/Substituto split between them
+  // in Férias/Ausências.
+  function scColgroupHtml() {
+    return '<colgroup>' +
+      '<col>' +
+      '<col class="scColLoja">' +
+      '<col class="scColPeriodo">' +
+      '<col class="scColInicio">' +
+      '<col class="scColDept">' +
+      '<col class="scColBadge scColStatus">' +
+      '<col class="scColAcoes">' +
+      '</colgroup>';
   }
   function scDesktopTableHtml() {
-    return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable scTable">' +
+    return '<div class="scStoreDesktopOnly"><div class="modTableWrap"><table class="modTable scStoreTable">' +
+      scColgroupHtml() +
       '<thead><tr><th scope="col">Vendedor</th><th scope="col">Loja origem → destino</th><th scope="col">Período origem</th><th scope="col">Início destino</th><th scope="col">Departamentos</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead>' +
       '<tbody>' + scState.storeChanges.map(scRowHtml).join('') + '</tbody></table></div></div>';
   }
@@ -3141,6 +3173,7 @@
       : '<span class="maBadge maBadgeInactive">INATIVO</span>';
     return '<div class="maMobileCard scMobileCard" data-id="' + esc(r.id) + '">' +
       '<div class="maMobileName">' + esc(r.nome_vendedor || '-') + '</div>' +
+      '<div class="maMobileMeta">' + esc(r.cpf_vendedor || '-') + '</div>' +
       '<div class="maMobileMeta">' + esc(r.loja_origem || '-') + ' → ' + esc(r.loja_destino || '-') + '</div>' +
       '<div class="maMobileMeta">Origem: ' + esc(SC_VM.fmtDateBR(r.data_inicio_origem)) + ' → ' + esc(SC_VM.fmtDateBR(r.data_fim_origem)) + '</div>' +
       '<div class="maMobileMeta">Destino desde: ' + esc(SC_VM.fmtDateBR(r.data_inicio_destino)) + ' (em aberto)</div>' +
@@ -3153,7 +3186,7 @@
       '</div></div>';
   }
   function scMobileCardsHtml() {
-    return '<div class="maMobileOnly">' + scState.storeChanges.map(scMobileCardHtml).join('') + '</div>';
+    return '<div class="scStoreMobileOnly">' + scState.storeChanges.map(scMobileCardHtml).join('') + '</div>';
   }
 
   function scDeptOptionsHtml(selected) {

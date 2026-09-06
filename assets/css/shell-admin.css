@@ -495,9 +495,119 @@ col.absColStatus { width: 86px; }    /* badge content ~62px + cell padding, view
 .scCreateCard label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
 .scCreateCard input[type="text"], .scCreateCard input[type="date"], .scCreateCard select { padding: 6px 8px; border: 1px solid var(--mod-border-strong); border-radius: var(--radius-sm); background: var(--color-canvas); color: var(--color-text-primary); }
 .scChainCard, .scRetroWarn { border-left: 3px solid var(--color-accent-primary, #1a56db); padding-left: 8px; }
-.scTable th, .scTable td { text-align: left; vertical-align: top; }
+
+/* PM-5F-SC-H1 (Human UAT: horizontal scrollbar + column overlap --
+   MASTER_STORE_CHANGE_HUMAN_UAT_FAILED_HORIZONTAL_OVERFLOW). Root cause
+   chain, confirmed live (not assumed):
+   1) the shared .modTable td rule (module-system.css) sets
+      white-space:nowrap on every cell, and this table never overrode
+      it -- with table-layout left at its implicit "auto" (no colgroup,
+      no explicit widths), 7 real columns of un-wrappable content
+      (Vendedor+CPF, two store names, two date ranges, two department
+      names, 3 action-button labels) forced the table to its full
+      nowrap intrinsic width -- measured live at exactly 2627px against
+      the Gate 7 fixture, IDENTICAL at every desktop width from 1440
+      down to 768 (i.e. never responsive at all). .modTableWrap's own
+      overflow-x:auto silently absorbed that into a real, internal
+      horizontal scrollbar -- document.documentElement itself never
+      overflowed (confirmed 0 at every width), which is exactly the
+      "wrapper contains overflow that documentElement-only checks miss"
+      defect class this engagement already hardened Férias/Ausências'
+      own tests against (PM-5F-H1).
+   2) module-system.css also gives every .modTable's FIRST column
+      position:sticky;left:0 (a "frozen first column" affordance) --
+      harmless while the table never actually scrolls, but as soon as
+      (1) makes the wrapper genuinely scrollable, scrolling it pins the
+      Vendedor cell's rendered box at the wrapper's left edge while
+      every OTHER column's cell slides left underneath/behind it --
+      confirmed live: scrolling the wrapper by 250px moved the Loja
+      cell's own left edge to x=385.6 while the STILL-STICKY Vendedor
+      cell's own right edge sat at x=635.6, a real ~250px visual
+      overlap (screenshot: STORE_CHANGE_BEFORE_HUMAN_WIDTH.png /
+      STICKY_OVERLAP_PROOF_BEFORE.png) -- this is exactly the "Vendedor
+      invade Loja origem → destino" the Human reported, and it can only
+      ever happen when (1)'s overflow exists in the first place, so
+      fixing (1) structurally also eliminates (2) (no scroll ever
+      possible in TABLE mode => the sticky offset is always 0). A
+      second, defense-in-depth override below neutralizes the sticky
+      behavior for this table specifically regardless, using the exact
+      same static-position pattern score.css already established for
+      this identical shared-rule problem in the Score module
+      (score.css: ".scPage .modTable ... td:first-child
+      {position:static;background:none}").
+   3) the Ações <td> carried display:flex DIRECTLY on the <td> itself
+      (via "adminActions scActions") -- the exact PM-5F-H3 anti-pattern,
+      never actually fixed here since this table predates that phase.
+      Fixed identically: the flex class now lives on an inner <div>
+      wrapper inside the <td> (scRowHtml), the <td> keeps only the
+      inert "adminActions" class and its native table-cell layout.
+   NOTE (Gate 29 design-system debt): this table's own class name,
+   ".scTable", collides verbatim with an UNRELATED, pre-existing
+   ".scTable" in score.css (Score/Coparticipado's own "sc" prefix,
+   loaded earlier in index.html's stylesheet order) -- confirmed by
+   direct grep, not assumed. Renamed this table's own selectors to
+   ".scStoreTable"/".scStoreDesktopOnly"/".scStoreMobileOnly" (scoped,
+   surgical rename of only the 3 colliding class strings on the
+   <table>/wrapper elements in shell-admin.js -- scActions/scRow/
+   scMobileCard/SC_VM/SC_PROVIDER etc. are untouched, no collision
+   exists for those) to stop relying on score.css never being loaded
+   alongside this page (it already is, per index.html's own <link>
+   order) for correctness. A full "sc" prefix disambiguation across
+   both modules is a real but separate refactor -- NOT done this round
+   (out of scope, Gate 29 explicitly forbids a wide refactor here). */
+.scStoreTable { table-layout: fixed; }
+.scStoreTable th, .scStoreTable td { text-align: left; vertical-align: top; white-space: normal; overflow-wrap: break-word; word-break: break-word; }
+.scStoreTable .maBadge { white-space: nowrap; }
+.scStoreTable .scActions .modBtnGhost { white-space: nowrap; }
+/* Defense-in-depth: see root-cause (2) above. Once (1) is fixed this
+   table's wrapper never actually scrolls in TABLE mode, so this has no
+   visible effect either way -- kept anyway so this exact overlap class
+   can never recur even under a future regression of (1). */
+.scStoreTable th:first-child, .scStoreTable td:first-child { position: static; left: auto; background: none; }
+
+/* Column widths: real, measured (getBoundingClientRect against the
+   actual classes/fonts, never guessed), viewport-independent minimums
+   for THIS table's own content -- same discipline as absColLoja/
+   absColMotivo/absColStatus (PM-5F-H2). Vendedor (the one column left
+   with no explicit width) absorbs 100% of whatever the other six
+   don't claim, per the table-layout:fixed spec's single-auto-column
+   rule -- the same "majority share" role absColAnalista/Substituto
+   split between them in Férias/Ausências, here needed by only one
+   column since Loja origem→destino wraps to 2 lines of ONE store name
+   each (not two names side by side), so it gets the SAME real-word
+   budget absColLoja already used (~98px longest word + arrow + 24px
+   cell padding), not double. */
+.scColLoja { width: 135px; }     /* longest real single store word ("BANDEIRANTES") ~98px content + arrow + padding, wraps "ORIGEM →\nDESTINO" */
+.scColPeriodo { width: 110px; }  /* same 2-line date-range shape already proven for absColDate */
+.scColInicio { width: 100px; }   /* "DD/MM/AAAA" wraps above the literal, always-present "(em aberto)" suffix -- neither line ever needs more */
+.scColDept { width: 106px; }     /* longest department enum word "SEMINOVOS" ~78px content + padding */
+.scColBadge, .scColStatus { width: 86px; } /* ATIVO/INATIVO badge, same measured width as absColStatus */
+.scColAcoes { width: 160px; }    /* widest of 3 real button labels, "Editar departamentos" ~135px + padding -- constant at every desktop width, this table's longest single-word-break constraint never relaxes like absColAcoes' did */
+
 .scActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .scMobileCard .scActions { margin-top: var(--space-2); }
+
+/* Desktop table / mobile card breakpoint -- deliberately its OWN pair
+   (.scStoreDesktopOnly/.scStoreMobileOnly), NOT the shared
+   .maDesktopOnly/.maMobileOnly (767px, Usuários/Acessos/Auditoria) and
+   NOT score.css's own, differently-named .scDesktopOnly/.scMobileOnly
+   (a same-prefix but unrelated pair belonging to the Score module,
+   also 767px -- reusing THAT name would have been the exact same
+   collision class as .scTable above). Measured minimum table width
+   (sum of the 6 fixed columns above, 697px, plus a legible Vendedor
+   minimum of ~160px so a real name can still wrap onto 2-3 words per
+   line without looking broken) is ~857px -- same "own, higher,
+   measured breakpoint" conclusion Pendências Cadastrais already
+   reached for its own, different, wider table (PM-4C.2.1: computed
+   ~850px minimum, chose 900px). Reusing the shared 767px verbatim here
+   would leave the same real dead zone Pendências' own comment
+   describes: the table still active AND still overflowing. */
+.scStoreDesktopOnly { display: block; }
+.scStoreMobileOnly { display: none; }
+@media (max-width: 899px) {
+  .scStoreDesktopOnly { display: none; }
+  .scStoreMobileOnly { display: block; }
+}
 
 /* ==================== Utilização dos Simuladores (Painel Master Phase PM-5H) ====================
    Responsive breakpoints ported from the real, already-tested V1 CSS
