@@ -189,6 +189,30 @@
     modal: null // null | {kind:'confirm'|'success'|'error'|'editDepartments', ...}
   };
 
+  // Painel Master Phase PM-5H -- Utilização dos Simuladores section
+  // state. READ-ONLY capability (confirmed live: the only 4 writer
+  // RPCs for this capability's own data are called exclusively by the
+  // simulator surfaces themselves, never by any Painel Master action --
+  // no mutation of any kind is exposed here, matching V1's own real
+  // contract exactly). `linhas` is the period-filtered dataset already
+  // aggregated server-side by (usuario_id, module_id); `linhasLifetime`
+  // is loaded on demand (banner "Desde o início" + "Nunca utilizou").
+  // `usuariosCache` reuses master_admin_security_data() already used by
+  // Usuários -- no new RPC for the eligibility cross-reference.
+  var suState = {
+    loading: false, loaded: false, error: null,
+    linhas: [],
+    linhasLifetime: null,
+    usuariosCache: null,
+    telemetryEnabled: null, // null = no RPC response yet
+    telemetryStartedAt: null,
+    filtros: { preset: '30d', dtIni: '', dtFim: '', loja: '', departamento: '', modulo: '', perfil: '', busca: '' },
+    ordenacao: 'ultimo_uso_desc',
+    nuncaUtilizouAberto: false,
+    nuncaUtilizouLoading: false,
+    nuncaUtilizouCache: null
+  };
+
   // Create/Edit form working state — reset on view change.
   var createForm = null;
   var editForm = null;
@@ -555,6 +579,7 @@
     { id: 'mudancaLoja', label: 'Mudança de Loja - Vendedores', active: true },
     { id: 'gestaoBases', label: 'Gestão de Bases', active: true },
     { id: 'gestaoSimuladores', label: 'Gestão dos Simuladores', active: true },
+    { id: 'utilizacaoSimuladores', label: 'Utilização dos Simuladores', active: true },
     { id: 'pendenciasCadastrais', label: 'Pendências Cadastrais', active: true },
     { id: 'auditoria', label: 'Auditoria', active: true }
   ];
@@ -604,6 +629,7 @@
     prState.modal = null;
     absState.modal = null;
     scState.modal = null;
+    suState.drawerUserId = null;
     // Never leave either section's modal open behind a section switch --
     // a blunt clear (no focus-return) is correct here, since the trigger
     // row itself is about to be discarded along with the whole section.
@@ -629,6 +655,8 @@
       absEnter();
     } else if (currentSection === 'mudancaLoja') {
       scEnter();
+    } else if (currentSection === 'utilizacaoSimuladores') {
+      suEnter();
     } else {
       renderPanel();
     }
@@ -3297,6 +3325,315 @@
     );
   }
 
+  // ---------- Utilização dos Simuladores (Painel Master Phase PM-5H) ----------
+  // Real backend: master_simulator_usage_data(p_start_date, p_end_date)
+  // (read-only, MASTER-only, confirmed live) over public.portal_module_
+  // sessions (RLS enabled, ZERO policies -- RPC-only access, the
+  // strongest posture in this codebase). READ-ONLY capability: no
+  // mutation of any kind is exposed here, matching V1's own real
+  // contract exactly (the only writers are the simulator surfaces
+  // themselves, confirmed live, never called from this admin screen).
+  var SU_PROVIDER = window.NX_MASTER_SIMULATOR_USAGE_PROVIDER;
+  var SU_VM = window.NX_MASTER_SIMULATOR_USAGE_VM;
+
+  function suEnter() {
+    if (suState.loaded || suState.loading) { renderPanel(); return; }
+    if (!suState.filtros.dtIni) {
+      var preset = SU_VM.applyPreset('30d', null);
+      suState.filtros.dtIni = preset.dtIni;
+      suState.filtros.dtFim = preset.dtFim;
+    }
+    suLoad();
+  }
+
+  function suLoad() {
+    suState.loading = true;
+    suState.error = null;
+    renderPanel();
+    var startIso = SU_VM.startOfDayIso(suState.filtros.dtIni);
+    var endIso = SU_VM.endOfDayIso(suState.filtros.dtFim);
+    SU_PROVIDER.loadUsageData(startIso, endIso, {}).then(
+      function (data) {
+        suState.linhas = data.linhas || [];
+        if (typeof data.telemetry_enabled === 'boolean') suState.telemetryEnabled = data.telemetry_enabled;
+        if (data.telemetry_started_at) suState.telemetryStartedAt = data.telemetry_started_at;
+        suState.loading = false;
+        suState.loaded = true;
+        renderPanel();
+      },
+      function (err) {
+        suState.loading = false;
+        suState.loaded = false;
+        suState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  function suSetPreset(preset) {
+    var p = SU_VM.applyPreset(preset, suState.telemetryStartedAt);
+    suState.filtros.preset = preset;
+    suState.filtros.dtIni = p.dtIni;
+    suState.filtros.dtFim = p.dtFim;
+    suLoad();
+  }
+  function suSetData(campo, valor) {
+    suState.filtros.preset = 'custom';
+    suState.filtros[campo] = valor;
+    suLoad();
+  }
+  function suSetFiltroSelect(campo, valor) {
+    suState.filtros[campo] = valor;
+    renderPanel();
+  }
+  var suBuscaDebounce = null;
+  function suSetBusca(valor) {
+    suState.filtros.busca = valor;
+    clearTimeout(suBuscaDebounce);
+    suBuscaDebounce = setTimeout(renderPanel, 200);
+  }
+  function suSetOrdenacao(valor) {
+    suState.ordenacao = valor;
+    renderPanel();
+  }
+
+  function suToggleNuncaUtilizou() {
+    suState.nuncaUtilizouAberto = !suState.nuncaUtilizouAberto;
+    if (suState.nuncaUtilizouAberto && !suState.nuncaUtilizouCache) {
+      suState.nuncaUtilizouLoading = true;
+      renderPanel();
+      suCarregarNuncaUtilizou().then(function (lista) {
+        suState.nuncaUtilizouCache = lista;
+        suState.nuncaUtilizouLoading = false;
+        renderPanel();
+      }, function () {
+        suState.nuncaUtilizouCache = [];
+        suState.nuncaUtilizouLoading = false;
+        renderPanel();
+      });
+      return;
+    }
+    renderPanel();
+  }
+
+  // No new RPC (Gate 4/20): reuses master_admin_security_data() already
+  // wired for Usuários, and loads the full-lifetime dataset on demand
+  // (independent of the period filter above -- Gate 16's own real V1
+  // scope: "Nunca utilizou" considers all telemetry history, not the
+  // currently-selected period).
+  function suCarregarNuncaUtilizou() {
+    var usersPromise = suState.usuariosCache
+      ? Promise.resolve(suState.usuariosCache)
+      : window.NX_MASTER_USERS_PROVIDER.loadMasterUsersData({}).then(function (data) {
+        suState.usuariosCache = data.users;
+        return data.users;
+      });
+    var lifetimePromise = suState.linhasLifetime
+      ? Promise.resolve(suState.linhasLifetime)
+      : SU_PROVIDER.loadUsageData(suState.telemetryStartedAt || '2020-01-01T00:00:00-03:00', new Date().toISOString(), {}).then(function (data) {
+        suState.linhasLifetime = data.linhas || [];
+        return suState.linhasLifetime;
+      });
+    return Promise.all([usersPromise, lifetimePromise]).then(function (results) {
+      return SU_VM.neverUsed(results[0], results[1]);
+    });
+  }
+
+  function suExportarXlsx() {
+    if (typeof XLSX === 'undefined') { return; }
+    var lista = SU_VM.sortUsers(SU_VM.groupByUser(SU_VM.filterRows(suState.linhas, suState.filtros)), suState.ordenacao);
+    var ws = XLSX.utils.json_to_sheet(SU_VM.xlsxRows(lista));
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Utilizacao');
+    XLSX.writeFile(wb, 'utilizacao_simuladores_' + suState.filtros.dtIni + '_a_' + suState.filtros.dtFim + '.xlsx');
+  }
+
+  var SU_LOJAS = ['ABC', 'ALPHAVILLE', 'ANALIA FRANCO', 'BARRA FUNDA', 'BANDEIRANTES', 'EUROPA', 'GASTAO', 'NACOES'];
+  var SU_DEPARTAMENTOS = ['NOVOS', 'SEMINOVOS', 'NOVOS/SEMINOVOS'];
+  var SU_PERFIS = ['VENDEDOR', 'GERENTE', 'ANALISTA', 'DIRETOR NOVOS', 'DIRETOR SEMINOVOS', 'MASTER'];
+
+  function suBannerHtml() {
+    if (suState.telemetryEnabled === false) {
+      return '<div class="note suBanner suBannerWarn">' +
+        '<b>Telemetria ainda não ativada em produção.</b>' +
+        '<p class="maSubtle">A coleta real de utilização dos simuladores está desligada. Os indicadores abaixo ficarão zerados até a coleta ser iniciada oficialmente.</p></div>';
+    }
+    if (suState.telemetryEnabled !== true || !suState.telemetryStartedAt) return '';
+    var f = suState.filtros;
+    // Compared by real instant (Date.getTime()), never by ISO string --
+    // the filter uses an explicit -03:00 offset while the RPC returns a
+    // UTC timestamptz; string comparison would compare different-offset
+    // representations, not the actual instant (PM-5H Gate 11 discipline).
+    var startedAtMs = new Date(suState.telemetryStartedAt).getTime();
+    var fimMs = f.dtFim ? new Date(SU_VM.endOfDayIso(f.dtFim)).getTime() : null;
+    var iniMs = f.dtIni ? new Date(SU_VM.startOfDayIso(f.dtIni)).getTime() : null;
+    var totalmenteAntes = fimMs !== null && fimMs < startedAtMs;
+    var parcialmenteAntes = !totalmenteAntes && iniMs !== null && iniMs < startedAtMs;
+    var inicioOficial = SU_VM.fmtDateTimeBR(suState.telemetryStartedAt);
+    if (totalmenteAntes) {
+      return '<div class="note suBanner suBannerWarn"><b>A coleta de utilização ainda não estava ativa neste período.</b>' +
+        '<p class="maSubtle">Coleta oficial iniciada em ' + esc(inicioOficial) + '. O período selecionado é anterior a essa data — os indicadores abaixo não representam ausência de uso, e sim ausência de coleta.</p></div>';
+    }
+    var notaParcial = parcialmenteAntes ? '<p class="maSubtle">Dados disponíveis a partir de ' + esc(inicioOficial) + '.</p>' : '';
+    return '<div class="note suBanner suBannerOk"><b>Coleta iniciada em ' + esc(inicioOficial) + '.</b>' + notaParcial + '</div>';
+  }
+
+  function suKpiCardsHtml(kpis) {
+    return '<div class="suKpiCards">' +
+      '<div class="pcCard"><div class="pcCardK">Usuários que utilizaram</div><div class="pcCardV">' + kpis.usuarios + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Sessões</div><div class="pcCardV">' + kpis.sessions + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Simulações realizadas</div><div class="pcCardV">' + kpis.simulations + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Tempo ativo</div><div class="pcCardV">' + esc(SU_VM.fmtDuration(kpis.activeSeconds)) + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Tempo médio por sessão</div><div class="pcCardV">' + esc(SU_VM.fmtAvgDuration(kpis.activeSeconds, kpis.sessions)) + '</div></div>' +
+      '</div>';
+  }
+
+  function suComparativoHtml(porModulo) {
+    return '<h3>Uso por Simulador</h3><div class="udsCompareGrid">' + porModulo.map(function (m) {
+      return '<div class="udsCompareCard"><div class="udsCompareTitle">' + esc(m.label) + '</div>' +
+        '<div class="udsCompareRow"><span>Usuários</span><b>' + m.usuarios + '</b></div>' +
+        '<div class="udsCompareRow"><span>Sessões</span><b>' + m.sessions + '</b></div>' +
+        '<div class="udsCompareRow"><span>Simulações</span><b>' + m.simulations + '</b></div>' +
+        '<div class="udsCompareRow"><span>Tempo ativo</span><b>' + esc(SU_VM.fmtDuration(m.activeSeconds)) + '</b></div></div>';
+    }).join('') + '</div>';
+  }
+
+  function suRowHtml(u) {
+    return '<div class="udsRow" data-id="' + esc(u.usuario_id) + '">' +
+      '<div class="udsMain"><div class="udsName">' + esc(u.nome || '') + '</div>' +
+      '<div class="udsMetaMobile">' + esc(u.loja || '—') + ' • ' + esc(u.departamento || u.perfil || '—') + '</div></div>' +
+      '<div class="udsCol udsColLoja" data-label="Loja">' + esc(u.loja || '—') + '</div>' +
+      '<div class="udsCol udsColDep" data-label="Departamento">' + esc(u.departamento || '—') + '</div>' +
+      '<div class="udsCol udsColNum" data-label="Novos">' + u.acessosNovos + '</div>' +
+      '<div class="udsCol udsColNum" data-label="Seminovos">' + u.acessosSeminovos + '</div>' +
+      '<div class="udsCol udsColNum" data-label="Simulações">' + u.simulacoes + '</div>' +
+      '<div class="udsCol udsColNum" data-label="Tempo ativo">' + esc(SU_VM.fmtDuration(u.tempoAtivo)) + '</div>' +
+      '<div class="udsCol" data-label="Último uso">' + esc(SU_VM.fmtDateTimeBR(u.ultimoUso)) + '</div>' +
+      '<div class="udsCol udsColAcao"><button type="button" class="modBtnGhost suDetailBtn" data-id="' + esc(u.usuario_id) + '">Ver detalhes</button></div>' +
+      '</div>';
+  }
+
+  function suNuncaUtilizouHtml() {
+    if (!suState.nuncaUtilizouAberto) {
+      return '<div class="udsNuncaBox"><button type="button" class="modBtnGhost" id="suToggleNuncaBtn">Ver quem nunca utilizou os simuladores</button></div>';
+    }
+    if (suState.nuncaUtilizouLoading) {
+      return '<div class="udsNuncaBox"><p class="note">Carregando...</p></div>';
+    }
+    var lista = suState.nuncaUtilizouCache || [];
+    var porUsuario = {};
+    var order = [];
+    lista.forEach(function (r) {
+      if (!porUsuario[r.usuario_id]) { porUsuario[r.usuario_id] = { nome: r.nome, loja: r.loja, perfil: r.perfil, modulos: [] }; order.push(r.usuario_id); }
+      var mod = SU_VM.MODULES.filter(function (m) { return m.id === r.module_id; })[0];
+      porUsuario[r.usuario_id].modulos.push(mod ? mod.label : r.module_id);
+    });
+    var linhas = order.map(function (id) { return porUsuario[id]; }).sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'); });
+    var rows = linhas.map(function (u) {
+      return '<div class="udsNuncaRow"><div><b>' + esc(u.nome || '') + '</b></div>' +
+        '<div class="maSubtle">' + esc(u.loja || '—') + ' • ' + esc(u.perfil || '—') + '</div>' +
+        '<div class="maSubtle">Elegível: ' + esc(u.modulos.join(', ')) + '</div></div>';
+    }).join('');
+    return '<div class="udsNuncaBox"><div class="udsNuncaHead"><h3>Nunca utilizaram (' + linhas.length + ')</h3>' +
+      '<button type="button" class="modBtnGhost" id="suToggleNuncaBtn">Ocultar</button></div>' +
+      '<p class="note">Considera todo o histórico de telemetria disponível (independente do filtro de período acima) — vendedores/gerentes/analistas com permissão para pelo menos um simulador e nenhuma sessão registrada.</p>' +
+      (rows || '<p class="note">Nenhum usuário elegível está sem uso — ou a coleta ainda não iniciou.</p>') + '</div>';
+  }
+
+  function suResultsHtml() {
+    var filtradas = SU_VM.filterRows(suState.linhas, suState.filtros);
+    var kpis = SU_VM.globalKpis(filtradas);
+    var porModulo = SU_VM.byModule(filtradas);
+    var usuarios = SU_VM.sortUsers(SU_VM.groupByUser(filtradas), suState.ordenacao);
+    var rows = usuarios.map(suRowHtml).join('');
+    var header = '<div class="udsRow udsRowHead"><div class="udsMain">Usuário</div>' +
+      '<div class="udsCol udsColLoja">Loja</div><div class="udsCol udsColDep">Departamento</div>' +
+      '<div class="udsCol udsColNum">Novos</div><div class="udsCol udsColNum">Seminovos</div>' +
+      '<div class="udsCol udsColNum">Simulações</div><div class="udsCol udsColNum">Tempo ativo</div>' +
+      '<div class="udsCol">Último uso</div><div class="udsCol udsColAcao"></div></div>';
+    return suKpiCardsHtml(kpis) + suComparativoHtml(porModulo) +
+      '<div class="udsList">' + header + (rows || '<p class="note" style="padding:16px">Nenhum acesso registrado para os filtros selecionados.</p>') + '</div>' +
+      suNuncaUtilizouHtml();
+  }
+
+  function renderUtilizacaoSimuladoresSection() {
+    var html = '<h2>Utilização dos Simuladores</h2>' +
+      '<p class="note">Dados de uso (acessos, sessões, tempo ativo, simulações realizadas) — nunca conteúdo de simulação. Sem CPF, cliente, chassi ou valores financeiros. Tela somente leitura.</p>';
+    if (suState.error) {
+      return html + errorStateHtml(suState.error.state, suState.error.message) +
+        '<button type="button" id="suRetryBtn" class="modBtnGhost">Tentar novamente</button>';
+    }
+    if (suState.loading || !suState.loaded) {
+      return html + '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando utilização...</div>';
+    }
+    html += suBannerHtml();
+    var f = suState.filtros;
+    var presets = [['hoje', 'Hoje'], ['7d', 'Últimos 7 dias'], ['30d', 'Últimos 30 dias'], ['mesAtual', 'Mês atual'], ['mesAnterior', 'Mês anterior'], ['desdeInicio', 'Desde o início']];
+    html += '<div class="suPresetGroup">' + presets.map(function (p) {
+      return '<button type="button" class="' + (f.preset === p[0] ? 'modBtn' : 'modBtnGhost') + ' suPresetBtn" data-preset="' + p[0] + '">' + p[1] + '</button>';
+    }).join('') + '<button type="button" class="modBtnGhost" id="suExportBtn">Exportar XLSX</button></div>';
+    html += '<div class="modFilters">' +
+      '<div class="modField"><label for="suDtIni">Data inicial</label><input type="date" id="suDtIni" value="' + esc(f.dtIni) + '"></div>' +
+      '<div class="modField"><label for="suDtFim">Data final</label><input type="date" id="suDtFim" value="' + esc(f.dtFim) + '"></div>' +
+      suFiltroSelectHtml('suLoja', 'Loja', SU_LOJAS, f.loja) +
+      suFiltroSelectHtml('suDep', 'Departamento', SU_DEPARTAMENTOS, f.departamento) +
+      '<div class="modField"><label for="suModulo">Módulo</label><select id="suModulo"><option value="">TODOS</option>' +
+      SU_VM.MODULES.map(function (m) { return '<option value="' + esc(m.id) + '"' + (f.modulo === m.id ? ' selected' : '') + '>' + esc(m.label) + '</option>'; }).join('') + '</select></div>' +
+      suFiltroSelectHtml('suPerfil', 'Perfil', SU_PERFIS, f.perfil) +
+      '</div>';
+    html += '<div class="modFilters">' +
+      '<div class="modField"><label for="suBusca">Pesquisar usuário...</label>' +
+      '<input type="text" id="suBusca" value="' + esc(f.busca) + '" placeholder="Nome, loja ou perfil"></div>' +
+      '<div class="modField"><label for="suOrdenacao">Ordenar por</label><select id="suOrdenacao">' +
+      '<option value="ultimo_uso_desc"' + (suState.ordenacao === 'ultimo_uso_desc' ? ' selected' : '') + '>Último uso (mais recente)</option>' +
+      '<option value="simulacoes"' + (suState.ordenacao === 'simulacoes' ? ' selected' : '') + '>Mais simulações</option>' +
+      '<option value="sessoes"' + (suState.ordenacao === 'sessoes' ? ' selected' : '') + '>Mais sessões</option>' +
+      '<option value="tempo"' + (suState.ordenacao === 'tempo' ? ' selected' : '') + '>Mais tempo ativo</option>' +
+      '<option value="nome"' + (suState.ordenacao === 'nome' ? ' selected' : '') + '>Nome (A-Z)</option>' +
+      '</select></div></div>';
+    html += '<div id="suResultsArea">' + suResultsHtml() + '</div>';
+    return html;
+  }
+  function suFiltroSelectHtml(id, label, opcoes, valorAtual) {
+    var options = '<option value="">TODOS</option>' + opcoes.map(function (o) {
+      return '<option value="' + esc(o) + '"' + (valorAtual === o ? ' selected' : '') + '>' + esc(o) + '</option>';
+    }).join('');
+    return '<div class="modField"><label for="' + id + '">' + esc(label) + '</label><select id="' + id + '">' + options + '</select></div>';
+  }
+
+  function suUserById(usuarioId) {
+    var lista = SU_VM.groupByUser(SU_VM.filterRows(suState.linhas, suState.filtros));
+    return lista.filter(function (u) { return String(u.usuario_id) === String(usuarioId); })[0] || null;
+  }
+  function suModuleBlockHtml(label, m) {
+    if (!m) return '<h4>' + esc(label) + '</h4><p class="note">Sem uso registrado no período filtrado.</p>';
+    return '<h4>' + esc(label) + '</h4>' +
+      fieldRow('Sessões', m.sessions) +
+      fieldRow('Simulações', m.simulation_count) +
+      fieldRow('Tempo ativo', SU_VM.fmtDuration(m.active_seconds)) +
+      fieldRow('Dias ativos', m.active_days) +
+      fieldRow('Primeiro uso', SU_VM.fmtDateTimeBR(m.first_use)) +
+      fieldRow('Último uso', SU_VM.fmtDateTimeBR(m.last_use));
+  }
+  function suDrawerBodyHtml(u) {
+    return '<p class="note">"Dias ativos" é mostrado por simulador abaixo — somar entre os dois módulos poderia contar o mesmo dia duas vezes se o usuário usou ambos no mesmo dia.</p>' +
+      fieldRow('Sessões totais', u.acessosNovos + u.acessosSeminovos) +
+      fieldRow('Simulações', u.simulacoes) +
+      fieldRow('Tempo ativo', SU_VM.fmtDuration(u.tempoAtivo)) +
+      fieldRow('Tempo médio por sessão', SU_VM.fmtAvgDuration(u.tempoAtivo, u.acessosNovos + u.acessosSeminovos)) +
+      fieldRow('Primeiro uso', SU_VM.fmtDateTimeBR(u.primeiroUso)) +
+      fieldRow('Último uso', SU_VM.fmtDateTimeBR(u.ultimoUso)) +
+      suModuleBlockHtml('Simulador de Novos', u.porModulo.simuladorCompleto) +
+      suModuleBlockHtml('Simulador de Seminovos', u.porModulo.simuladorSeminovos);
+  }
+  function renderSuDrawerRoot() {
+    if (!suState.drawerUserId) { if (currentSection === 'utilizacaoSimuladores') clearNxModal(); return; }
+    var u = suUserById(suState.drawerUserId);
+    if (!u) { suState.drawerUserId = null; clearNxModal(); return; }
+    renderNxModal(u.nome || 'Detalhes de uso', suDrawerBodyHtml(u), suCloseDrawer);
+  }
+  function suCloseDrawer() { suState.drawerUserId = null; clearNxModal(); }
+
   // ---------- master render ----------
   function renderPanel() {
     var panel = document.getElementById('maPanel');
@@ -3384,6 +3721,13 @@
     if (currentSection === 'mudancaLoja') {
       renderScModalRoot();
       panel.innerHTML = renderMudancaLojaSection();
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'utilizacaoSimuladores') {
+      renderSuDrawerRoot();
+      panel.innerHTML = renderUtilizacaoSimuladoresSection();
       wireInteraction();
       return;
     }
@@ -3680,6 +4024,39 @@
         if (!record) return;
         scState.modal = { kind: 'editDepartments', record: record };
         renderScModalRoot();
+      });
+    });
+
+    // ---- Utilização dos Simuladores (Painel Master Phase PM-5H, read-only) ----
+    var suRetry = document.getElementById('suRetryBtn');
+    if (suRetry) suRetry.addEventListener('click', suLoad);
+    document.querySelectorAll('.suPresetBtn').forEach(function (el) {
+      el.addEventListener('click', function () { suSetPreset(el.getAttribute('data-preset')); });
+    });
+    var suExport = document.getElementById('suExportBtn');
+    if (suExport) suExport.addEventListener('click', suExportarXlsx);
+    var suDtIni = document.getElementById('suDtIni');
+    if (suDtIni) suDtIni.addEventListener('change', function (e) { suSetData('dtIni', e.target.value); });
+    var suDtFim = document.getElementById('suDtFim');
+    if (suDtFim) suDtFim.addEventListener('change', function (e) { suSetData('dtFim', e.target.value); });
+    var suLojaSel = document.getElementById('suLoja');
+    if (suLojaSel) suLojaSel.addEventListener('change', function (e) { suSetFiltroSelect('loja', e.target.value); });
+    var suDepSel = document.getElementById('suDep');
+    if (suDepSel) suDepSel.addEventListener('change', function (e) { suSetFiltroSelect('departamento', e.target.value); });
+    var suModuloSel = document.getElementById('suModulo');
+    if (suModuloSel) suModuloSel.addEventListener('change', function (e) { suSetFiltroSelect('modulo', e.target.value); });
+    var suPerfilSel = document.getElementById('suPerfil');
+    if (suPerfilSel) suPerfilSel.addEventListener('change', function (e) { suSetFiltroSelect('perfil', e.target.value); });
+    var suBuscaEl = document.getElementById('suBusca');
+    if (suBuscaEl) suBuscaEl.addEventListener('input', function (e) { suSetBusca(e.target.value); });
+    var suOrdenacaoSel = document.getElementById('suOrdenacao');
+    if (suOrdenacaoSel) suOrdenacaoSel.addEventListener('change', function (e) { suSetOrdenacao(e.target.value); });
+    var suToggleNunca = document.getElementById('suToggleNuncaBtn');
+    if (suToggleNunca) suToggleNunca.addEventListener('click', suToggleNuncaUtilizou);
+    document.querySelectorAll('.suDetailBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        suState.drawerUserId = el.getAttribute('data-id');
+        renderSuDrawerRoot();
       });
     });
 

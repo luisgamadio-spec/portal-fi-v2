@@ -403,3 +403,48 @@ body.maudModalOpen { overflow: hidden; }
 .scTable th, .scTable td { text-align: left; vertical-align: top; }
 .scActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .scMobileCard .scActions { margin-top: var(--space-2); }
+
+/* ==================== Utilização dos Simuladores (Painel Master Phase PM-5H) ====================
+   Responsive breakpoints ported from the real, already-tested V1 CSS
+   (ia-reconciliation-v2-local/index.html) -- same 3-tier collapse
+   strategy (full grid -> hide Loja/Departamento columns behind a
+   mobile meta line -> full stack with data-label pseudo-headers),
+   adapted to this project's own design tokens instead of V1's
+   hardcoded dark colors. READ-ONLY screen: no CRUD affordances. */
+.suBanner { border: 1px solid var(--mod-border-strong); border-radius: var(--radius-sm); padding: 10px 12px; margin: var(--space-2) 0; }
+.suBannerWarn { border-color: rgba(246,196,83,.35); background: rgba(246,196,83,.06); }
+.suBannerOk { border-color: rgba(54,211,153,.28); background: rgba(54,211,153,.05); }
+.suKpiCards { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-3); }
+@media (max-width: 900px) { .suKpiCards { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 500px) { .suKpiCards { grid-template-columns: repeat(2, 1fr); } }
+.suPresetGroup { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: var(--space-2) 0; }
+.udsCompareGrid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 14px; margin: var(--space-3) 0 var(--space-4); }
+.udsCompareCard { background: var(--mod-surface-muted, #151515); border: 1px solid var(--mod-border-strong); border-radius: var(--radius-md); padding: var(--space-3); }
+.udsCompareTitle { font-weight: 700; margin-bottom: 10px; text-transform: uppercase; font-size: 13px; letter-spacing: .04em; }
+.udsCompareRow { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--color-hairline); font-size: 13px; color: var(--color-text-secondary); }
+.udsCompareRow:last-child { border-bottom: 0; }
+@media (max-width: 700px) { .udsCompareGrid { grid-template-columns: 1fr; } }
+.udsList { display: grid; gap: 8px; margin-top: var(--space-3); }
+.udsRow { display: grid; grid-template-columns: 1.6fr .9fr .9fr .7fr .7fr .8fr .9fr 1fr auto; gap: 12px; align-items: center; background: var(--mod-surface-muted, #151515); border: 1px solid var(--mod-border-strong); border-radius: var(--radius-md); padding: 12px 16px; }
+.udsRowHead { background: transparent; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-text-secondary); font-weight: 700; padding: 10px 16px; }
+.udsRow .udsName { font-weight: 700; font-size: 14px; }
+.udsRow .udsMetaMobile { display: none; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.udsRow .udsColNum { text-align: right; font-weight: 700; }
+.udsRow .udsColAcao { text-align: right; }
+@media (max-width: 900px) {
+  .udsRow { grid-template-columns: 1.6fr .8fr .8fr .8fr .8fr 1fr auto; }
+  .udsRow .udsColLoja, .udsRow .udsColDep { display: none; }
+  .udsRow .udsMetaMobile { display: block; }
+}
+@media (max-width: 640px) {
+  .udsRow { grid-template-columns: 1fr; gap: 6px; }
+  .udsRowHead { display: none; }
+  .udsRow:not(.udsRowHead) .udsCol:not(.udsColLoja):not(.udsColDep) { display: flex; justify-content: space-between; text-align: left; }
+  .udsRow:not(.udsRowHead) .udsCol:not(.udsColLoja):not(.udsColDep)::before { content: attr(data-label); color: var(--color-text-secondary); font-weight: 700; text-transform: uppercase; font-size: 11px; }
+  .udsRow .udsColAcao { text-align: left; }
+  .udsRow .udsColAcao button { width: 100%; }
+}
+.udsNuncaBox { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px dashed var(--color-hairline); }
+.udsNuncaHead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: var(--space-2); }
+.udsNuncaRow { display: grid; grid-template-columns: 1.4fr 1fr 1.4fr; gap: 10px; background: var(--mod-surface-muted, #151515); border: 1px solid var(--mod-border-strong); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 6px; align-items: center; }
+@media (max-width: 760px) { .udsNuncaRow { grid-template-columns: 1fr; gap: 2px; } }
