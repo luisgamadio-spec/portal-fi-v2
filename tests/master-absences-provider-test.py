@@ -184,6 +184,39 @@ def main():
         button_texts = page.eval_on_selector_all(".absActions .modBtnGhost", "els => els.map(e => e.textContent)")
         check("7e (DENSITY REFINEMENT): every action button's own label renders as one complete, unbroken word in the DOM", all(t in ("Inativar", "Ativar", "Arquivar") for t in button_texts))
         check("7f (DENSITY REFINEMENT): the deliberate 2-line date format still round-trips both real dates intact in the DOM text", "01/08/2026" in body_text and "31/08/2026" in body_text)
+        # PM-5F-H3 (row grid integrity fix, Gate 4/12 -- Human-reported
+        # discontinuous row-separator border crossing the "Ações"
+        # column). Root cause was .absActions (display:flex) applied
+        # directly to the <td>, which removes it from the table's
+        # native row-height algorithm so its box no longer matches its
+        # siblings' top/bottom. Fixed by moving .absActions onto an
+        # inner <div> wrapper inside the <td>, leaving the <td> itself
+        # as a native table-cell. This check is written to genuinely
+        # fail against the pre-fix version (proven in this same session
+        # by temporarily restoring the prior committed file and
+        # re-running this exact suite: every row failed with a 6-7px
+        # deltaBottom on the Ações cell and display=flex).
+        grid = page.evaluate("""
+() => {
+  const rows = [...document.querySelectorAll('.absTable tbody tr')];
+  let failures = 0;
+  for (const row of rows) {
+    const rowRect = row.getBoundingClientRect();
+    for (const td of row.children) {
+      const r = td.getBoundingClientRect();
+      const display = getComputedStyle(td).display;
+      const topOk = Math.abs(r.top - rowRect.top) <= 1;
+      const bottomOk = Math.abs(r.bottom - rowRect.bottom) <= 1;
+      if (!topOk || !bottomOk || display !== 'table-cell') failures++;
+    }
+  }
+  return { rows: rows.length, failures };
+}
+""")
+        check("7g (ROW GRID INTEGRITY): every <td> in every row matches its row's own top/bottom within 1px (no cell dropped out of native table-cell layout)", grid["failures"] == 0 and grid["rows"] > 0)
+        check("7h (ROW GRID INTEGRITY): the Ações <td> itself keeps display:table-cell -- the flex layout lives on an inner wrapper <div>, never on the cell", all(
+            d == "table-cell" for d in page.eval_on_selector_all("td.adminActions", "els => els.map(e => getComputedStyle(e).display)")
+        ))
         page.close()
 
         # ---------- 8-16: create flow -- validation, overlap warning (non-blocking), exact real payload shape ----------

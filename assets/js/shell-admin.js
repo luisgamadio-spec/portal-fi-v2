@@ -2807,10 +2807,10 @@
       '<td>' + esc(a.motivo || '-') + '</td>' +
       '<td class="absColBadge"><span class="absStateBadge absState' + esc(state) + '">' + esc(ABS_VM.temporalLabel(state)) + '</span></td>' +
       '<td class="absColBadge">' + ativoBadge + '</td>' +
-      '<td class="adminActions absActions">' +
+      '<td class="adminActions"><div class="absActions">' +
       '<button type="button" class="modBtnGhost absToggleActiveBtn" data-id="' + esc(a.id) + '" data-active="' + (a.ativo !== false) + '">' + (a.ativo !== false ? 'Inativar' : 'Ativar') + '</button>' +
       '<button type="button" class="modBtnGhost absArchiveBtn" data-id="' + esc(a.id) + '">Arquivar</button>' +
-      '</td></tr>';
+      '</div></td></tr>';
   }
   // PM-5F-H2 (table density refinement, after Human retest of H1):
   // real geometry was measured (not guessed) against a 21-row

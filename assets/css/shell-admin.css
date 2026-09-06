@@ -425,6 +425,21 @@ body.maudModalOpen { overflow: hidden; }
    not just compact, so their column gets enough width instead
    (Gate 8: "badges devem permanecer legíveis"). */
 .absTable .maBadge, .absTable .absStateBadge { white-space: nowrap; }
+/* PM-5F-H3 (Human UAT defect: row-grid integrity): .absActions used to
+   sit directly on the Ações <td> itself, so this rule's own
+   display:flex REPLACED the cell's native display:table-cell --
+   confirmed live (not assumed) via getBoundingClientRect(): every
+   sibling td matched the row's own top/bottom exactly (table-cell
+   participates in the row's normal height/vertical-align algorithm),
+   while the flexed Ações td was 6-7px SHORTER than the row on every
+   row measured, leaving its own background/border-bottom short of the
+   row's true bottom edge -- exactly the "step" in the horizontal
+   separator line the Human's close-up screenshot showed. Fixed by
+   moving this class onto an inner <div> wrapper INSIDE the <td>
+   (matching the mobile-card version of this same class, which already
+   used a <div> wrapper, never a td) -- the <td> itself is native
+   table-cell again, sized like every sibling; only the wrapper div is
+   flex, purely for laying out the two button labels. */
 .absActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 /* PM-5F-H1: same "legible, never break mid-word" discipline as badges
    -- "Inativar"/"Arquivar" breaking into "Inati/var" at narrow desktop
