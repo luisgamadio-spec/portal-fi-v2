@@ -130,15 +130,52 @@ def main():
         check("3: an inactive/archived absence still appears in the MASTER admin list (superset read)", "Analista Dois" in body_text)
         check("4: motivo renders as real free text, not a translated/relabeled value", "FÉRIAS" in body_text and "COBERTURA TEMPORÁRIA" in body_text)
         check("5: temporal state badge renders (past/em curso/futura) for the past-dated real fixture", "ENCERRADA" in body_text.upper())
+        # PM-5F-H1 (Human UAT defect fix -- Gate 16 mandatory regression
+        # test): checking ONLY document.documentElement.scrollWidth is
+        # NOT sufficient and is exactly what let the original overflow
+        # ship undetected -- .modTableWrap (module-system.css) has its
+        # own overflow-x:auto, which silently CONTAINS overflow inside
+        # itself as a scoped horizontal scrollbar (exactly what the
+        # real Human UAT screenshot showed: a scrollbar "at the bottom
+        # of the table", not of the page) without ever making
+        # documentElement itself overflow. Both levels are asserted
+        # from here on -- this check is written to genuinely fail
+        # against the pre-fix version (proven in this same session by
+        # temporarily restoring the prior committed file and re-running
+        # this exact suite: it failed at all 8 desktop/tablet widths,
+        # confirming this is a real regression test, not a rewritten
+        # expectation).
         for w in (1440, 1366, 1280, 1100, 1024, 1000, 900, 768, 430, 390, 375):
             page.set_viewport_size({"width": w, "height": 1000})
             page.wait_for_timeout(60)
-            no_overflow = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1")
-            check("6 (w=%d): no horizontal overflow (full mandatory matrix, Gate 69)" % w, no_overflow)
+            measurements = page.evaluate("""
+() => {
+  const doc = document.documentElement;
+  const table = document.querySelector('.absTable');
+  const wrap = table ? table.closest('.modTableWrap') : null;
+  return {
+    doc_ok: doc.scrollWidth <= doc.clientWidth + 1,
+    wrap_ok: !wrap || wrap.scrollWidth <= wrap.clientWidth + 1
+  };
+}
+""")
+            check("6 (w=%d): no horizontal overflow at the page level (full mandatory matrix, Gate 10)" % w, measurements["doc_ok"])
+            check("6b (w=%d): no CONTAINED horizontal overflow inside .modTableWrap either -- the exact class of defect a page-only check misses" % w, measurements["wrap_ok"])
         page.set_viewport_size({"width": 1440, "height": 1000})
         page.wait_for_timeout(60)
-        no_overflow_long = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1")
-        check("7 (LONG CONTENT STRESS, Gate 69): very long analyst/store names never cause page horizontal overflow", no_overflow_long)
+        measurements_long = page.evaluate("""
+() => {
+  const doc = document.documentElement;
+  const table = document.querySelector('.absTable');
+  const wrap = table ? table.closest('.modTableWrap') : null;
+  return {
+    doc_ok: doc.scrollWidth <= doc.clientWidth + 1,
+    wrap_ok: !wrap || wrap.scrollWidth <= wrap.clientWidth + 1
+  };
+}
+""")
+        check("7 (LONG CONTENT STRESS, Gate 10): very long analyst/store names never cause page-level horizontal overflow", measurements_long["doc_ok"])
+        check("7c (LONG CONTENT STRESS, Gate 10): very long analyst/store names never cause CONTAINED overflow inside .modTableWrap either (this is the Human-UAT-reported defect's exact signature)", measurements_long["wrap_ok"])
         check("7b: long analyst name still renders in full (no silent truncation)", "Analista Com Nome Extremamente Longo" in body_text)
         page.close()
 

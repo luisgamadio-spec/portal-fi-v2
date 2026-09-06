@@ -2803,18 +2803,35 @@
       '<td><b>' + esc(a.nome_analista_ausente || '-') + '</b>' + (a.loja_origem ? '<br><span class="maSubtle">' + esc(a.loja_origem) + '</span>' : '') + '</td>' +
       '<td>' + esc(a.nome_analista_substituto || '-') + '</td>' +
       '<td>' + esc(a.loja_coberta || '-') + '</td>' +
-      '<td>' + esc(ABS_VM.fmtDateBR(a.data_inicio)) + ' → ' + esc(ABS_VM.fmtDateBR(a.data_fim)) + '</td>' +
+      '<td class="absColDate">' + esc(ABS_VM.fmtDateBR(a.data_inicio)) + ' → ' + esc(ABS_VM.fmtDateBR(a.data_fim)) + '</td>' +
       '<td>' + esc(a.motivo || '-') + '</td>' +
-      '<td><span class="absStateBadge absState' + esc(state) + '">' + esc(ABS_VM.temporalLabel(state)) + '</span></td>' +
-      '<td>' + ativoBadge + '</td>' +
+      '<td class="absColBadge"><span class="absStateBadge absState' + esc(state) + '">' + esc(ABS_VM.temporalLabel(state)) + '</span></td>' +
+      '<td class="absColBadge">' + ativoBadge + '</td>' +
       '<td class="adminActions absActions">' +
       '<button type="button" class="modBtnGhost absToggleActiveBtn" data-id="' + esc(a.id) + '" data-active="' + (a.ativo !== false) + '">' + (a.ativo !== false ? 'Inativar' : 'Ativar') + '</button>' +
       '<button type="button" class="modBtnGhost absArchiveBtn" data-id="' + esc(a.id) + '">Arquivar</button>' +
       '</td></tr>';
   }
+  // PM-5F-H1: deliberate column-width contract (Gate 8), never an equal
+  // split -- names/store/motivo get the most room and are allowed to
+  // wrap onto multiple lines; dates and badges stay compact/nowrap
+  // since they reliably fit on one line at any of these widths.
+  function absColgroupHtml() {
+    return '<colgroup>' +
+      '<col style="width:16%">' + // Analista ausente
+      '<col style="width:13%">' + // Substituto
+      '<col style="width:13%">' + // Loja coberta
+      '<col style="width:12%">' + // Período
+      '<col style="width:12%">' + // Motivo (widened so single-word values like "AFASTAMENTO" fit on one line down to 768px)
+      '<col style="width:13%">' + // Situação (badge, nowrap -- widened so "ENCERRADA" never breaks mid-word)
+      '<col style="width:10%">' + // Status (badge, nowrap)
+      '<col style="width:11%">' + // Ações (nowrap labels -- widened so "Arquivar" never breaks mid-word)
+      '</colgroup>';
+  }
   function absDesktopTableHtml() {
     return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable absTable">' +
-      '<thead><tr><th scope="col">Analista ausente</th><th scope="col">Substituto</th><th scope="col">Loja coberta</th><th scope="col">Período</th><th scope="col">Motivo</th><th scope="col">Situação</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead>' +
+      absColgroupHtml() +
+      '<thead><tr><th scope="col">Analista ausente</th><th scope="col">Substituto</th><th scope="col">Loja coberta</th><th scope="col" class="absColDate">Período</th><th scope="col">Motivo</th><th scope="col" class="absColBadge">Situação</th><th scope="col" class="absColBadge">Status</th><th scope="col">Ações</th></tr></thead>' +
       '<tbody>' + absState.absences.map(absRowHtml).join('') + '</tbody></table></div></div>';
   }
   function absMobileCardHtml(a) {

@@ -387,8 +387,54 @@ body.maudModalOpen { overflow: hidden; }
 .absCreateCard label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
 .absCreateCard input[type="text"], .absCreateCard input[type="date"], .absCreateCard select { padding: 6px 8px; border: 1px solid var(--mod-border-strong); border-radius: var(--radius-sm); background: var(--color-canvas); color: var(--color-text-primary); }
 .absFinanceWarn { border-left: 3px solid var(--color-accent-primary, #1a56db); padding-left: 8px; }
-.absTable th, .absTable td { text-align: left; vertical-align: top; }
+/* PM-5F-H1 (Human UAT defect fix): the shared .modTable default
+   (module-system.css) sets white-space:nowrap on every th/td, and
+   .absTable never overrode that with a wrapping strategy of its own --
+   unlike .scPage/.cpPage/.gePage's own .modTable overrides, each of
+   which already had to solve this exact problem for their own tables.
+   With table-layout left at its implicit "auto", a long real analyst/
+   substitute/store name forced the table to its nowrap intrinsic width
+   (measured live: 2290px against the existing long-content fixture,
+   at every desktop width from 1440 down to 768) -- silently absorbed
+   by the shared .modTableWrap{overflow-x:auto} as a CONTAINED
+   horizontal scrollbar, which never reaches document.documentElement
+   and is exactly why the prior width-matrix assertions (checking only
+   documentElement.scrollWidth) reported a false PASS. Fixed the same
+   way Score/Coparticipado/Gestão fixed it for their own tables:
+   table-layout:fixed + deliberate column-width distribution via
+   <colgroup> (Gate 8 -- never an equal split) + per-column wrap
+   policy: names/store/motivo wrap (overflow-wrap:break-word), while
+   the date-range and badge columns stay nowrap on purpose (short,
+   fits, wrapping would look broken mid-date). Scoped to .absTable
+   only -- the shared .modTable/.modTableWrap defaults, and every
+   other screen using them, are untouched. */
+.absTable { table-layout: fixed; }
+.absTable th, .absTable td { text-align: left; vertical-align: top; white-space: normal; overflow-wrap: break-word; word-break: break-word; }
+/* Dates are NOT forced to nowrap (an earlier draft did, and at 900px
+   the date range visually overlapped the next column instead of
+   wrapping -- caught by direct screenshot inspection). A generous
+   column-width allocation (see absColgroupHtml) keeps the date range
+   on one line in practice at every real width; if a width ever gets
+   tight enough that it doesn't fit, it wraps at the natural word
+   boundary around "→" instead of overflowing into a neighboring
+   column -- never destructive.
+   Badges ARE kept nowrap, scoped to .absTable only (never touching the
+   shared .maBadge default used elsewhere, e.g. Pendências/Auditoria's
+   own .maSituacaoCell .maBadge{white-space:normal} override) -- a
+   badge word breaking mid-word ("ENCE/RRADA") is genuinely illegible,
+   not just compact, so their column gets enough width instead
+   (Gate 8: "badges devem permanecer legíveis"). */
+.absTable .maBadge, .absTable .absStateBadge { white-space: nowrap; }
 .absActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+/* PM-5F-H1: same "legible, never break mid-word" discipline as badges
+   -- "Inativar"/"Arquivar" breaking into "Inati/var" at narrow desktop
+   widths (768px) was caught by direct screenshot inspection. The flex
+   container above already wraps whole BUTTONS onto their own line
+   when needed (flex-wrap:wrap) -- this only stops a single button's
+   own label from breaking internally, which is strictly better: it
+   never causes overflow (a short action label always fits one line
+   once allowed to sit on its own row) and is always legible. */
+.absTable .absActions .modBtnGhost { white-space: nowrap; }
 .absMobileCard .absActions { margin-top: var(--space-2); }
 .absStateBadge { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; }
 .absStatePASSADA { background: var(--mod-surface-muted, #eee); color: var(--color-text-secondary); }
