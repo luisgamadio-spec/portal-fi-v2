@@ -63,7 +63,7 @@
   // Double-submit guards (Gate 24) — one per distinct mutation action,
   // never a single shared flag (two different actions must not block
   // each other).
-  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false, pcMutate: false, pcExcecao: false, gbImport: false, gsImport: false, cfgSave: false, prAction: false };
+  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false, pcMutate: false, pcExcecao: false, gbImport: false, gsImport: false, cfgSave: false, prAction: false, absAction: false, scAction: false };
 
   // Painel Master Phase 3B -- Acessos aos Módulos section state. Kept
   // entirely separate from the Usuários vars above (own load/error/
@@ -163,6 +163,30 @@
     periods: [],
     createForm: null, // null | {name, start, end, isCurrent, error}
     modal: null // null | {kind:'confirm'|'success'|'error', ...}
+  };
+
+  // Painel Master Phase PM-5F -- Férias/Ausências section state. Same
+  // discipline as prState: own independent load lifecycle, createForm
+  // null unless explicitly opened, no homologation-mode concept
+  // (confirmed live, PM-5F Gate 44) -- every write is a REAL write.
+  // No edit form exists here -- V1 has no reachable edit action for an
+  // existing absence (create + activate/deactivate + archive only).
+  var absState = {
+    loading: false, loaded: false, error: null,
+    absences: [],
+    createForm: null, // null | {cpfAnalistaAusente, nomeAnalistaAusente, lojaOrigem, cpfAnalistaSubstituto, nomeAnalistaSubstituto, lojaCoberta, dataInicio, dataFim, motivo, error, overlapWarning}
+    modal: null // null | {kind:'confirm'|'success'|'error', ...}
+  };
+
+  // Painel Master Phase PM-5F -- Mudança de Loja - Vendedores section
+  // state. `deptForm` is separate from `createForm` -- SET_DEPARTMENTS
+  // is a distinct real action from CREATE, surfaced via its own shared
+  // modal form (never V1's native prompt()).
+  var scState = {
+    loading: false, loaded: false, error: null,
+    storeChanges: [],
+    createForm: null, // null | {cpfVendedor, loginVendedor, nomeVendedor, lojaOrigem, lojaDestino, dataInicioOrigem, dataFimOrigem, dataInicioDestino, observacao, departamentoOrigem, departamentoDestino, error, chainGuidance}
+    modal: null // null | {kind:'confirm'|'success'|'error'|'editDepartments', ...}
   };
 
   // Create/Edit form working state — reset on view change.
@@ -516,11 +540,19 @@
   // Ordering groups "portal control/settings" (Acessos, Configurações,
   // Períodos) ahead of "data management" (Gestão de Bases/Simuladores)
   // ahead of "governance/audit" (Pendências, Auditoria).
+  // Painel Master Phase PM-5F: 'feriasAusencias' and 'mudancaLoja'
+  // inserted right after Períodos de Comissão, before the two "Gestão
+  // de X" data-catalog capabilities -- grouped with Períodos as the
+  // third and fourth "personnel/temporal tracking" capabilities (all
+  // three share the same master_admin_manage/master_admin_reference_
+  // data dispatcher pair), ahead of the data-ingestion capabilities.
   var SECTIONS = [
     { id: 'usuarios', label: 'Usuários', active: true },
     { id: 'acessos', label: 'Acessos aos Módulos', active: true },
     { id: 'configuracoes', label: 'Configurações', active: true },
     { id: 'periodosComissao', label: 'Períodos de Comissão', active: true },
+    { id: 'feriasAusencias', label: 'Férias/Ausências', active: true },
+    { id: 'mudancaLoja', label: 'Mudança de Loja - Vendedores', active: true },
     { id: 'gestaoBases', label: 'Gestão de Bases', active: true },
     { id: 'gestaoSimuladores', label: 'Gestão dos Simuladores', active: true },
     { id: 'pendenciasCadastrais', label: 'Pendências Cadastrais', active: true },
@@ -570,6 +602,8 @@
     gsState.modal = null;
     cfgState.modal = null;
     prState.modal = null;
+    absState.modal = null;
+    scState.modal = null;
     // Never leave either section's modal open behind a section switch --
     // a blunt clear (no focus-return) is correct here, since the trigger
     // row itself is about to be discarded along with the whole section.
@@ -591,6 +625,10 @@
       cfgEnter();
     } else if (currentSection === 'periodosComissao') {
       prEnter();
+    } else if (currentSection === 'feriasAusencias') {
+      absEnter();
+    } else if (currentSection === 'mudancaLoja') {
+      scEnter();
     } else {
       renderPanel();
     }
@@ -1759,6 +1797,32 @@
     var errorClose = document.getElementById('prErrorCloseBtn');
     if (errorClose) errorClose.addEventListener('click', prCloseModal);
   }
+  function wireAbsModalInteraction() {
+    var cancelBtn = document.getElementById('absConfirmCancelBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', absCancelConfirm);
+    var archiveBtn = document.getElementById('absConfirmArchiveBtn');
+    if (archiveBtn) archiveBtn.addEventListener('click', absConfirmArchiveHandler);
+    var successClose = document.getElementById('absSuccessCloseBtn');
+    if (successClose) successClose.addEventListener('click', absCloseModalAndRefresh);
+    var errorClose = document.getElementById('absErrorCloseBtn');
+    if (errorClose) errorClose.addEventListener('click', absCloseModal);
+  }
+
+  function wireScModalInteraction() {
+    var cancelBtn = document.getElementById('scConfirmCancelBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', scCancelConfirm);
+    var archiveBtn = document.getElementById('scConfirmArchiveBtn');
+    if (archiveBtn) archiveBtn.addEventListener('click', scConfirmArchiveHandler);
+    var deptCancelBtn = document.getElementById('scEditDeptCancelBtn');
+    if (deptCancelBtn) deptCancelBtn.addEventListener('click', scCloseModal);
+    var deptSaveBtn = document.getElementById('scEditDeptSaveBtn');
+    if (deptSaveBtn) deptSaveBtn.addEventListener('click', scEditDeptSaveHandler);
+    var successClose = document.getElementById('scSuccessCloseBtn');
+    if (successClose) successClose.addEventListener('click', scCloseModalAndRefresh);
+    var errorClose = document.getElementById('scErrorCloseBtn');
+    if (errorClose) errorClose.addEventListener('click', scCloseModal);
+  }
+
   function gbHomolog() { return GB_PROVIDER.isHomologationMode(); }
   function gbCloseModal() { gbState.modal = null; clearNxModal(); }
   function gbCloseModalAndRefresh() { gbState.modal = null; clearNxModal(); gbState.loaded = false; gbEnter(); }
@@ -2661,6 +2725,578 @@
     );
   }
 
+  // ---------- Férias/Ausências (Painel Master Phase PM-5F) ----------
+  // Real backend: master_admin_reference_data().absences (read) +
+  // master_admin_manage('ABSENCE', action, payload) (write), both
+  // already deployed -- SAME dispatcher pair as PERIOD (PM-5E). No new
+  // backend. NO homologation-mode gate exists for this capability
+  // either (confirmed live, PM-5F Gate 44) -- every action here is a
+  // REAL write. There is no edit action -- V1 has none, and none is
+  // exposed here (CREATE + toggle active + archive only).
+  var ABS_VM = window.NX_MASTER_ABSENCES_VM;
+  var ABS_PROVIDER = window.NX_MASTER_ABSENCES_PROVIDER;
+
+  function absEnter() {
+    if (absState.loaded || absState.loading) { renderPanel(); return; }
+    absLoad();
+  }
+  function absLoad() {
+    absState.loading = true;
+    absState.error = null;
+    renderPanel();
+    ABS_PROVIDER.listAbsences({}).then(
+      function (absences) {
+        absState.absences = ABS_VM.sortByStartDesc(absences);
+        absState.loading = false;
+        absState.loaded = true;
+        renderPanel();
+      },
+      function (err) {
+        absState.loading = false;
+        absState.loaded = false;
+        absState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  function absTodayIso() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function absRowHtml(a) {
+    var hoje = absTodayIso();
+    var state = ABS_VM.temporalState(a, hoje);
+    var ativoBadge = a.ativo !== false
+      ? '<span class="maBadge maBadgeActive">ATIVO</span>'
+      : '<span class="maBadge maBadgeInactive">INATIVO</span>';
+    return '<tr class="absRow" data-id="' + esc(a.id) + '">' +
+      '<td><b>' + esc(a.nome_analista_ausente || '-') + '</b>' + (a.loja_origem ? '<br><span class="maSubtle">' + esc(a.loja_origem) + '</span>' : '') + '</td>' +
+      '<td>' + esc(a.nome_analista_substituto || '-') + '</td>' +
+      '<td>' + esc(a.loja_coberta || '-') + '</td>' +
+      '<td>' + esc(ABS_VM.fmtDateBR(a.data_inicio)) + ' → ' + esc(ABS_VM.fmtDateBR(a.data_fim)) + '</td>' +
+      '<td>' + esc(a.motivo || '-') + '</td>' +
+      '<td><span class="absStateBadge absState' + esc(state) + '">' + esc(ABS_VM.temporalLabel(state)) + '</span></td>' +
+      '<td>' + ativoBadge + '</td>' +
+      '<td class="adminActions absActions">' +
+      '<button type="button" class="modBtnGhost absToggleActiveBtn" data-id="' + esc(a.id) + '" data-active="' + (a.ativo !== false) + '">' + (a.ativo !== false ? 'Inativar' : 'Ativar') + '</button>' +
+      '<button type="button" class="modBtnGhost absArchiveBtn" data-id="' + esc(a.id) + '">Arquivar</button>' +
+      '</td></tr>';
+  }
+  function absDesktopTableHtml() {
+    return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable absTable">' +
+      '<thead><tr><th scope="col">Analista ausente</th><th scope="col">Substituto</th><th scope="col">Loja coberta</th><th scope="col">Período</th><th scope="col">Motivo</th><th scope="col">Situação</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead>' +
+      '<tbody>' + absState.absences.map(absRowHtml).join('') + '</tbody></table></div></div>';
+  }
+  function absMobileCardHtml(a) {
+    var hoje = absTodayIso();
+    var state = ABS_VM.temporalState(a, hoje);
+    var ativoBadge = a.ativo !== false
+      ? '<span class="maBadge maBadgeActive">ATIVO</span>'
+      : '<span class="maBadge maBadgeInactive">INATIVO</span>';
+    return '<div class="maMobileCard absMobileCard" data-id="' + esc(a.id) + '">' +
+      '<div class="maMobileName">' + esc(a.nome_analista_ausente || '-') + '</div>' +
+      '<div class="maMobileMeta">Substituto: ' + esc(a.nome_analista_substituto || '-') + '</div>' +
+      '<div class="maMobileMeta">Loja coberta: ' + esc(a.loja_coberta || '-') + '</div>' +
+      '<div class="maMobileMeta">' + esc(ABS_VM.fmtDateBR(a.data_inicio)) + ' → ' + esc(ABS_VM.fmtDateBR(a.data_fim)) + '</div>' +
+      '<div class="maMobileMeta">' + esc(a.motivo || '-') + '</div>' +
+      '<span class="absStateBadge absState' + esc(state) + '">' + esc(ABS_VM.temporalLabel(state)) + '</span> ' + ativoBadge +
+      '<div class="absActions">' +
+      '<button type="button" class="modBtnGhost absToggleActiveBtn" data-id="' + esc(a.id) + '" data-active="' + (a.ativo !== false) + '">' + (a.ativo !== false ? 'Inativar' : 'Ativar') + '</button>' +
+      '<button type="button" class="modBtnGhost absArchiveBtn" data-id="' + esc(a.id) + '">Arquivar</button>' +
+      '</div></div>';
+  }
+  function absMobileCardsHtml() {
+    return '<div class="maMobileOnly">' + absState.absences.map(absMobileCardHtml).join('') + '</div>';
+  }
+
+  function absCreateFormHtml() {
+    var f = absState.createForm;
+    var motivoOptions = ABS_VM.MOTIVO_OPTIONS.map(function (m) {
+      return '<option value="' + esc(m) + '"' + (f.motivo === m ? ' selected' : '') + '>' + esc(m) + '</option>';
+    }).join('');
+    return '<div class="gbCard absCreateCard">' +
+      '<h3>Nova ausência</h3>' +
+      '<p class="note absFinanceWarn">⚠️ Ao registrar uma ausência, a comissão do período correspondente é reatribuída do analista ausente para o substituto informado, para as datas indicadas.</p>' +
+      '<label for="absCpfAusente">CPF do analista ausente (opcional)</label>' +
+      '<input type="text" id="absCpfAusente" value="' + esc(f.cpfAnalistaAusente) + '">' +
+      '<label for="absNomeAusente">Nome do analista ausente</label>' +
+      '<input type="text" id="absNomeAusente" value="' + esc(f.nomeAnalistaAusente) + '">' +
+      '<label for="absLojaOrigem">Loja de origem (opcional)</label>' +
+      '<input type="text" id="absLojaOrigem" value="' + esc(f.lojaOrigem) + '">' +
+      '<label for="absCpfSubstituto">CPF do substituto</label>' +
+      '<input type="text" id="absCpfSubstituto" value="' + esc(f.cpfAnalistaSubstituto) + '">' +
+      '<label for="absNomeSubstituto">Nome do substituto</label>' +
+      '<input type="text" id="absNomeSubstituto" value="' + esc(f.nomeAnalistaSubstituto) + '">' +
+      '<label for="absLojaCoberta">Loja coberta</label>' +
+      '<input type="text" id="absLojaCoberta" value="' + esc(f.lojaCoberta) + '">' +
+      '<label for="absIni">Data inicial</label>' +
+      '<input type="date" id="absIni" value="' + esc(f.dataInicio) + '">' +
+      '<label for="absFim">Data final</label>' +
+      '<input type="date" id="absFim" value="' + esc(f.dataFim) + '">' +
+      '<label for="absMotivo">Motivo</label>' +
+      '<select id="absMotivo"><option value="">Selecione</option>' + motivoOptions + '</select>' +
+      (f.overlapWarning ? '<p class="note gbWarn" role="alert">⚠️ ' + esc(f.overlapWarning) + '</p>' : '') +
+      (f.error ? '<p class="maSubtle gbErrText" role="alert">' + esc(f.error) + '</p>' : '') +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="absCancelCreateBtn">Cancelar</button>' +
+      '<button type="button" class="modBtn" id="absSaveCreateBtn"' + (inFlight.absAction ? ' disabled' : '') + '>Salvar ausência</button>' +
+      '</div></div>';
+  }
+
+  function renderFeriasAusenciasSection() {
+    var html = '<h2>Férias/Ausências</h2>' +
+      '<p class="note">Registre ausências de analistas e o substituto responsável pela cobertura. Não há ambiente de homologação para esta tela: cada ação é gravada imediatamente.</p>';
+    if (absState.error) {
+      html += errorStateHtml(absState.error.state, absState.error.message) +
+        '<button type="button" id="absRetryBtn" class="modBtnGhost">Tentar novamente</button>';
+    } else if (absState.loading || !absState.loaded) {
+      html += '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando ausências...</div>';
+    } else {
+      html += absState.createForm
+        ? absCreateFormHtml()
+        : '<button type="button" class="modBtn" id="absNewBtn">+ Nova ausência</button>';
+      html += absState.absences.length
+        ? absDesktopTableHtml() + absMobileCardsHtml()
+        : '<p class="note">Nenhuma ausência cadastrada ainda.</p>';
+    }
+    return html;
+  }
+
+  function renderAbsModalRoot() {
+    if (!absState.modal) { if (currentSection === 'feriasAusencias') clearNxModal(); return; }
+    var m = absState.modal;
+    if (m.kind === 'confirm') renderNxModal('Confirmar arquivamento', absConfirmBodyHtml(m), absCancelConfirm);
+    else if (m.kind === 'success') renderNxModal('✅ Ausência atualizada', absSuccessBodyHtml(m), absCloseModalAndRefresh);
+    else if (m.kind === 'error') renderNxModal('Erro', absErrorBodyHtml(m), absCloseModal);
+    wireAbsModalInteraction();
+  }
+  function absCloseModal() { absState.modal = null; clearNxModal(); }
+  function absCloseModalAndRefresh() { absState.modal = null; clearNxModal(); absState.loaded = false; absEnter(); }
+  function absCancelConfirm() { absState.modal = null; clearNxModal(); }
+
+  function absConfirmBodyHtml(m) {
+    return '<div class="gbRow"><span>Analista</span><b>' + esc(m.absence.nome_analista_ausente || '-') + '</b></div>' +
+      '<div class="gbRow"><span>Período</span><b>' + esc(ABS_VM.fmtDateBR(m.absence.data_inicio)) + ' → ' + esc(ABS_VM.fmtDateBR(m.absence.data_fim)) + '</b></div>' +
+      '<p class="note gbWarn">⚠️ Arquivar torna este registro inativo. Ele deixa de ser considerado para reatribuição de comissão em novos cálculos.</p>' +
+      '<p id="absConfirmMsg" class="maSubtle gbErrText" role="status"></p>' +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="absConfirmCancelBtn">Cancelar</button>' +
+      '<button type="button" class="modBtn" id="absConfirmArchiveBtn"' + (inFlight.absAction ? ' disabled' : '') + '>Arquivar ausência</button>' +
+      '</div>';
+  }
+  function absSuccessBodyHtml(m) {
+    return '<p>' + esc(m.message || 'Ação concluída com sucesso.') + '</p>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="absSuccessCloseBtn">Fechar</button></div>';
+  }
+  function absErrorBodyHtml(m) {
+    return '<p class="gbErrText">' + esc(m.message || 'Falha ao processar a ação.') + '</p>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="absErrorCloseBtn">Fechar</button></div>';
+  }
+
+  function absAbsenceById(id) {
+    return absState.absences.filter(function (a) { return String(a.id) === String(id); })[0] || null;
+  }
+
+  function absRunAction(promise, successMessage) {
+    if (inFlight.absAction) return;
+    inFlight.absAction = true;
+    promise.then(
+      function () {
+        inFlight.absAction = false;
+        absState.modal = { kind: 'success', message: successMessage };
+        renderAbsModalRoot();
+      },
+      function (err) {
+        inFlight.absAction = false;
+        absState.modal = { kind: 'error', message: String((err && err.message) || err) };
+        renderAbsModalRoot();
+      }
+    );
+  }
+
+  function absConfirmArchiveHandler() {
+    if (inFlight.absAction) return;
+    var m = absState.modal;
+    if (!m || m.kind !== 'confirm') return;
+    inFlight.absAction = true;
+    var btn = document.getElementById('absConfirmArchiveBtn');
+    if (btn) btn.disabled = true;
+    ABS_PROVIDER.archiveAbsence(m.absence.id).then(
+      function () {
+        inFlight.absAction = false;
+        absState.modal = { kind: 'success', message: 'Ausência arquivada com sucesso.' };
+        renderAbsModalRoot();
+      },
+      function (err) {
+        inFlight.absAction = false;
+        var msg = document.getElementById('absConfirmMsg');
+        if (msg) msg.textContent = 'Erro ao arquivar: ' + String((err && err.message) || err);
+        if (btn) btn.disabled = false;
+      }
+    );
+  }
+
+  function absSaveCreateHandler() {
+    if (inFlight.absAction) return;
+    var f = absState.createForm;
+    var cpfAusente = (document.getElementById('absCpfAusente') || {}).value || '';
+    var nomeAusente = ((document.getElementById('absNomeAusente') || {}).value || '').trim();
+    var lojaOrigem = ((document.getElementById('absLojaOrigem') || {}).value || '').trim();
+    var cpfSubstituto = (document.getElementById('absCpfSubstituto') || {}).value || '';
+    var nomeSubstituto = ((document.getElementById('absNomeSubstituto') || {}).value || '').trim();
+    var lojaCoberta = ((document.getElementById('absLojaCoberta') || {}).value || '').trim();
+    var dataInicio = (document.getElementById('absIni') || {}).value || '';
+    var dataFim = (document.getElementById('absFim') || {}).value || '';
+    var motivo = (document.getElementById('absMotivo') || {}).value || '';
+    f.cpfAnalistaAusente = cpfAusente; f.nomeAnalistaAusente = nomeAusente; f.lojaOrigem = lojaOrigem;
+    f.cpfAnalistaSubstituto = cpfSubstituto; f.nomeAnalistaSubstituto = nomeSubstituto; f.lojaCoberta = lojaCoberta;
+    f.dataInicio = dataInicio; f.dataFim = dataFim; f.motivo = motivo;
+    // Required in practice even though the RPC's own explicit check
+    // only demands nome_analista_ausente/nome_analista_substituto/
+    // datas: cpf_analista_substituto and loja_coberta are NOT NULL
+    // columns the RPC nullifies-on-empty, so an empty submission here
+    // would otherwise surface as a raw Postgres not-null-violation
+    // rather than a friendly message (PM-5F Gate 35 finding).
+    if (!nomeAusente || !cpfSubstituto || !nomeSubstituto || !lojaCoberta) {
+      f.error = 'Informe analista ausente, CPF e nome do substituto e a loja coberta.'; renderPanel(); return;
+    }
+    if (!dataInicio || !dataFim) { f.error = 'Informe data inicial e final.'; renderPanel(); return; }
+    if (dataFim < dataInicio) { f.error = 'Data final não pode ser menor que a inicial.'; renderPanel(); return; }
+    f.error = null;
+    f.overlapWarning = null;
+    var overlap = ABS_VM.findOverlapWarning(absState.absences, dataInicio, dataFim, lojaOrigem);
+    if (overlap) {
+      f.overlapWarning = 'Já existe uma ausência ativa para a loja "' + lojaOrigem + '" sobreposta a este período (' + (overlap.nome_analista_ausente || '') + '). O cadastro pode prosseguir, mas o cálculo de comissão do período pode falhar se ambas permanecerem ativas.';
+    }
+    inFlight.absAction = true;
+    var btn = document.getElementById('absSaveCreateBtn');
+    if (btn) btn.disabled = true;
+    ABS_PROVIDER.createAbsence(f).then(
+      function () {
+        inFlight.absAction = false;
+        absState.createForm = null;
+        absState.modal = { kind: 'success', message: 'Ausência criada com sucesso.' };
+        renderAbsModalRoot();
+      },
+      function (err) {
+        inFlight.absAction = false;
+        f.error = String((err && err.message) || err);
+        if (btn) btn.disabled = false;
+        renderPanel();
+      }
+    );
+  }
+
+  // ---------- Mudança de Loja - Vendedores (Painel Master Phase PM-5F) ----------
+  // Real backend: master_admin_reference_data().store_changes (read) +
+  // master_admin_manage('STORE_CHANGE', action, payload) (write). NO
+  // homologation-mode gate exists (confirmed live, PM-5F Gate 44).
+  // SET_DEPARTMENTS uses the shared #nxModalRoot form below --
+  // deliberately NOT V1's native prompt() (editarDepartamentosMudanca
+  // LojaVendedor), which this migration does not replicate.
+  var SC_VM = window.NX_MASTER_STORE_CHANGE_VM;
+  var SC_PROVIDER = window.NX_MASTER_STORE_CHANGE_PROVIDER;
+
+  function scEnter() {
+    if (scState.loaded || scState.loading) { renderPanel(); return; }
+    scLoad();
+  }
+  function scLoad() {
+    scState.loading = true;
+    scState.error = null;
+    renderPanel();
+    SC_PROVIDER.listStoreChanges({}).then(
+      function (storeChanges) {
+        scState.storeChanges = SC_VM.sortByDestStartDesc(storeChanges);
+        scState.loading = false;
+        scState.loaded = true;
+        renderPanel();
+      },
+      function (err) {
+        scState.loading = false;
+        scState.loaded = false;
+        scState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  function scDeptText(r) {
+    var o = r.departamento_origem || '-';
+    var d = r.departamento_destino || '-';
+    return o + ' → ' + d;
+  }
+
+  function scRowHtml(r) {
+    var ativoBadge = r.ativo !== false
+      ? '<span class="maBadge maBadgeActive">ATIVO</span>'
+      : '<span class="maBadge maBadgeInactive">INATIVO</span>';
+    return '<tr class="scRow" data-id="' + esc(r.id) + '">' +
+      '<td><b>' + esc(r.nome_vendedor || '-') + '</b>' + (r.cpf_vendedor ? '<br><span class="maSubtle">' + esc(r.cpf_vendedor) + '</span>' : '') + '</td>' +
+      '<td>' + esc(r.loja_origem || '-') + ' → ' + esc(r.loja_destino || '-') + '</td>' +
+      '<td>' + esc(SC_VM.fmtDateBR(r.data_inicio_origem)) + ' → ' + esc(SC_VM.fmtDateBR(r.data_fim_origem)) + '</td>' +
+      '<td>' + esc(SC_VM.fmtDateBR(r.data_inicio_destino)) + ' (em aberto)</td>' +
+      '<td>' + esc(scDeptText(r)) + '</td>' +
+      '<td>' + ativoBadge + '</td>' +
+      '<td class="adminActions scActions">' +
+      '<button type="button" class="modBtnGhost scEditDeptBtn" data-id="' + esc(r.id) + '">Editar departamentos</button>' +
+      '<button type="button" class="modBtnGhost scToggleActiveBtn" data-id="' + esc(r.id) + '" data-active="' + (r.ativo !== false) + '">' + (r.ativo !== false ? 'Inativar' : 'Ativar') + '</button>' +
+      '<button type="button" class="modBtnGhost scArchiveBtn" data-id="' + esc(r.id) + '">Arquivar</button>' +
+      '</td></tr>';
+  }
+  function scDesktopTableHtml() {
+    return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable scTable">' +
+      '<thead><tr><th scope="col">Vendedor</th><th scope="col">Loja origem → destino</th><th scope="col">Período origem</th><th scope="col">Início destino</th><th scope="col">Departamentos</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead>' +
+      '<tbody>' + scState.storeChanges.map(scRowHtml).join('') + '</tbody></table></div></div>';
+  }
+  function scMobileCardHtml(r) {
+    var ativoBadge = r.ativo !== false
+      ? '<span class="maBadge maBadgeActive">ATIVO</span>'
+      : '<span class="maBadge maBadgeInactive">INATIVO</span>';
+    return '<div class="maMobileCard scMobileCard" data-id="' + esc(r.id) + '">' +
+      '<div class="maMobileName">' + esc(r.nome_vendedor || '-') + '</div>' +
+      '<div class="maMobileMeta">' + esc(r.loja_origem || '-') + ' → ' + esc(r.loja_destino || '-') + '</div>' +
+      '<div class="maMobileMeta">Origem: ' + esc(SC_VM.fmtDateBR(r.data_inicio_origem)) + ' → ' + esc(SC_VM.fmtDateBR(r.data_fim_origem)) + '</div>' +
+      '<div class="maMobileMeta">Destino desde: ' + esc(SC_VM.fmtDateBR(r.data_inicio_destino)) + ' (em aberto)</div>' +
+      '<div class="maMobileMeta">Departamentos: ' + esc(scDeptText(r)) + '</div>' +
+      ativoBadge +
+      '<div class="scActions">' +
+      '<button type="button" class="modBtnGhost scEditDeptBtn" data-id="' + esc(r.id) + '">Editar departamentos</button>' +
+      '<button type="button" class="modBtnGhost scToggleActiveBtn" data-id="' + esc(r.id) + '" data-active="' + (r.ativo !== false) + '">' + (r.ativo !== false ? 'Inativar' : 'Ativar') + '</button>' +
+      '<button type="button" class="modBtnGhost scArchiveBtn" data-id="' + esc(r.id) + '">Arquivar</button>' +
+      '</div></div>';
+  }
+  function scMobileCardsHtml() {
+    return '<div class="maMobileOnly">' + scState.storeChanges.map(scMobileCardHtml).join('') + '</div>';
+  }
+
+  function scDeptOptionsHtml(selected) {
+    return '<option value="">-</option>' + SC_VM.DEPARTMENT_OPTIONS.map(function (d) {
+      return '<option value="' + esc(d) + '"' + (selected === d ? ' selected' : '') + '>' + esc(d) + '</option>';
+    }).join('');
+  }
+
+  function scCreateFormHtml() {
+    var f = scState.createForm;
+    var prior = SC_VM.findMostRecentForSeller(scState.storeChanges, f.cpfVendedor, f.nomeVendedor);
+    var chainHint = prior
+      ? '<p class="note scChainCard">Transferência ativa mais recente deste vendedor: <b>' + esc(prior.loja_destino) + '</b> desde ' + esc(SC_VM.fmtDateBR(prior.data_inicio_destino)) + '. A origem desta nova transferência deve começar a partir dessa loja/data.</p>'
+      : '';
+    var guidance = SC_VM.checkChainGuidance(f, prior);
+    var guidanceHtml = guidance.length
+      ? '<div class="note gbWarn" role="alert">' + guidance.map(function (g) { return '⚠️ ' + esc(g); }).join('<br>') + '</div>'
+      : '';
+    return '<div class="gbCard scCreateCard">' +
+      '<h3>Nova mudança de loja</h3>' +
+      '<p class="note scRetroWarn">⚠️ Esta transferência pode afetar retroativamente a atribuição de comissão/salário do vendedor para datas já registradas, quando um período de comissão que envolva essas datas for calculado.</p>' +
+      chainHint +
+      '<label for="scCpf">CPF do vendedor (opcional)</label>' +
+      '<input type="text" id="scCpf" value="' + esc(f.cpfVendedor) + '">' +
+      '<label for="scLogin">Login do vendedor (opcional)</label>' +
+      '<input type="text" id="scLogin" value="' + esc(f.loginVendedor) + '">' +
+      '<label for="scNome">Nome do vendedor</label>' +
+      '<input type="text" id="scNome" value="' + esc(f.nomeVendedor) + '">' +
+      '<label for="scLojaOrigem">Loja de origem (opcional)</label>' +
+      '<input type="text" id="scLojaOrigem" value="' + esc(f.lojaOrigem) + '" list="scStoreSuggestions">' +
+      '<label for="scLojaDestino">Loja de destino</label>' +
+      '<input type="text" id="scLojaDestino" value="' + esc(f.lojaDestino) + '" list="scStoreSuggestions">' +
+      '<datalist id="scStoreSuggestions">' + SC_VM.storeSuggestions(scState.storeChanges).map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') + '</datalist>' +
+      '<label for="scIniOrigem">Data inicial da origem</label>' +
+      '<input type="date" id="scIniOrigem" value="' + esc(f.dataInicioOrigem) + '">' +
+      '<label for="scFimOrigem">Data final da origem</label>' +
+      '<input type="date" id="scFimOrigem" value="' + esc(f.dataFimOrigem) + '">' +
+      '<label for="scIniDestino">Data inicial do destino</label>' +
+      '<input type="date" id="scIniDestino" value="' + esc(f.dataInicioDestino) + '">' +
+      '<label for="scObs">Observação (opcional)</label>' +
+      '<input type="text" id="scObs" value="' + esc(f.observacao) + '">' +
+      '<label for="scDeptOrigem">Departamento de origem (opcional)</label>' +
+      '<select id="scDeptOrigem">' + scDeptOptionsHtml(f.departamentoOrigem) + '</select>' +
+      '<label for="scDeptDestino">Departamento de destino (opcional)</label>' +
+      '<select id="scDeptDestino">' + scDeptOptionsHtml(f.departamentoDestino) + '</select>' +
+      guidanceHtml +
+      (f.error ? '<p class="maSubtle gbErrText" role="alert">' + esc(f.error) + '</p>' : '') +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="scCancelCreateBtn">Cancelar</button>' +
+      '<button type="button" class="modBtn" id="scSaveCreateBtn"' + (inFlight.scAction ? ' disabled' : '') + '>Salvar mudança de loja</button>' +
+      '</div></div>';
+  }
+
+  function renderMudancaLojaSection() {
+    var html = '<h2>Mudança de Loja - Vendedores</h2>' +
+      '<p class="note">Registre transferências de loja de vendedores. Não há loja/enum pré-cadastrado: as sugestões abaixo vêm apenas de registros já existentes. Não há ambiente de homologação para esta tela: cada ação é gravada imediatamente.</p>';
+    if (scState.error) {
+      html += errorStateHtml(scState.error.state, scState.error.message) +
+        '<button type="button" id="scRetryBtn" class="modBtnGhost">Tentar novamente</button>';
+    } else if (scState.loading || !scState.loaded) {
+      html += '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando mudanças de loja...</div>';
+    } else {
+      html += scState.createForm
+        ? scCreateFormHtml()
+        : '<button type="button" class="modBtn" id="scNewBtn">+ Nova mudança de loja</button>';
+      html += scState.storeChanges.length
+        ? scDesktopTableHtml() + scMobileCardsHtml()
+        : '<p class="note">Nenhuma mudança de loja cadastrada ainda.</p>';
+    }
+    return html;
+  }
+
+  function renderScModalRoot() {
+    if (!scState.modal) { if (currentSection === 'mudancaLoja') clearNxModal(); return; }
+    var m = scState.modal;
+    if (m.kind === 'confirm') renderNxModal('Confirmar arquivamento', scConfirmBodyHtml(m), scCancelConfirm);
+    else if (m.kind === 'editDepartments') renderNxModal('Editar departamentos', scEditDeptBodyHtml(m), scCloseModal);
+    else if (m.kind === 'success') renderNxModal('✅ Mudança de loja atualizada', scSuccessBodyHtml(m), scCloseModalAndRefresh);
+    else if (m.kind === 'error') renderNxModal('Erro', scErrorBodyHtml(m), scCloseModal);
+    wireScModalInteraction();
+  }
+  function scCloseModal() { scState.modal = null; clearNxModal(); }
+  function scCloseModalAndRefresh() { scState.modal = null; clearNxModal(); scState.loaded = false; scEnter(); }
+  function scCancelConfirm() { scState.modal = null; clearNxModal(); }
+
+  function scConfirmBodyHtml(m) {
+    return '<div class="gbRow"><span>Vendedor</span><b>' + esc(m.record.nome_vendedor || '-') + '</b></div>' +
+      '<div class="gbRow"><span>Destino</span><b>' + esc(m.record.loja_destino || '-') + '</b></div>' +
+      '<p class="note gbWarn">⚠️ Arquivar torna este registro inativo. Isto NÃO desfaz o encadeamento -- registros mais recentes deste vendedor continuam valendo normalmente.</p>' +
+      '<p id="scConfirmMsg" class="maSubtle gbErrText" role="status"></p>' +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="scConfirmCancelBtn">Cancelar</button>' +
+      '<button type="button" class="modBtn" id="scConfirmArchiveBtn"' + (inFlight.scAction ? ' disabled' : '') + '>Arquivar registro</button>' +
+      '</div>';
+  }
+  // Real shared-modal form for SET_DEPARTMENTS -- deliberately NOT
+  // V1's native window.prompt() (PM-5F Gate 55).
+  function scEditDeptBodyHtml(m) {
+    return '<div class="gbRow"><span>Vendedor</span><b>' + esc(m.record.nome_vendedor || '-') + '</b></div>' +
+      '<label for="scEditDeptOrigem">Departamento de origem</label>' +
+      '<select id="scEditDeptOrigem">' + scDeptOptionsHtml(m.record.departamento_origem) + '</select>' +
+      '<label for="scEditDeptDestino">Departamento de destino</label>' +
+      '<select id="scEditDeptDestino">' + scDeptOptionsHtml(m.record.departamento_destino) + '</select>' +
+      '<p id="scEditDeptMsg" class="maSubtle gbErrText" role="status"></p>' +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="scEditDeptCancelBtn">Cancelar</button>' +
+      '<button type="button" class="modBtn" id="scEditDeptSaveBtn"' + (inFlight.scAction ? ' disabled' : '') + '>Salvar departamentos</button>' +
+      '</div>';
+  }
+  function scSuccessBodyHtml(m) {
+    return '<p>' + esc(m.message || 'Ação concluída com sucesso.') + '</p>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="scSuccessCloseBtn">Fechar</button></div>';
+  }
+  function scErrorBodyHtml(m) {
+    return '<p class="gbErrText">' + esc(m.message || 'Falha ao processar a ação.') + '</p>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="scErrorCloseBtn">Fechar</button></div>';
+  }
+
+  function scRecordById(id) {
+    return scState.storeChanges.filter(function (r) { return String(r.id) === String(id); })[0] || null;
+  }
+
+  function scRunAction(promise, successMessage) {
+    if (inFlight.scAction) return;
+    inFlight.scAction = true;
+    promise.then(
+      function () {
+        inFlight.scAction = false;
+        scState.modal = { kind: 'success', message: successMessage };
+        renderScModalRoot();
+      },
+      function (err) {
+        inFlight.scAction = false;
+        scState.modal = { kind: 'error', message: String((err && err.message) || err) };
+        renderScModalRoot();
+      }
+    );
+  }
+
+  function scConfirmArchiveHandler() {
+    if (inFlight.scAction) return;
+    var m = scState.modal;
+    if (!m || m.kind !== 'confirm') return;
+    inFlight.scAction = true;
+    var btn = document.getElementById('scConfirmArchiveBtn');
+    if (btn) btn.disabled = true;
+    SC_PROVIDER.archiveStoreChange(m.record.id).then(
+      function () {
+        inFlight.scAction = false;
+        scState.modal = { kind: 'success', message: 'Registro arquivado com sucesso.' };
+        renderScModalRoot();
+      },
+      function (err) {
+        inFlight.scAction = false;
+        var msg = document.getElementById('scConfirmMsg');
+        if (msg) msg.textContent = 'Erro ao arquivar: ' + String((err && err.message) || err);
+        if (btn) btn.disabled = false;
+      }
+    );
+  }
+
+  function scEditDeptSaveHandler() {
+    if (inFlight.scAction) return;
+    var m = scState.modal;
+    if (!m || m.kind !== 'editDepartments') return;
+    var origem = (document.getElementById('scEditDeptOrigem') || {}).value || '';
+    var destino = (document.getElementById('scEditDeptDestino') || {}).value || '';
+    inFlight.scAction = true;
+    var btn = document.getElementById('scEditDeptSaveBtn');
+    if (btn) btn.disabled = true;
+    SC_PROVIDER.setDepartments(m.record.id, origem, destino).then(
+      function () {
+        inFlight.scAction = false;
+        scState.modal = { kind: 'success', message: 'Departamentos atualizados com sucesso.' };
+        renderScModalRoot();
+      },
+      function (err) {
+        inFlight.scAction = false;
+        var msg = document.getElementById('scEditDeptMsg');
+        if (msg) msg.textContent = 'Erro ao salvar: ' + String((err && err.message) || err);
+        if (btn) btn.disabled = false;
+      }
+    );
+  }
+
+  function scSaveCreateHandler() {
+    if (inFlight.scAction) return;
+    var f = scState.createForm;
+    var cpf = (document.getElementById('scCpf') || {}).value || '';
+    var login = (document.getElementById('scLogin') || {}).value || '';
+    var nome = ((document.getElementById('scNome') || {}).value || '').trim();
+    var lojaOrigem = ((document.getElementById('scLojaOrigem') || {}).value || '').trim();
+    var lojaDestino = ((document.getElementById('scLojaDestino') || {}).value || '').trim();
+    var iniOrigem = (document.getElementById('scIniOrigem') || {}).value || '';
+    var fimOrigem = (document.getElementById('scFimOrigem') || {}).value || '';
+    var iniDestino = (document.getElementById('scIniDestino') || {}).value || '';
+    var obs = ((document.getElementById('scObs') || {}).value || '').trim();
+    var deptOrigem = (document.getElementById('scDeptOrigem') || {}).value || '';
+    var deptDestino = (document.getElementById('scDeptDestino') || {}).value || '';
+    f.cpfVendedor = cpf; f.loginVendedor = login; f.nomeVendedor = nome;
+    f.lojaOrigem = lojaOrigem; f.lojaDestino = lojaDestino;
+    f.dataInicioOrigem = iniOrigem; f.dataFimOrigem = fimOrigem; f.dataInicioDestino = iniDestino;
+    f.observacao = obs; f.departamentoOrigem = deptOrigem; f.departamentoDestino = deptDestino;
+    if (!nome || !lojaDestino) { f.error = 'Informe o nome do vendedor e a loja de destino.'; renderPanel(); return; }
+    if (!iniOrigem || !fimOrigem || !iniDestino) { f.error = 'Informe as três datas (início/fim da origem e início do destino).'; renderPanel(); return; }
+    if (fimOrigem < iniOrigem) { f.error = 'Data final da origem não pode ser anterior à inicial.'; renderPanel(); return; }
+    if (lojaOrigem && lojaOrigem.toUpperCase() === lojaDestino.toUpperCase()) { f.error = 'As lojas de origem e destino devem ser diferentes.'; renderPanel(); return; }
+    f.error = null;
+    inFlight.scAction = true;
+    var btn = document.getElementById('scSaveCreateBtn');
+    if (btn) btn.disabled = true;
+    SC_PROVIDER.createStoreChange(f).then(
+      function () {
+        inFlight.scAction = false;
+        scState.createForm = null;
+        scState.modal = { kind: 'success', message: 'Mudança de loja criada com sucesso.' };
+        renderScModalRoot();
+      },
+      function (err) {
+        inFlight.scAction = false;
+        f.error = String((err && err.message) || err);
+        if (btn) btn.disabled = false;
+        renderPanel();
+      }
+    );
+  }
+
   // ---------- master render ----------
   function renderPanel() {
     var panel = document.getElementById('maPanel');
@@ -2734,6 +3370,20 @@
     if (currentSection === 'periodosComissao') {
       renderPrModalRoot();
       panel.innerHTML = renderPeriodosSection();
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'feriasAusencias') {
+      renderAbsModalRoot();
+      panel.innerHTML = renderFeriasAusenciasSection();
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'mudancaLoja') {
+      renderScModalRoot();
+      panel.innerHTML = renderMudancaLojaSection();
       wireInteraction();
       return;
     }
@@ -2966,6 +3616,70 @@
         if (!period) return;
         prState.modal = { kind: 'confirm', period: period };
         renderPrModalRoot();
+      });
+    });
+
+    // ---- Férias/Ausências (Painel Master Phase PM-5F) ----
+    var absRetry = document.getElementById('absRetryBtn');
+    if (absRetry) absRetry.addEventListener('click', absLoad);
+    var absNewBtn = document.getElementById('absNewBtn');
+    if (absNewBtn) absNewBtn.addEventListener('click', function () {
+      absState.createForm = { cpfAnalistaAusente: '', nomeAnalistaAusente: '', lojaOrigem: '', cpfAnalistaSubstituto: '', nomeAnalistaSubstituto: '', lojaCoberta: '', dataInicio: '', dataFim: '', motivo: '', error: null, overlapWarning: null };
+      renderPanel();
+    });
+    var absCancelCreateBtn = document.getElementById('absCancelCreateBtn');
+    if (absCancelCreateBtn) absCancelCreateBtn.addEventListener('click', function () { absState.createForm = null; renderPanel(); });
+    var absSaveCreateBtn = document.getElementById('absSaveCreateBtn');
+    if (absSaveCreateBtn) absSaveCreateBtn.addEventListener('click', absSaveCreateHandler);
+    document.querySelectorAll('.absToggleActiveBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var wasActive = el.getAttribute('data-active') === 'true';
+        absRunAction(ABS_PROVIDER.setActive(el.getAttribute('data-id'), !wasActive),
+          wasActive ? 'Ausência inativada com sucesso.' : 'Ausência ativada com sucesso.');
+      });
+    });
+    document.querySelectorAll('.absArchiveBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var absence = absAbsenceById(el.getAttribute('data-id'));
+        if (!absence) return;
+        absState.modal = { kind: 'confirm', absence: absence };
+        renderAbsModalRoot();
+      });
+    });
+
+    // ---- Mudança de Loja - Vendedores (Painel Master Phase PM-5F) ----
+    var scRetry = document.getElementById('scRetryBtn');
+    if (scRetry) scRetry.addEventListener('click', scLoad);
+    var scNewBtn = document.getElementById('scNewBtn');
+    if (scNewBtn) scNewBtn.addEventListener('click', function () {
+      scState.createForm = { cpfVendedor: '', loginVendedor: '', nomeVendedor: '', lojaOrigem: '', lojaDestino: '', dataInicioOrigem: '', dataFimOrigem: '', dataInicioDestino: '', observacao: '', departamentoOrigem: '', departamentoDestino: '', error: null };
+      renderPanel();
+    });
+    var scCancelCreateBtn = document.getElementById('scCancelCreateBtn');
+    if (scCancelCreateBtn) scCancelCreateBtn.addEventListener('click', function () { scState.createForm = null; renderPanel(); });
+    var scSaveCreateBtn = document.getElementById('scSaveCreateBtn');
+    if (scSaveCreateBtn) scSaveCreateBtn.addEventListener('click', scSaveCreateHandler);
+    document.querySelectorAll('.scToggleActiveBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var wasActive = el.getAttribute('data-active') === 'true';
+        scRunAction(SC_PROVIDER.setActive(el.getAttribute('data-id'), !wasActive),
+          wasActive ? 'Registro inativado com sucesso.' : 'Registro ativado com sucesso.');
+      });
+    });
+    document.querySelectorAll('.scArchiveBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var record = scRecordById(el.getAttribute('data-id'));
+        if (!record) return;
+        scState.modal = { kind: 'confirm', record: record };
+        renderScModalRoot();
+      });
+    });
+    document.querySelectorAll('.scEditDeptBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var record = scRecordById(el.getAttribute('data-id'));
+        if (!record) return;
+        scState.modal = { kind: 'editDepartments', record: record };
+        renderScModalRoot();
       });
     });
 

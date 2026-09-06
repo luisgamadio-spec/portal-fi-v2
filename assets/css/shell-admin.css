@@ -381,3 +381,25 @@ body.maudModalOpen { overflow: hidden; }
 .prTable th, .prTable td { text-align: left; vertical-align: top; }
 .prActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .prMobileCard .prActions { margin-top: var(--space-2); }
+
+/* ==================== Férias/Ausências (Painel Master Phase PM-5F) ==================== */
+.absCreateCard { max-width: 480px; margin-bottom: var(--space-3); display: flex; flex-direction: column; gap: 6px; }
+.absCreateCard label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
+.absCreateCard input[type="text"], .absCreateCard input[type="date"], .absCreateCard select { padding: 6px 8px; border: 1px solid var(--mod-border-strong); border-radius: var(--radius-sm); background: var(--color-canvas); color: var(--color-text-primary); }
+.absFinanceWarn { border-left: 3px solid var(--color-accent-primary, #1a56db); padding-left: 8px; }
+.absTable th, .absTable td { text-align: left; vertical-align: top; }
+.absActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.absMobileCard .absActions { margin-top: var(--space-2); }
+.absStateBadge { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; }
+.absStatePASSADA { background: var(--mod-surface-muted, #eee); color: var(--color-text-secondary); }
+.absStateEM_CURSO { background: var(--color-accent-soft, #e6f0ff); color: var(--color-accent-primary, #1a56db); }
+.absStateFUTURA { background: #fff4e0; color: #8a5a00; }
+
+/* ==================== Mudança de Loja - Vendedores (Painel Master Phase PM-5F) ==================== */
+.scCreateCard { max-width: 520px; margin-bottom: var(--space-3); display: flex; flex-direction: column; gap: 6px; }
+.scCreateCard label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
+.scCreateCard input[type="text"], .scCreateCard input[type="date"], .scCreateCard select { padding: 6px 8px; border: 1px solid var(--mod-border-strong); border-radius: var(--radius-sm); background: var(--color-canvas); color: var(--color-text-primary); }
+.scChainCard, .scRetroWarn { border-left: 3px solid var(--color-accent-primary, #1a56db); padding-left: 8px; }
+.scTable th, .scTable td { text-align: left; vertical-align: top; }
+.scActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.scMobileCard .scActions { margin-top: var(--space-2); }
