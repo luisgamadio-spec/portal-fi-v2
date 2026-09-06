@@ -63,7 +63,7 @@
   // Double-submit guards (Gate 24) — one per distinct mutation action,
   // never a single shared flag (two different actions must not block
   // each other).
-  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false, pcMutate: false, pcExcecao: false, gbImport: false, gsImport: false };
+  var inFlight = { invite: false, edit: false, toggleActive: false, resend: false, saveAcessos: false, generateLink: false, pcMutate: false, pcExcecao: false, gbImport: false, gsImport: false, cfgSave: false, prAction: false };
 
   // Painel Master Phase 3B -- Acessos aos Módulos section state. Kept
   // entirely separate from the Usuários vars above (own load/error/
@@ -137,6 +137,32 @@
     statusByTipo: {},
     pendingUid: null,
     modal: null // null | {kind:'diagnostic'|'success'|'error', ...}
+  };
+
+  // Painel Master Phase PM-5E -- Configurações section state. Own
+  // independent load lifecycle. `editingKey` tracks which single
+  // setting is currently in edit mode (Gate 46: read -> explicit
+  // Editar -> changed state -> confirmation -> save; never all 13
+  // casually editable at once). NO homologation-mode concept exists
+  // here (PM-5E Gate 39 -- confirmed, not assumed) -- every save is a
+  // REAL write against the real backend, on any host.
+  var cfgState = {
+    loading: false, loaded: false, error: null,
+    settings: [], // NX_MASTER_CONFIG_VM.buildEffectiveConfig() output
+    editingKey: null, editDraft: '',
+    modal: null // null | {kind:'confirm'|'success'|'error', ...}
+  };
+
+  // Painel Master Phase PM-5E -- Períodos de Comissão section state.
+  // `createForm` is null unless the Human explicitly opened the create
+  // form (Gate 46 discipline extended to this capability too). No
+  // homologation-mode concept exists here either -- every action
+  // (Criar/Definir atual/Ativar/Inativar/Arquivar) is a REAL write.
+  var prState = {
+    loading: false, loaded: false, error: null,
+    periods: [],
+    createForm: null, // null | {name, start, end, isCurrent, error}
+    modal: null // null | {kind:'confirm'|'success'|'error', ...}
   };
 
   // Create/Edit form working state — reset on view change.
@@ -482,9 +508,19 @@
   // capabilities (file-upload -> dry-run diff -> confirm, same shared UI
   // architecture), grouped together ahead of the reconciliation queue
   // and the read-only audit log.
+  // Painel Master Phase PM-5E: 'configuracoes' and 'periodosComissao'
+  // inserted right after Acessos aos Módulos, before the two "Gestão de
+  // X" data-management capabilities -- confirmed INDEPENDENT of each
+  // other (no shared table, no shared RPC argument, PM-5E Gate 22) so
+  // they are two distinct sections here, never merged into one screen.
+  // Ordering groups "portal control/settings" (Acessos, Configurações,
+  // Períodos) ahead of "data management" (Gestão de Bases/Simuladores)
+  // ahead of "governance/audit" (Pendências, Auditoria).
   var SECTIONS = [
     { id: 'usuarios', label: 'Usuários', active: true },
     { id: 'acessos', label: 'Acessos aos Módulos', active: true },
+    { id: 'configuracoes', label: 'Configurações', active: true },
+    { id: 'periodosComissao', label: 'Períodos de Comissão', active: true },
     { id: 'gestaoBases', label: 'Gestão de Bases', active: true },
     { id: 'gestaoSimuladores', label: 'Gestão dos Simuladores', active: true },
     { id: 'pendenciasCadastrais', label: 'Pendências Cadastrais', active: true },
@@ -532,6 +568,8 @@
     pcDetailId = null;
     gbState.modal = null;
     gsState.modal = null;
+    cfgState.modal = null;
+    prState.modal = null;
     // Never leave either section's modal open behind a section switch --
     // a blunt clear (no focus-return) is correct here, since the trigger
     // row itself is about to be discarded along with the whole section.
@@ -549,6 +587,10 @@
       gbEnter();
     } else if (currentSection === 'gestaoSimuladores') {
       gsEnter();
+    } else if (currentSection === 'configuracoes') {
+      cfgEnter();
+    } else if (currentSection === 'periodosComissao') {
+      prEnter();
     } else {
       renderPanel();
     }
@@ -909,6 +951,8 @@
     else if (pcDetailId) { e.preventDefault(); closePcModal(); }
     else if (gbState.modal) { e.preventDefault(); gbCloseModal(); }
     else if (gsState.modal) { e.preventDefault(); gsCloseModal(); }
+    else if (cfgState.modal) { e.preventDefault(); cfgCloseModal(); }
+    else if (prState.modal) { e.preventDefault(); prCloseModal(); }
   }
 
   function auditModalBodyHtml(r) {
@@ -1693,6 +1737,28 @@
     var gsErrorClose = document.getElementById('gsErrorCloseBtn');
     if (gsErrorClose) gsErrorClose.addEventListener('click', gsCloseModal);
   }
+
+  function wireCfgModalInteraction() {
+    var cancelBtn = document.getElementById('cfgConfirmCancelBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', cfgCancelConfirm);
+    var saveBtn = document.getElementById('cfgConfirmSaveBtn');
+    if (saveBtn) saveBtn.addEventListener('click', cfgConfirmSaveHandler);
+    var successClose = document.getElementById('cfgSuccessCloseBtn');
+    if (successClose) successClose.addEventListener('click', cfgCloseModalAndRefresh);
+    var errorClose = document.getElementById('cfgErrorCloseBtn');
+    if (errorClose) errorClose.addEventListener('click', cfgCloseModal);
+  }
+
+  function wirePrModalInteraction() {
+    var cancelBtn = document.getElementById('prConfirmCancelBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', prCancelConfirm);
+    var archiveBtn = document.getElementById('prConfirmArchiveBtn');
+    if (archiveBtn) archiveBtn.addEventListener('click', prConfirmArchiveHandler);
+    var successClose = document.getElementById('prSuccessCloseBtn');
+    if (successClose) successClose.addEventListener('click', prCloseModalAndRefresh);
+    var errorClose = document.getElementById('prErrorCloseBtn');
+    if (errorClose) errorClose.addEventListener('click', prCloseModal);
+  }
   function gbHomolog() { return GB_PROVIDER.isHomologationMode(); }
   function gbCloseModal() { gbState.modal = null; clearNxModal(); }
   function gbCloseModalAndRefresh() { gbState.modal = null; clearNxModal(); gbState.loaded = false; gbEnter(); }
@@ -2237,6 +2303,364 @@
     );
   }
 
+  // ==================== Configurações (Painel Master Phase PM-5E) ====================
+  // Real backend reuse only -- operational_portal_config() (read) +
+  // master_update_portal_config() (write), both already deployed. No
+  // new backend. NO homologation-mode gate exists for this capability
+  // (confirmed live, PM-5E Gate 39) -- every save here is a REAL write
+  // against the real backend, on any host including localhost. Every
+  // one of the 13 settings is FINANCIAL+COMMISSION (Gate 8), so every
+  // save shows an explicit before/after confirmation (Gate 47) -- never
+  // a bare "Salvar?".
+  var CFG_VM = window.NX_MASTER_CONFIG_VM;
+  var CFG_PROVIDER = window.NX_MASTER_CONFIG_PROVIDER;
+
+  function cfgEnter() {
+    if (cfgState.loaded || cfgState.loading) { renderPanel(); return; }
+    cfgLoad();
+  }
+  function cfgLoad() {
+    cfgState.loading = true;
+    cfgState.error = null;
+    renderPanel();
+    CFG_PROVIDER.readConfig({}).then(
+      function (rows) {
+        cfgState.settings = CFG_VM.buildEffectiveConfig(rows);
+        cfgState.loading = false;
+        cfgState.loaded = true;
+        renderPanel();
+      },
+      function (err) {
+        cfgState.loading = false;
+        cfgState.loaded = false;
+        cfgState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  function cfgSettingCardHtml(s) {
+    var isEditing = cfgState.editingKey === s.key;
+    var neverCustomizedNote = !s.hasRow
+      ? '<p class="note gsMuted">Nunca personalizado — usando o padrão de fábrica.</p>' : '';
+    var body;
+    if (isEditing) {
+      body = '<div class="cfgEditRow">' +
+        '<input type="text" inputmode="decimal" id="cfgEditInput" value="' + esc(CFG_VM.fmtNumber(cfgState.editDraft)) + '" aria-label="Novo valor para ' + esc(s.label) + '">' +
+        '<span class="cfgUnit">' + esc(s.unit) + '</span>' +
+        '</div>' +
+        '<p id="cfgEditError" class="maSubtle gbErrText" role="alert"></p>' +
+        '<div class="adminModalActions cfgEditActions">' +
+        '<button type="button" class="modBtnGhost cfgCancelEditBtn">Cancelar</button>' +
+        '<button type="button" class="modBtn cfgSaveBtn" data-key="' + esc(s.key) + '">Salvar</button>' +
+        '</div>';
+    } else {
+      body = '<div class="gbRow"><span>Valor atual</span><b>' + esc(CFG_VM.fmtNumber(s.value)) + ' ' + esc(s.unit) + '</b></div>' +
+        neverCustomizedNote +
+        '<button type="button" class="modBtnGhost cfgEditBtn" data-key="' + esc(s.key) + '">Editar</button>';
+    }
+    return '<div class="gbCard cfgCard">' +
+      '<h3>' + esc(s.label) + '</h3>' +
+      '<p class="note">' + esc(s.description) + '</p>' +
+      body +
+      '</div>';
+  }
+
+  function renderConfiguracoesSection() {
+    var html = '<h2>Configurações</h2>' +
+      '<p class="note">Parâmetros de comissão do portal. Ao salvar, o valor passa a valer imediatamente para todos os cálculos que o utilizam — não há ambiente de homologação para esta tela.</p>';
+    if (cfgState.error) {
+      html += errorStateHtml(cfgState.error.state, cfgState.error.message) +
+        '<button type="button" id="cfgRetryBtn" class="modBtnGhost">Tentar novamente</button>';
+    } else if (cfgState.loading || !cfgState.loaded) {
+      html += '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando configurações...</div>';
+    } else {
+      html += '<div class="gbGrid cfgGrid">' + cfgState.settings.map(cfgSettingCardHtml).join('') + '</div>';
+    }
+    return html;
+  }
+
+  function renderCfgModalRoot() {
+    if (!cfgState.modal) { if (currentSection === 'configuracoes') clearNxModal(); return; }
+    var m = cfgState.modal;
+    if (m.kind === 'confirm') renderNxModal('Confirmar alteração', cfgConfirmBodyHtml(m), cfgCancelConfirm);
+    else if (m.kind === 'success') renderNxModal('✅ Configuração salva', cfgSuccessBodyHtml(m), cfgCloseModalAndRefresh);
+    else if (m.kind === 'error') renderNxModal('Erro', cfgErrorBodyHtml(m), cfgCloseModal);
+    wireCfgModalInteraction();
+  }
+  function cfgCloseModal() { cfgState.modal = null; clearNxModal(); }
+  function cfgCloseModalAndRefresh() { cfgState.modal = null; clearNxModal(); cfgState.editingKey = null; cfgState.loaded = false; cfgEnter(); }
+  function cfgCancelConfirm() { cfgState.modal = null; clearNxModal(); renderPanel(); }
+
+  function cfgConfirmBodyHtml(m) {
+    return '<div class="gbRow"><span>Parâmetro</span><b>' + esc(m.setting.label) + '</b></div>' +
+      '<div class="gbRow"><span>Valor atual</span><b>' + esc(CFG_VM.fmtNumber(m.setting.value)) + ' ' + esc(m.setting.unit) + '</b></div>' +
+      '<div class="gbRow"><span>Novo valor</span><b class="gbStatusOk">' + esc(CFG_VM.fmtNumber(m.newValue)) + ' ' + esc(m.setting.unit) + '</b></div>' +
+      '<p class="note gbWarn">⚠️ Este parâmetro influencia diretamente o cálculo de comissão. A alteração é gravada imediatamente e afeta todos os usuários — não há modo de simulação para esta tela.</p>' +
+      '<p id="cfgConfirmMsg" class="maSubtle gbErrText" role="status"></p>' +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="cfgConfirmCancelBtn">Cancelar</button>' +
+      '<button type="button" class="modBtn" id="cfgConfirmSaveBtn"' + (inFlight.cfgSave ? ' disabled' : '') + '>Confirmar alteração</button>' +
+      '</div>';
+  }
+  function cfgSuccessBodyHtml(m) {
+    return '<div class="gbRow"><span>Parâmetro</span><b>' + esc(m.setting.label) + '</b></div>' +
+      '<div class="gbRow"><span>Novo valor</span><b>' + esc(CFG_VM.fmtNumber(m.newValue)) + ' ' + esc(m.setting.unit) + '</b></div>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="cfgSuccessCloseBtn">Fechar</button></div>';
+  }
+  function cfgErrorBodyHtml(m) {
+    return '<p class="gbErrText">' + esc(m.message || 'Falha ao salvar a configuração.') + '</p>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="cfgErrorCloseBtn">Fechar</button></div>';
+  }
+
+  function cfgConfirmSaveHandler() {
+    if (inFlight.cfgSave) return;
+    var m = cfgState.modal;
+    if (!m || m.kind !== 'confirm') return;
+    inFlight.cfgSave = true;
+    var btn = document.getElementById('cfgConfirmSaveBtn');
+    if (btn) btn.disabled = true;
+    CFG_PROVIDER.updateConfig(m.setting.key, m.newValue, m.setting.description).then(
+      function () {
+        inFlight.cfgSave = false;
+        cfgState.modal = { kind: 'success', setting: m.setting, newValue: m.newValue };
+        renderCfgModalRoot();
+      },
+      function (err) {
+        inFlight.cfgSave = false;
+        var msg = document.getElementById('cfgConfirmMsg');
+        if (msg) msg.textContent = 'Erro ao salvar: ' + String((err && err.message) || err);
+        if (btn) btn.disabled = false;
+      }
+    );
+  }
+
+  // ==================== Períodos de Comissão (Painel Master Phase PM-5E) ====================
+  // Real backend reuse only -- master_admin_reference_data() (read,
+  // MASTER-scoped superset including inactive/archived periods) +
+  // master_admin_manage('PERIOD', action, payload) (write), both
+  // already deployed. No new backend. NO homologation-mode gate exists
+  // for this capability either (confirmed live, PM-5E Gate 39) -- every
+  // action here is a REAL write. SET_STATUS is deliberately NOT
+  // exposed (no reachable V1 UI call site for it -- see the provider's
+  // own header comment) -- the only path to FECHADO/back is the
+  // separate, out-of-scope Fechamento de Competência flow.
+  var PR_VM = window.NX_MASTER_PERIODOS_VM;
+  var PR_PROVIDER = window.NX_MASTER_PERIODOS_PROVIDER;
+
+  function prEnter() {
+    if (prState.loaded || prState.loading) { renderPanel(); return; }
+    prLoad();
+  }
+  function prLoad() {
+    prState.loading = true;
+    prState.error = null;
+    renderPanel();
+    PR_PROVIDER.listPeriods({}).then(
+      function (periods) {
+        prState.periods = PR_VM.sortByStartDesc(periods);
+        prState.loading = false;
+        prState.loaded = true;
+        renderPanel();
+      },
+      function (err) {
+        prState.loading = false;
+        prState.loaded = false;
+        prState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  function prRowHtml(p) {
+    var currentBadge = p.periodo_atual ? '<span class="gsSharedBadge">PERÍODO ATUAL</span>' : '';
+    var ativoBadge = p.ativo !== false
+      ? '<span class="maBadge maBadgeActive">ATIVO</span>'
+      : '<span class="maBadge maBadgeInactive">INATIVO</span>';
+    return '<tr class="prRow" data-id="' + esc(p.id) + '">' +
+      '<td><b>' + esc(p.nome_periodo || '-') + '</b>' + (currentBadge ? '<br>' + currentBadge : '') + '</td>' +
+      '<td>' + esc(PR_VM.fmtDateBR(p.data_inicio)) + '</td>' +
+      '<td>' + esc(PR_VM.fmtDateBR(p.data_fim)) + '</td>' +
+      '<td>' + esc(PR_VM.statusLabel(p.status)) + '</td>' +
+      '<td>' + ativoBadge + '</td>' +
+      '<td class="adminActions prActions">' +
+      '<button type="button" class="modBtnGhost prSetCurrentBtn" data-id="' + esc(p.id) + '"' + (p.periodo_atual ? ' disabled' : '') + '>Definir atual</button>' +
+      '<button type="button" class="modBtnGhost prToggleActiveBtn" data-id="' + esc(p.id) + '" data-active="' + (p.ativo !== false) + '">' + (p.ativo !== false ? 'Inativar' : 'Ativar') + '</button>' +
+      '<button type="button" class="modBtnGhost prArchiveBtn" data-id="' + esc(p.id) + '">Arquivar</button>' +
+      '</td></tr>';
+  }
+
+  function prDesktopTableHtml() {
+    return '<div class="maDesktopOnly"><div class="modTableWrap"><table class="modTable prTable">' +
+      '<thead><tr><th scope="col">Período</th><th scope="col">Data inicial</th><th scope="col">Data final</th><th scope="col">Status</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>' +
+      '<tbody>' + prState.periods.map(prRowHtml).join('') + '</tbody></table></div></div>';
+  }
+  function prMobileCardHtml(p) {
+    var currentBadge = p.periodo_atual ? '<span class="gsSharedBadge">PERÍODO ATUAL</span>' : '';
+    var ativoBadge = p.ativo !== false
+      ? '<span class="maBadge maBadgeActive">ATIVO</span>'
+      : '<span class="maBadge maBadgeInactive">INATIVO</span>';
+    return '<div class="maMobileCard prMobileCard" data-id="' + esc(p.id) + '">' +
+      '<div class="maMobileName">' + esc(p.nome_periodo || '-') + '</div>' +
+      (currentBadge ? '<div>' + currentBadge + '</div>' : '') +
+      '<div class="maMobileMeta">' + esc(PR_VM.fmtDateBR(p.data_inicio)) + ' → ' + esc(PR_VM.fmtDateBR(p.data_fim)) + '</div>' +
+      '<div class="maMobileMeta">' + esc(PR_VM.statusLabel(p.status)) + '</div>' +
+      ativoBadge +
+      '<div class="prActions">' +
+      '<button type="button" class="modBtnGhost prSetCurrentBtn" data-id="' + esc(p.id) + '"' + (p.periodo_atual ? ' disabled' : '') + '>Definir atual</button>' +
+      '<button type="button" class="modBtnGhost prToggleActiveBtn" data-id="' + esc(p.id) + '" data-active="' + (p.ativo !== false) + '">' + (p.ativo !== false ? 'Inativar' : 'Ativar') + '</button>' +
+      '<button type="button" class="modBtnGhost prArchiveBtn" data-id="' + esc(p.id) + '">Arquivar</button>' +
+      '</div></div>';
+  }
+  function prMobileCardsHtml() {
+    return '<div class="maMobileOnly">' + prState.periods.map(prMobileCardHtml).join('') + '</div>';
+  }
+
+  function prCreateFormHtml() {
+    var f = prState.createForm;
+    return '<div class="gbCard prCreateCard">' +
+      '<h3>Novo período</h3>' +
+      '<label for="prNome">Nome do período</label>' +
+      '<input type="text" id="prNome" placeholder="Ex.: Comissão Junho/2026" value="' + esc(f.name) + '">' +
+      '<label for="prIni">Data inicial</label>' +
+      '<input type="date" id="prIni" value="' + esc(f.start) + '">' +
+      '<label for="prFim">Data final</label>' +
+      '<input type="date" id="prFim" value="' + esc(f.end) + '">' +
+      '<label class="prCurrentLabel"><input type="checkbox" id="prAtualChk"' + (f.isCurrent ? ' checked' : '') + '> Definir como período atual</label>' +
+      (f.error ? '<p class="maSubtle gbErrText" role="alert">' + esc(f.error) + '</p>' : '') +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="prCancelCreateBtn">Cancelar</button>' +
+      '<button type="button" class="modBtn" id="prSaveCreateBtn"' + (inFlight.prAction ? ' disabled' : '') + '>Salvar período</button>' +
+      '</div></div>';
+  }
+
+  function renderPeriodosSection() {
+    var html = '<h2>Períodos de Comissão</h2>' +
+      '<p class="note">Cadastre os períodos oficiais. O período controla somente as datas inicial e final usadas como filtro — os cálculos continuam usando as mesmas funções já homologadas. Não há ambiente de homologação para esta tela: cada ação é gravada imediatamente.</p>';
+    if (prState.error) {
+      html += errorStateHtml(prState.error.state, prState.error.message) +
+        '<button type="button" id="prRetryBtn" class="modBtnGhost">Tentar novamente</button>';
+    } else if (prState.loading || !prState.loaded) {
+      html += '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando períodos de comissão...</div>';
+    } else {
+      html += prState.createForm
+        ? prCreateFormHtml()
+        : '<button type="button" class="modBtn" id="prNewBtn">+ Novo período</button>';
+      html += prState.periods.length
+        ? prDesktopTableHtml() + prMobileCardsHtml()
+        : '<p class="note">Nenhum período cadastrado ainda.</p>';
+    }
+    return html;
+  }
+
+  function renderPrModalRoot() {
+    if (!prState.modal) { if (currentSection === 'periodosComissao') clearNxModal(); return; }
+    var m = prState.modal;
+    if (m.kind === 'confirm') renderNxModal('Confirmar arquivamento', prConfirmBodyHtml(m), prCancelConfirm);
+    else if (m.kind === 'success') renderNxModal('✅ Período atualizado', prSuccessBodyHtml(m), prCloseModalAndRefresh);
+    else if (m.kind === 'error') renderNxModal('Erro', prErrorBodyHtml(m), prCloseModal);
+    wirePrModalInteraction();
+  }
+  function prCloseModal() { prState.modal = null; clearNxModal(); }
+  function prCloseModalAndRefresh() { prState.modal = null; clearNxModal(); prState.loaded = false; prEnter(); }
+  function prCancelConfirm() { prState.modal = null; clearNxModal(); }
+
+  function prConfirmBodyHtml(m) {
+    return '<div class="gbRow"><span>Período</span><b>' + esc(m.period.nome_periodo || '-') + '</b></div>' +
+      '<div class="gbRow"><span>Intervalo</span><b>' + esc(PR_VM.fmtDateBR(m.period.data_inicio)) + ' → ' + esc(PR_VM.fmtDateBR(m.period.data_fim)) + '</b></div>' +
+      '<p class="note gbWarn">⚠️ Arquivar torna este período inativo. Ele deixa de aparecer como opção nas telas que dependem de um período ativo.</p>' +
+      '<p id="prConfirmMsg" class="maSubtle gbErrText" role="status"></p>' +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="prConfirmCancelBtn">Cancelar</button>' +
+      '<button type="button" class="modBtn" id="prConfirmArchiveBtn"' + (inFlight.prAction ? ' disabled' : '') + '>Arquivar período</button>' +
+      '</div>';
+  }
+  function prSuccessBodyHtml(m) {
+    return '<p>' + esc(m.message || 'Ação concluída com sucesso.') + '</p>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="prSuccessCloseBtn">Fechar</button></div>';
+  }
+  function prErrorBodyHtml(m) {
+    return '<p class="gbErrText">' + esc(m.message || 'Falha ao processar a ação.') + '</p>' +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="prErrorCloseBtn">Fechar</button></div>';
+  }
+
+  function prPeriodById(id) {
+    return prState.periods.filter(function (p) { return String(p.id) === String(id); })[0] || null;
+  }
+
+  function prRunAction(promise, successMessage) {
+    if (inFlight.prAction) return;
+    inFlight.prAction = true;
+    promise.then(
+      function () {
+        inFlight.prAction = false;
+        prState.modal = { kind: 'success', message: successMessage };
+        renderPrModalRoot();
+      },
+      function (err) {
+        inFlight.prAction = false;
+        prState.modal = { kind: 'error', message: String((err && err.message) || err) };
+        renderPrModalRoot();
+      }
+    );
+  }
+
+  function prConfirmArchiveHandler() {
+    if (inFlight.prAction) return;
+    var m = prState.modal;
+    if (!m || m.kind !== 'confirm') return;
+    inFlight.prAction = true;
+    var btn = document.getElementById('prConfirmArchiveBtn');
+    if (btn) btn.disabled = true;
+    PR_PROVIDER.archivePeriod(m.period.id).then(
+      function () {
+        inFlight.prAction = false;
+        prState.modal = { kind: 'success', message: 'Período arquivado com sucesso.' };
+        renderPrModalRoot();
+      },
+      function (err) {
+        inFlight.prAction = false;
+        var msg = document.getElementById('prConfirmMsg');
+        if (msg) msg.textContent = 'Erro ao arquivar: ' + String((err && err.message) || err);
+        if (btn) btn.disabled = false;
+      }
+    );
+  }
+
+  function prSaveCreateHandler() {
+    if (inFlight.prAction) return;
+    var f = prState.createForm;
+    var name = (document.getElementById('prNome') || {}).value || '';
+    var start = (document.getElementById('prIni') || {}).value || '';
+    var end = (document.getElementById('prFim') || {}).value || '';
+    var isCurrent = !!(document.getElementById('prAtualChk') || {}).checked;
+    name = name.trim();
+    f.name = name; f.start = start; f.end = end; f.isCurrent = isCurrent;
+    if (!name) { f.error = 'Informe o nome do período.'; renderPanel(); return; }
+    if (!start || !end) { f.error = 'Informe data inicial e final.'; renderPanel(); return; }
+    if (end < start) { f.error = 'Data final não pode ser menor que a inicial.'; renderPanel(); return; }
+    var overlap = PR_VM.findOverlap(prState.periods, start, end);
+    if (overlap) { f.error = 'Já existe período ativo sobreposto às datas informadas (' + (overlap.nome_periodo || '') + ').'; renderPanel(); return; }
+    f.error = null;
+    inFlight.prAction = true;
+    var btn = document.getElementById('prSaveCreateBtn');
+    if (btn) btn.disabled = true;
+    PR_PROVIDER.createPeriod(name, start, end, isCurrent).then(
+      function () {
+        inFlight.prAction = false;
+        prState.createForm = null;
+        prState.modal = { kind: 'success', message: 'Período criado com sucesso.' };
+        renderPrModalRoot();
+      },
+      function (err) {
+        inFlight.prAction = false;
+        f.error = String((err && err.message) || err);
+        if (btn) btn.disabled = false;
+        renderPanel();
+      }
+    );
+  }
+
   // ---------- master render ----------
   function renderPanel() {
     var panel = document.getElementById('maPanel');
@@ -2296,6 +2720,20 @@
     if (currentSection === 'gestaoSimuladores') {
       renderGsModalRoot();
       panel.innerHTML = renderGestaoSimuladoresSection();
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'configuracoes') {
+      renderCfgModalRoot();
+      panel.innerHTML = renderConfiguracoesSection();
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'periodosComissao') {
+      renderPrModalRoot();
+      panel.innerHTML = renderPeriodosSection();
       wireInteraction();
       return;
     }
@@ -2460,6 +2898,75 @@
     if (gsRetry) gsRetry.addEventListener('click', gsLoad);
     document.querySelectorAll('.gsUpdateBtn').forEach(function (el) {
       el.addEventListener('click', function () { window.gsOnAtualizarClick(el.getAttribute('data-uid')); });
+    });
+
+    // ---- Configurações (Painel Master Phase PM-5E) ----
+    var cfgRetry = document.getElementById('cfgRetryBtn');
+    if (cfgRetry) cfgRetry.addEventListener('click', cfgLoad);
+    document.querySelectorAll('.cfgEditBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var key = el.getAttribute('data-key');
+        var setting = cfgState.settings.filter(function (s) { return s.key === key; })[0];
+        if (!setting) return;
+        cfgState.editingKey = key;
+        cfgState.editDraft = setting.value;
+        renderPanel();
+      });
+    });
+    document.querySelectorAll('.cfgCancelEditBtn').forEach(function (el) {
+      el.addEventListener('click', function () { cfgState.editingKey = null; renderPanel(); });
+    });
+    document.querySelectorAll('.cfgSaveBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var key = el.getAttribute('data-key');
+        var setting = cfgState.settings.filter(function (s) { return s.key === key; })[0];
+        if (!setting) return;
+        var input = document.getElementById('cfgEditInput');
+        var raw = input ? input.value : '';
+        var errMsg = CFG_VM.validateHint(setting, raw);
+        if (errMsg) {
+          var errEl = document.getElementById('cfgEditError');
+          if (errEl) errEl.textContent = errMsg;
+          return;
+        }
+        var newValue = CFG_VM.parseNumber(raw);
+        cfgState.modal = { kind: 'confirm', setting: setting, newValue: newValue };
+        renderCfgModalRoot();
+      });
+    });
+
+    // ---- Períodos de Comissão (Painel Master Phase PM-5E) ----
+    var prRetry = document.getElementById('prRetryBtn');
+    if (prRetry) prRetry.addEventListener('click', prLoad);
+    var prNewBtn = document.getElementById('prNewBtn');
+    if (prNewBtn) prNewBtn.addEventListener('click', function () {
+      prState.createForm = { name: '', start: '', end: '', isCurrent: false, error: null };
+      renderPanel();
+    });
+    var prCancelCreateBtn = document.getElementById('prCancelCreateBtn');
+    if (prCancelCreateBtn) prCancelCreateBtn.addEventListener('click', function () { prState.createForm = null; renderPanel(); });
+    var prSaveCreateBtn = document.getElementById('prSaveCreateBtn');
+    if (prSaveCreateBtn) prSaveCreateBtn.addEventListener('click', prSaveCreateHandler);
+    document.querySelectorAll('.prSetCurrentBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        if (el.disabled) return;
+        prRunAction(PR_PROVIDER.setCurrent(el.getAttribute('data-id')), 'Período atual atualizado com sucesso.');
+      });
+    });
+    document.querySelectorAll('.prToggleActiveBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var wasActive = el.getAttribute('data-active') === 'true';
+        prRunAction(PR_PROVIDER.setActive(el.getAttribute('data-id'), !wasActive),
+          wasActive ? 'Período inativado com sucesso.' : 'Período ativado com sucesso.');
+      });
+    });
+    document.querySelectorAll('.prArchiveBtn').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var period = prPeriodById(el.getAttribute('data-id'));
+        if (!period) return;
+        prState.modal = { kind: 'confirm', period: period };
+        renderPrModalRoot();
+      });
     });
 
     var search = document.getElementById('maSearch');
