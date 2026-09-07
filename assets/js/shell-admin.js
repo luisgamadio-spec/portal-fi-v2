@@ -229,7 +229,19 @@
     closings: [],
     detail: null, // { closingId, loading, error, rows, closing }
     exportingId: null,
-    exportError: null
+    exportError: null,
+    // Reabertura de Competência (Painel Master Phase PM-5K-RETRY). Lives
+    // here, not in the Fechamento module, because the action operates on
+    // an existing, already-versioned closing (Histórico's own subject),
+    // per PM-5K-RETRY Gate 29 -- confirmed against the real, live-read
+    // master_reopen_commission_period body (single p_closing_id write,
+    // never touches snapshot_comissoes). `simulate` defaults to true
+    // (Gate 31): while true, confirming calls
+    // reopenCommissionPeriodSimulated (pure client-side fake) instead of
+    // the real RPC. Switching it off is a deliberate, explicit action,
+    // never the default.
+    reopenModalOpen: false, reopenClosing: null, reopenSimulate: true,
+    reopening: false, reopenError: null
   };
 
   // Painel Master Phase PM-5J (Fechamento de Competência). `simulate`
@@ -238,8 +250,9 @@
   // calls closeCommissionPeriodSimulated (pure client-side fake, never
   // touches the network) instead of the real master_close_commission_
   // period RPC. Switching it off is a deliberate, explicit, separately-
-  // confirmed action in the UI, never the default. Reabrir is
-  // deliberately absent from this whole state -- out of scope (Gate 25).
+  // confirmed action in the UI, never the default. Reabrir intentionally
+  // lives in `historyState` instead (Histórico de Competências), not
+  // here -- see that state's own doc comment (PM-5K-RETRY Gate 29).
   var closingState = {
     simulate: true,
     periods: null, periodsLoading: false, periodsError: null,
@@ -628,10 +641,10 @@
     // Painel Master Phase PM-5J: engine authority/parity reconciled
     // (PM-5I) and full-payload parity proven (PM-5J) -- positioned
     // right after Períodos de Comissão, before Histórico (its own
-    // natural read consumer). Reabertura remains OUT OF SCOPE (Gate 25
-    // -- master_reopen_commission_period's server-side authority was
-    // never reconciled, PM-5G); this screen only ever offers PRÉVIA +
-    // FECHAR, never Reabrir.
+    // natural read consumer). This screen only ever offers PRÉVIA +
+    // FECHAR, never Reabrir -- reabertura is a Histórico action instead
+    // (PM-5K-RETRY, master_reopen_commission_period's server-side
+    // authority now reconciled via live pg_get_functiondef).
     { id: 'fechamentoCompetencia', label: 'Fechamento de Competência', active: true },
     { id: 'historicoCompetencias', label: 'Histórico de Competências', active: true },
     { id: 'pendenciasCadastrais', label: 'Pendências Cadastrais', active: true },
@@ -687,6 +700,9 @@
     historyState.detail = null;
     historyState.exportingId = null;
     historyState.exportError = null;
+    historyState.reopenModalOpen = false;
+    historyState.reopenClosing = null;
+    historyState.reopenError = null;
     closingState.preview = null;
     closingState.previewToken = null;
     closingState.confirmOpen = false;
@@ -3854,6 +3870,151 @@
     renderPanel();
   }
 
+  // ---------- Reabertura de Competência (Painel Master Phase PM-5K-RETRY) ----------
+  // Frontend mirror of the real, live-confirmed server guard inside
+  // master_reopen_commission_period (`v_closing.ativo is not true or
+  // status <> 'FECHADO'` -> 22023): only a closing that is BOTH
+  // status==='FECHADO' AND ativo!==false may show the action at all.
+  // The server remains the sole authority -- this only avoids offering
+  // an action the RPC would certainly reject.
+  function hcClosingCanReopen(c) {
+    return !!c && String(c.status || '').toUpperCase() === 'FECHADO' && c.ativo !== false;
+  }
+  function hcOpenReopenModal(closing) {
+    if (!hcClosingCanReopen(closing)) return;
+    historyState.reopenClosing = closing;
+    historyState.reopenError = null;
+    historyState.reopenModalOpen = true;
+    renderHcReopenModalRoot();
+  }
+  function hcCancelReopen() {
+    historyState.reopenModalOpen = false;
+    clearNxModal();
+  }
+  function hcSetReopenSimulate(value) {
+    historyState.reopenSimulate = value;
+    renderHcReopenModalRoot();
+  }
+  function hcConfirmReopen() {
+    if (historyState.reopening) return; // double-submit guard (Gate 35)
+    var c = historyState.reopenClosing;
+    if (!c) return;
+    historyState.reopening = true;
+    historyState.reopenError = null;
+    renderHcReopenModalRoot();
+    var writeCall = historyState.reopenSimulate
+      ? CL_PROVIDER.reopenCommissionPeriodSimulated(c.id, c.periodo_id)
+      : CL_PROVIDER.reopenCommissionPeriod(c.id, {});
+    writeCall.then(
+      function () {
+        historyState.reopening = false;
+        historyState.reopenModalOpen = false;
+        clearNxModal();
+        if (historyState.reopenSimulate) {
+          // Gate 36: in simulated mode nothing changed server-side, so a
+          // canonical refetch would just return the pre-reopen state.
+          // Apply the SAME mutation the real RPC is proven to perform
+          // (live pg_get_functiondef, PM-5K-RETRY) to the in-memory copy
+          // ONLY, purely so the Human can see the expected result --
+          // never persisted, never sent anywhere.
+          var nowIso = new Date().toISOString();
+          [historyState.closings, historyState.detail ? [historyState.detail.closing] : []].forEach(function (list) {
+            list.forEach(function (row) {
+              if (String(row.id) === String(c.id)) {
+                row.status = 'REABERTO';
+                row.ativo = false;
+                row.reaberto_por = row.reaberto_por || '(simulado)';
+                row.reaberto_em = nowIso;
+              }
+            });
+          });
+          historyState.closings = HC_VM.sortClosings(historyState.closings);
+        } else {
+          // Real mode: never fabricate state -- always re-read canonical.
+          // historyOpenDetail() must run AFTER the refetch resolves (not
+          // right after firing it) or it would re-derive the detail from
+          // the still-stale historyState.closings array.
+          var wasViewingDetail = historyState.detail && historyState.detail.closingId === c.id;
+          historyState.loading = true;
+          renderPanel();
+          HC_PROVIDER.listClosings({}).then(
+            function (rows) {
+              historyState.closings = HC_VM.sortClosings(rows);
+              historyState.loading = false;
+              historyState.loaded = true;
+              if (wasViewingDetail) { historyOpenDetail(c.id); } else { renderPanel(); }
+            },
+            function (err) {
+              historyState.loading = false;
+              historyState.error = err || { state: 'RPC_ERROR' };
+              renderPanel();
+            }
+          );
+          return;
+        }
+        renderPanel();
+      },
+      function (err) {
+        historyState.reopening = false;
+        historyState.reopenError = err || { state: 'RPC_ERROR' };
+        renderHcReopenModalRoot();
+      }
+    );
+  }
+  function renderHcReopenModalRoot() {
+    if (!historyState.reopenModalOpen) { if (currentSection === 'historicoCompetencias') clearNxModal(); return; }
+    renderNxModal('Confirmar reabertura de competência', hcReopenModalBodyHtml(), hcCancelReopen);
+    wireHcReopenModalInteraction();
+  }
+  // Same reason every sibling modal wires itself right after rendering
+  // (wireClosingModalInteraction et al.) -- #nxModalRoot content is
+  // outside the main panel's own render+wire cycle.
+  function wireHcReopenModalInteraction() {
+    var cancelBtn = document.getElementById('hcReopenCancelBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', hcCancelReopen);
+    var doBtn = document.getElementById('hcReopenDoBtn');
+    if (doBtn) doBtn.addEventListener('click', hcConfirmReopen);
+    var simToggle = document.getElementById('hcReopenSimulateToggle');
+    if (simToggle) simToggle.addEventListener('change', function (e) { hcSetReopenSimulate(e.target.checked); });
+  }
+  function hcReopenModalBodyHtml() {
+    var c = historyState.reopenClosing;
+    if (!c) return '';
+    var modoTxt = historyState.reopenSimulate
+      ? '<p class="note gbWarn"><b>Modo simulação ativo.</b> Nenhum dado real será alterado -- esta confirmação apenas simula o resultado da reabertura, localmente.</p>'
+      : '<p class="note gbWarn"><b>Modo real ativo.</b> Esta ação chama o servidor e marca este fechamento como REABERTO de verdade.</p>';
+    // Real server rejection messages (42501/P0002/22023, confirmed by
+    // direct reading of master_reopen_commission_period's own live SQL,
+    // PM-5K-RETRY) are already hand-authored, safe, user-facing text --
+    // shown verbatim here, same discipline already established for
+    // Fechamento's own close-error display and Histórico's export
+    // rejection (PM-5H/PM-5J).
+    var errHtml = historyState.reopenError
+      ? (historyState.reopenError.state === 'RPC_ERROR' && historyState.reopenError.message
+        ? '<div class="modErrorState"><div class="modStateTitle">Reabertura não concluída</div>' + esc(historyState.reopenError.message) + '</div>'
+        : errorStateHtml(historyState.reopenError.state, historyState.reopenError.message))
+      : '';
+    // Every consequence listed below is provable from the real,
+    // live-read function body (PM-5K-RETRY) -- never a generic guess
+    // (Gate 34: "no generic claims").
+    return '<div class="gbRow"><span>Competência</span><b>' + esc(c.nome_periodo || '-') + '</b></div>' +
+      '<div class="gbRow"><span>Versão atual</span><b>v' + esc(c.versao != null ? c.versao : '-') + '</b></div>' +
+      '<div class="gbRow"><span>Status atual</span><b>' + hcStatusBadgeHtml(c.status) + '</b></div>' +
+      '<div class="gbRow"><span>Fechado em</span><b>' + esc(HC_VM.fmtDateTimeBR(c.fechado_em)) + '</b></div>' +
+      '<div class="modField" style="max-width:420px"><label><input type="checkbox" id="hcReopenSimulateToggle"' + (historyState.reopenSimulate ? ' checked' : '') + (historyState.reopening ? ' disabled' : '') + '> Modo simulação (recomendado) -- nenhum dado real é alterado</label></div>' +
+      '<ul class="note">' +
+      '<li>Este fechamento (v' + esc(c.versao != null ? c.versao : '-') + ') será marcado como <b>REABERTO</b> e deixará de ser o fechamento ativo desta competência.</li>' +
+      '<li>O período "' + esc(c.nome_periodo || '') + '" voltará ao status <b>EM CONFERÊNCIA</b>.</li>' +
+      '<li>As linhas de snapshot já registradas para esta versão <b>não são alteradas nem removidas</b> -- continuam disponíveis aqui no Histórico.</li>' +
+      '<li>Depois de reaberto, será possível gerar um novo fechamento (v' + (c.versao != null ? (Number(c.versao) + 1) : '?') + ') para este período, na tela Fechamento de Competência.</li>' +
+      '</ul>' +
+      modoTxt + errHtml +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="hcReopenCancelBtn">Cancelar</button>' +
+      '<button type="button" class="modBtn" id="hcReopenDoBtn"' + (historyState.reopening ? ' disabled' : '') + '>' + (historyState.reopening ? 'Processando...' : 'Confirmar Reabertura') + '</button>' +
+      '</div>';
+  }
+
   // Export uses the SEPARATE, fail-closed RPC (Gate 13/22/37) -- never
   // the already-fetched (unguarded) historyState.detail.rows, even if
   // they're sitting right there in memory. A real 22023 rejection from
@@ -4024,7 +4185,17 @@
       return html + '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando snapshot...</div>';
     }
     html += hcIntegrityBannerHtml(d.rows, c);
+    html += '<div class="adminActions">';
     html += '<button type="button" class="modBtnGhost hcExportBtn" data-id="' + esc(c.id) + '"' + (historyState.exportingId === c.id ? ' disabled' : '') + '>' + (historyState.exportingId === c.id ? 'Exportando...' : 'Exportar XLSX') + '</button>';
+    // Only offered when the closing itself is FECHADO+ativo (Gate 30:
+    // "frontend espelha contrato" -- the real server guard inside
+    // master_reopen_commission_period, live-read PM-5K-RETRY, is the
+    // actual authority; this is only a mirror to avoid offering an
+    // action that would certainly be rejected).
+    if (hcClosingCanReopen(c)) {
+      html += '<button type="button" class="modBtnGhost hcReopenBtn" data-id="' + esc(c.id) + '">Reabrir</button>';
+    }
+    html += '</div>';
     html += d.rows.length
       ? (hcSnapshotTableHtml(d.rows) + hcSnapshotCardsHtml(d.rows))
       : '<p class="note">Este fechamento não possui linhas de snapshot.</p>';
@@ -4033,7 +4204,7 @@
 
   function renderHistoricoCompetenciasSection() {
     var html = '<h2>Histórico de Competências</h2>' +
-      '<p class="note">Consulta somente leitura dos fechamentos de competência já registrados. Nenhuma ação de fechar, reabrir, corrigir ou recalcular está disponível nesta tela.</p>';
+      '<p class="note">Consulta dos fechamentos de competência já registrados. A única ação disponível nesta tela é Reabrir um fechamento ativo -- corrigir, recalcular ou excluir um fechamento continuam indisponíveis.</p>';
     if (historyState.detail) return html + hcDetailHtml();
     if (historyState.error) {
       return html + errorStateHtml(historyState.error.state, historyState.error.message) +
@@ -4273,7 +4444,7 @@
       '<div class="gbRow"><span>Linhas do snapshot</span><b>' + p.linhas.length + '</b></div>' +
       '<div class="gbRow"><span>Comissão total prevista</span><b>' + esc(CL_VM.fmtMoney(p.comissaoPrevista)) + '</b></div>' +
       modoTxt +
-      '<p class="note">Após confirmar, um snapshot histórico será criado e esta competência será marcada como FECHADO. O Portal V2 não oferece uma ação de Reabrir nesta versão -- se o backend possuir um mecanismo de reabertura separado, ele não é acessível a partir desta tela.</p>' +
+      '<p class="note">Após confirmar, um snapshot histórico será criado e esta competência será marcada como FECHADO. Uma competência fechada pode ser reaberta depois, na tela Histórico de Competências.</p>' +
       errHtml +
       '<div class="adminModalActions">' +
       '<button type="button" class="modBtnGhost" id="clConfirmCancelBtn">Cancelar</button>' +
@@ -4491,6 +4662,7 @@
     }
 
     if (currentSection === 'historicoCompetencias') {
+      renderHcReopenModalRoot();
       panel.innerHTML = renderHistoricoCompetenciasSection();
       wireInteraction();
       return;
@@ -4843,6 +5015,9 @@
     });
     document.querySelectorAll('.hcExportBtn').forEach(function (el) {
       el.addEventListener('click', function () { historyExportXlsx(el.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('.hcReopenBtn').forEach(function (el) {
+      el.addEventListener('click', function () { hcOpenReopenModal(historyClosingById(el.getAttribute('data-id'))); });
     });
 
     // ---- Fechamento de Competência (Painel Master Phase PM-5J) ----

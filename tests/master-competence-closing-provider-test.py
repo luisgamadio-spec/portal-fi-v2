@@ -118,18 +118,25 @@ def main():
     dialogs_fired = []
 
     # ---------- 1-4: READ/WRITE ALLOWLIST PROOF (Gate 29-31, 44) ----------
+    # PM-5K-RETRY note: this provider file now legitimately hosts TWO
+    # write RPCs (close + reopen -- see tests/master-competence-reopen-
+    # provider-test.py for reopen's own dedicated allowlist proof). The
+    # constraint that still holds, unconditionally, is master_admin_
+    # manage and any direct table write NEVER appearing here.
     with io.open(PROVIDER_PATH, "r", encoding="utf-8") as f:
         provider_src = f.read()
-    forbidden_rpc_calls = ["master_admin_manage", "master_reopen_commission_period"]
+    forbidden_rpc_calls = ["master_admin_manage"]
     no_forbidden_calls = all(("callRpc('%s'" % name) not in provider_src for name in forbidden_rpc_calls)
-    check("1 (WRITE ALLOWLIST): provider never calls master_admin_manage or master_reopen_commission_period", no_forbidden_calls)
+    check("1 (WRITE ALLOWLIST): provider never calls master_admin_manage", no_forbidden_calls)
     no_forbidden_write_methods = all(tok not in provider_src for tok in [".insert(", ".update(", ".upsert(", ".delete("])
     check("2 (DIRECT-WRITE PROOF): provider contains no direct table write method call", no_forbidden_write_methods)
     write_rpcs = set(re.findall(r"callRpc\('([a-zA-Z_]+)'", provider_src))
-    check("3 (WRITE ALLOWLIST): the ONLY write-shaped RPC name in the provider is master_close_commission_period",
-          "master_close_commission_period" in write_rpcs and not any("reopen" in n or n == "master_admin_manage" for n in write_rpcs))
+    check("3 (WRITE ALLOWLIST): the only write-shaped RPC names in the provider are master_close_commission_period and master_reopen_commission_period",
+          write_rpcs - {"operational_commission_metrics", "operational_analyst_commission_metrics_v2", "operational_salary_manager_directory", "master_admin_security_data"}
+          == {"master_close_commission_period", "master_reopen_commission_period"})
     allowed_read_rpcs = {"operational_commission_metrics", "operational_analyst_commission_metrics_v2", "operational_salary_manager_directory", "master_admin_security_data"}
-    check("4 (READ ALLOWLIST): every non-write RPC the provider calls is in the reconciled read allowlist", write_rpcs - {"master_close_commission_period"} <= allowed_read_rpcs)
+    check("4 (READ ALLOWLIST): every non-write RPC the provider calls is in the reconciled read allowlist",
+          write_rpcs - {"master_close_commission_period", "master_reopen_commission_period"} <= allowed_read_rpcs)
     with io.open(ENGINE_PATH, "r", encoding="utf-8") as f:
         engine_src = f.read()
     check("5 (ENGINE PURITY): the calculation engine contains no RPC/network/DOM call at all", "callRpc" not in engine_src and "fetch(" not in engine_src and "document." not in engine_src and "window.NX_AUTH" not in engine_src)

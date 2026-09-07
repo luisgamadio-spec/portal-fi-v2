@@ -1,28 +1,30 @@
 /* PORTAL-NEXT V2 -- Painel Master / Fechamento de Competência TRANSPORT
-   layer (Painel Master Phase PM-5J).
+   layer (Painel Master Phase PM-5J, extended by PM-5K-RETRY for
+   reabertura).
 
    THIN transport boundary, same shape as every sibling Painel Master
    provider. Separated into READ (loadCommissionMetrics/
    loadAnalystCommissionMetrics/loadManagerDirectory/loadGestorIdentity)
-   and WRITE (closeCommissionPeriod -- the ONLY real write this file
-   exposes, plus closeCommissionPeriodSimulated, a pure client-side
-   fake for safe local homologation, Gate 35/36) per PM-5J Gate 23.
+   and WRITE (closeCommissionPeriod / reopenCommissionPeriod -- the ONLY
+   two real writes this file exposes, plus their *Simulated pure
+   client-side fakes for safe local homologation, Gate 31/35-36) per
+   PM-5J Gate 23 / PM-5K-RETRY Gate 32.
 
-   Real contract (reconciled PM-5G/PM-5H/PM-5I/PM-5J, from real git
-   sources -- see docs/COMMISSION-ENGINE-AUTHORITY.md):
+   Real contract (reconciled PM-5G/PM-5H/PM-5I/PM-5J/PM-5K-RETRY, from
+   real git sources + live pg_get_functiondef -- see docs/COMMISSION-
+   ENGINE-AUTHORITY.md):
      - operational_commission_metrics(p_start,p_end) -- sellers + group totals
      - operational_analyst_commission_metrics_v2(p_start,p_end) -- analysts, already absence-redistributed server-side
      - operational_salary_manager_directory(p_start,p_end) -- manager identity directory
      - master_admin_security_data() -- MASTER user directory (Gestor F&I identity anchor)
-     - master_close_commission_period(p_period_id,p_summary,p_rows) -- THE ONLY write RPC this capability may ever call
+     - master_close_commission_period(p_period_id,p_summary,p_rows) -- creates a new closing
+     - master_reopen_commission_period(p_closing_id) -- reopens an existing FECHADO closing (PM-5K-RETRY, body confirmed live via Management API pg_get_functiondef on the real project: sets fechamentos_comissao.status='REABERTO', .ativo=false, .reaberto_por/.reaberto_em, NEVER touches snapshot_comissoes, sets periodos_comissao.status='EM CONFERÊNCIA')
 
    This file NEVER calls (structurally, not just by convention --
-   enforced by tests/master-competence-closing-provider-test.py's own
-   read/write-allowlist proof over this file's source text):
-   master_admin_manage, master_reopen_commission_period, or any direct
-   table write (insert/update/upsert/delete). Reabertura is explicitly
-   OUT OF SCOPE this wave (PM-5J Gate 25) -- master_reopen_commission_
-   period's own server-side authority was never reconciled (PM-5G).
+   enforced by tests/master-competence-closing-provider-test.py's and
+   tests/master-competence-reopen-provider-test.py's own read/write-
+   allowlist proof over this file's source text): master_admin_manage,
+   or any direct table write (insert/update/upsert/delete).
 
    Gestor F&I identity anchor: the real, authoritative usuario_id V1
    itself hardcodes (portal-financiamento-brabus-secure/assets/js/
@@ -171,6 +173,27 @@
     });
   }
 
+  // The ONLY other real write this capability may ever perform.
+  // Signature/body confirmed live (PM-5K-RETRY, LIVE_PG_GET_FUNCTIONDEF
+  // via Management API on the real project yacqlelpzchcotgngwbh) --
+  // single param p_closing_id (the fechamentos_comissao row id, NOT a
+  // período id).
+  function reopenCommissionPeriod(closingId, params) {
+    params = params || {};
+    return callRpc('master_reopen_commission_period', { p_closing_id: closingId }, params.signal);
+  }
+
+  // Pure client-side fake -- NEVER touches the network. Mirrors the
+  // real RPC's confirmed success shape (`{status:'OK', closing_id,
+  // period_id}`, no `version`/`snapshot_rows` fields -- the real body
+  // never returns them, unlike closeCommissionPeriod's response).
+  function reopenCommissionPeriodSimulated(closingId, periodId) {
+    return Promise.resolve({
+      status: 'OK', simulated: true,
+      closing_id: closingId, period_id: periodId || null
+    });
+  }
+
   window.NX_MASTER_COMPETENCE_CLOSING_PROVIDER = {
     GESTOR_FI_USUARIO_ID_SEGURO: GESTOR_FI_USUARIO_ID_SEGURO,
     loadCommissionMetrics: loadCommissionMetrics,
@@ -178,6 +201,8 @@
     loadManagerDirectory: loadManagerDirectory,
     loadGestorIdentity: loadGestorIdentity,
     closeCommissionPeriod: closeCommissionPeriod,
-    closeCommissionPeriodSimulated: closeCommissionPeriodSimulated
+    closeCommissionPeriodSimulated: closeCommissionPeriodSimulated,
+    reopenCommissionPeriod: reopenCommissionPeriod,
+    reopenCommissionPeriodSimulated: reopenCommissionPeriodSimulated
   };
 })();
