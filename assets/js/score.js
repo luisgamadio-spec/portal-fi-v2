@@ -37,9 +37,16 @@
   // currentPreset stays 'CUSTOM' until a quick-period button is used
   // (same convention as dashbi.js/gestao.js).
   var SCORE_DEFAULT_DATE_START = '2026-06-01';
-  function todayIso() {
-    var d = new Date();
+  // SCORE_LOCAL_CALENDAR_DATE_PRESET_FIX: same construction already
+  // proven in coparticipado.js/gestao.js/dashbi.js's own localIso()
+  // (FI-UX-1) -- reads local calendar fields directly, never round-trips
+  // through .toISOString() (UTC), which shifts the calendar date for
+  // hosts whose local timezone sits far enough from UTC.
+  function localIso(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function todayIso() {
+    return localIso(new Date());
   }
   var currentPreset = 'CUSTOM';
   var currentDateStart = SCORE_DEFAULT_DATE_START;
@@ -73,7 +80,7 @@
     else if (preset === 'last6') start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
     else if (preset === 'lastYear') start = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
     if (!start) return null;
-    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+    return { start: localIso(start), end: localIso(end) };
   }
 
   // Gate 8 runtime-state vocabulary (LOADING/SUCCESS/EMPTY/AUTH_DENIED/

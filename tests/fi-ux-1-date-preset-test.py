@@ -23,6 +23,13 @@ calendar-shift class of defect.
 This is NOT the same defect as Score's own known UTC-boundary issue --
 Score is untouched by this wave.
 
+ADDENDUM (SCORE_LOCAL_CALENDAR_DATE_PRESET_FIX, same day): Score's own
+analogous defect was fixed later, in its own dedicated file,
+tests/score-date-preset-test.py -- reusing this file's exact fixed_date_
+script/timezone_id technique. This paragraph is appended, not rewritten,
+so the original "Score is untouched by this wave" statement above stays
+an accurate historical record of THIS wave specifically.
+
 Requires: a static server for PORTAL-FI-DESIGN-LAB/ on port 8080.
 """
 import io
