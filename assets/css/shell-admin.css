@@ -733,6 +733,13 @@ col.absColStatus { width: 86px; }    /* badge content ~62px + cell padding, view
 
 .hcActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .hcMobileCard .hcActions, .hcSnapshotCard { margin-top: var(--space-2); }
+/* PM-6B: RH/DP export / print inline error -- forces its own line inside
+   the flex-wrap .hcActions row (never stretches the row's own width) and
+   overrides .modErrorState's default centered/large-padding treatment,
+   which was sized for a full standalone panel, not a compact action
+   strip. */
+.hcInlineError { flex-basis: 100%; width: 100%; text-align: left; padding: 8px 10px; margin-top: 2px; }
+.hcInlineError .modStateTitle { margin-bottom: 2px; }
 
 .hcDetailHead { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2); }
 .hcDetailHead h2, .hcDetailHead h3 { margin: 0; }

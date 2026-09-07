@@ -241,7 +241,15 @@
     // the real RPC. Switching it off is a deliberate, explicit action,
     // never the default.
     reopenModalOpen: false, reopenClosing: null, reopenSimulate: true,
-    reopening: false, reopenError: null
+    reopening: false, reopenError: null,
+    // Exportar RH/DP + PDF/Imprimir (Painel Master Phase PM-6B). Both are
+    // read-only, fail-closed operations (never write) -- see
+    // historyExportRhDp/historyPrintRhDp's own doc comments for the exact
+    // V1-parity contract. rhdpErrorByClosingId/printErrorByClosingId are
+    // keyed by closing id (not a single shared field) so an error on one
+    // row's action never bleeds into another row's UI state.
+    rhdpExportingId: null, rhdpErrorByClosingId: {},
+    printOpeningId: null, printErrorByClosingId: {}
   };
 
   // Painel Master Phase PM-5J (Fechamento de Competência). `simulate`
@@ -703,6 +711,10 @@
     historyState.reopenModalOpen = false;
     historyState.reopenClosing = null;
     historyState.reopenError = null;
+    historyState.rhdpExportingId = null;
+    historyState.rhdpErrorByClosingId = {};
+    historyState.printOpeningId = null;
+    historyState.printErrorByClosingId = {};
     closingState.preview = null;
     closingState.previewToken = null;
     closingState.confirmOpen = false;
@@ -3813,6 +3825,7 @@
   // competence-history-provider-test.py's read-only-proof check).
   var HC_PROVIDER = window.NX_MASTER_COMPETENCE_HISTORY_PROVIDER;
   var HC_VM = window.NX_MASTER_COMPETENCE_HISTORY_VM;
+  var RHDP_ENGINE = window.NX_MASTER_COMPETENCE_RHDP_EXPORT_ENGINE;
 
   function historyEnter() {
     if (historyState.loaded || historyState.loading) { renderPanel(); return; }
@@ -4045,12 +4058,175 @@
     );
   }
 
+  // PM-6B -- Exportar RH/DP. Verbatim-equivalent port of V1's
+  // exportarRhDpOficialHistorico (portal-app.js:5874-5883): fail-closed
+  // snapshot (master_commission_snapshot_export) + SPF audit
+  // (master_operational_spf_audit_period) + live chassis detail
+  // (operational_salary_details, reconciled fail-closed against the
+  // frozen snapshot) -> 8-sheet workbook. ANY of the 3 reads failing, or
+  // the reconciliation diverging, blocks the WHOLE export -- never a
+  // partial/incomplete workbook (Gate 11/14 of this Phase's own brief).
+  // Financial totals come exclusively from the frozen snapshot rows --
+  // never recalculated (Gate 12).
+  function objectRowsToAoA(rows) {
+    var headers = Object.keys((rows && rows[0]) || { 'Aviso': '' });
+    var body = rows.map(function (r) { return headers.map(function (h) { return r[h]; }); });
+    return { headers: headers, body: body };
+  }
+  var RHDP_MONEY_COLS = {
+    sheet2or4: ['Retorno', '70% SPF', 'Retorno + 70% SPF', 'Comissao_Total'],
+    sheet3: ['Retorno', '70% SPF', 'Retorno + 70% SPF', 'Valor Unitário SPF', 'Comissão SPF', 'Comissão Principal', 'Comissao_Total'],
+    sheet5: ['Valor Financiado/Serviço', 'Retorno'], sheet6: ['Valor Venda', 'Retorno'],
+    sheet7: ['Valor_SPF_Bruto', 'Valor_SPF_70pct'],
+    sheet8: ['Producao', 'Retorno', 'SPF_Extra', 'SPF_Liquido', 'Rentabilidade_Total', 'Comissao_Principal', 'Comissao_SPF', 'Comissao_Total']
+  };
+  var RHDP_PCT_COLS = { sheet2or4: ['Share', 'Faixa de Comissão'], sheet3: ['Share', 'Faixa de Comissão'], sheet8: ['Share', 'Faixa'] };
+  function rhdpAppendSheet(wb, name, rows, moneyCols, pctCols) {
+    var shaped = objectRowsToAoA(rows);
+    var ws = window.NX_XLSX_EXPORT_HELPER.buildStyledWorksheet(shaped.headers, shaped.body, name, {
+      moneyCols: new Set(moneyCols || []), pctCols: new Set(pctCols || [])
+    });
+    XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+  }
+  function resumoExecutivoFromClosing(closing, normalizedRows) {
+    var obs = HC_VM.parseObservacao(closing.observacao);
+    if (obs && (obs.qtd_vendida !== undefined || obs.qtd_financiada !== undefined || obs.producao_total !== undefined)) {
+      return { vendidas: Number(obs.qtd_vendida) || 0, financiadas: Number(obs.qtd_financiada) || 0, producao: Number(obs.producao_total) || 0, retorno: Number(obs.retorno_total) || 0, spf_extra: Number(obs.spf_total) || 0 };
+    }
+    return normalizedRows.filter(function (r) { return String(r.perfil || '').toUpperCase() === 'VENDEDOR'; })
+      .reduce(function (a, r) { a.vendidas += r.vendidas; a.financiadas += r.financiadas; a.producao += r.producao; a.retorno += r.retorno; a.spf_extra += r.spf_extra; return a; },
+        { vendidas: 0, financiadas: 0, producao: 0, retorno: 0, spf_extra: 0 });
+  }
+  function historyExportRhDp(closingId) {
+    if (historyState.rhdpExportingId) return; // double-submit guard (Gate 32)
+    var closing = historyClosingById(closingId);
+    if (!closing) return;
+    historyState.rhdpExportingId = closingId;
+    var newErrMap = Object.assign({}, historyState.rhdpErrorByClosingId);
+    delete newErrMap[closingId];
+    historyState.rhdpErrorByClosingId = newErrMap;
+    renderPanel();
+
+    var normalizedRows, spfRows;
+    HC_PROVIDER.exportSnapshot(closingId, {})
+      .then(function (rawRows) {
+        normalizedRows = rawRows.map(HC_VM.normalizeSnapshotRow);
+        return HC_PROVIDER.loadSpfAudit(closing.data_inicio, closing.data_fim, {});
+      })
+      .then(function (rows) {
+        spfRows = rows;
+        return HC_PROVIDER.loadOperationalSalaryDetails(closing.data_inicio, closing.data_fim, {});
+      })
+      .then(function (chassisRows) {
+        var recon = RHDP_ENGINE.reconcileChassisDetail(chassisRows, normalizedRows);
+        if (!recon.ok) {
+          return Promise.reject({ state: 'RPC_ERROR', message: 'O detalhe operacional atual não corresponde ao snapshot congelado desta competência. A exportação foi interrompida para preservar a integridade da auditoria.' });
+        }
+        if (typeof XLSX === 'undefined' || !window.NX_XLSX_EXPORT_HELPER) {
+          return Promise.reject({ state: 'RPC_ERROR', message: 'Biblioteca de planilhas indisponível neste ambiente. Recarregue a página e tente novamente.' });
+        }
+        var executivo = resumoExecutivoFromClosing(closing, normalizedRows);
+        var comissaoTotal = HC_VM.aggregateSnapshotRows(normalizedRows).comissao_total;
+        var sheet1 = RHDP_ENGINE.buildSheet1Resumo(closing, normalizedRows, executivo, comissaoTotal);
+        var wb = XLSX.utils.book_new();
+        var ws1 = XLSX.utils.aoa_to_sheet(sheet1.header);
+        ws1['!cols'] = [{ wch: 36 }, { wch: 28 }, { wch: 24 }, { wch: 24 }];
+        XLSX.utils.book_append_sheet(wb, ws1, '1_RESUMO_PRINCIPAL');
+        rhdpAppendSheet(wb, '2_VENDEDORES', RHDP_ENGINE.buildSheet2Vendedores(normalizedRows), RHDP_MONEY_COLS.sheet2or4, RHDP_PCT_COLS.sheet2or4);
+        rhdpAppendSheet(wb, '3_ANALISTAS_GESTOR', RHDP_ENGINE.buildSheet3AnalistasGestor(normalizedRows), RHDP_MONEY_COLS.sheet3, RHDP_PCT_COLS.sheet3);
+        rhdpAppendSheet(wb, '4_GERENTES', RHDP_ENGINE.buildSheet4Gerentes(normalizedRows), RHDP_MONEY_COLS.sheet2or4, RHDP_PCT_COLS.sheet2or4);
+        rhdpAppendSheet(wb, '5_CHASSIS_FINANCIADOS', RHDP_ENGINE.buildSheet5ChassisFinanciados(chassisRows), RHDP_MONEY_COLS.sheet5, null);
+        rhdpAppendSheet(wb, '6_TODOS_CHASSIS_VENDEDOR', RHDP_ENGINE.buildSheet6TodosChassis(chassisRows), RHDP_MONEY_COLS.sheet6, null);
+        rhdpAppendSheet(wb, '7_AUDITORIA_SPF', RHDP_ENGINE.buildSheet7AuditoriaSpf(spfRows), RHDP_MONEY_COLS.sheet7, null);
+        rhdpAppendSheet(wb, '8_MEMORIA_DE_CALCULO', RHDP_ENGINE.buildSheet8Memoria(normalizedRows), RHDP_MONEY_COLS.sheet8, RHDP_PCT_COLS.sheet8);
+        XLSX.writeFile(wb, RHDP_ENGINE.buildFilename(closing));
+        historyState.rhdpExportingId = null;
+        renderPanel();
+      })
+      .catch(function (err) {
+        historyState.rhdpExportingId = null;
+        var m = Object.assign({}, historyState.rhdpErrorByClosingId);
+        m[closingId] = err || { state: 'RPC_ERROR' };
+        historyState.rhdpErrorByClosingId = m;
+        renderPanel();
+      });
+  }
+
+  // PM-6B -- PDF / Imprimir. Verbatim-equivalent port of V1's
+  // imprimirRhDpOficialHistorico (portal-app.js:5885-5891): same
+  // fail-closed snapshot source as Exportar RH/DP, no SPF/chassis
+  // supplementary data (V1's print flow never fetches them either).
+  // Opens a new window with a printable HTML document -- never
+  // generates a binary PDF (Gate 19/20).
+  function historyPrintRhDp(closingId) {
+    if (historyState.printOpeningId) return; // double-submit guard (Gate 32)
+    var closing = historyClosingById(closingId);
+    if (!closing) return;
+    historyState.printOpeningId = closingId;
+    var newErrMap = Object.assign({}, historyState.printErrorByClosingId);
+    delete newErrMap[closingId];
+    historyState.printErrorByClosingId = newErrMap;
+    renderPanel();
+    HC_PROVIDER.exportSnapshot(closingId, {}).then(
+      function (rawRows) {
+        historyState.printOpeningId = null;
+        var normalizedRows = rawRows.map(HC_VM.normalizeSnapshotRow);
+        var html = HC_VM.buildPrintHtml('Relatório ' + (closing.nome_periodo || ''), normalizedRows);
+        var w = window.open('', '_blank');
+        if (!w) {
+          var m = Object.assign({}, historyState.printErrorByClosingId);
+          m[closingId] = { state: 'RPC_ERROR', message: 'O navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente novamente.' };
+          historyState.printErrorByClosingId = m;
+          renderPanel();
+          return;
+        }
+        w.document.write(html);
+        w.document.close();
+        renderPanel();
+      },
+      function (err) {
+        historyState.printOpeningId = null;
+        var m = Object.assign({}, historyState.printErrorByClosingId);
+        m[closingId] = err || { state: 'RPC_ERROR' };
+        historyState.printErrorByClosingId = m;
+        renderPanel();
+      }
+    );
+  }
+
   function hcStatusBadgeHtml(status) {
     var s = String(status || '').toUpperCase();
     var cls = s === 'FECHADO' ? 'maBadgeActive' : (s === 'REABERTO' ? 'maBadgeInvited' : 'maBadgeInactive');
     return '<span class="maBadge ' + cls + '">' + esc(HC_VM.statusLabel(status)) + '</span>';
   }
 
+  // PM-6B: shared action-button fragment reused by hcRowHtml,
+  // hcMobileCardHtml AND hcDetailHtml so the 3 real, distinct RH/DP
+  // export/print states (idle/loading/error) never drift between the
+  // list and detail views (Gate 25/26: same actions, same elegibilidade,
+  // wherever the row is rendered). Elegibilidade mirrors "Exportar
+  // XLSX" exactly (available for FECHADO and REABERTO alike -- Gate 37:
+  // master_commission_snapshot_export has no status guard at all, only
+  // existence + structural-consistency, confirmed by direct read of its
+  // real SQL body, PM-5G/PM-6B; V1's own apparent FECHADO-only gate is
+  // an artifact of its single-período-selector UI, not a real backend
+  // rule -- Histórico V2's own row-per-version architecture already
+  // exposes REABERTO rows directly, unlike V1).
+  function hcRhdpErrorMessage(err) {
+    if (!err) return '';
+    return (err.state === 'RPC_ERROR' && err.message) ? esc(err.message) : (err.message ? esc(err.message) : 'Não foi possível concluir a operação agora.');
+  }
+  function hcRhdpPrintActionsHtml(c) {
+    var exportingThis = historyState.rhdpExportingId === c.id;
+    var printingThis = historyState.printOpeningId === c.id;
+    var rhdpErr = historyState.rhdpErrorByClosingId[c.id];
+    var printErr = historyState.printErrorByClosingId[c.id];
+    var html = '<button type="button" class="modBtnGhost hcRhdpBtn" data-id="' + esc(c.id) + '"' + (exportingThis ? ' disabled' : '') + '>' + (exportingThis ? 'Gerando RH/DP...' : 'Exportar RH/DP') + '</button>' +
+      '<button type="button" class="modBtnGhost hcPrintBtn" data-id="' + esc(c.id) + '"' + (printingThis ? ' disabled' : '') + '>' + (printingThis ? 'Abrindo...' : 'PDF / Imprimir') + '</button>';
+    if (rhdpErr) html += '<div class="modErrorState hcInlineError"><div class="modStateTitle">Exportação RH/DP não concluída</div>' + hcRhdpErrorMessage(rhdpErr) + '</div>';
+    if (printErr) html += '<div class="modErrorState hcInlineError"><div class="modStateTitle">Impressão não concluída</div>' + hcRhdpErrorMessage(printErr) + '</div>';
+    return html;
+  }
   function hcRowHtml(c) {
     var obs = HC_VM.parseObservacao(c.observacao);
     var resumo = obs && typeof obs.comissao_total === 'number'
@@ -4066,6 +4242,7 @@
       '<td class="adminActions"><div class="hcActions">' +
       '<button type="button" class="modBtnGhost hcViewBtn" data-id="' + esc(c.id) + '">Ver snapshot</button>' +
       '<button type="button" class="modBtnGhost hcExportBtn" data-id="' + esc(c.id) + '"' + (historyState.exportingId === c.id ? ' disabled' : '') + '>' + (historyState.exportingId === c.id ? 'Exportando...' : 'Exportar XLSX') + '</button>' +
+      hcRhdpPrintActionsHtml(c) +
       (hcClosingCanReopen(c) ? '<button type="button" class="modBtnGhost hcReopenBtn" data-id="' + esc(c.id) + '">Reabrir</button>' : '') +
       '</div></td></tr>';
   }
@@ -4099,6 +4276,7 @@
       '<div class="hcActions">' +
       '<button type="button" class="modBtnGhost hcViewBtn" data-id="' + esc(c.id) + '">Ver snapshot</button>' +
       '<button type="button" class="modBtnGhost hcExportBtn" data-id="' + esc(c.id) + '"' + (historyState.exportingId === c.id ? ' disabled' : '') + '>' + (historyState.exportingId === c.id ? 'Exportando...' : 'Exportar XLSX') + '</button>' +
+      hcRhdpPrintActionsHtml(c) +
       (hcClosingCanReopen(c) ? '<button type="button" class="modBtnGhost hcReopenBtn" data-id="' + esc(c.id) + '">Reabrir</button>' : '') +
       '</div></div>';
   }
@@ -4189,6 +4367,7 @@
     html += hcIntegrityBannerHtml(d.rows, c);
     html += '<div class="adminActions">';
     html += '<button type="button" class="modBtnGhost hcExportBtn" data-id="' + esc(c.id) + '"' + (historyState.exportingId === c.id ? ' disabled' : '') + '>' + (historyState.exportingId === c.id ? 'Exportando...' : 'Exportar XLSX') + '</button>';
+    html += hcRhdpPrintActionsHtml(c);
     // Only offered when the closing itself is FECHADO+ativo (Gate 30:
     // "frontend espelha contrato" -- the real server guard inside
     // master_reopen_commission_period, live-read PM-5K-RETRY, is the
@@ -5017,6 +5196,12 @@
     });
     document.querySelectorAll('.hcExportBtn').forEach(function (el) {
       el.addEventListener('click', function () { historyExportXlsx(el.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('.hcRhdpBtn').forEach(function (el) {
+      el.addEventListener('click', function () { historyExportRhDp(el.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('.hcPrintBtn').forEach(function (el) {
+      el.addEventListener('click', function () { historyPrintRhDp(el.getAttribute('data-id')); });
     });
     document.querySelectorAll('.hcReopenBtn').forEach(function (el) {
       el.addEventListener('click', function () { hcOpenReopenModal(historyClosingById(el.getAttribute('data-id'))); });

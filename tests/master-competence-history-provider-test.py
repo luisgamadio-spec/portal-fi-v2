@@ -200,10 +200,15 @@ def main():
     no_forbidden_rpc_calls = all(("callRpc('%s'" % name) not in provider_src for name in forbidden_rpc_calls)
     no_forbidden_write_methods = all(tok not in provider_src for tok in forbidden_write_methods)
     check("1 (READ-ONLY PROOF): provider source contains NO callRpc(...) invocation of a write RPC and no write-method call", no_forbidden_rpc_calls and no_forbidden_write_methods)
-    allowed_rpcs = {"master_commission_closings", "master_commission_snapshot", "master_commission_snapshot_export"}
+    # PM-6B extended this provider with 2 more read-only RPCs (SPF audit +
+    # live operational detail, both needed by Exportar RH/DP -- see
+    # tests/master-competence-rhdp-export-test.py for their own dedicated
+    # authority/fail-closed proof) -- still exactly 0 writes.
+    allowed_rpcs = {"master_commission_closings", "master_commission_snapshot", "master_commission_snapshot_export",
+                     "master_operational_spf_audit_period", "operational_salary_details"}
     called_rpcs = set(re.findall(r"callRpc\('([a-zA-Z_]+)'", provider_src))
     check("2 (READ-ONLY PROOF): every RPC name the provider calls is in the reconciled read-only allowlist", called_rpcs and called_rpcs.issubset(allowed_rpcs))
-    check("3 (READ-ONLY PROOF): the provider calls all 3 allowlisted RPCs (no missing capability)", called_rpcs == allowed_rpcs)
+    check("3 (READ-ONLY PROOF): the provider calls all 5 allowlisted RPCs (no missing capability)", called_rpcs == allowed_rpcs)
 
     with sync_playwright() as p:
         browser = p.chromium.launch()

@@ -1,10 +1,11 @@
 /* PORTAL-NEXT V2 -- Painel Master / Histórico de Competências REAL data
-   provider (Painel Master Phase PM-5H).
+   provider (Painel Master Phase PM-5H, extended by PM-6B for Exportar
+   RH/DP's supplementary read-only data sources).
 
    THIN transport boundary, same shape as every sibling Painel Master
-   provider. THIS PROVIDER IS STRICTLY READ-ONLY -- it exposes exactly
-   3 functions, all of them reads (or a server-side fail-closed guard
-   that itself never writes), and calls exactly 3 real RPCs:
+   provider. THIS PROVIDER IS STRICTLY READ-ONLY -- every function here is
+   a read (or a server-side fail-closed guard that itself never writes),
+   and it calls exactly 5 real RPCs:
 
      - master_commission_closings() -- lists every fechamentos_comissao
        row (all periods, all versions, both FECHADO and REABERTO).
@@ -14,7 +15,31 @@
        above, but FAILS CLOSED (real 22023 error, never a silent empty
        result) when the snapshot is structurally inconsistent (all
        rows comissao=0 AND detalhes IS NULL, or zero rows) -- used
-       ONLY for the official Export action, never for the viewer.
+       ONLY for the official Export/RH-DP/Print actions, never for the
+       viewer.
+     - master_operational_spf_audit_period(p_start,p_end) -- MASTER-only,
+       SECURITY DEFINER, search_path pinned (body read verbatim,
+       PM-5J/PM-6B, from supabase/migrations/20260821200000_incidente_
+       fechamento10_snapshot_e_spf_audit.sql) -- chassis ALWAYS masked
+       (last6) server-side, no client identity/CPF in its return shape.
+       PM-6B: powers Exportar RH/DP's 7_AUDITORIA_SPF sheet, using the
+       CLOSING's own frozen data_inicio/data_fim (never the currently-
+       open período), verbatim port of buscarAuditoriaSpfParaFechamento.
+     - operational_salary_details(p_start,p_end,p_seller_id) -- SECURITY
+       DEFINER, search_path pinned, scoped via operational_current_
+       scope() (v_is_master bypasses ALL store/department restriction --
+       body read verbatim, PM-6B, latest definition supabase/migrations/
+       20260901120000_incidente_salary_details_spf_batch_scope.sql).
+       Returns chassis_masked (never raw chassis), no CPF field at all.
+       PM-6B: powers Exportar RH/DP's 5_CHASSIS_FINANCIADOS/6_TODOS_
+       CHASSIS_VENDEDOR sheets -- this data was NEVER stored in the
+       frozen snapshot (Incidente Excel-RH-DP-3.0, V1), so it is
+       reconstructed live for the closing's own period and reconciled
+       fail-closed against the frozen snapshot's per-VENDEDOR vendidas/
+       financiadas totals (NX_MASTER_COMPETENCE_RHDP_EXPORT_ENGINE.
+       reconcileChassisDetail) before ever being presented -- a single
+       mismatch blocks the WHOLE export, verbatim port of
+       buscarDetalheOperacionalParaFechamento's own fail-closed check.
 
    Contract for these 3 functions was reconstructed in PM-5G/PM-5H from
    real, git-tracked SQL (master_commission_snapshot_export's full body
@@ -144,9 +169,40 @@
     });
   }
 
+  // PM-6B: MASTER-only, chassis always masked server-side, no client
+  // identity/CPF returned. Uses the CLOSING's own frozen data_inicio/
+  // data_fim (caller's responsibility, mirrors V1's fechamento.data_
+  // inicio/data_fim -- never the currently-open período).
+  function loadSpfAudit(start, end, params) {
+    params = params || {};
+    return callRpc('master_operational_spf_audit_period', { p_start: start, p_end: end }, params.signal).then(function (data) {
+      if (!data || !Array.isArray(data.rows)) {
+        return Promise.reject({ state: 'MALFORMED_RESPONSE', message: 'Resposta inesperada do servidor.' });
+      }
+      return data.rows;
+    });
+  }
+
+  // PM-6B: live operational detail (never stored in the frozen
+  // snapshot) -- p_seller_id always null (matches V1: full MASTER scope,
+  // never a single-seller filter). Caller MUST reconcile the result
+  // against the closing's own snapshot before treating it as trustworthy
+  // (NX_MASTER_COMPETENCE_RHDP_EXPORT_ENGINE.reconcileChassisDetail).
+  function loadOperationalSalaryDetails(start, end, params) {
+    params = params || {};
+    return callRpc('operational_salary_details', { p_start: start, p_end: end, p_seller_id: null }, params.signal).then(function (data) {
+      if (!data || !Array.isArray(data.rows)) {
+        return Promise.reject({ state: 'MALFORMED_RESPONSE', message: 'Resposta inesperada do servidor.' });
+      }
+      return data.rows;
+    });
+  }
+
   window.NX_MASTER_COMPETENCE_HISTORY_PROVIDER = {
     listClosings: listClosings,
     getSnapshot: getSnapshot,
-    exportSnapshot: exportSnapshot
+    exportSnapshot: exportSnapshot,
+    loadSpfAudit: loadSpfAudit,
+    loadOperationalSalaryDetails: loadOperationalSalaryDetails
   };
 })();

@@ -168,6 +168,58 @@
     });
   }
 
+  // PM-6B: normalized row shape the RH/DP export engine consumes (pure
+  // reshape, no calculation) -- same fields as xlsxRows plus the raw
+  // loja/departamento/perfil/nome used for per-profile sheet filtering.
+  function normalizeSnapshotRow(r) {
+    var t = commissionTotals(r);
+    return {
+      loja: r.loja || '', perfil: r.perfil || '', nome: r.nome || '', departamento: r.departamento || '',
+      vendidas: Number(r.vendidas) || 0, financiadas: Number(r.financiadas) || 0, share: Number(r.share) || 0,
+      producao: round2(r.producao), retorno: round2(r.retorno), spf_extra: round2(r.spf_extra),
+      spf_liquido: round2(r.spf_liquido), rentabilidade_total: round2(r.rentabilidade_total), faixa: Number(r.faixa) || 0,
+      comissao_principal: t.principal, comissao_spf: t.spf, comissao_total: t.total
+    };
+  }
+
+  // Plain arithmetic SUM of already-persisted snapshot fields -- same
+  // no-formula discipline as the rest of this file (Gate 12/34, PM-6B:
+  // "NÃO recalcular comissão a partir de live data"). Verbatim port of
+  // V1's aggregateSnapshot (portal-app.js:5165-5172).
+  function aggregateSnapshotRows(rows) {
+    return (rows || []).reduce(function (a, r) {
+      a.vendidas += Number(r.vendidas) || 0; a.financiadas += Number(r.financiadas) || 0;
+      a.comissao_total += (r.comissao_total != null ? Number(r.comissao_total) : commissionTotals(r).total) || 0;
+      return a;
+    }, { vendidas: 0, financiadas: 0, comissao_total: 0 });
+  }
+
+  // PM-6B: PDF/Imprimir. Pure HTML string builder -- verbatim structural
+  // port of V1's imprimirSnapshotPDF (portal-app.js:5680-5691): a
+  // printable document (title, 4 summary cards, 1 table) meant to be
+  // opened in a new window/tab and printed/saved-as-PDF via the
+  // browser's own print dialog (window.print()) -- V1 never generates a
+  // binary PDF server- or client-side, and this deliberately doesn't
+  // either (Gate 19 of this Phase's own brief). No CPF here, same as
+  // V1 (imprimirSnapshotPDF's own row template never included it).
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function buildPrintHtml(title, rows) {
+    var agg = aggregateSnapshotRows(rows);
+    var rowsHtml = (rows || []).map(function (r) {
+      return '<tr><td>' + escapeHtml(r.loja) + '</td><td>' + escapeHtml(r.perfil) + '</td><td>' + escapeHtml(r.nome) + '</td><td>' + escapeHtml(r.departamento) + '</td><td>' + escapeHtml(r.vendidas) + '</td><td>' + escapeHtml(r.financiadas) + '</td><td>' + escapeHtml(fmtMoney(r.rentabilidade_total)) + '</td><td>' + escapeHtml(fmtMoney(r.comissao_total)) + '</td></tr>';
+    }).join('');
+    var safeTitle = escapeHtml(title || 'Relatório de Comissões RH/DP');
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + safeTitle + '</title>' +
+      '<style>body{font-family:Arial;margin:24px;color:#111}h1{margin-bottom:4px}.muted{color:#666}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}.card{border:1px solid #ddd;border-radius:10px;padding:10px}.k{font-size:11px;color:#666;text-transform:uppercase}.v{font-size:20px;font-weight:700}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#7b111b;color:#fff}th,td{border:1px solid #ddd;padding:6px;text-align:left}@media print{button{display:none}}</style>' +
+      '</head><body><button onclick="window.print()">Imprimir / salvar PDF</button><h1>' + safeTitle + '</h1><div class="muted">Valores originados do snapshot congelado. Sem recálculo.</div>' +
+      '<div class="cards"><div class="card"><div class="k">Linhas</div><div class="v">' + (rows || []).length + '</div></div><div class="card"><div class="k">Vendidas</div><div class="v">' + agg.vendidas + '</div></div><div class="card"><div class="k">Financiadas</div><div class="v">' + agg.financiadas + '</div></div><div class="card"><div class="k">Comissão</div><div class="v">' + escapeHtml(fmtMoney(agg.comissao_total)) + '</div></div></div>' +
+      '<table><thead><tr><th>Loja</th><th>Perfil</th><th>Nome</th><th>Status</th><th>Vend.</th><th>Fin.</th><th>Rentab.</th><th>Comissão</th></tr></thead><tbody>' + rowsHtml + '</tbody></table></body></html>';
+  }
+
   window.NX_MASTER_COMPETENCE_HISTORY_VM = {
     fmtDateBR: fmtDateBR,
     fmtDateTimeBR: fmtDateTimeBR,
@@ -179,6 +231,9 @@
     statusLabel: statusLabel,
     sortClosings: sortClosings,
     sortSnapshotRows: sortSnapshotRows,
-    xlsxRows: xlsxRows
+    xlsxRows: xlsxRows,
+    normalizeSnapshotRow: normalizeSnapshotRow,
+    aggregateSnapshotRows: aggregateSnapshotRows,
+    buildPrintHtml: buildPrintHtml
   };
 })();
