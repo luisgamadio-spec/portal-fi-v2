@@ -16,18 +16,28 @@ rule, reopening still requires a Design System Change Proposal + new
 Human approval; this document is that proposal, and `migrationStatus`
 is moved to `UAT_PENDING` alongside it (see "Registry" below).
 
-## Status (updated 2026-09-07)
+## Status (updated 2026-09-07, post-UAT)
 
-- **Implementation:** COMPLETE.
+- **Implementation:** COMPLETE — commit `b6affbb`
+  ("fix(v2): preserve local dates in Score presets").
 - **Technical validation:** PASS — `SCORE_LOCAL_CALENDAR_FIX_TECH_READY_HUMAN_UAT_PENDING`
   (RED proven empirically before the fix, GREEN after; full existing
   Score regression suite reconfirmed green; see "Tests" below).
-- **Human UAT:** PENDING. Not yet requested/performed. Refreeze criteria
-  below.
-- **Refreeze:** NOT YET AUTHORIZED. `config/module-registry.json`'s
-  `score` entry stays `UAT_PENDING` until the Human explicitly confirms
-  the local build (see "Human UAT required" below); this technical wave
-  does not self-promote back to `HUMAN_APPROVED`.
+- **Human UAT:** APPROVED. Human statement, verbatim: **"Score validado"**
+  — given after testing the V2 localhost build's Score period-preset
+  buttons (Mês atual/Mês anterior/Últimos 6 meses/Último ano) on commit
+  `b6affbb`. Classification: `SCORE_LOCAL_CALENDAR_FIX_HUMAN_APPROVED_LOCAL`
+  (date: 2026-09-07). This approval covers ONLY the local-calendar date
+  preset correction — no Score formula, drill-down, backend contract, or
+  authorization change is authorized by it; `SCORE_DRILLDOWN_ALREADY_
+  CLOSED` (the immediately preceding, unrelated wave's own finding)
+  remains untouched and unreopened.
+- **Refreeze:** AUTHORIZED / COMPLETE. `config/module-registry.json`'s
+  `score` entry is restored to `migrationStatus: HUMAN_APPROVED`
+  (chronology preserved in that entry's own `humanApprovalNote`, not
+  overwritten). The module is FROZEN again as of this status — any
+  future functional change again requires a new Design System Change
+  Proposal + new Human approval.
 
 ## No Design System change
 
@@ -169,7 +179,7 @@ Rollback means reverting this change's V2 commit (`git revert`), not
 reintroducing `.toISOString()` for calendar-date serialization anywhere
 in `score.js`.
 
-## Human UAT required
+## Human UAT required (historical — since satisfied, see Status above)
 
 Refreeze criteria: the Human opens the V2 localhost build, exercises
 all 4 quick-period buttons ("Mês atual", "Mês anterior", "Últimos 6
@@ -179,3 +189,11 @@ provided in the wave's own final report, since they depend on the real
 date UAT is performed on) — plus confirms no other visual/behavioral
 change is present. Only after that confirmation may a separate, narrow
 registry action restore `migrationStatus: HUMAN_APPROVED`.
+
+**This criteria was met.** The Human tested the V2 localhost build on
+commit `b6affbb` and responded **"Score validado."** The registry's
+`score` entry was restored to `HUMAN_APPROVED`/FROZEN on this basis (see
+the "Status" section at the top of this document, and
+`config/module-registry.json`'s own `humanApprovalNote` chronology,
+which preserves every step from the original Score approvals through
+this refreeze without erasing any of it).
