@@ -36,8 +36,14 @@ def main():
         "coparticipado": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
         "gestao": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
         "dashbi": {"UAT_PENDING", "VISUAL_PARITY_PENDING", "PARITY_PENDING", "IN_PROGRESS", "HUMAN_APPROVED"},
-        "simulador-novos": {"NOT_MIGRATED", "IN_PROGRESS", "VISUAL_PARITY_PENDING", "UAT_PENDING"},
-        "simulador-seminovos": {"NOT_MIGRATED", "IN_PROGRESS", "VISUAL_PARITY_PENDING", "UAT_PENDING"},
+        # PM-6A.2 (2026-09-07): both simulators were already HUMAN_APPROVED
+        # in the registry and in docs/MIGRATION-STATUS.md (PORTAL-NEXT-08.5,
+        # Gate 1/2 — human approval "Fechamos os simuladores.", see
+        # docs/SIMULATOR-HUMAN-UAT-CLOSURE-08-5.md) before this fix; this
+        # allowlist had simply never been updated to accept that status.
+        # No new human decision is recorded by this change.
+        "simulador-novos": {"NOT_MIGRATED", "IN_PROGRESS", "VISUAL_PARITY_PENDING", "UAT_PENDING", "HUMAN_APPROVED"},
+        "simulador-seminovos": {"NOT_MIGRATED", "IN_PROGRESS", "VISUAL_PARITY_PENDING", "UAT_PENDING", "HUMAN_APPROVED"},
         # IA-V2-1: fixture-driven module shell + adapter landed, 0 real
         # backend/auth yet — IN_PROGRESS, not UAT_PENDING (that status is
         # reserved for a module whose real functional behavior is ready
