@@ -59,11 +59,21 @@
   }
 
   // Pure re-derivation of calc() — same math, no DOM.
+  //
+  // V2_SIMULADOR_NOVOS_GOVERNED_AUTHORITY_MIGRATION (additive only — no
+  // change to PRAZOS/TX_COEF/MODELS/the formula itself): params.modelOverride
+  // and params.coefLookup let a caller inject a model object / coefficient
+  // resolver built from governed authority (simulador_get_coparticipado's
+  // matriz_modelos + tx_coef) instead of this file's own internal hardcoded
+  // MODELS/TX_COEF. When omitted, behavior is byte-identical to before —
+  // existing callers (Seminovos has none; tests/simulador-campanha-parity-
+  // test.py) are unaffected.
   function calcularCampanha(params) {
     const modelName = params.model;
     const sale = params.saleValue;
     const entry = params.entryValue;
-    const m = findModel(modelName);
+    const m = params.modelOverride || findModel(modelName);
+    const resolveCoef = params.coefLookup || coefFor;
 
     const entryPct = sale > 0 ? entry / sale : 0;
     const minValue = sale * m.entry;
@@ -73,7 +83,7 @@
 
     const terms = PRAZOS.map(p => {
       const rate = m.rates[p];
-      const coef = coefFor(p, rate);
+      const coef = resolveCoef(p, rate);
       const acrescimo = p <= 24 ? 0.0411 : 0.0622;
       const payment = (valid && coef) ? ((financed * (1 + acrescimo)) * coef) : null;
       return {prazo: p, rate, payment};

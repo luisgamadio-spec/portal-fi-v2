@@ -12,6 +12,92 @@
   var N = window.NX_SIMULADOR_NOVOS_ADAPTER;
   var CAMP = window.NX_CAMPANHA_ADAPTER;
   var CC = window.NX_CASH_CONVERSION_ADAPTER;
+  var GOVERNED = window.NX_COPARTICIPADO_GOVERNED_RATES_PROVIDER;
+
+  /* ---------- V2_SIMULADOR_NOVOS_GOVERNED_AUTHORITY_MIGRATION ----------
+     "Plano Coparticipado" (mode 'campanha') financial authority (model
+     rebate/hpe/brabus/entrada + per-term taxa + taxa->coeficiente) now
+     comes from the governed, actively-maintained batch returned by
+     simulador_get_coparticipado() -- the SAME real RPC/provider
+     (coparticipado-governed-rates-provider.js) V2 Coparticipado's own
+     Human-approved module already calls; calling it a second time here
+     is a plain, stateless, side-effect-free read and does not affect
+     Coparticipado's own behavior. financiamento-campanha.adapter.js's
+     internal hardcoded MODELS/TX_COEF are NEVER used as authority for a
+     real calculation any more -- calcCampanha() below always injects
+     campAuthority via modelOverride/coefLookup, and the Calcular button
+     only exists once campState === 'READY' (see formHtml/wireForm
+     'campanha' branch), so there is no code path back to the stale
+     embedded data. On any failure the mode fails closed (Portuguese
+     message, no silent fallback) with a Retry action. Loaded once per
+     page session (lazy, on first entry into 'campanha') and cached in
+     campAuthority for the rest of the session -- not re-fetched per
+     model/term, not polled. Simulador Seminovos never references
+     NX_CAMPANHA_ADAPTER/'campanha' at all (verified: zero occurrences in
+     simulador-seminovos.js), so this migration has zero Seminovos blast
+     radius. */
+  var campState = 'IDLE'; // IDLE | LOADING | READY | ERROR
+  var campAuthority = null; // {modelsByName, modelNames, coefLookup}
+  var campLoadPromise = null;
+  var CAMP_FAIL_MSG = 'Não foi possível carregar as condições vigentes do simulador. Tente novamente.';
+
+  function buildCampAuthority(body) {
+    var mm = (body && body.linhas && body.linhas.matriz_modelos) || [];
+    var tc = (body && body.linhas && body.linhas.tx_coef) || [];
+    if (!mm.length || !tc.length) return null;
+    var modelsByName = {};
+    mm.forEach(function (r) {
+      var m = modelsByName[r.modelo];
+      if (!m) {
+        m = modelsByName[r.modelo] = {
+          name: r.modelo, entry: r.entrada_minima, rebate: r.rebate_total,
+          hpe: r.rebate_hpe, brabus: r.rebate_brabus, rates: {}
+        };
+      }
+      m.rates[r.prazo] = r.taxa;
+    });
+    var modelNames = Object.keys(modelsByName).sort();
+    if (!modelNames.length) return null;
+    var coefByPrazo = {};
+    tc.forEach(function (r) {
+      (coefByPrazo[r.prazo] = coefByPrazo[r.prazo] || []).push({ taxa: r.taxa, coeficiente: r.coeficiente });
+    });
+    // Epsilon-tolerant scan, not object-key string equality (Gate 21:
+    // governed taxa values must not be assumed serialization-stable).
+    function coefLookup(prazo, taxa) {
+      var list = coefByPrazo[prazo];
+      if (!list || taxa == null) return null;
+      for (var i = 0; i < list.length; i++) {
+        if (Math.abs(list[i].taxa - taxa) < 0.0000001) return list[i].coeficiente;
+      }
+      return null;
+    }
+    return { modelsByName: modelsByName, modelNames: modelNames, coefLookup: coefLookup };
+  }
+
+  function refreshCampArea() {
+    if (currentMode === 'campanha') renderModeArea();
+  }
+
+  function ensureCampAuthority() {
+    if (campState === 'READY' && campAuthority) return Promise.resolve(campAuthority);
+    if (campLoadPromise) return campLoadPromise;
+    campState = 'LOADING';
+    campLoadPromise = GOVERNED.loadGovernedCoparticipadoRates({}).then(function (body) {
+      var authority = buildCampAuthority(body);
+      if (!authority) return Promise.reject({ state: 'BACKEND_ERROR', message: 'Base governada retornou sem modelos/coeficientes.' });
+      campAuthority = authority;
+      campState = 'READY';
+      return authority;
+    }).catch(function (err) {
+      campAuthority = null;
+      campState = 'ERROR';
+      return Promise.reject(err);
+    }).finally(function () {
+      campLoadPromise = null;
+    });
+    return campLoadPromise;
+  }
 
   var MODES = [
     { id: 'tradicional', group: 'Financiamento', label: 'Tradicional (Balão)' },
@@ -204,7 +290,18 @@
         return UI.moneyField('nBem', 'Valor do bem', 'R$ 100.000,00') +
           UI.moneyField('nEntrada', 'Entrada', 'R$ 20.000,00', 'Recalcula automaticamente, sem botão Calcular (comportamento original).');
       case 'campanha':
-        return UI.selectField('nModelo', 'Modelo', CAMP._internal.MODELS.map(function (m) { return { value: m.name, label: m.name }; }), 'ECLIPSE CROSS HPE-S S-AWC') +
+        // Governed-authority gated: no form/Calcular exists unless
+        // campState === 'READY' -- see the module-level comment above
+        // ensureCampAuthority(). Model options come exclusively from the
+        // governed campAuthority.modelNames, never from CAMP._internal.MODELS.
+        if (campState === 'ERROR') {
+          return UI.errorBlock(CAMP_FAIL_MSG) +
+            '<button type="button" class="btn btn-secondary" id="nCampRetry" style="width:100%;margin-top:6px">Tentar novamente</button>';
+        }
+        if (campState !== 'READY' || !campAuthority) {
+          return UI.emptyBlock('Carregando condições vigentes do simulador...');
+        }
+        return UI.selectField('nModelo', 'Modelo', campAuthority.modelNames.map(function (name) { return { value: name, label: name }; }), campAuthority.modelNames[0]) +
           UI.moneyField('nSale', 'Valor de venda', 'R$ 200.000,00') +
           UI.moneyField('nEntry', 'Entrada', 'R$ 120.000,00') +
           '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>';
@@ -290,7 +387,14 @@
       UI.wireMoneyMask('nEntrada', calcLinear);
       calcLinear();
     } else if (mode === 'campanha') {
-      document.getElementById('nCalc').addEventListener('click', calcCampanha);
+      if (campState === 'ERROR') {
+        var retryBtn = document.getElementById('nCampRetry');
+        if (retryBtn) retryBtn.addEventListener('click', function () { ensureCampAuthority().then(refreshCampArea, refreshCampArea); });
+      } else if (campState !== 'READY') {
+        ensureCampAuthority().then(refreshCampArea, refreshCampArea);
+      } else {
+        document.getElementById('nCalc').addEventListener('click', calcCampanha);
+      }
     } else if (mode === 'subsidiadas') {
       document.getElementById('nCalc').addEventListener('click', calcSubsidiadas);
     } else if (mode === 'triton') {
@@ -426,7 +530,18 @@
     setResult('<p class="kpiLabel" style="margin-bottom:12px">Parcela por prazo — faixa de entrada ' + UI.pct1(r.faixa) + '</p>' + html);
   }
   function calcCampanha() {
-    var r = CAMP.compute({ model: UI.textVal('nModelo'), saleValue: UI.moneyVal('nSale'), entryValue: UI.moneyVal('nEntry') });
+    // Governed authority only -- never falls back to CAMP's internal
+    // hardcoded MODELS/TX_COEF (see module-level comment above
+    // ensureCampAuthority()). This button does not exist unless
+    // campState === 'READY', but the guard is kept explicit here too.
+    if (!campAuthority) { setResult(UI.errorBlock(CAMP_FAIL_MSG)); return; }
+    var modelName = UI.textVal('nModelo');
+    var governedModel = campAuthority.modelsByName[modelName];
+    if (!governedModel) { setResult(UI.errorBlock('Modelo não encontrado na base vigente do simulador.')); return; }
+    var r = CAMP.compute({
+      model: modelName, saleValue: UI.moneyVal('nSale'), entryValue: UI.moneyVal('nEntry'),
+      modelOverride: governedModel, coefLookup: campAuthority.coefLookup
+    });
     if (!r.valid) { setResult(UI.errorBlock('A entrada informada é menor que o mínimo exigido para este modelo (' + UI.pct1(r.minValue / (r.sale || 1)) + ' do valor de venda).')); return; }
     // PORTAL-NEXT-08.3 Change 4 (Gate 14/15): hierarchy reordered --
     // parcela-per-prazo is supporting context first, then Rebate
@@ -554,6 +669,12 @@
     // already used for window.NX_SCORE_PAGE.classifyScoreBand.
     balloonScheduleSummary: balloonScheduleSummary,
     balancedColumns: balancedColumns,
+    // Exposed read-only for tests/simulador-novos-governed-authority-
+    // test.py (V2_SIMULADOR_NOVOS_GOVERNED_AUTHORITY_MIGRATION) --
+    // deterministic coverage/state verification without duplicating the
+    // normalization logic in the test itself.
+    getCampState: function () { return campState; },
+    getCampAuthorityForTest: function () { return campAuthority; },
     render: function (outlet) {
       currentMode = MODES[0].id;
       balloons = [];

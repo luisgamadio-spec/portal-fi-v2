@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- Test-only harness to load the full Simulador Novos page/adapter
+     surface in isolation, for the V2_SIMULADOR_NOVOS_GOVERNED_AUTHORITY_
+     MIGRATION automated tests. Not part of the product shell. window.NX_AUTH
+     / window.NX_INTELLIGENCE_CONFIG are supplied by the test itself via
+     add_init_script, mirroring how simulador-novos.js reads them at call
+     time through coparticipado-governed-rates-provider.js -- same
+     pattern/reasoning as tests/_coparticipado-real-provider-harness.html.
+     Script order mirrors index.html's own order for these files exactly. -->
+<html><head><meta charset="utf-8"></head>
+<body>
+<div id="smOutlet"></div>
+<script src="../assets/js/adapters/simulador-shared.adapter.js"></script>
+<script src="../assets/js/adapters/simulador-novos.adapter.js"></script>
+<script src="../assets/js/adapters/coparticipado-governed-rates-provider.js"></script>
+<script src="../assets/js/adapters/financiamento-campanha.adapter.js"></script>
+<script src="../assets/js/adapters/cash-conversion.adapter.js"></script>
+<script src="../assets/js/simuladores-shared.js"></script>
+<script src="../assets/js/simulador-novos.js"></script>
+</body></html>

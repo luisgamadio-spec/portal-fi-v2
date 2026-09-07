@@ -1,0 +1,1043 @@
+{
+  "_comment": "CONTRACT REGRESSION FIXTURE -- NOT a runtime authority. Frozen read-only snapshot of simulador_get_coparticipado's real ACTIVE response (matriz_modelos batch c4ec1f49-eeb2-49f9-88af-36e263c59894 + tx_coef batch 150bf52c-dbd9-41bc-a43e-2bb7bacbbbbb), captured 2026-09-07 during the V2_SIMULADOR_NOVOS_GOVERNED_AUTHORITY_MIGRATION wave (see docs/CHANGE-PROPOSAL-SIMULADOR-NOVOS-GOVERNED-AUTHORITY.md). Used ONLY to prove RED (stale local authority) then GREEN (governed authority) in deterministic Playwright tests routed at the network layer. The real V2 runtime always calls the live RPC through coparticipado-governed-rates-provider.js -- this file is never fetched or read by product code.",
+  "ok": true,
+  "batch_id": "c4ec1f49-eeb2-49f9-88af-36e263c59894",
+  "coef_batch_id": "150bf52c-dbd9-41bc-a43e-2bb7bacbbbbb",
+  "arquivo_nome": "taxa coparticipado.xlsx",
+  "linhas": {
+    "matriz_modelos": [
+      {
+        "modelo": "ECLIPSE CROSS HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.15278626590366132,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.15278626590366132,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.15278626590366132,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 24,
+        "taxa": 0.0019
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.15278626590366132,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 36,
+        "taxa": 0.0059
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.15278626590366132,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 48,
+        "taxa": 0.0069
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.15278626590366132,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 60,
+        "taxa": 0.0089
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.13095861707700368,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.13095861707700368,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 18,
+        "taxa": 0.0019
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.13095861707700368,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 24,
+        "taxa": 0.0039
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.13095861707700368,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 36,
+        "taxa": 0.0079
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.13095861707700368,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 48,
+        "taxa": 0.0089
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.13095861707700368,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 60,
+        "taxa": 0.0099
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17046229374062458,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17046229374062458,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17046229374062458,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 24,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17046229374062458,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 36,
+        "taxa": 0.0049
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17046229374062458,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 48,
+        "taxa": 0.0069
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17046229374062458,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 60,
+        "taxa": 0.0079
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC BLACK",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1666740744033068,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC BLACK",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1666740744033068,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC BLACK",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1666740744033068,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 24,
+        "taxa": 0.0019
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC BLACK",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1666740744033068,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 36,
+        "taxa": 0.0059
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC BLACK",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1666740744033068,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 48,
+        "taxa": 0.0069
+      },
+      {
+        "modelo": "ECLIPSE CROSS HPE-S S-AWC BLACK",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1666740744033068,
+        "rebate_hpe": 0.6333333333333333,
+        "rebate_brabus": 0.36666666666666664,
+        "prazo": 60,
+        "taxa": 0.0079
+      },
+      {
+        "modelo": "ECLIPSE CROSS RUSH",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.0801333418808898,
+        "rebate_hpe": 0.3,
+        "rebate_brabus": 0.7,
+        "prazo": 12,
+        "taxa": 0.0039
+      },
+      {
+        "modelo": "ECLIPSE CROSS RUSH",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.0801333418808898,
+        "rebate_hpe": 0.3,
+        "rebate_brabus": 0.7,
+        "prazo": 18,
+        "taxa": 0.0079
+      },
+      {
+        "modelo": "ECLIPSE CROSS RUSH",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.0801333418808898,
+        "rebate_hpe": 0.3,
+        "rebate_brabus": 0.7,
+        "prazo": 24,
+        "taxa": 0.0089
+      },
+      {
+        "modelo": "ECLIPSE CROSS RUSH",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.0801333418808898,
+        "rebate_hpe": 0.3,
+        "rebate_brabus": 0.7,
+        "prazo": 36,
+        "taxa": 0.0109
+      },
+      {
+        "modelo": "ECLIPSE CROSS RUSH",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.0801333418808898,
+        "rebate_hpe": 0.3,
+        "rebate_brabus": 0.7,
+        "prazo": 48,
+        "taxa": 0.0109
+      },
+      {
+        "modelo": "ECLIPSE CROSS RUSH",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.0801333418808898,
+        "rebate_hpe": 0.3,
+        "rebate_brabus": 0.7,
+        "prazo": 60,
+        "taxa": 0.0119
+      },
+      {
+        "modelo": "ECLIPSE CROSS TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.14865668414508892,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "ECLIPSE CROSS TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.14865668414508892,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "ECLIPSE CROSS TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.14865668414508892,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 24,
+        "taxa": 0.0019
+      },
+      {
+        "modelo": "ECLIPSE CROSS TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.14865668414508892,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 36,
+        "taxa": 0.0069
+      },
+      {
+        "modelo": "ECLIPSE CROSS TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.14865668414508892,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 48,
+        "taxa": 0.0079
+      },
+      {
+        "modelo": "ECLIPSE CROSS TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.14865668414508892,
+        "rebate_hpe": 0.6363636363636364,
+        "rebate_brabus": 0.36363636363636365,
+        "prazo": 60,
+        "taxa": 0.0089
+      },
+      {
+        "modelo": "OUTLANDER HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.19231360964952768,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "OUTLANDER HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.19231360964952768,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "OUTLANDER HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.19231360964952768,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 24,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "OUTLANDER HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.19231360964952768,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 36,
+        "taxa": 0.0039
+      },
+      {
+        "modelo": "OUTLANDER HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.19231360964952768,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 48,
+        "taxa": 0.0049
+      },
+      {
+        "modelo": "OUTLANDER HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.19231360964952768,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 60,
+        "taxa": 0.0069
+      },
+      {
+        "modelo": "OUTLANDER SIGNATURE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17123756815255212,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "OUTLANDER SIGNATURE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17123756815255212,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "OUTLANDER SIGNATURE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17123756815255212,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 24,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "OUTLANDER SIGNATURE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17123756815255212,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 36,
+        "taxa": 0.0049
+      },
+      {
+        "modelo": "OUTLANDER SIGNATURE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17123756815255212,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 48,
+        "taxa": 0.0059
+      },
+      {
+        "modelo": "OUTLANDER SIGNATURE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.17123756815255212,
+        "rebate_hpe": 0.52,
+        "rebate_brabus": 0.48,
+        "prazo": 60,
+        "taxa": 0.0079
+      },
+      {
+        "modelo": "TRITON GLS AT",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1000040001600064,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 12,
+        "taxa": 0.0019
+      },
+      {
+        "modelo": "TRITON GLS AT",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1000040001600064,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 18,
+        "taxa": 0.0059
+      },
+      {
+        "modelo": "TRITON GLS AT",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1000040001600064,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 24,
+        "taxa": 0.0069
+      },
+      {
+        "modelo": "TRITON GLS AT",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1000040001600064,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 36,
+        "taxa": 0.0099
+      },
+      {
+        "modelo": "TRITON GLS AT",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1000040001600064,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 48,
+        "taxa": 0.0099
+      },
+      {
+        "modelo": "TRITON GLS AT",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.1000040001600064,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 60,
+        "taxa": 0.0109
+      },
+      {
+        "modelo": "TRITON HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834088191601144,
+        "rebate_hpe": 0.6521739130434783,
+        "rebate_brabus": 0.34782608695652173,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834088191601144,
+        "rebate_hpe": 0.6521739130434783,
+        "rebate_brabus": 0.34782608695652173,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834088191601144,
+        "rebate_hpe": 0.6521739130434783,
+        "rebate_brabus": 0.34782608695652173,
+        "prazo": 24,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834088191601144,
+        "rebate_hpe": 0.6521739130434783,
+        "rebate_brabus": 0.34782608695652173,
+        "prazo": 36,
+        "taxa": 0.0029
+      },
+      {
+        "modelo": "TRITON HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834088191601144,
+        "rebate_hpe": 0.6521739130434783,
+        "rebate_brabus": 0.34782608695652173,
+        "prazo": 48,
+        "taxa": 0.0049
+      },
+      {
+        "modelo": "TRITON HPE",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834088191601144,
+        "rebate_hpe": 0.6521739130434783,
+        "rebate_brabus": 0.34782608695652173,
+        "prazo": 60,
+        "taxa": 0.0059
+      },
+      {
+        "modelo": "TRITON HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834027800926697,
+        "rebate_hpe": 0.68,
+        "rebate_brabus": 0.32,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834027800926697,
+        "rebate_hpe": 0.68,
+        "rebate_brabus": 0.32,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834027800926697,
+        "rebate_hpe": 0.68,
+        "rebate_brabus": 0.32,
+        "prazo": 24,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834027800926697,
+        "rebate_hpe": 0.68,
+        "rebate_brabus": 0.32,
+        "prazo": 36,
+        "taxa": 0.0029
+      },
+      {
+        "modelo": "TRITON HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834027800926697,
+        "rebate_hpe": 0.68,
+        "rebate_brabus": 0.32,
+        "prazo": 48,
+        "taxa": 0.0049
+      },
+      {
+        "modelo": "TRITON HPE-S",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.20834027800926697,
+        "rebate_hpe": 0.68,
+        "rebate_brabus": 0.32,
+        "prazo": 60,
+        "taxa": 0.0059
+      },
+      {
+        "modelo": "TRITON KATANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2230837871934521,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON KATANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2230837871934521,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON KATANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2230837871934521,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 24,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON KATANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2230837871934521,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 36,
+        "taxa": 0.0019
+      },
+      {
+        "modelo": "TRITON KATANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2230837871934521,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 48,
+        "taxa": 0.0039
+      },
+      {
+        "modelo": "TRITON KATANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2230837871934521,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 60,
+        "taxa": 0.0059
+      },
+      {
+        "modelo": "TRITON SAVANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2164243708767426,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON SAVANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2164243708767426,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON SAVANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2164243708767426,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 24,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON SAVANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2164243708767426,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 36,
+        "taxa": 0.0019
+      },
+      {
+        "modelo": "TRITON SAVANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2164243708767426,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 48,
+        "taxa": 0.0039
+      },
+      {
+        "modelo": "TRITON SAVANA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.2164243708767426,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 60,
+        "taxa": 0.0059
+      },
+      {
+        "modelo": "TRITON TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.12000480019200768,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.12000480019200768,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 18,
+        "taxa": 0.0029
+      },
+      {
+        "modelo": "TRITON TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.12000480019200768,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 24,
+        "taxa": 0.0049
+      },
+      {
+        "modelo": "TRITON TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.12000480019200768,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 36,
+        "taxa": 0.0089
+      },
+      {
+        "modelo": "TRITON TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.12000480019200768,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 48,
+        "taxa": 0.0089
+      },
+      {
+        "modelo": "TRITON TARMAC",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.12000480019200768,
+        "rebate_hpe": 0.5,
+        "rebate_brabus": 0.5,
+        "prazo": 60,
+        "taxa": 0.0099
+      },
+      {
+        "modelo": "TRITON TERRA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.21015101887011217,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 12,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON TERRA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.21015101887011217,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 18,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON TERRA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.21015101887011217,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 24,
+        "taxa": 0.0
+      },
+      {
+        "modelo": "TRITON TERRA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.21015101887011217,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 36,
+        "taxa": 0.0029
+      },
+      {
+        "modelo": "TRITON TERRA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.21015101887011217,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 48,
+        "taxa": 0.0039
+      },
+      {
+        "modelo": "TRITON TERRA",
+        "entrada_minima": 0.6,
+        "rebate_total": 0.21015101887011217,
+        "rebate_hpe": 0.5862068965517241,
+        "rebate_brabus": 0.41379310344827586,
+        "prazo": 60,
+        "taxa": 0.0059
+      }
+    ],
+    "tx_coef": [
+      {
+        "prazo": 12,
+        "taxa": 0.0,
+        "coeficiente": 0.08783725
+      },
+      {
+        "prazo": 12,
+        "taxa": 0.0019,
+        "coeficiente": 0.08892075
+      },
+      {
+        "prazo": 12,
+        "taxa": 0.0039,
+        "coeficiente": 0.0934975
+      },
+      {
+        "prazo": 12,
+        "taxa": 0.0049,
+        "coeficiente": 0.090641
+      },
+      {
+        "prazo": 12,
+        "taxa": 0.0089,
+        "coeficiente": 0.09424025
+      },
+      {
+        "prazo": 18,
+        "taxa": 0.0,
+        "coeficiente": 0.05882875
+      },
+      {
+        "prazo": 18,
+        "taxa": 0.0019,
+        "coeficiente": 0.059891
+      },
+      {
+        "prazo": 18,
+        "taxa": 0.0029,
+        "coeficiente": 0.0627685
+      },
+      {
+        "prazo": 18,
+        "taxa": 0.0039,
+        "coeficiente": 0.061021
+      },
+      {
+        "prazo": 18,
+        "taxa": 0.0059,
+        "coeficiente": 0.0621635
+      },
+      {
+        "prazo": 18,
+        "taxa": 0.0079,
+        "coeficiente": 0.0657415
+      },
+      {
+        "prazo": 18,
+        "taxa": 0.0089,
+        "coeficiente": 0.0639005
+      },
+      {
+        "prazo": 24,
+        "taxa": 0.0,
+        "coeficiente": 0.044224
+      },
+      {
+        "prazo": 24,
+        "taxa": 0.0019,
+        "coeficiente": 0.045277
+      },
+      {
+        "prazo": 24,
+        "taxa": 0.0029,
+        "coeficiente": 0.04583725
+      },
+      {
+        "prazo": 24,
+        "taxa": 0.0039,
+        "coeficiente": 0.04640175
+      },
+      {
+        "prazo": 24,
+        "taxa": 0.0049,
+        "coeficiente": 0.04697025
+      },
+      {
+        "prazo": 24,
+        "taxa": 0.0069,
+        "coeficiente": 0.04811975
+      },
+      {
+        "prazo": 24,
+        "taxa": 0.0089,
+        "coeficiente": 0.049284
+      },
+      {
+        "prazo": 36,
+        "taxa": 0.0019,
+        "coeficiente": 0.03059675
+      },
+      {
+        "prazo": 36,
+        "taxa": 0.0029,
+        "coeficiente": 0.03115675
+      },
+      {
+        "prazo": 36,
+        "taxa": 0.0039,
+        "coeficiente": 0.03172325
+      },
+      {
+        "prazo": 36,
+        "taxa": 0.0049,
+        "coeficiente": 0.03229575
+      },
+      {
+        "prazo": 36,
+        "taxa": 0.0059,
+        "coeficiente": 0.03287425
+      },
+      {
+        "prazo": 36,
+        "taxa": 0.0069,
+        "coeficiente": 0.033459
+      },
+      {
+        "prazo": 36,
+        "taxa": 0.0079,
+        "coeficiente": 0.03404975
+      },
+      {
+        "prazo": 36,
+        "taxa": 0.0089,
+        "coeficiente": 0.034647
+      },
+      {
+        "prazo": 36,
+        "taxa": 0.0099,
+        "coeficiente": 0.03524925
+      },
+      {
+        "prazo": 36,
+        "taxa": 0.0109,
+        "coeficiente": 0.0358585
+      },
+      {
+        "prazo": 48,
+        "taxa": 0.0039,
+        "coeficiente": 0.0243665
+      },
+      {
+        "prazo": 48,
+        "taxa": 0.0049,
+        "coeficiente": 0.02494575
+      },
+      {
+        "prazo": 48,
+        "taxa": 0.0059,
+        "coeficiente": 0.02553325
+      },
+      {
+        "prazo": 48,
+        "taxa": 0.0069,
+        "coeficiente": 0.02612875
+      },
+      {
+        "prazo": 48,
+        "taxa": 0.0079,
+        "coeficiente": 0.0267325
+      },
+      {
+        "prazo": 48,
+        "taxa": 0.0089,
+        "coeficiente": 0.02734425
+      },
+      {
+        "prazo": 48,
+        "taxa": 0.0099,
+        "coeficiente": 0.027964
+      },
+      {
+        "prazo": 48,
+        "taxa": 0.0109,
+        "coeficiente": 0.028592
+      },
+      {
+        "prazo": 60,
+        "taxa": 0.0059,
+        "coeficiente": 0.021135
+      },
+      {
+        "prazo": 60,
+        "taxa": 0.0069,
+        "coeficiente": 0.0217425
+      },
+      {
+        "prazo": 60,
+        "taxa": 0.0079,
+        "coeficiente": 0.02236025
+      },
+      {
+        "prazo": 60,
+        "taxa": 0.0089,
+        "coeficiente": 0.022988
+      },
+      {
+        "prazo": 60,
+        "taxa": 0.0099,
+        "coeficiente": 0.02362575
+      },
+      {
+        "prazo": 60,
+        "taxa": 0.0109,
+        "coeficiente": 0.02427325
+      },
+      {
+        "prazo": 60,
+        "taxa": 0.0119,
+        "coeficiente": 0.0249315
+      }
+    ]
+  }
+}
