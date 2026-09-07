@@ -43,16 +43,26 @@ def main():
         # reserved for a module whose real functional behavior is ready
         # for human review, which fixture-only Intelligence is not).
         "brabus-intelligence": {"NOT_MIGRATED", "IN_PROGRESS"},
-        # Painel Master Phase 2A: Usuários subarea has real code, a real
-        # audited backend contract, and passing deterministic/real-
-        # read-only tests, but zero mutation has been executed and no
-        # human has approved it — same IN_PROGRESS precedent as
-        # Coparticipado/Gestão/Dashbi's own early real-data-integration
-        # phases, not a new status value. The 16 other admin tabs remain
-        # entirely unbuilt; see the registry entry's own "notes" field
-        # for the honest MIGRATED_SCOPE=USERS_ONLY detail this coarse
-        # enum can't carry on its own.
-        "shell-admin": {"NOT_MIGRATED", "IN_PROGRESS"},
+        # STALE THROUGH PHASE PM-6A.1 (2026-09-07), corrected: this
+        # comment previously said "The 16 other admin tabs remain
+        # entirely unbuilt" — no longer true. Phase PM-6A (audit) found
+        # all 13 required top-level Painel Master capabilities (17 real
+        # V1 tabs minus 4 excluded by product decision — Revisões
+        # Cadastrais/superseded, Relatórios RH/DP/absorbed into
+        # Histórico, Métrica Analista/no product utility, Futuras
+        # Funcionalidades/obsolete placeholder) implemented and
+        # TECH_READY. Phase PM-6A.1 reconciled the Human UAT ledger:
+        # 11/13 HUMAN_APPROVED_LOCAL, 2/13 MIXED (a real-production-event
+        # dimension still pending for Fechamento de Competência and
+        # Histórico de Competências — see docs/HUMAN-UAT-PAINEL-MASTER.md
+        # for the full matrix). migrationStatus promoted IN_PROGRESS ->
+        # UAT_PENDING on that basis — NOT HUMAN_APPROVED for the module
+        # as a whole, which still requires one explicit human decision
+        # covering all of Painel Master, not on record. UAT_PENDING kept
+        # in this allowlist alongside IN_PROGRESS (not narrowed to just
+        # the new value) so this guard continues to reject any future
+        # silent self-promotion straight to HUMAN_APPROVED (Gate 139).
+        "shell-admin": {"IN_PROGRESS", "UAT_PENDING"},
     }
 
     for m in modules:

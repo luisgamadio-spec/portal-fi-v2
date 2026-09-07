@@ -33,7 +33,7 @@ parity, never substitute for it (Skill's Human Approval Gate).
 | Module | Status | Wave |
 |---|---|---|
 | Landing | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-04, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6, see `docs/HUMAN-UAT-RESPONSIVE-REMEDIATION.md`) | 1 |
-| Portal Shell / MASTER Admin | NOT_MIGRATED | 0 |
+| Portal Shell / MASTER Admin ("Painel Master") | BUSINESS **UAT_PENDING** — 13/13 required top-level capabilities implemented and TECH_READY (Phase PM-6A, 2026-09-07); Human UAT ledger reconciled (Phase PM-6A.1, same day, see `docs/HUMAN-UAT-PAINEL-MASTER.md`): 11/13 **HUMAN_APPROVED_LOCAL**, 2/13 MIXED (Fechamento de Competência and Histórico de Competências each carry a real-production-event dimension still `HUMAN_PENDING_FIRST_REAL_EVENT` — expected, not a defect). This row was stale (`NOT_MIGRATED`) prior to PM-6A/PM-6A.1; corrected here, not elsewhere in this table. | 1 |
 | Score | BUSINESS **UAT_PENDING** (PORTAL-NEXT-04 — see `docs/HUMAN-UAT-SCORE.md`; **eligible for final closure** per PORTAL-NEXT-07.7C Gate 34, subject to human confirmation of `docs/SCORE-RECEITA-SPF-NONFINITE-07-7C.md` — not self-promoted) · RESPONSIVE **HUMAN_APPROVED/FROZEN** (granted PORTAL-NEXT-07.7B, reaffirmed PORTAL-NEXT-07.7C) · SCORE BAND BUSINESS RULE **HUMAN_APPROVED/FROZEN** (PORTAL-NEXT-07.7B, Option 1 from `docs/SCORE-BAND-DISCOVERY-07-7A.md`, reaffirmed PORTAL-NEXT-07.7C) · SCORE BAND VISUAL **HUMAN_APPROVED/FROZEN** (granted PORTAL-NEXT-07.7C, per human visual UAT of PORTAL-NEXT-07.7B) · RECEITA SPF NON-FINITE DEFECT **FIXED** (PORTAL-NEXT-07.7C — see `docs/SCORE-RECEITA-SPF-NONFINITE-07-7C.md`) | 2 |
 | Coparticipado | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-06, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 3 |
 | Gestão | BUSINESS **HUMAN_APPROVED** (PORTAL-NEXT-07, Gate 1) · RESPONSIVE **UAT_PENDING** (PORTAL-NEXT-07.6) | 4 |
@@ -1071,12 +1071,19 @@ the original text.
 the current authoritative registry, none implemented this Wave:
 
 ```
-shell-admin           Portal Shell / MASTER Admin Panel   risk HIGH
 salarios-comissoes    Salários / Comissões                risk MEDIUM
 brabus-intelligence   Brabus F&I Intelligence (AI+Voice)   risk HIGH — UNSCHEDULABLE
                                                             (3 named blockers open,
                                                             see its own registry notes)
 ```
+
+`shell-admin` (Portal Shell / MASTER Admin Panel, risk HIGH) is no longer
+`NOT_MIGRATED` as of Phase PM-6A (2026-09-07) — all 13 required top-level
+capabilities are implemented and TECH_READY; see the summary table above
+and `docs/HUMAN-UAT-PAINEL-MASTER.md` for the full Human UAT ledger. Moved
+out of this discovery-only list, corrected here per Phase PM-6A.1 Gate 31
+(objectively stale about Painel Master only — no other module's row in
+this section was touched).
 
 Also noted, not `NOT_MIGRATED` but not fully closed either: `score`
 remains `UAT_PENDING` for Business/Functional (open since
