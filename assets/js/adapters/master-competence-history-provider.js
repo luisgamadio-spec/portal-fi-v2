@@ -1,11 +1,14 @@
 /* PORTAL-NEXT V2 -- Painel Master / Histórico de Competências REAL data
    provider (Painel Master Phase PM-5H, extended by PM-6B for Exportar
-   RH/DP's supplementary read-only data sources).
+   RH/DP's supplementary read-only data sources, and by PM-6D.3 to
+   consume the frozen operational snapshot for closings whose
+   historical_detail_status='COMPLETE' -- see loadOperationalSnapshot's
+   own doc comment below).
 
    THIN transport boundary, same shape as every sibling Painel Master
    provider. THIS PROVIDER IS STRICTLY READ-ONLY -- every function here is
    a read (or a server-side fail-closed guard that itself never writes),
-   and it calls exactly 5 real RPCs:
+   and it calls exactly 6 real RPCs:
 
      - master_commission_closings() -- lists every fechamentos_comissao
        row (all periods, all versions, both FECHADO and REABERTO).
@@ -40,6 +43,17 @@
        reconcileChassisDetail) before ever being presented -- a single
        mismatch blocks the WHOLE export, verbatim port of
        buscarDetalheOperacionalParaFechamento's own fail-closed check.
+       PM-6D.3: this whole live+reconcile path now runs ONLY when
+       loadOperationalSnapshot's own completeness comes back
+       'LEGACY_PARTIAL' -- for 'COMPLETE' closings it is never called
+       at all (see the engine's splitFrozenOperationalRows).
+     - master_commission_operational_detail(p_closing_id) -- MASTER-only,
+       SECURITY DEFINER, search_path pinned (PM-6D.1, body confirmed
+       live). Reads EXCLUSIVELY the frozen snapshot_operational_detail
+       table (PM-6D.1/PM-6D.2) -- never a live source, never calls
+       operational_salary_details/master_operational_spf_audit_period
+       itself. PM-6D.3: the sole source of CHASSIS/SPF detail for any
+       closing whose historical_detail_status='COMPLETE'.
 
    Contract for these 3 functions was reconstructed in PM-5G/PM-5H from
    real, git-tracked SQL (master_commission_snapshot_export's full body
@@ -198,11 +212,29 @@
     });
   }
 
+  // PM-6D.3: MASTER-only, read-only, reads EXCLUSIVELY the frozen
+  // snapshot_operational_detail table (PM-6D.1/PM-6D.2) -- never a live
+  // source. Returns { completeness: 'COMPLETE'|'LEGACY_PARTIAL', rows }.
+  // completeness is derived server-side from fechamentos_comissao.
+  // historical_detail_status alone, NEVER from row count (a COMPLETE
+  // closing may legitimately have zero operational rows) -- this
+  // provider trusts that field verbatim and never re-derives it.
+  function loadOperationalSnapshot(closingId, params) {
+    params = params || {};
+    return callRpc('master_commission_operational_detail', { p_closing_id: closingId }, params.signal).then(function (data) {
+      if (!data || (data.completeness !== 'COMPLETE' && data.completeness !== 'LEGACY_PARTIAL') || !Array.isArray(data.rows)) {
+        return Promise.reject({ state: 'MALFORMED_RESPONSE', message: 'Resposta inesperada do servidor.' });
+      }
+      return data;
+    });
+  }
+
   window.NX_MASTER_COMPETENCE_HISTORY_PROVIDER = {
     listClosings: listClosings,
     getSnapshot: getSnapshot,
     exportSnapshot: exportSnapshot,
     loadSpfAudit: loadSpfAudit,
-    loadOperationalSalaryDetails: loadOperationalSalaryDetails
+    loadOperationalSalaryDetails: loadOperationalSalaryDetails,
+    loadOperationalSnapshot: loadOperationalSnapshot
   };
 })();

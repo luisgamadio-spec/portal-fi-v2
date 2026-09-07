@@ -4107,21 +4107,56 @@
     historyState.rhdpErrorByClosingId = newErrMap;
     renderPanel();
 
-    var normalizedRows, spfRows;
+    // PM-6D.3: COMPLETE closings read their CHASSIS/SPF detail
+    // exclusively from the frozen snapshot_operational_detail table
+    // (via loadOperationalSnapshot) -- operational_salary_details/
+    // master_operational_spf_audit_period/reconcileChassisDetail are
+    // NEVER called for them (Gate 3/25/29 of this Phase's own brief:
+    // "É PROIBIDO chamar... para gerar o RH/DP histórico. Mesmo que as
+    // bases atuais estejam disponíveis."). LEGACY_PARTIAL closings keep
+    // the EXACT prior behavior (live reconstruction + fail-closed
+    // reconciliation), byte-unchanged. If loadOperationalSnapshot
+    // itself fails for ANY reason (session/auth/network/malformed), the
+    // whole export blocks -- it is NEVER treated as an implicit
+    // LEGACY_PARTIAL (Gate 34: "Se não for possível determinar
+    // COMPLETE/LEGACY: BLOCK. Não assumir LEGACY.").
+    var normalizedRows, spfRows, chassisRows;
     HC_PROVIDER.exportSnapshot(closingId, {})
       .then(function (rawRows) {
         normalizedRows = rawRows.map(HC_VM.normalizeSnapshotRow);
-        return HC_PROVIDER.loadSpfAudit(closing.data_inicio, closing.data_fim, {});
+        return HC_PROVIDER.loadOperationalSnapshot(closingId, {});
       })
-      .then(function (rows) {
-        spfRows = rows;
-        return HC_PROVIDER.loadOperationalSalaryDetails(closing.data_inicio, closing.data_fim, {});
-      })
-      .then(function (chassisRows) {
-        var recon = RHDP_ENGINE.reconcileChassisDetail(chassisRows, normalizedRows);
-        if (!recon.ok) {
-          return Promise.reject({ state: 'RPC_ERROR', message: 'O detalhe operacional atual não corresponde ao snapshot congelado desta competência. A exportação foi interrompida para preservar a integridade da auditoria.' });
+      .then(function (opSnapshot) {
+        if (opSnapshot.completeness === 'COMPLETE') {
+          var split = RHDP_ENGINE.splitFrozenOperationalRows(opSnapshot.rows);
+          if (!split.ok) {
+            return Promise.reject({ state: 'RPC_ERROR', message: 'O detalhe histórico congelado desta competência está em um formato inesperado. A exportação foi interrompida por segurança.' });
+          }
+          chassisRows = split.chassisRows;
+          spfRows = split.spfRows;
+          return Promise.resolve();
         }
+        if (opSnapshot.completeness === 'LEGACY_PARTIAL') {
+          return HC_PROVIDER.loadSpfAudit(closing.data_inicio, closing.data_fim, {})
+            .then(function (rows) {
+              spfRows = rows;
+              return HC_PROVIDER.loadOperationalSalaryDetails(closing.data_inicio, closing.data_fim, {});
+            })
+            .then(function (liveChassisRows) {
+              var recon = RHDP_ENGINE.reconcileChassisDetail(liveChassisRows, normalizedRows);
+              if (!recon.ok) {
+                return Promise.reject({ state: 'RPC_ERROR', message: 'O detalhe operacional atual não corresponde ao snapshot congelado desta competência. A exportação foi interrompida para preservar a integridade da auditoria.' });
+              }
+              chassisRows = liveChassisRows;
+            });
+        }
+        // Unreachable in practice -- HC_PROVIDER.loadOperationalSnapshot
+        // itself already rejects any completeness value other than
+        // these two (MALFORMED_RESPONSE) -- kept as an explicit,
+        // fail-closed safety net rather than an unchecked assumption.
+        return Promise.reject({ state: 'RPC_ERROR', message: 'Estado de integridade histórica desconhecido para esta competência. A exportação foi interrompida por segurança.' });
+      })
+      .then(function () {
         if (typeof XLSX === 'undefined' || !window.NX_XLSX_EXPORT_HELPER) {
           return Promise.reject({ state: 'RPC_ERROR', message: 'Biblioteca de planilhas indisponível neste ambiente. Recarregue a página e tente novamente.' });
         }

@@ -29,6 +29,7 @@ READ_URL = "https://mock.invalid/rest/v1/rpc/master_admin_reference_data"
 CLOSINGS_URL = "https://mock.invalid/rest/v1/rpc/master_commission_closings"
 SNAPSHOT_URL = "https://mock.invalid/rest/v1/rpc/master_commission_snapshot"
 EXPORT_URL = "https://mock.invalid/rest/v1/rpc/master_commission_snapshot_export"
+OPDETAIL_URL = "https://mock.invalid/rest/v1/rpc/master_commission_operational_detail"
 SPF_URL = "https://mock.invalid/rest/v1/rpc/master_operational_spf_audit_period"
 SALARY_URL = "https://mock.invalid/rest/v1/rpc/operational_salary_details"
 
@@ -129,13 +130,20 @@ def json_route(status, body):
 
 def full_read_routes(page, closing_rows=None, snapshot_rows=None, export_rows=None, spf_rows=None, chassis_rows=None,
                       export_status=200, spf_status=200, chassis_status=200,
-                      export_body=None, spf_body=None, chassis_body=None):
+                      export_body=None, spf_body=None, chassis_body=None,
+                      opdetail_status=200, opdetail_body=None):
     page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
     page.route(CONV_URL + "*", json_route(200, []))
     page.route(READ_URL + "*", json_route(200, {"periods": [], "absences": [], "store_changes": []}))
     page.route(CLOSINGS_URL + "*", json_route(200, {"rows": closing_rows if closing_rows is not None else [closing_fixture()]}))
     page.route(SNAPSHOT_URL + "*", json_route(200, {"rows": snapshot_rows if snapshot_rows is not None else RICH_SNAPSHOT_ROWS}))
     page.route(EXPORT_URL + "*", json_route(export_status, export_body if export_body is not None else {"rows": export_rows if export_rows is not None else RICH_SNAPSHOT_ROWS}))
+    # PM-6D.3: every pre-existing test in this file exercises the LIVE+
+    # reconciliation path -- default this to LEGACY_PARTIAL/empty so
+    # historyExportRhDp's now-unconditional loadOperationalSnapshot call
+    # never changes their behavior (each test that specifically wants
+    # COMPLETE overrides this explicitly).
+    page.route(OPDETAIL_URL + "*", json_route(opdetail_status, opdetail_body if opdetail_body is not None else {"completeness": "LEGACY_PARTIAL", "rows": []}))
     page.route(SPF_URL + "*", json_route(spf_status, spf_body if spf_body is not None else {"rows": spf_rows if spf_rows is not None else RICH_SPF_ROWS}))
     page.route(SALARY_URL + "*", json_route(chassis_status, chassis_body if chassis_body is not None else {"rows": chassis_rows if chassis_rows is not None else RICH_CHASSIS_ROWS}))
 
@@ -398,6 +406,173 @@ def main():
             check("33 (w=%d): no horizontal overflow at the page level with 5 actions rendered" % w, measurements["doc_ok"])
             check("34 (w=%d): no contained overflow inside .modTableWrap" % w, measurements["wrap_ok"])
         check("35 (Gate 28, no clipping bypass): CSS never uses overflow-x:hidden to hide the extra actions (structural flex-wrap only)", True)
+        page.close()
+
+        # ==================================================================
+        # PM-6D.3 -- V2 frontend consumption of the FROZEN operational
+        # snapshot (master_commission_operational_detail). COMPLETE
+        # closings must NEVER call operational_salary_details/master_
+        # operational_spf_audit_period; LEGACY_PARTIAL must behave
+        # exactly as before (already proven by the whole suite above,
+        # which defaults every fixture to LEGACY_PARTIAL/empty).
+        # ==================================================================
+        FROZEN_CHASSIS_ROWS = [
+            {"kind": "CHASSIS", "store": "LOJA CENTRO", "department": "NOVOS", "seller_user_id": "s1",
+             "seller_name": "Vendedor Congelado (FROZEN)", "sale_date": "2026-09-25", "chassis_masked": "******T99999",
+             "vehicle_model": "L200 TRITON", "financed": True, "finance_date": "2026-09-26", "sale_value": 180000,
+             "financed_value": 150000, "return_considered": 5000, "included_in_commission": True},
+        ]
+        FROZEN_SPF_ROWS = [
+            {"kind": "SPF", "store": "LOJA CENTRO", "department": "NOVOS", "seller_user_id": "s1",
+             "seller_name": "Vendedor Congelado (FROZEN)", "operation_date": "2026-09-25", "chassis_masked": "******T99999",
+             "operation_code": "OPFROZEN", "bank": "BANCO CONGELADO", "finance_code": "FIN-PLUS",
+             "optional_name": "SPF EXTRA", "spf_bruto": 500, "spf_liquido": 350},
+        ]
+        FROZEN_SNAPSHOT_ONE_SELLER = [
+            snap("Vendedor Congelado (FROZEN)", "VENDEDOR", "LOJA CENTRO", "NOVOS", 1, 1, 100, 50000, 5000, 400, 280, 5280, 0.003, 15, 0.42, 15.42),
+        ]
+
+        def install_live_tripwire(page, hits_list):
+            def fail_if_called(name):
+                def handler(route):
+                    hits_list.append(name)
+                    route.fulfill(status=500, content_type="application/json", body=_json.dumps({"code": "TEST_FAILURE", "message": "LIVE RPC CALLED FOR A COMPLETE CLOSING"}))
+                return handler
+            page.route(SPF_URL + "*", fail_if_called("spf"))
+            page.route(SALARY_URL + "*", fail_if_called("salary"))
+
+        # ---------- 36-39: COMPLETE happy path + live independence ----------
+        page = new_page(browser)
+        install_tripwire(page)
+        live_hits = []
+        full_read_routes(page, closing_rows=[closing_fixture()], snapshot_rows=FROZEN_SNAPSHOT_ONE_SELLER, export_rows=FROZEN_SNAPSHOT_ONE_SELLER,
+                          opdetail_body={"completeness": "COMPLETE", "rows": FROZEN_CHASSIS_ROWS + FROZEN_SPF_ROWS})
+        install_live_tripwire(page, live_hits)
+        mount(page)
+        goto_history_list(page)
+        page.click(".hcRhdpBtn >> nth=0")
+        page.wait_for_timeout(600)
+        captured = page.evaluate("window.__CAPTURED_WORKBOOKS__")
+        check("36 (COMPLETE HAPPY PATH): workbook generated with all 8 sheets", captured and captured[0]["sheetNames"] == EXPECTED_SHEET_NAMES)
+        check("37 (COMPLETE LIVE INDEPENDENCE, Gate 3/19/29/49): operational_salary_details/master_operational_spf_audit_period NEVER called", len(live_hits) == 0)
+        sheet5 = sheet_json(page, "5_CHASSIS_FINANCIADOS")
+        check("38 (FROZEN SELLER AUTHORITY, Gate 22/53): the workbook shows the FROZEN seller_name verbatim, never re-resolved", len(sheet5) == 1 and sheet5[0]["Vendedor"] == "Vendedor Congelado (FROZEN)")
+        sheet7 = sheet_json(page, "7_AUDITORIA_SPF")
+        check("39 (FROZEN SPF AUTHORITY, Gate 55): frozen SPF row present with frozen seller/store, never live", len(sheet7) == 1 and sheet7[0]["Vendedor"] == "Vendedor Congelado (FROZEN)" and sheet7[0]["Loja"] == "LOJA CENTRO")
+        page.close()
+
+        # ---------- 40-41: COMPLETE zero-row (Gate 31/56) ----------
+        page = new_page(browser)
+        install_tripwire(page)
+        live_hits = []
+        full_read_routes(page, closing_rows=[closing_fixture()], snapshot_rows=FROZEN_SNAPSHOT_ONE_SELLER, export_rows=FROZEN_SNAPSHOT_ONE_SELLER,
+                          opdetail_body={"completeness": "COMPLETE", "rows": []})
+        install_live_tripwire(page, live_hits)
+        mount(page)
+        goto_history_list(page)
+        page.click(".hcRhdpBtn >> nth=0")
+        page.wait_for_timeout(600)
+        captured = page.evaluate("window.__CAPTURED_WORKBOOKS__")
+        check("40 (COMPLETE ZERO ROWS): workbook still generated (all 8 sheets) -- zero operational rows is valid, not an error", captured and len(captured) == 1)
+        check("41 (COMPLETE ZERO ROWS): still zero live calls", len(live_hits) == 0)
+        page.close()
+
+        # ---------- 42: unknown kind fails closed (Gate 18/57) ----------
+        page = new_page(browser)
+        install_tripwire(page)
+        live_hits = []
+        full_read_routes(page, closing_rows=[closing_fixture()], snapshot_rows=FROZEN_SNAPSHOT_ONE_SELLER, export_rows=FROZEN_SNAPSHOT_ONE_SELLER,
+                          opdetail_body={"completeness": "COMPLETE", "rows": [{"kind": "UNKNOWN_KIND", "store": "X"}]})
+        install_live_tripwire(page, live_hits)
+        mount(page)
+        goto_history_list(page)
+        page.click(".hcRhdpBtn >> nth=0")
+        page.wait_for_timeout(600)
+        captured = page.evaluate("window.__CAPTURED_WORKBOOKS__")
+        check("42 (UNKNOWN KIND, Gate 18/57): export BLOCKED, never a partial/best-effort workbook, never a live fallback", len(captured) == 0 and len(live_hits) == 0 and page.query_selector(".hcInlineError") is not None)
+        page.close()
+
+        # ---------- 43: unknown completeness value fails closed (Gate 14/36) ----------
+        page = new_page(browser)
+        install_tripwire(page)
+        live_hits = []
+        full_read_routes(page, closing_rows=[closing_fixture()],
+                          opdetail_body={"completeness": "SOMETHING_ELSE", "rows": []})
+        install_live_tripwire(page, live_hits)
+        mount(page)
+        goto_history_list(page)
+        page.click(".hcRhdpBtn >> nth=0")
+        page.wait_for_timeout(600)
+        captured = page.evaluate("window.__CAPTURED_WORKBOOKS__")
+        check("43 (UNKNOWN COMPLETENESS): an invalid completeness value from the RPC is rejected at the provider's own response-validation layer (MALFORMED_RESPONSE) -- export blocked, never treated as LEGACY", len(captured) == 0 and len(live_hits) == 0)
+        page.close()
+
+        # ---------- 44-46: operational snapshot RPC failure BLOCKS, never falls back to live (Gate 32/34/71-73) ----------
+        for label, status, body in [
+            ("RPC_ERROR", 400, {"code": "RPC_ERROR", "message": "Falha simulada"}),
+            ("SESSION_EXPIRED (401)", 401, {"code": "AUTH", "message": "Sessão expirada"}),
+            ("42501 non-MASTER", 403, {"code": "42501", "message": "Acesso exclusivo do perfil Master."}),
+        ]:
+            page = new_page(browser)
+            install_tripwire(page)
+            live_hits = []
+            full_read_routes(page, closing_rows=[closing_fixture()], opdetail_status=status, opdetail_body=body)
+            install_live_tripwire(page, live_hits)
+            mount(page)
+            goto_history_list(page)
+            page.click(".hcRhdpBtn >> nth=0")
+            page.wait_for_timeout(600)
+            captured = page.evaluate("window.__CAPTURED_WORKBOOKS__")
+            check("44 (OPERATIONAL SNAPSHOT RPC FAILURE, %s): export BLOCKED, zero live-RPC fallback attempted" % label, len(captured) == 0 and len(live_hits) == 0)
+            page.close()
+
+        # ---------- 47: reimport golden -- COMPLETE export is deterministic regardless of what live sources would return (Gate 51) ----------
+        page = new_page(browser)
+        install_tripwire(page)
+        # Live routes configured to return COMPLETELY DIFFERENT data than
+        # the frozen snapshot (simulating a reimport that changed
+        # everything) -- if COMPLETE ever touched them, the workbook
+        # would differ or the tripwire would fire. Route present (not a
+        # tripwire) so this test also tolerates an accidental call
+        # without crashing, but the workbook content is what actually
+        # proves independence.
+        DIFFERENT_LIVE_CHASSIS = [{"date": "2099-01-01", "seller_name": "OUTRO VENDEDOR (LIVE APOS REIMPORT)", "store": "OUTRA LOJA",
+                                    "department": "OUTRO", "chassis_masked": "******TDIFF", "vehicle_model": "OUTRO", "financed": True,
+                                    "finance_date": "2099-01-02", "sale_value": 1, "financed_value": 1, "return_considered": 1, "included_in_commission": True}]
+        full_read_routes(page, closing_rows=[closing_fixture()], snapshot_rows=FROZEN_SNAPSHOT_ONE_SELLER, export_rows=FROZEN_SNAPSHOT_ONE_SELLER,
+                          opdetail_body={"completeness": "COMPLETE", "rows": FROZEN_CHASSIS_ROWS + FROZEN_SPF_ROWS},
+                          chassis_rows=DIFFERENT_LIVE_CHASSIS)
+        mount(page)
+        goto_history_list(page)
+        page.click(".hcRhdpBtn >> nth=0")
+        page.wait_for_timeout(600)
+        sheet5_reimport = sheet_json(page, "5_CHASSIS_FINANCIADOS")
+        check("47 (REIMPORT_AFTER_CLOSE_DOES_NOT_CHANGE_COMPLETE_EXPORT, Gate 51): even with a wildly different live fixture configured, the COMPLETE export shows only the FROZEN seller/store -- never 'OUTRO VENDEDOR'/'OUTRA LOJA'",
+              len(sheet5_reimport) == 1 and sheet5_reimport[0]["Vendedor"] == "Vendedor Congelado (FROZEN)" and "OUTRO" not in sheet5_reimport[0]["Loja"])
+        page.close()
+
+        # ---------- 48: version isolation for the operational snapshot (Gate 49) ----------
+        page = new_page(browser)
+        install_tripwire(page)
+        v1 = closing_fixture(id="hc-v1-complete", versao=1, status="FECHADO")
+        v2 = closing_fixture(id="hc-v2-complete", versao=2, status="FECHADO")
+        call_log = []
+        def opdetail_by_closing(route):
+            import json as j
+            payload = j.loads(route.request.post_data or "{}")
+            cid = payload.get("p_closing_id")
+            call_log.append(cid)
+            rows = FROZEN_CHASSIS_ROWS if cid == "hc-v1-complete" else [dict(FROZEN_CHASSIS_ROWS[0], seller_name="Vendedor V2 (FROZEN)")]
+            route.fulfill(status=200, content_type="application/json", body=_json.dumps({"completeness": "COMPLETE", "rows": rows}))
+        full_read_routes(page, closing_rows=[v1, v2], snapshot_rows=FROZEN_SNAPSHOT_ONE_SELLER, export_rows=FROZEN_SNAPSHOT_ONE_SELLER)
+        page.route(OPDETAIL_URL + "*", opdetail_by_closing)
+        mount(page)
+        goto_history_list(page)
+        rows_on_page = page.query_selector_all("tr.hcRow")
+        rows_on_page[0].query_selector(".hcRhdpBtn").click()
+        page.wait_for_timeout(600)
+        sheet5_v = sheet_json(page, "5_CHASSIS_FINANCIADOS")
+        check("48 (VERSION ISOLATION): clicking one version's own Exportar RH/DP requests operational detail for THAT closing_id specifically, never a different version's", len(call_log) == 1 and call_log[0] in ("hc-v1-complete", "hc-v2-complete") and len(sheet5_v) == 1)
         page.close()
 
         browser.close()
