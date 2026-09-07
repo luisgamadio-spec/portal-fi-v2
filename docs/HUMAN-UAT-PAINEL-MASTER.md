@@ -87,8 +87,8 @@ documented 900px responsive debt — see Known Debts).
 | Subcapability | Human (current) | Provenance | Confidence | Chronology |
 |---|---|---|---|---|
 | Abrir Competência | HUMAN_APPROVED_LOCAL | CONVERSATION_HUMAN_UAT_HISTORY | MEDIUM | Covered by the original Histórico approval (pre-RH/DP), no explicit quote supplied for this specific action |
-| Exportar RH/DP — LEGACY_PARTIAL | **HUMAN_EVIDENCE_NOT_RECONCILED** | — | — | REJECTED (live-detail divergence, 414×410, PM-6B-H1) → architecture changed (PM-6D.1/6D.2/6D.3) → no new approval evidence supplied for the fixed legacy-reconstruction path specifically |
-| Exportar RH/DP — COMPLETE | **HUMAN_PENDING_FIRST_REAL_EVENT** | — | — | Cannot be tested until a real COMPLETE closing exists (0 today); not promoted, per explicit brief instruction §17/§59 |
+| Exportar RH/DP — LEGACY_PARTIAL | **MASTER_RHDP_LEGACY_HUMAN_UAT_FAILED_REAL** (updated PM-6D.4, 2026-09-07; supersedes the prior HUMAN_EVIDENCE_NOT_RECONCILED label, not a downgrade — a real, confirmed event replacing an absence-of-evidence label) | REPO_PERSISTED_EVIDENCE (real read-only diagnostic queries, PM-6D.4) | HIGH | REJECTED (live-detail divergence, 414×410, PM-6B-H1) → architecture changed (PM-6D.1/6D.2/6D.3) → **real MASTER Human UAT executed on the real v4 closing (2026-09-07) FAILED again**, same divergence class independently reproduced number-for-number via read-only production queries (root cause: `operational_salary_details`'s `latest_batches` CTE always reads the current latest VALIDATED batch, never a period-scoped historical one — real, ongoing source-data drift, not a code defect). Classified **LEGACY_RHDP_RECONSTRUCTION_NOT_RECOVERABLE** for v4 (and, by the same architectural reasoning, likely for any LEGACY_PARTIAL closing with post-close reimports) — no backfill, no snapshot mutation, no guard removal is legitimate or was attempted. Fail-closed behavior confirmed CORRECT and must remain. |
+| Exportar RH/DP — COMPLETE | **HUMAN_PENDING_FIRST_REAL_EVENT** (Human status unchanged — a controlled automated proof is not a Human UAT, Gate 41/48 of PM-6D.5) — technical confidence now **MASTER_RHDP_COMPLETE_E2E_TECHNICALLY_PROVEN** (PM-6D.5, 2026-09-07, `tests/master-competence-rhdp-complete-e2e-test.py`, 29/29) | REPO_PERSISTED_EVIDENCE (automated, real-production-code, controlled end-to-end proof) | HIGH (mechanical/reproducible, re-run 3× stable) | Cannot be Human-tested until a real COMPLETE closing exists (0 today); not promoted, per explicit brief instruction §17/§59. Now additionally de-risked: a controlled proof drove the REAL close UI (master-competence-closing-provider.js/-engine.js) and the REAL Exportar RH/DP UI (master-competence-history-provider.js/master-competence-rhdp-export-engine.js/shell-admin.js) end-to-end — real close → frozen financial + operational capture → export → material live-source mutation (add/remove/reassign/amount/financed-status/SPF changes) → export again → semantically identical workbook (SEMANTIC_HASH stable), zero live-reconstruction calls at any point after close, a negative control confirming the methodology would catch a regression, and the LEGACY_PARTIAL fail-closed path re-confirmed unaffected. See `tests/master-competence-rhdp-complete-e2e-test.py` for full evidence. This does **not** constitute `HUMAN_APPROVED_REAL` or `PRODUCTION_PROVEN` — only the first real natural COMPLETE closing can close that gap, and its own Human checkpoint will now be materially smaller (open Histórico → Exportar RH/DP → confirm competência/version → spot-check representative sheets/totals). |
 | PDF / Imprimir | **HUMAN_APPROVED_LOCAL** | CONVERSATION_HUMAN_UAT_HISTORY | HIGH | Human: "O PDF já estava funcionando..." (quoted during the RH/DP investigation) — approval provenance = CONVERSATION_HUMAN_UAT_HISTORY; post-approval code-path impact = **UNCHANGED_BY_PM6D** (confirmed technically by PM-6A: `historyPrintRhDp` untouched, PDF/Print regression tests unaffected across PM-6B→PM-6D.3) |
 | Reabrir | **HUMAN_APPROVED_LOCAL** | BOTH | HIGH | REJECTED (action missing from list) → FIXED (commit `e8de698`, "fix(v2): show reopen action for real closing rows") → Human: "Validado." |
 
@@ -135,11 +135,24 @@ PM-6A's brief did not have access to.
    frozen commission snapshot and current operational detail, 414×410
    vendidas — PM-6B-H1) → architecture changed (PM-6D.1 schema foundation →
    PM-6D.2 atomic freeze-on-close → PM-6D.3 frontend consumption) →
-   COMPLETE closings = HUMAN_PENDING_FIRST_REAL_EVENT (0 real COMPLETE
-   closings exist; not artificially forced). LEGACY_PARTIAL closings keep
-   their pre-existing fail-closed live-reconstruction behavior, unchanged,
-   and remain HUMAN_EVIDENCE_NOT_RECONCILED for lack of a specific new
-   approval of that exact (fixed) path.
+   real MASTER Human UAT on the real v4 (LEGACY_PARTIAL) closing REJECTED
+   AGAIN, same root cause, independently reproduced via read-only
+   diagnostic queries (PM-6D.4, 2026-09-07) → classified
+   LEGACY_RHDP_RECONSTRUCTION_NOT_RECOVERABLE for existing LEGACY_PARTIAL
+   closings, fail-closed confirmed correct, no fix attempted (none is
+   legitimate without backfill/mutation). Separately, a controlled,
+   real-production-code end-to-end proof (PM-6D.5, 2026-09-07,
+   `tests/master-competence-rhdp-complete-e2e-test.py`, 29/29) established
+   **MASTER_RHDP_COMPLETE_E2E_TECHNICALLY_PROVEN** for the COMPLETE path
+   specifically — close → frozen capture → export → material live-source
+   mutation → export again → semantically identical, zero live calls
+   throughout. COMPLETE closings' Human status remains
+   HUMAN_PENDING_FIRST_REAL_EVENT (0 real COMPLETE closings exist; not
+   artificially forced, and an automated proof is explicitly not a Human
+   UAT). LEGACY_PARTIAL closings keep their pre-existing fail-closed
+   live-reconstruction behavior, unchanged, now confirmed
+   MASTER_RHDP_LEGACY_HUMAN_UAT_FAILED_REAL / NOT_RECOVERABLE rather than
+   merely unreconciled.
 4. **Pendências Cadastrais**: HUMAN_REJECTED (first presentation had
    horizontal overflow) → FIXED → HUMAN_APPROVED_LOCAL (Human: "Perfeito
    chat, muito bom.").
@@ -152,10 +165,17 @@ PM-6A's brief did not have access to.
 - **Histórico de Competências — Exportar RH/DP, COMPLETE closings**: 0 real
   COMPLETE closings exist (`historical_detail_status='COMPLETE'`). The
   frozen-snapshot architecture (PM-6D.1/6D.2/6D.3) is fully implemented and
-  technically proven (73/73 tests, live-independence proven, reimport-
-  golden proven) but cannot receive a real Human UAT until the first real
-  COMPLETE closing occurs naturally. No real closing was created to force
-  this — per explicit brief instruction (§17/§59), this is not attempted.
+  technically proven (73/73 static-fixture tests, live-independence proven,
+  reimport-golden proven), and as of PM-6D.5 (2026-09-07) additionally
+  carries a controlled, real-production-code, end-to-end proof
+  (`tests/master-competence-rhdp-complete-e2e-test.py`, 29/29,
+  MASTER_RHDP_COMPLETE_E2E_TECHNICALLY_PROVEN) — but still cannot receive a
+  real Human UAT until the first real COMPLETE closing occurs naturally. No
+  real closing was created to force this — per explicit brief instruction
+  (§17/§59 of PM-6A.1, reaffirmed §29/§30 of PM-6D.5), this is not
+  attempted. The eventual Human checkpoint is expected to be materially
+  smaller as a result (open Histórico → Exportar RH/DP → confirm
+  competência/version → spot-check representative sheets/totals).
 
 ## Known Debts (unchanged from PM-6A, not resolved this wave)
 
@@ -187,4 +207,10 @@ being `HUMAN_APPROVED_LOCAL` here does NOT imply `REAL_WRITE_PROVEN`.
 
 ## Date of reconciliation
 
-2026-09-07 (Wave PM-6A.1, same day as PM-6A).
+2026-09-07 (Wave PM-6A.1, same day as PM-6A). Updated same day by PM-6D.4
+(real Human UAT failure on the real v4 LEGACY_PARTIAL closing, root-caused
+via read-only diagnostic queries) and PM-6D.5 (controlled, real-production-
+code, end-to-end technical proof of COMPLETE immutability). Neither update
+constitutes a new Human decision for any capability beyond what is stated
+above; PM-6D.4 records a real Human UAT that occurred and failed, and
+PM-6D.5 records an automated technical proof, explicitly not a Human UAT.
