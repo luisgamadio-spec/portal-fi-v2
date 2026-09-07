@@ -26,39 +26,44 @@
    only the server-masked operation_reference, verbatim, never combined
    or derived to approximate a real identity/chassis.
 
-   Rebate/Coparticipação (Gate 16): reuses the existing, already-
-   extracted, formula-frozen calcCoparticipacaoDetalhe()/findTaxaCopart()
-   over the real finance[]+rates[] arrays -- proven still legitimately
-   client-side in real V1 production itself (Phase 1, Gate 7), not a
-   reclassification. DATA.taxasCopart is populated from the real
-   rates[] array using the same taxaKey() the fixture engine's own
-   findTaxaCopart() will use internally to look them back up. */
+   Rebate/Coparticipação (V2_COPART_GOVERNED_RATE_AUTHORITY_CORRECTION):
+   reuses the existing, already-extracted, formula-frozen
+   calcCoparticipacaoDetalhe()/findTaxaCopart() over the real
+   finance[] array -- proven still legitimately client-side in real V1
+   production itself, not a reclassification. DATA.taxasCopart is now
+   populated from the GOVERNED rate authority
+   (simulador_get_coparticipado, via coparticipado-governed-rates-
+   provider.js), using the same taxaKey() the engine's own
+   findTaxaCopart() will use internally to look them back up --
+   operational_score_coparticipated_data's own "rates" field (still
+   present in its payload for backend-contract compatibility) is no
+   longer read for this purpose (see docs/CHANGE-PROPOSAL-V2-COPART-
+   GOVERNED-RATE-AUTHORITY.md). */
 (function () {
   'use strict';
 
   var DEPT_MAP = { NOVOS: 'Novos', SEMINOVOS: 'Seminovos' };
   function mapDept(d) { return DEPT_MAP[d] || d; }
 
-  // Same defensive percent-or-fraction normalization real V1 production's
-  // own secure adapter applies to total_rebate/brabus_percent (rate() in
-  // score-coparticipated-secure-adapter.js) -- not a new rule.
-  function rate(v) {
-    var n = Number(v) || 0;
-    return n > 1 ? n / 100 : n;
-  }
-
-  function buildTaxasCopart(rawRates) {
+  // Governed matriz_modelos rows: one row per (modelo, prazo) pair, all
+  // 6 prazos per modelo carrying IDENTICAL rebate_total/rebate_brabus
+  // (term-invariance proved against the real ACTIVE batch -- see the
+  // change proposal and tests/fixtures/coparticipado-governed-rates-
+  // contract.json, a frozen snapshot of that proof, never the runtime
+  // source itself). First occurrence per normalized model key wins --
+  // deterministic and, given the proven invariance, equivalent to any
+  // other selection policy for this contract.
+  function buildGovernedTaxasCopart(matrizModelos) {
     var A = window.NX_COPARTICIPADO_ADAPTER;
     var lookup = {};
-    (rawRates || []).forEach(function (r) {
-      var key = A.taxaKey(r.model);
-      if (key) {
-        lookup[key] = {
-          modeloTabela: r.model,
-          rebateTotal: rate(r.total_rebate),
-          parteBrabus: rate(r.brabus_percent),
-          linha: 0
-        };
+    (matrizModelos || []).forEach(function (m) {
+      var modelo = ((m && m.modelo) || '').toString().trim();
+      var rebateTotal = Number(m && m.rebate_total);
+      var parteBrabus = Number(m && m.rebate_brabus);
+      if (!modelo || !isFinite(rebateTotal) || !isFinite(parteBrabus) || rebateTotal <= 0) return;
+      var key = A.taxaKey(modelo);
+      if (key && !lookup[key]) {
+        lookup[key] = { modeloTabela: modelo, rebateTotal: rebateTotal, parteBrabus: parteBrabus, linha: 0 };
       }
     });
     return lookup;
@@ -126,13 +131,20 @@
     });
   }
 
-  function buildRealResult(payload) {
+  // payload: operational_score_coparticipated_data's response (sales/
+  // finance -- unchanged authority). governedPayload: simulador_get_
+  // coparticipado's response (the ONE financial rate authority as of
+  // V2_COPART_GOVERNED_RATE_AUTHORITY_CORRECTION). Both are required by
+  // the caller (coparticipado.js) to have already resolved successfully
+  // before this is called -- this file has no fail-closed logic of its
+  // own; it trusts its caller's orchestration (Gate 19/20).
+  function buildRealResult(payload, governedPayload) {
     var A = window.NX_COPARTICIPADO_ADAPTER;
     // Must run before buildFins(): calcCoparticipacaoDetalhe()/
     // findTaxaCopart() read DATA.taxasCopart internally, not as a
     // parameter (same module-level-state contract the fixture path
     // already relies on via compute()).
-    A.setTaxasCopart(buildTaxasCopart(payload.rates));
+    A.setTaxasCopart(buildGovernedTaxasCopart(governedPayload.linhas.matriz_modelos));
     return {
       sales: buildSales(payload.sales),
       fins: buildFins(payload.finance),
@@ -140,7 +152,12 @@
         source: 'REAL_BACKEND',
         scope: payload.scope,
         period_start: payload.period_start,
-        period_end: payload.period_end
+        period_end: payload.period_end,
+        rateAuthority: {
+          source: 'GOVERNED_ACTIVE',
+          batchId: governedPayload.batch_id || '',
+          arquivoNome: governedPayload.arquivo_nome || ''
+        }
       }
     };
   }

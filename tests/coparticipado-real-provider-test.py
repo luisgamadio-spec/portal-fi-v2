@@ -23,6 +23,34 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 BASE = "http://127.0.0.1:8080/portal-next-v2/tests/_coparticipado-real-provider-harness.html"
 RPC_URL = "https://mock.invalid/rest/v1/rpc/operational_score_coparticipated_data"
+# V2_COPART_GOVERNED_RATE_AUTHORITY_CORRECTION -- the ONE financial rate
+# authority as of this change; every test below that expects a rate-
+# dependent calculation to succeed must also route this endpoint (see
+# route_governed()/new_page() below). Tests that intentionally leave it
+# unrouted (or route it to fail) are proving fail-closed behavior, not
+# an oversight.
+GOVERNED_RPC_URL = "https://mock.invalid/rest/v1/rpc/simulador_get_coparticipado"
+
+# Raw fractions (NOT percent-style), matching the real governed
+# contract's own shape (simulador_coparticipado_modelo_linhas) --
+# rebate_total=0.06 * financed 150000 = 9000; rebate_brabus=0.5 * 9000 =
+# 4500, preserving check 13's original expected values under the new
+# authority. Deliberately does NOT include "MODELO SEM TAXA XYZ" (check
+# 12 depends on that model staying unresolved).
+DEFAULT_GOVERNED_PAYLOAD = {
+    "ok": True, "batch_id": "mock-batch-id", "arquivo_nome": "mock-taxa-coparticipado.xlsx",
+    "linhas": {
+        "matriz_modelos": [
+            {"modelo": "TRITON GLS", "entrada_minima": 0.6, "rebate_total": 0.06, "rebate_hpe": 0.5, "rebate_brabus": 0.5, "prazo": 48, "taxa": 0.0099}
+        ],
+        "tx_coef": []
+    }
+}
+
+
+def route_governed(page, payload=None, status=200):
+    body = payload if payload is not None else DEFAULT_GOVERNED_PAYLOAD
+    page.route(GOVERNED_RPC_URL + "*", lambda route: route.fulfill(status=status, content_type="application/json", body=_json.dumps(body)))
 
 results = []
 
@@ -161,6 +189,7 @@ def main():
             route.fulfill(status=200, content_type="application/json", body=_json.dumps(SAMPLE_PAYLOAD))
 
         page.route(RPC_URL + "*", capture)
+        route_governed(page)
         mount(page)
         page.wait_for_function("document.getElementById('cpPanel').innerHTML.includes('modTabGroup')", timeout=5000)
         check("3: real transport calls the exact RPC endpoint", captured.get("url", "").startswith(RPC_URL))
@@ -175,6 +204,7 @@ def main():
         # ---------- 9-14: privacy contract, plan authority, masked reference ----------
         page = new_page(browser, configured=True)
         page.route(RPC_URL + "*", json_route(200, SAMPLE_PAYLOAD))
+        route_governed(page)
         mount(page)
         page.wait_for_function("document.getElementById('cpPanel').innerHTML.includes('modTabGroup')", timeout=5000)
         panel_html = page.inner_html("#cpPanel")
@@ -195,6 +225,7 @@ def main():
         # ---------- 15: empty real payload renders normally, not an error ----------
         page = new_page(browser, configured=True)
         page.route(RPC_URL + "*", json_route(200, EMPTY_PAYLOAD))
+        route_governed(page)
         mount(page)
         page.wait_for_function("document.getElementById('cpPanel').innerHTML.includes('modTabGroup')", timeout=5000)
         html = page.inner_html("#cpPanel")
@@ -275,6 +306,7 @@ def main():
             route.fulfill(status=200, content_type="application/json", body=_json.dumps(body))
 
         page.route(RPC_URL + "*", sequenced)
+        route_governed(page)
         mount(page)  # request #1 (stale)
         page.wait_for_timeout(60)
         page.eval_on_selector("#cpDateEnd", "el => { el.value = '2026-09-02'; el.dispatchEvent(new Event('change')); }")  # request #2 (fresh)
@@ -296,6 +328,7 @@ def main():
                 abort_seen["count"] += 1
 
         page.route(RPC_URL + "*", slow_then_track)
+        route_governed(page)
         mount(page)
         page.wait_for_timeout(50)
         page.eval_on_selector("#cpDateEnd", "el => { el.value = '2026-09-01'; el.dispatchEvent(new Event('change')); }")
@@ -309,6 +342,7 @@ def main():
         # ---------- 25: filter subtractiveness -- store filter narrows, never expands ----------
         page = new_page(browser, configured=True)
         page.route(RPC_URL + "*", json_route(200, SAMPLE_PAYLOAD))
+        route_governed(page)
         mount(page)
         page.wait_for_function("document.getElementById('cpPanel').innerHTML.includes('modTabGroup')", timeout=5000)
         page.eval_on_selector("#cpTabSubs", "el => el.click()")
@@ -324,9 +358,11 @@ def main():
         # ---------- 26: no raw scope/diagnostic dump ever appears in the panel ----------
         page = new_page(browser, configured=True)
         page.route(RPC_URL + "*", json_route(200, SAMPLE_PAYLOAD))
+        route_governed(page)
         mount(page)
         page.wait_for_function("document.getElementById('cpPanel').innerHTML.includes('modTabGroup')", timeout=5000)
         check("26: no raw scope JSON ever rendered in the panel (Coparticipado never introduces a diagnostic block)", "is_master" not in page.inner_html("#cpPanel") and "REAL_BACKEND" not in page.inner_html("#cpPanel"))
+        check("26b: no governed batch_id/arquivo_nome ever rendered in the panel (sourceInfo.rateAuthority is internal-only)", "mock-batch-id" not in page.inner_html("#cpPanel"))
         page.close()
 
         browser.close()

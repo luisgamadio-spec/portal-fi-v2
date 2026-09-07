@@ -376,6 +376,15 @@
     loadReal();
   }
 
+  // V2_COPART_GOVERNED_RATE_AUTHORITY_CORRECTION, Gate 19/20: a
+  // financial result is only ever published once BOTH the operational
+  // data (sales/finance, unchanged authority) AND the governed rate
+  // authority (simulador_get_coparticipado, the ONE financial rate
+  // authority) have resolved successfully. Promise.all rejects with
+  // the first rejection -- if either fails (including a shared abort,
+  // both requests share `controller.signal`), the whole result is
+  // withheld; no partial state, never a fallback to the operational
+  // RPC's own "rates" field.
   function loadReal() {
     if (currentAbortController) currentAbortController.abort();
     var controller = new AbortController();
@@ -383,12 +392,17 @@
     var mySeq = ++renderSeq;
     var panel = document.getElementById('cpPanel');
     if (panel) panel.innerHTML = loadingHtml();
-    window.NX_COPARTICIPADO_REAL_PROVIDER.loadCoparticipadoReal({
-      start: currentDateStart, end: currentDateEnd, signal: controller.signal
-    }).then(
-      function (payload) {
+    Promise.all([
+      window.NX_COPARTICIPADO_REAL_PROVIDER.loadCoparticipadoReal({
+        start: currentDateStart, end: currentDateEnd, signal: controller.signal
+      }),
+      window.NX_COPARTICIPADO_GOVERNED_RATES_PROVIDER.loadGovernedCoparticipadoRates({
+        signal: controller.signal
+      })
+    ]).then(
+      function (results) {
         if (mySeq !== renderSeq) return;
-        realResult = window.NX_COPARTICIPADO_REAL_VIEW_MODEL.buildRealResult(payload);
+        realResult = window.NX_COPARTICIPADO_REAL_VIEW_MODEL.buildRealResult(results[0], results[1]);
         renderPanel(realResult);
       },
       function (err) {

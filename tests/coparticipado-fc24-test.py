@@ -33,6 +33,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES_PATH = os.path.join(HERE, "fixtures", "coparticipado-fixtures.json")
 BASE = "http://127.0.0.1:8080/portal-next-v2/tests/_coparticipado-real-provider-harness.html"
 RPC_URL = "https://mock.invalid/rest/v1/rpc/operational_score_coparticipated_data"
+# V2_COPART_GOVERNED_RATE_AUTHORITY_CORRECTION -- real transport now
+# also requires this endpoint to resolve; mount_real() routes it by
+# default so every pre-existing real-mode scenario in this file keeps
+# its original (COPARTICIPADO-rate-dependent) behavior.
+GOVERNED_RPC_URL = "https://mock.invalid/rest/v1/rpc/simulador_get_coparticipado"
+DEFAULT_GOVERNED_PAYLOAD = {
+    "ok": True, "batch_id": "mock-batch-id", "arquivo_nome": "mock-taxa-coparticipado.xlsx",
+    "linhas": {"matriz_modelos": [
+        {"modelo": "TRITON GLS", "entrada_minima": 0.6, "rebate_total": 0.06, "rebate_hpe": 0.5, "rebate_brabus": 0.5, "prazo": 48, "taxa": 0.0099}
+    ], "tx_coef": []}
+}
 
 SUBS_HEADERS = ["Nome do cliente", "Vendedor", "Loja vinculada", "Departamento", "Modelo do carro",
                  "Família do carro", "Valor de venda", "Valor financiado", "Retorno", "SPF Extra",
@@ -157,10 +168,12 @@ def mount_fixture(browser, fixtures_body, date_script=None, timezone_id=None):
     return page
 
 
-def mount_real(browser, route_handler):
+def mount_real(browser, route_handler, governed_status=200, governed_payload=None):
     page = browser.new_page(viewport={"width": 1366, "height": 900})
     page.add_init_script(auth_mock_script(True))
     page.route(RPC_URL + "*", route_handler)
+    body = governed_payload if governed_payload is not None else DEFAULT_GOVERNED_PAYLOAD
+    page.route(GOVERNED_RPC_URL + "*", lambda route: route.fulfill(status=governed_status, content_type="application/json", body=json.dumps(body)))
     page.goto(BASE)
     page.wait_for_function("!!window.NX_COPARTICIPADO_PAGE", timeout=5000)
     page.evaluate("window.NX_COPARTICIPADO_PAGE.render(document.getElementById('cpOutlet'))")
