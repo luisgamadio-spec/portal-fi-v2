@@ -4066,6 +4066,7 @@
       '<td class="adminActions"><div class="hcActions">' +
       '<button type="button" class="modBtnGhost hcViewBtn" data-id="' + esc(c.id) + '">Ver snapshot</button>' +
       '<button type="button" class="modBtnGhost hcExportBtn" data-id="' + esc(c.id) + '"' + (historyState.exportingId === c.id ? ' disabled' : '') + '>' + (historyState.exportingId === c.id ? 'Exportando...' : 'Exportar XLSX') + '</button>' +
+      (hcClosingCanReopen(c) ? '<button type="button" class="modBtnGhost hcReopenBtn" data-id="' + esc(c.id) + '">Reabrir</button>' : '') +
       '</div></td></tr>';
   }
 
@@ -4098,6 +4099,7 @@
       '<div class="hcActions">' +
       '<button type="button" class="modBtnGhost hcViewBtn" data-id="' + esc(c.id) + '">Ver snapshot</button>' +
       '<button type="button" class="modBtnGhost hcExportBtn" data-id="' + esc(c.id) + '"' + (historyState.exportingId === c.id ? ' disabled' : '') + '>' + (historyState.exportingId === c.id ? 'Exportando...' : 'Exportar XLSX') + '</button>' +
+      (hcClosingCanReopen(c) ? '<button type="button" class="modBtnGhost hcReopenBtn" data-id="' + esc(c.id) + '">Reabrir</button>' : '') +
       '</div></div>';
   }
   function hcMobileCardsHtml() {

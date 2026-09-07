@@ -152,6 +152,75 @@ def main():
                   page.query_selector(".hcReopenBtn") is None)
             page.close()
 
+        # ---------- 6b-6h: LIST-VIEW ACTION VISIBILITY, real production row
+        # shape (PM-5K-H1 regression). The original defect: Reabrir was only
+        # ever wired into the DETAIL view (hcDetailHtml), never into the
+        # list row's own "Ações" column (hcRowHtml / hcMobileCardHtml) --
+        # the exact place the Human actually looked. This fixture is the
+        # REAL shape read live (structural columns only, no names/amounts)
+        # from fechamentos_comissao via the Management API, not an
+        # enriched/synthetic one -- the whole point of this regression
+        # test is to never again test against a richer fixture than the
+        # real contract. ----------
+        REAL_SHAPE_FECHADO = {
+            "id": "c0be54f1-9a64-4583-ae84-72d4630d2e5a", "periodo_id": "7b57561c-9048-4426-9850-a4abf8476f3c",
+            "nome_periodo": "21/07 à 20/08", "versao": 4, "status": "FECHADO", "ativo": True,
+            "criado_em": "2026-08-22T02:26:54.04106+00:00", "fechado_em": "2026-08-22T02:26:54.04106+00:00",
+            "atualizado_em": "2026-08-22T02:26:54.04106+00:00", "reaberto_em": None,
+            "fechado_por": "Sintético", "reaberto_por": None, "observacao": _json.dumps({"comissao_total": 1000}),
+        }
+        REAL_SHAPE_REABERTO = dict(REAL_SHAPE_FECHADO, id="953f162d-bc43-4c63-aa07-d6647a407ca9", versao=3,
+                                    status="REABERTO", ativo=False, reaberto_em="2026-08-22T00:32:09.946967+00:00",
+                                    reaberto_por="Sintético")
+        REAL_SHAPE_NULL_STATUS = dict(REAL_SHAPE_FECHADO, id="null-status-row", status=None)
+        REAL_SHAPE_UNKNOWN_STATUS = dict(REAL_SHAPE_FECHADO, id="unknown-status-row", status="ARQUIVADO")
+
+        page = new_page(browser)
+        install_tripwire(page)
+        full_read_routes(page, closing_rows=[REAL_SHAPE_FECHADO, REAL_SHAPE_REABERTO])
+        mount(page)
+        page.click('[data-section="historicoCompetencias"]')
+        page.wait_for_selector(".hcViewBtn", timeout=5000)
+        list_rows = page.query_selector_all("tr.hcRow")
+        check("6b (REAL SHAPE, PM-5K-H1 regression): exactly 2 list rows render", len(list_rows) == 2)
+        row0_text = list_rows[0].inner_text() if len(list_rows) > 0 else ""
+        row1_text = list_rows[1].inner_text() if len(list_rows) > 1 else ""
+        check("6c (REAL SHAPE, FECHADO v4, ativo=true): Reabrir IS visible in the LIST row's own Ações column -- the exact place the Human looked", "Reabrir" in row0_text)
+        check("6d (REAL SHAPE, REABERTO v3, ativo=false): Reabrir is NOT visible in the LIST row", "Reabrir" not in row1_text)
+        check("6e: 'Ver snapshot' and 'Exportar XLSX' still present alongside Reabrir (no existing action removed)", "Ver snapshot" in row0_text and "Exportar XLSX" in row0_text)
+        page.close()
+
+        page = new_page(browser)
+        install_tripwire(page)
+        full_read_routes(page, closing_rows=[REAL_SHAPE_NULL_STATUS])
+        mount(page)
+        page.click('[data-section="historicoCompetencias"]')
+        page.wait_for_selector(".hcViewBtn", timeout=5000)
+        check("6f (NEGATIVE, status=null): Reabrir is NOT visible for a row with a null status", page.query_selector(".hcReopenBtn") is None)
+        page.close()
+
+        page = new_page(browser)
+        install_tripwire(page)
+        full_read_routes(page, closing_rows=[REAL_SHAPE_UNKNOWN_STATUS])
+        mount(page)
+        page.click('[data-section="historicoCompetencias"]')
+        page.wait_for_selector(".hcViewBtn", timeout=5000)
+        check("6g (NEGATIVE, status='ARQUIVADO'/unknown): Reabrir is NOT visible for an unrecognized status value", page.query_selector(".hcReopenBtn") is None)
+        page.close()
+
+        # Clicking Reabrir directly from the LIST (not via detail first) must work end-to-end.
+        page = new_page(browser)
+        install_tripwire(page)
+        full_read_routes(page, closing_rows=[REAL_SHAPE_FECHADO])
+        mount(page)
+        page.click('[data-section="historicoCompetencias"]')
+        page.wait_for_selector(".hcViewBtn", timeout=5000)
+        page.click(".hcReopenBtn >> nth=0")
+        page.wait_for_selector("#nxModalRoot .maudModalDialog", timeout=3000)
+        check("6h: clicking Reabrir directly from the LIST (never having opened the detail view) opens the real confirmation modal with the real closing's data",
+              "v4" in page.inner_text("#nxModalRoot") and "21/07" in page.inner_text("#nxModalRoot"))
+        page.close()
+
         # ---------- 7-12: CONFIRMATION MODAL CONTENT (Gate 33/34 -- no generic claims) ----------
         page = new_page(browser)
         install_tripwire(page)
