@@ -11,6 +11,27 @@ freeze note's own "Design System Change Proposal + new human approval"
 requirement (Skill's Human Approved Freeze rule). This document is that
 proposal.
 
+## Status (updated 2026-09-07, post-UAT)
+
+- **Implementation:** COMPLETE — commit `9af543a`
+  ("fix(v2): use governed copart rate authority").
+- **Technical validation:** PASS — `V2_COPART_GOVERNED_RATE_AUTHORITY_TECHNICALLY_READY`
+  (all tests in the "Tests" section below green; targeted governed-
+  authority regression, 15-model parity, and stale-fallback-blocked
+  reconfirmed green again immediately before refreeze).
+- **Human UAT:** APPROVED. Human statement, verbatim: **"ok, validado."**
+  — given after testing the V2 localhost build on commit `9af543a`.
+  Classification: `V2_COPART_GOVERNED_RATE_AUTHORITY_HUMAN_APPROVED_LOCAL`.
+- **Refreeze:** AUTHORIZED / COMPLETE. `config/module-registry.json`'s
+  `coparticipado` entry is restored to `migrationStatus: HUMAN_APPROVED`
+  (chronology preserved in that entry's own `humanApprovalNote`, not
+  overwritten). The module is FROZEN again as of this status — any
+  future functional change again requires a new Design System Change
+  Proposal + new Human approval.
+- **Debt NOT resolved by this correction** (unchanged, separate future
+  work): `COPART_TEMPORAL_RATE_RESOLUTION_DEBT`,
+  `V2_SIMULADOR_NOVOS_GOVERNED_RATE_PARITY_AUDIT_REQUIRED`.
+
 ## No Design System change
 
 This change touches zero visual presentation. No component, token, layout,
@@ -175,12 +196,21 @@ governed authority needs to be temporarily unavailable, the module should
 correctly show its existing blocked/error state, exactly as the
 fail-closed tests already verify.
 
-## Human UAT required
+## Human UAT required (historical — since satisfied, see Status above)
 
-This change does **not** self-register `HUMAN_APPROVED`. Interim registry
-state: `UAT_PENDING` (see `config/module-registry.json`). Refreeze
-criteria: Human re-tests the V2 localhost build, confirms the Outlander
-Signature golden (R$114.990 → ~17,1% / 48,0% / ~R$19.691 / ~R$9.451), no
-visual regression, no horizontal scrollbar, Subsidiado still renders
-normally — then, and only then, a separate narrow registry action may
-restore `HUMAN_APPROVED`/FROZEN.
+At the time this change was implemented, it did **not** self-register
+`HUMAN_APPROVED`. Interim registry state was `UAT_PENDING` (see
+`config/module-registry.json`). Refreeze criteria: Human re-tests the V2
+localhost build, confirms the Outlander Signature golden (R$114.990 →
+~17,1% / 48,0% / ~R$19.691 / ~R$9.451), no visual regression, no
+horizontal scrollbar, Subsidiado still renders normally — then, and only
+then, a separate narrow registry action may restore `HUMAN_APPROVED`/
+FROZEN.
+
+**This criteria was met.** The Human tested the V2 localhost build on
+commit `9af543a` and responded **"ok, validado."** The registry's
+`coparticipado` entry was restored to `HUMAN_APPROVED`/FROZEN on this
+basis (see the "Status" section at the top of this document, and
+`config/module-registry.json`'s own `humanApprovalNote` chronology,
+which preserves every step from the original PORTAL-NEXT-06 approval
+through this refreeze without erasing any of it).
