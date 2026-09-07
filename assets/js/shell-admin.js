@@ -213,6 +213,25 @@
     nuncaUtilizouCache: null
   };
 
+  // Painel Master Phase PM-5H (Histórico de Competências) -- STRICTLY
+  // READ-ONLY (Gate 4): no create/edit/close/reopen/archive/delete
+  // action exists anywhere in this state or its render functions.
+  // `closings` is the full, unfiltered result of master_commission_
+  // closings() (every period, every version, both FECHADO and
+  // REABERTO -- Gate 15, never hidden). `detail` holds the currently
+  // open snapshot (one closing at a time, fetched fresh via master_
+  // commission_snapshot(closingId) -- never mixed across closings/
+  // versions). `exporting`/`exportError` track the separate, fail-
+  // closed master_commission_snapshot_export(closingId) call the
+  // Export action uses -- never the same (unguarded) rows as `detail`.
+  var historyState = {
+    loading: false, loaded: false, error: null,
+    closings: [],
+    detail: null, // { closingId, loading, error, rows, closing }
+    exportingId: null,
+    exportError: null
+  };
+
   // Create/Edit form working state — reset on view change.
   var createForm = null;
   var editForm = null;
@@ -580,6 +599,14 @@
     { id: 'gestaoBases', label: 'Gestão de Bases', active: true },
     { id: 'gestaoSimuladores', label: 'Gestão dos Simuladores', active: true },
     { id: 'utilizacaoSimuladores', label: 'Utilização dos Simuladores', active: true },
+    // Painel Master Phase PM-5H: grouped with Períodos de Comissão
+    // (same "competência" domain), positioned right after it -- NOT
+    // adjacent to a "Fechamento de Competência" entry, since that
+    // capability remains COMPETENCE_CLOSING_CONTRACT_RECONCILED_
+    // IMPLEMENTATION_BLOCKED (PM-5G) and is deliberately NOT added here
+    // as a disabled/fake placeholder (Gate 18: "não adicionar botão
+    // falso/inativo de Fechamento apenas para completar navegação").
+    { id: 'historicoCompetencias', label: 'Histórico de Competências', active: true },
     { id: 'pendenciasCadastrais', label: 'Pendências Cadastrais', active: true },
     { id: 'auditoria', label: 'Auditoria', active: true }
   ];
@@ -630,6 +657,9 @@
     absState.modal = null;
     scState.modal = null;
     suState.drawerUserId = null;
+    historyState.detail = null;
+    historyState.exportingId = null;
+    historyState.exportError = null;
     // Never leave either section's modal open behind a section switch --
     // a blunt clear (no focus-return) is correct here, since the trigger
     // row itself is about to be discarded along with the whole section.
@@ -657,6 +687,8 @@
       scEnter();
     } else if (currentSection === 'utilizacaoSimuladores') {
       suEnter();
+    } else if (currentSection === 'historicoCompetencias') {
+      historyEnter();
     } else {
       renderPanel();
     }
@@ -3723,6 +3755,264 @@
   }
   function suCloseDrawer() { suState.drawerUserId = null; clearNxModal(); }
 
+  // ---------- Histórico de Competências (Painel Master Phase PM-5H) ----------
+  // STRICTLY READ-ONLY (Gate 4/33): this whole block calls exactly 3
+  // real RPCs, all reads (HC_PROVIDER.listClosings/getSnapshot/
+  // exportSnapshot) -- no create/edit/close/reopen/archive/delete path
+  // exists here, and none may ever be added (see tests/master-
+  // competence-history-provider-test.py's read-only-proof check).
+  var HC_PROVIDER = window.NX_MASTER_COMPETENCE_HISTORY_PROVIDER;
+  var HC_VM = window.NX_MASTER_COMPETENCE_HISTORY_VM;
+
+  function historyEnter() {
+    if (historyState.loaded || historyState.loading) { renderPanel(); return; }
+    historyLoad();
+  }
+  function historyLoad() {
+    historyState.loading = true;
+    historyState.error = null;
+    renderPanel();
+    HC_PROVIDER.listClosings({}).then(
+      function (rows) {
+        historyState.closings = HC_VM.sortClosings(rows);
+        historyState.loading = false;
+        historyState.loaded = true;
+        renderPanel();
+      },
+      function (err) {
+        historyState.loading = false;
+        historyState.loaded = false;
+        historyState.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+  function historyClosingById(id) {
+    return historyState.closings.filter(function (c) { return String(c.id) === String(id); })[0] || null;
+  }
+  function historyOpenDetail(closingId) {
+    var closing = historyClosingById(closingId);
+    if (!closing) return;
+    historyState.detail = { closingId: closingId, closing: closing, loading: true, error: null, rows: [] };
+    renderPanel();
+    HC_PROVIDER.getSnapshot(closingId, {}).then(
+      function (rows) {
+        // Version isolation (Gate 15/35): only commit into state if the
+        // user hasn't already navigated to a DIFFERENT closing while
+        // this request was in flight -- never lets a slow response for
+        // closing A overwrite the detail the user is now viewing for
+        // closing B.
+        if (!historyState.detail || historyState.detail.closingId !== closingId) return;
+        historyState.detail.rows = HC_VM.sortSnapshotRows(rows);
+        historyState.detail.loading = false;
+        renderPanel();
+      },
+      function (err) {
+        if (!historyState.detail || historyState.detail.closingId !== closingId) return;
+        historyState.detail.loading = false;
+        historyState.detail.error = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+  function historyCloseDetail() {
+    historyState.detail = null;
+    renderPanel();
+  }
+
+  // Export uses the SEPARATE, fail-closed RPC (Gate 13/22/37) -- never
+  // the already-fetched (unguarded) historyState.detail.rows, even if
+  // they're sitting right there in memory. A real 22023 rejection from
+  // the server is shown verbatim (mapped to a friendly copy) and the
+  // export simply does not happen -- no workbook, no fallback source.
+  function historyExportXlsx(closingId) {
+    if (historyState.exportingId) return;
+    var closing = historyClosingById(closingId);
+    if (!closing) return;
+    historyState.exportingId = closingId;
+    historyState.exportError = null;
+    renderPanel();
+    HC_PROVIDER.exportSnapshot(closingId, {}).then(
+      function (rows) {
+        historyState.exportingId = null;
+        if (typeof XLSX === 'undefined') { renderPanel(); return; }
+        var ws = XLSX.utils.json_to_sheet(HC_VM.xlsxRows(rows));
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Snapshot');
+        XLSX.writeFile(wb, 'snapshot_' + (closing.nome_periodo || closing.id) + '_v' + closing.versao + '.xlsx');
+        renderPanel();
+      },
+      function (err) {
+        historyState.exportingId = null;
+        historyState.exportError = { closingId: closingId, err: err || { state: 'RPC_ERROR' } };
+        renderPanel();
+      }
+    );
+  }
+
+  function hcStatusBadgeHtml(status) {
+    var s = String(status || '').toUpperCase();
+    var cls = s === 'FECHADO' ? 'maBadgeActive' : (s === 'REABERTO' ? 'maBadgeInvited' : 'maBadgeInactive');
+    return '<span class="maBadge ' + cls + '">' + esc(HC_VM.statusLabel(status)) + '</span>';
+  }
+
+  function hcRowHtml(c) {
+    var obs = HC_VM.parseObservacao(c.observacao);
+    var resumo = obs && typeof obs.comissao_total === 'number'
+      ? esc(HC_VM.fmtMoney(obs.comissao_total)) + ' (resumo oficial)'
+      : '<span class="maSubtle">Resumo indisponível</span>';
+    return '<tr class="hcRow" data-id="' + esc(c.id) + '">' +
+      '<td><b>' + esc(c.nome_periodo || '-') + '</b><br><span class="maSubtle">' + esc(HC_VM.fmtDateBR(c.data_inicio)) + ' → ' + esc(HC_VM.fmtDateBR(c.data_fim)) + '</span></td>' +
+      '<td>v' + esc(c.versao != null ? c.versao : '-') + '</td>' +
+      '<td>' + hcStatusBadgeHtml(c.status) + '</td>' +
+      '<td>' + esc(HC_VM.fmtDateTimeBR(c.fechado_em)) + '<br><span class="maSubtle">' + esc(c.fechado_por || '-') + '</span>' +
+      (c.reaberto_em ? '<br><span class="maSubtle">Reaberto ' + esc(HC_VM.fmtDateTimeBR(c.reaberto_em)) + ' por ' + esc(c.reaberto_por || '-') + '</span>' : '') + '</td>' +
+      '<td>' + resumo + '</td>' +
+      '<td class="adminActions"><div class="hcActions">' +
+      '<button type="button" class="modBtnGhost hcViewBtn" data-id="' + esc(c.id) + '">Ver snapshot</button>' +
+      '<button type="button" class="modBtnGhost hcExportBtn" data-id="' + esc(c.id) + '"' + (historyState.exportingId === c.id ? ' disabled' : '') + '>' + (historyState.exportingId === c.id ? 'Exportando...' : 'Exportar XLSX') + '</button>' +
+      '</div></td></tr>';
+  }
+
+  function hcColgroupHtml() {
+    return '<colgroup>' +
+      '<col>' +
+      '<col class="hcColVersao">' +
+      '<col class="hcColStatus">' +
+      '<col class="hcColData">' +
+      '<col class="hcColResumo">' +
+      '<col class="hcColAcoes">' +
+      '</colgroup>';
+  }
+  function hcDesktopTableHtml() {
+    return '<div class="hcDesktopOnly"><div class="modTableWrap"><table class="modTable hcTable">' +
+      hcColgroupHtml() +
+      '<thead><tr><th scope="col">Competência</th><th scope="col">Versão</th><th scope="col">Status</th><th scope="col">Fechado em / por</th><th scope="col">Resumo</th><th scope="col">Ações</th></tr></thead>' +
+      '<tbody>' + historyState.closings.map(hcRowHtml).join('') + '</tbody></table></div></div>';
+  }
+  function hcMobileCardHtml(c) {
+    var obs = HC_VM.parseObservacao(c.observacao);
+    var resumo = obs && typeof obs.comissao_total === 'number' ? HC_VM.fmtMoney(obs.comissao_total) + ' (resumo oficial)' : 'Resumo indisponível';
+    return '<div class="maMobileCard hcMobileCard" data-id="' + esc(c.id) + '">' +
+      '<div class="maMobileName">' + esc(c.nome_periodo || '-') + ' — v' + esc(c.versao != null ? c.versao : '-') + '</div>' +
+      '<div class="maMobileMeta">' + esc(HC_VM.fmtDateBR(c.data_inicio)) + ' → ' + esc(HC_VM.fmtDateBR(c.data_fim)) + '</div>' +
+      hcStatusBadgeHtml(c.status) +
+      '<div class="maMobileMeta">Fechado: ' + esc(HC_VM.fmtDateTimeBR(c.fechado_em)) + ' por ' + esc(c.fechado_por || '-') + '</div>' +
+      (c.reaberto_em ? '<div class="maMobileMeta">Reaberto: ' + esc(HC_VM.fmtDateTimeBR(c.reaberto_em)) + ' por ' + esc(c.reaberto_por || '-') + '</div>' : '') +
+      '<div class="maMobileMeta">' + esc(resumo) + '</div>' +
+      '<div class="hcActions">' +
+      '<button type="button" class="modBtnGhost hcViewBtn" data-id="' + esc(c.id) + '">Ver snapshot</button>' +
+      '<button type="button" class="modBtnGhost hcExportBtn" data-id="' + esc(c.id) + '"' + (historyState.exportingId === c.id ? ' disabled' : '') + '>' + (historyState.exportingId === c.id ? 'Exportando...' : 'Exportar XLSX') + '</button>' +
+      '</div></div>';
+  }
+  function hcMobileCardsHtml() {
+    return '<div class="hcMobileOnly">' + historyState.closings.map(hcMobileCardHtml).join('') + '</div>';
+  }
+
+  // Fail-closed viewer warning (Gate 12/13/26/34) -- deliberately more
+  // proactive than V1 itself (which only ever surfaced this at export
+  // time): applies the exact real structural criterion server-side
+  // export already enforces (isStructurallyInconsistent, ported
+  // verbatim) plus the exact real divergence check the already-
+  // ground-truth-audited AI tool uses (checkSnapshotIntegrity, also
+  // ported verbatim) -- never invents a third heuristic.
+  function hcIntegrityBannerHtml(rows, closing) {
+    var obs = HC_VM.parseObservacao(closing.observacao);
+    var structural = HC_VM.isStructurallyInconsistent(rows);
+    var integrity = HC_VM.checkSnapshotIntegrity(rows, obs);
+    if (!structural && integrity.status !== 'DIVERGENTE') return '';
+    var detail = structural
+      ? 'Todas as linhas deste snapshot estão sem valor de comissão (estrutura presente, dados financeiros ausentes).'
+      : ('A soma das linhas (' + esc(HC_VM.fmtMoney(integrity.rowSumTotal)) + ') diverge do total oficial registrado no fechamento (' + esc(HC_VM.fmtMoney(integrity.officialTotal)) + ').');
+    return '<div class="note gbWarn hcIntegrityWarn" role="alert"><b>⚠ Snapshot histórico com inconsistência conhecida.</b>' +
+      '<p class="maSubtle">' + detail + ' Este registro histórico existe e é exibido exatamente como foi gravado — nenhum valor foi recalculado, estimado ou substituído por dado atual. A exportação oficial desta competência é bloqueada pelo servidor até que a inconsistência seja tratada pela Administração/RH F&I.</p></div>';
+  }
+
+  function hcSnapshotRowHtml(r) {
+    var t = HC_VM.commissionTotals(r);
+    return '<tr><td><b>' + esc(r.nome || '-') + '</b></td>' +
+      '<td>' + esc(r.loja || '-') + '</td>' +
+      '<td>' + esc(r.departamento || '-') + '</td>' +
+      '<td>' + esc(String(r.vendidas != null ? r.vendidas : 0)) + '</td>' +
+      '<td>' + esc(String(r.financiadas != null ? r.financiadas : 0)) + '</td>' +
+      '<td>' + esc(HC_VM.fmtMoney(r.producao)) + '</td>' +
+      '<td>' + esc(HC_VM.fmtMoney(r.retorno)) + '</td>' +
+      '<td>' + esc(HC_VM.fmtMoney(t.total)) + '</td></tr>';
+  }
+  function hcSnapshotColgroupHtml() {
+    return '<colgroup><col class="hcColNome"><col class="hcColLoja"><col class="hcColDept">' +
+      '<col class="hcColNum"><col class="hcColNum"><col class="hcColMoney"><col class="hcColMoney"><col class="hcColMoney"></colgroup>';
+  }
+  function hcSnapshotTableHtml(rows) {
+    return '<div class="hcDesktopOnly"><div class="modTableWrap"><table class="modTable hcSnapshotTable">' +
+      hcSnapshotColgroupHtml() +
+      '<thead><tr><th scope="col">Nome</th><th scope="col">Loja</th><th scope="col">Depto.</th><th scope="col">Vend.</th><th scope="col">Fin.</th><th scope="col">Produção</th><th scope="col">Retorno</th><th scope="col">Comissão</th></tr></thead>' +
+      '<tbody>' + rows.map(hcSnapshotRowHtml).join('') + '</tbody></table></div></div>';
+  }
+  function hcSnapshotCardHtml(r) {
+    var t = HC_VM.commissionTotals(r);
+    return '<div class="maMobileCard hcSnapshotCard">' +
+      '<div class="maMobileName">' + esc(r.nome || '-') + '</div>' +
+      '<div class="maMobileMeta">' + esc(r.perfil || '-') + ' · ' + esc(r.loja || '-') + ' · ' + esc(r.departamento || '-') + '</div>' +
+      '<div class="maMobileMeta">Vendidas: ' + esc(String(r.vendidas != null ? r.vendidas : 0)) + ' · Financiadas: ' + esc(String(r.financiadas != null ? r.financiadas : 0)) + '</div>' +
+      '<div class="maMobileMeta">Produção: ' + esc(HC_VM.fmtMoney(r.producao)) + ' · Retorno: ' + esc(HC_VM.fmtMoney(r.retorno)) + '</div>' +
+      '<div class="maMobileMeta"><b>Comissão total: ' + esc(HC_VM.fmtMoney(t.total)) + '</b></div></div>';
+  }
+  function hcSnapshotCardsHtml(rows) {
+    return '<div class="hcMobileOnly">' + rows.map(hcSnapshotCardHtml).join('') + '</div>';
+  }
+
+  function hcDetailHtml() {
+    var d = historyState.detail;
+    var c = d.closing;
+    var html = '<div class="hcDetailHead"><button type="button" class="modBtnGhost" id="hcBackBtn">← Voltar ao histórico</button>' +
+      '<h3>' + esc(c.nome_periodo || '-') + ' — v' + esc(c.versao != null ? c.versao : '-') + ' ' + hcStatusBadgeHtml(c.status) + '</h3></div>' +
+      '<p class="note">Snapshot histórico — valores registrados no momento deste fechamento (' + esc(HC_VM.fmtDateTimeBR(c.fechado_em)) + '). Estes números NÃO são recalculados e não refletem dados operacionais atuais.</p>';
+    if (historyState.exportError && historyState.exportError.closingId === c.id) {
+      var expErr = historyState.exportError.err;
+      // master_commission_snapshot_export's own real rejection messages
+      // (22023 snapshot inconsistente / P0002 fechamento não encontrado)
+      // are already hand-authored, safe, user-facing text (confirmed by
+      // reading the real SQL: RAISE EXCEPTION with a plain-language
+      // string, never a raw SQLSTATE/table/column name) -- shown
+      // verbatim here, unlike a generic RPC_ERROR elsewhere in this app.
+      // Transport-level failures (session/network/auth) still go
+      // through the standard generic mapping.
+      html += (expErr.state === 'RPC_ERROR' && expErr.message)
+        ? '<div class="modErrorState"><div class="modStateTitle">Exportação bloqueada</div>' + esc(expErr.message) + '</div>'
+        : errorStateHtml(expErr.state, expErr.message);
+    }
+    if (d.error) {
+      return html + errorStateHtml(d.error.state, d.error.message) +
+        '<button type="button" class="modBtnGhost" id="hcRetryDetailBtn" data-id="' + esc(c.id) + '">Tentar novamente</button>';
+    }
+    if (d.loading) {
+      return html + '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando snapshot...</div>';
+    }
+    html += hcIntegrityBannerHtml(d.rows, c);
+    html += '<button type="button" class="modBtnGhost hcExportBtn" data-id="' + esc(c.id) + '"' + (historyState.exportingId === c.id ? ' disabled' : '') + '>' + (historyState.exportingId === c.id ? 'Exportando...' : 'Exportar XLSX') + '</button>';
+    html += d.rows.length
+      ? (hcSnapshotTableHtml(d.rows) + hcSnapshotCardsHtml(d.rows))
+      : '<p class="note">Este fechamento não possui linhas de snapshot.</p>';
+    return html;
+  }
+
+  function renderHistoricoCompetenciasSection() {
+    var html = '<h2>Histórico de Competências</h2>' +
+      '<p class="note">Consulta somente leitura dos fechamentos de competência já registrados. Nenhuma ação de fechar, reabrir, corrigir ou recalcular está disponível nesta tela.</p>';
+    if (historyState.detail) return html + hcDetailHtml();
+    if (historyState.error) {
+      return html + errorStateHtml(historyState.error.state, historyState.error.message) +
+        '<button type="button" id="hcRetryBtn" class="modBtnGhost">Tentar novamente</button>';
+    }
+    if (historyState.loading || !historyState.loaded) {
+      return html + '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando histórico...</div>';
+    }
+    return html + (historyState.closings.length
+      ? (hcDesktopTableHtml() + hcMobileCardsHtml())
+      : '<p class="note">Nenhum fechamento de competência registrado ainda.</p>');
+  }
+
   // ---------- master render ----------
   function renderPanel() {
     var panel = document.getElementById('maPanel');
@@ -3817,6 +4107,12 @@
     if (currentSection === 'utilizacaoSimuladores') {
       renderSuDrawerRoot();
       panel.innerHTML = renderUtilizacaoSimuladoresSection();
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'historicoCompetencias') {
+      panel.innerHTML = renderHistoricoCompetenciasSection();
       wireInteraction();
       return;
     }
@@ -4147,6 +4443,20 @@
         suState.drawerUserId = el.getAttribute('data-id');
         renderSuDrawerRoot();
       });
+    });
+
+    // ---- Histórico de Competências (Painel Master Phase PM-5H, read-only) ----
+    var hcRetry = document.getElementById('hcRetryBtn');
+    if (hcRetry) hcRetry.addEventListener('click', historyLoad);
+    var hcRetryDetail = document.getElementById('hcRetryDetailBtn');
+    if (hcRetryDetail) hcRetryDetail.addEventListener('click', function () { historyOpenDetail(hcRetryDetail.getAttribute('data-id')); });
+    var hcBack = document.getElementById('hcBackBtn');
+    if (hcBack) hcBack.addEventListener('click', historyCloseDetail);
+    document.querySelectorAll('.hcViewBtn').forEach(function (el) {
+      el.addEventListener('click', function () { historyOpenDetail(el.getAttribute('data-id')); });
+    });
+    document.querySelectorAll('.hcExportBtn').forEach(function (el) {
+      el.addEventListener('click', function () { historyExportXlsx(el.getAttribute('data-id')); });
     });
 
     var search = document.getElementById('maSearch');

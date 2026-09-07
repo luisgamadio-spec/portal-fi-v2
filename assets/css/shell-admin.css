@@ -685,3 +685,55 @@ col.absColStatus { width: 86px; }    /* badge content ~62px + cell padding, view
 .udsNuncaHead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: var(--space-2); }
 .udsNuncaRow { display: grid; grid-template-columns: 1.4fr 1fr 1.4fr; gap: 10px; background: var(--mod-surface-muted, #151515); border: 1px solid var(--mod-border-strong); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 6px; align-items: center; }
 @media (max-width: 760px) { .udsNuncaRow { grid-template-columns: 1fr; gap: 2px; } }
+/* ==================== Histórico de Competências (Painel Master Phase PM-5H) ====================
+   STRICTLY READ-ONLY capability (Gate 4) -- no create/edit/close/
+   reopen/archive action anywhere in this file's markup. Applies the
+   permanent row-grid-integrity lesson from PM-5F-H3/PM-5F-SC-H1/
+   PM-USERS-VISUAL-H1 from the start: table-layout:fixed + <colgroup>
+   with real measured widths, and the Ações cell's flex layout lives on
+   an inner <div> (.hcActions), never on the <td> itself. Desktop
+   table / mobile card breakpoint uses its OWN pair (.hcDesktopOnly/
+   .hcMobileOnly), not the shared .maDesktopOnly/.maMobileOnly (767px)
+   nor any other module's same-prefix pair -- same PM-5F-SC-H1
+   precedent (avoid a same-name collision with an unrelated module;
+   "hc" is not used as a class prefix anywhere else in this codebase,
+   confirmed by grep before choosing it). */
+.hcDesktopOnly { display: block; }
+.hcMobileOnly { display: none; }
+@media (max-width: 900px) {
+  .hcDesktopOnly { display: none; }
+  .hcMobileOnly { display: block; }
+}
+
+.hcTable, .hcSnapshotTable { table-layout: fixed; }
+.hcTable th, .hcTable td, .hcSnapshotTable th, .hcSnapshotTable td { text-align: left; vertical-align: top; white-space: normal; overflow-wrap: break-word; word-break: break-word; }
+.hcTable .maBadge, .hcSnapshotTable .maBadge { white-space: nowrap; }
+.hcTable .hcActions .modBtnGhost { white-space: nowrap; }
+.hcTable th:first-child, .hcTable td:first-child,
+.hcSnapshotTable th:first-child, .hcSnapshotTable td:first-child { position: static; left: auto; background: none; }
+
+/* Column widths: real measured minimums for this table's own content
+   (same discipline as absColLoja/scColLoja) -- longest single badge
+   word ("REABERTO"), a full date+time value ("DD/MM/AAAA HH:MM"), and
+   the widest of the 2 real action labels ("Exportando..."). Competência
+   (name+period range) and Resumo absorb the remaining width. */
+.hcColVersao { width: 64px; }
+.hcColStatus { width: 96px; }
+.hcColData { width: 150px; }
+.hcColResumo { width: 170px; }
+.hcColAcoes { width: 170px; }
+
+.hcColNome { width: 30%; }
+.hcColLoja { width: 13%; }
+.hcColDept { width: 13%; }
+.hcColNum { width: 8%; text-align: right; }
+.hcColMoney { width: 12%; text-align: right; }
+.hcSnapshotTable td:nth-child(4), .hcSnapshotTable td:nth-child(5),
+.hcSnapshotTable td:nth-child(6), .hcSnapshotTable td:nth-child(7), .hcSnapshotTable td:nth-child(8) { text-align: right; font-variant-numeric: tabular-nums; }
+
+.hcActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.hcMobileCard .hcActions, .hcSnapshotCard { margin-top: var(--space-2); }
+
+.hcDetailHead { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2); }
+.hcDetailHead h2, .hcDetailHead h3 { margin: 0; }
+.hcIntegrityWarn { border-left: 3px solid var(--mod-critical, #c22); margin: var(--space-2) 0; }
