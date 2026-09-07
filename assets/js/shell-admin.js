@@ -232,6 +232,25 @@
     exportError: null
   };
 
+  // Painel Master Phase PM-5J (Fechamento de Competência). `simulate`
+  // defaults to true (Gate 35/36 -- LOCAL_CLOSING_WRITE_MODE must never
+  // be REAL during homologation by default): while true, confirming
+  // calls closeCommissionPeriodSimulated (pure client-side fake, never
+  // touches the network) instead of the real master_close_commission_
+  // period RPC. Switching it off is a deliberate, explicit, separately-
+  // confirmed action in the UI, never the default. Reabrir is
+  // deliberately absent from this whole state -- out of scope (Gate 25).
+  var closingState = {
+    simulate: true,
+    periods: null, periodsLoading: false, periodsError: null,
+    selectedPeriodId: '',
+    existingClosingChecked: false, existingClosing: null, existingClosingError: null,
+    previewLoading: false, previewError: null,
+    preview: null, previewToken: null, gestorBlocked: false,
+    confirmOpen: false,
+    closing: false, closeError: null, successResult: null
+  };
+
   // Create/Edit form working state — reset on view change.
   var createForm = null;
   var editForm = null;
@@ -606,6 +625,14 @@
     // IMPLEMENTATION_BLOCKED (PM-5G) and is deliberately NOT added here
     // as a disabled/fake placeholder (Gate 18: "não adicionar botão
     // falso/inativo de Fechamento apenas para completar navegação").
+    // Painel Master Phase PM-5J: engine authority/parity reconciled
+    // (PM-5I) and full-payload parity proven (PM-5J) -- positioned
+    // right after Períodos de Comissão, before Histórico (its own
+    // natural read consumer). Reabertura remains OUT OF SCOPE (Gate 25
+    // -- master_reopen_commission_period's server-side authority was
+    // never reconciled, PM-5G); this screen only ever offers PRÉVIA +
+    // FECHAR, never Reabrir.
+    { id: 'fechamentoCompetencia', label: 'Fechamento de Competência', active: true },
     { id: 'historicoCompetencias', label: 'Histórico de Competências', active: true },
     { id: 'pendenciasCadastrais', label: 'Pendências Cadastrais', active: true },
     { id: 'auditoria', label: 'Auditoria', active: true }
@@ -660,6 +687,11 @@
     historyState.detail = null;
     historyState.exportingId = null;
     historyState.exportError = null;
+    closingState.preview = null;
+    closingState.previewToken = null;
+    closingState.confirmOpen = false;
+    closingState.closeError = null;
+    closingState.successResult = null;
     // Never leave either section's modal open behind a section switch --
     // a blunt clear (no focus-return) is correct here, since the trigger
     // row itself is about to be discarded along with the whole section.
@@ -689,6 +721,8 @@
       suEnter();
     } else if (currentSection === 'historicoCompetencias') {
       historyEnter();
+    } else if (currentSection === 'fechamentoCompetencia') {
+      closingEnter();
     } else {
       renderPanel();
     }
@@ -4013,6 +4047,351 @@
       : '<p class="note">Nenhum fechamento de competência registrado ainda.</p>');
   }
 
+  // ---------- Fechamento de Competência (Painel Master Phase PM-5J) ----------
+  // The only WRITE action anywhere in this whole file that can create a
+  // real, immutable financial snapshot. Every safeguard below exists
+  // because reabertura is NOT implemented in V2 (Gate 25) -- see the
+  // module doc comment at closingState's own declaration.
+  var CL_PROVIDER = window.NX_MASTER_COMPETENCE_CLOSING_PROVIDER;
+  var CL_ENGINE = window.NX_MASTER_COMPETENCE_CLOSING_ENGINE;
+  var CL_VM = window.NX_MASTER_COMPETENCE_CLOSING_VM;
+
+  function closingEnter() {
+    if (closingState.periods || closingState.periodsLoading) { renderPanel(); return; }
+    closingLoadPeriods();
+  }
+  function closingLoadPeriods() {
+    closingState.periodsLoading = true;
+    closingState.periodsError = null;
+    renderPanel();
+    window.NX_MASTER_PERIODOS_PROVIDER.listPeriods({}).then(
+      function (periods) {
+        closingState.periods = periods;
+        closingState.periodsLoading = false;
+        renderPanel();
+      },
+      function (err) {
+        closingState.periodsLoading = false;
+        closingState.periodsError = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+  function closingSelectedPeriod() {
+    return (closingState.periods || []).filter(function (p) { return String(p.id) === String(closingState.selectedPeriodId); })[0] || null;
+  }
+  function closingSelectPeriod(id) {
+    closingState.selectedPeriodId = id;
+    closingState.preview = null;
+    closingState.previewToken = null;
+    closingState.previewError = null;
+    closingState.gestorBlocked = false;
+    closingState.existingClosingChecked = false;
+    closingState.existingClosing = null;
+    closingState.existingClosingError = null;
+    closingState.successResult = null;
+    closingState.closeError = null;
+    if (id) closingCheckExistingClosing(id);
+    renderPanel();
+  }
+  // Read-only existing-closing check (Gate 27) -- reuses Histórico's own
+  // real read RPC (master_commission_closings via its provider), never
+  // a second definition of the same call. The BACKEND's own real 23505
+  // check inside master_close_commission_period remains the final
+  // authority regardless of what this UI-only convenience finds.
+  function closingCheckExistingClosing(periodId) {
+    window.NX_MASTER_COMPETENCE_HISTORY_PROVIDER.listClosings({}).then(
+      function (rows) {
+        if (String(closingState.selectedPeriodId) !== String(periodId)) return;
+        var active = (rows || []).filter(function (c) {
+          return String(c.periodo_id) === String(periodId) && c.ativo !== false && String(c.status || '').toUpperCase() === 'FECHADO';
+        })[0] || null;
+        closingState.existingClosing = active;
+        closingState.existingClosingChecked = true;
+        renderPanel();
+      },
+      function (err) {
+        closingState.existingClosingChecked = true;
+        closingState.existingClosingError = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  // PREVIEW IS NOT A WRITE (Gate 22): every call below is a read;
+  // buildPreviewLines (the closing engine) is a pure in-memory
+  // computation. Enforced structurally + by test allowlist, never just
+  // by convention.
+  function closingGeneratePreview() {
+    var periodo = closingSelectedPeriod();
+    if (!periodo || closingState.existingClosing) return;
+    closingState.previewLoading = true;
+    closingState.previewError = null;
+    closingState.preview = null;
+    closingState.previewToken = null;
+    closingState.gestorBlocked = false;
+    renderPanel();
+    Promise.all([
+      CL_PROVIDER.loadCommissionMetrics(periodo.data_inicio, periodo.data_fim, {}),
+      CL_PROVIDER.loadAnalystCommissionMetrics(periodo.data_inicio, periodo.data_fim, {}),
+      CL_PROVIDER.loadManagerDirectory(periodo.data_inicio, periodo.data_fim, {}),
+      CL_PROVIDER.loadGestorIdentity({})
+    ]).then(
+      function (results) {
+        if (String(closingState.selectedPeriodId) !== String(periodo.id)) return;
+        var vendData = results[0], analystRows = results[1], managerRows = results[2], gestorIdentity = results[3];
+        var cfg = CL_VM.DEFAULT_PORTAL_CONFIG;
+        var preview = CL_ENGINE.buildPreviewLines({
+          vendRows: vendData.rows, analystRows: analystRows, managerRows: managerRows,
+          gestorTotals: vendData.totals, gestorIdentity: gestorIdentity, cfg: cfg
+        });
+        closingState.previewLoading = false;
+        if (!preview) {
+          // Real, deliberate fail-closed gate (Gate 20/47): missing/
+          // inactive Gestor F&I identity blocks the WHOLE preview, never
+          // just its own row, and NEVER falls back to a generic label.
+          closingState.gestorBlocked = !gestorIdentity;
+          closingState.previewError = {
+            state: 'RPC_ERROR',
+            message: gestorIdentity
+              ? 'Dados operacionais desta competência ainda não estão disponíveis.'
+              : 'A identidade autoritativa do Gestor F&I não foi encontrada ou está inativa. O fechamento fica bloqueado até isso ser corrigido no cadastro -- nenhum usuário substituto é escolhido automaticamente.'
+          };
+          renderPanel();
+          return;
+        }
+        closingState.preview = preview;
+        closingState.previewToken = CL_VM.makePreviewToken(periodo.id);
+        renderPanel();
+      },
+      function (err) {
+        closingState.previewLoading = false;
+        closingState.previewError = err || { state: 'RPC_ERROR' };
+        renderPanel();
+      }
+    );
+  }
+
+  function closingOpenConfirm() {
+    if (!closingState.preview) return;
+    closingState.confirmOpen = true;
+    renderClosingModalRoot();
+  }
+  function closingCancelConfirm() {
+    closingState.confirmOpen = false;
+    clearNxModal();
+  }
+  function closingSetSimulate(value) {
+    closingState.simulate = value;
+    renderPanel();
+  }
+
+  function closingConfirmClose() {
+    if (closingState.closing) return; // double-submit guard (Gate 32/49)
+    var periodo = closingSelectedPeriod();
+    if (!periodo || !closingState.preview) return;
+    // Stale-preview protection (Gate 31/48): the ONE thing this can
+    // prove is "the selected período is still the one the preview was
+    // built for" -- it cannot detect a real operational-data change
+    // that happened silently on the server since, and never claims to.
+    if (CL_VM.isPreviewStale(closingState.previewToken, periodo.id)) {
+      closingState.closeError = { state: 'RPC_ERROR', message: 'A prévia não corresponde mais ao período selecionado. Gere uma nova prévia antes de confirmar.' };
+      closingState.confirmOpen = false;
+      clearNxModal();
+      renderPanel();
+      return;
+    }
+    closingState.closing = true;
+    closingState.closeError = null;
+    renderClosingModalRoot();
+    var summary = CL_ENGINE.buildSummaryPayload({
+      periodo: periodo,
+      executivo: { vendidas: closingState.preview.vendidas, financiadas: closingState.preview.financiadas, producao: closingState.preview.producao, retorno: closingState.preview.retorno, spf: closingState.preview.spf },
+      linhasCount: closingState.preview.linhas.length, comissaoPrevista: closingState.preview.comissaoPrevista,
+      fechadoPorCpf: '', fechadoPorNome: ''
+    });
+    var rows = CL_ENGINE.buildSnapshotRowsPayload(closingState.preview, periodo, null);
+    var writeCall = closingState.simulate
+      ? CL_PROVIDER.closeCommissionPeriodSimulated(periodo.id, summary, rows)
+      : CL_PROVIDER.closeCommissionPeriod(periodo.id, summary, rows, {});
+    writeCall.then(
+      function (result) {
+        closingState.closing = false;
+        closingState.confirmOpen = false;
+        closingState.preview = null;
+        closingState.previewToken = null;
+        closingState.successResult = result;
+        clearNxModal();
+        closingState.existingClosingChecked = false;
+        closingCheckExistingClosing(periodo.id);
+        renderPanel();
+      },
+      function (err) {
+        closingState.closing = false;
+        closingState.closeError = err || { state: 'RPC_ERROR' };
+        renderClosingModalRoot();
+        renderPanel();
+      }
+    );
+  }
+
+  function renderClosingModalRoot() {
+    if (!closingState.confirmOpen) { if (currentSection === 'fechamentoCompetencia') clearNxModal(); return; }
+    renderNxModal('Confirmar fechamento de competência', closingConfirmBodyHtml(), closingCancelConfirm);
+    wireClosingModalInteraction();
+  }
+  // Modal content is injected into #nxModalRoot independently of the
+  // main panel's own render+wire cycle (renderPanel/wireInteraction) --
+  // same reason every sibling modal (e.g. wireScModalInteraction) wires
+  // itself right after rendering, rather than relying on the main
+  // panel's wiring pass, which never touches #nxModalRoot.
+  function wireClosingModalInteraction() {
+    var cancelBtn = document.getElementById('clConfirmCancelBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', closingCancelConfirm);
+    var doBtn = document.getElementById('clConfirmDoBtn');
+    if (doBtn) doBtn.addEventListener('click', closingConfirmClose);
+  }
+  function closingConfirmBodyHtml() {
+    var periodo = closingSelectedPeriod();
+    var p = closingState.preview;
+    if (!periodo || !p) return '';
+    var modoTxt = closingState.simulate
+      ? '<p class="note gbWarn"><b>Modo simulação ativo.</b> Nenhum dado real será alterado -- esta confirmação apenas simula o fluxo de fechamento, localmente.</p>'
+      : '<p class="note gbWarn"><b>Modo real ativo.</b> Esta ação grava um snapshot real no Supabase e marca esta competência como FECHADO.</p>';
+    // Real server rejection messages (42501/P0002/23505/22023/P0001,
+    // confirmed by direct reading of master_close_commission_period's
+    // own SQL, PM-5G) are already hand-authored, safe, user-facing text
+    // -- shown verbatim here, same discipline already established for
+    // Histórico's export rejection (PM-5H).
+    var errHtml = closingState.closeError
+      ? (closingState.closeError.state === 'RPC_ERROR' && closingState.closeError.message
+        ? '<div class="modErrorState"><div class="modStateTitle">Fechamento não concluído</div>' + esc(closingState.closeError.message) + '</div>'
+        : errorStateHtml(closingState.closeError.state, closingState.closeError.message))
+      : '';
+    return '<div class="gbRow"><span>Competência</span><b>' + esc(periodo.nome_periodo || '-') + '</b></div>' +
+      '<div class="gbRow"><span>Período</span><b>' + esc(CL_VM.fmtDateBR(periodo.data_inicio)) + ' → ' + esc(CL_VM.fmtDateBR(periodo.data_fim)) + '</b></div>' +
+      '<div class="gbRow"><span>Linhas do snapshot</span><b>' + p.linhas.length + '</b></div>' +
+      '<div class="gbRow"><span>Comissão total prevista</span><b>' + esc(CL_VM.fmtMoney(p.comissaoPrevista)) + '</b></div>' +
+      modoTxt +
+      '<p class="note">Após confirmar, um snapshot histórico será criado e esta competência será marcada como FECHADO. O Portal V2 não oferece uma ação de Reabrir nesta versão -- se o backend possuir um mecanismo de reabertura separado, ele não é acessível a partir desta tela.</p>' +
+      errHtml +
+      '<div class="adminModalActions">' +
+      '<button type="button" class="modBtnGhost" id="clConfirmCancelBtn">Cancelar</button>' +
+      '<button type="button" class="modBtn" id="clConfirmDoBtn"' + (closingState.closing ? ' disabled' : '') + '>' + (closingState.closing ? 'Processando...' : 'Confirmar Fechamento') + '</button>' +
+      '</div>';
+  }
+
+  function clColgroupHtml() {
+    return '<colgroup><col class="clColNome"><col class="clColPerfil"><col class="clColLoja">' +
+      '<col class="clColStatus"><col class="clColNum"><col class="clColNum"><col class="clColMoney"></colgroup>';
+  }
+  function clRowHtml(l) {
+    return '<tr><td><b>' + esc(l.nome || '-') + '</b></td>' +
+      '<td>' + esc(l.perfil || '-') + '</td>' +
+      '<td>' + esc(l.loja || '-') + '</td>' +
+      '<td>' + esc(l.status || '-') + '</td>' +
+      '<td>' + esc(String(l.m?.vendidas != null ? l.m.vendidas : 0)) + '</td>' +
+      '<td>' + esc(String(l.m?.financiadas != null ? l.m.financiadas : 0)) + '</td>' +
+      '<td>' + esc(CL_VM.fmtMoney(l.comissao)) + '</td></tr>';
+  }
+  function clPreviewTableHtml(linhas) {
+    return '<div class="hcDesktopOnly"><div class="modTableWrap"><table class="modTable clPreviewTable">' +
+      clColgroupHtml() +
+      '<thead><tr><th scope="col">Nome</th><th scope="col">Perfil</th><th scope="col">Loja</th><th scope="col">Status</th><th scope="col">Vend.</th><th scope="col">Fin.</th><th scope="col">Comissão</th></tr></thead>' +
+      '<tbody>' + linhas.map(clRowHtml).join('') + '</tbody></table></div></div>';
+  }
+  function clPreviewCardHtml(l) {
+    return '<div class="maMobileCard">' +
+      '<div class="maMobileName">' + esc(l.nome || '-') + '</div>' +
+      '<div class="maMobileMeta">' + esc(l.perfil || '-') + ' · ' + esc(l.loja || '-') + ' · ' + esc(l.status || '-') + '</div>' +
+      '<div class="maMobileMeta">Vendidas: ' + esc(String(l.m?.vendidas != null ? l.m.vendidas : 0)) + ' · Financiadas: ' + esc(String(l.m?.financiadas != null ? l.m.financiadas : 0)) + '</div>' +
+      '<div class="maMobileMeta"><b>Comissão: ' + esc(CL_VM.fmtMoney(l.comissao)) + '</b></div></div>';
+  }
+  function clPreviewCardsHtml(linhas) {
+    return '<div class="hcMobileOnly">' + linhas.map(clPreviewCardHtml).join('') + '</div>';
+  }
+
+  function closingPreviewHtml() {
+    var p = closingState.preview;
+    var counts = CL_VM.profileCounts(p.linhas);
+    return '<div class="note gbWarn"><b>Prévia — ainda NÃO fechada.</b> Estes valores são calculados agora, ao vivo, a partir dos dados operacionais atuais. Eles NÃO são um snapshot histórico e podem mudar até o momento da confirmação.</div>' +
+      '<div class="fechamentoPreviewGrid">' +
+      '<div class="pcCard"><div class="pcCardK">Linhas</div><div class="pcCardV">' + p.linhas.length + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Vendedores</div><div class="pcCardV">' + counts.vendedores + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Gerentes</div><div class="pcCardV">' + counts.gerentes + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Analistas</div><div class="pcCardV">' + counts.analistas + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Gestor F&I</div><div class="pcCardV">' + counts.gestor + '</div></div>' +
+      '<div class="pcCard"><div class="pcCardK">Comissão total prevista</div><div class="pcCardV">' + esc(CL_VM.fmtMoney(p.comissaoPrevista)) + '</div></div>' +
+      '</div>' +
+      clPreviewTableHtml(p.linhas) + clPreviewCardsHtml(p.linhas) +
+      '<div class="adminModalActions"><button type="button" class="modBtn" id="clOpenConfirmBtn">Fechar Competência</button></div>';
+  }
+
+  function renderFechamentoCompetenciaSection() {
+    var html = '<h2>Fechamento de Competência</h2>' +
+      '<p class="note">Gere a prévia de uma competência e, se estiver correta, confirme o fechamento oficial. Esta tela não oferece reabertura -- consulte o Histórico de Competências para fechamentos já realizados.</p>';
+
+    if (closingState.periodsError) {
+      return html + errorStateHtml(closingState.periodsError.state, closingState.periodsError.message) +
+        '<button type="button" id="clRetryPeriodsBtn" class="modBtnGhost">Tentar novamente</button>';
+    }
+    if (closingState.periodsLoading || !closingState.periods) {
+      return html + '<div class="modLoadingState"><span class="modLoadingDot"></span>Carregando períodos...</div>';
+    }
+
+    var elegiveis = closingState.periods.filter(function (p) { return p.ativo !== false; });
+    html += '<div class="modFilters"><div class="modField"><label for="clPeriodoSel">Competência</label>' +
+      '<select id="clPeriodoSel"><option value="">Selecione...</option>' +
+      elegiveis.map(function (p) {
+        return '<option value="' + esc(p.id) + '"' + (closingState.selectedPeriodId === p.id ? ' selected' : '') + '>' +
+          esc(p.nome_periodo) + ' · ' + esc(CL_VM.fmtDateBR(p.data_inicio)) + ' a ' + esc(CL_VM.fmtDateBR(p.data_fim)) + ' · ' + esc(p.status || '-') + '</option>';
+      }).join('') + '</select></div></div>';
+
+    var periodo = closingSelectedPeriod();
+    if (!periodo) return html + '<p class="note">Selecione uma competência para começar.</p>';
+
+    html += '<div class="gbRow"><span>Status atual</span><b>' + esc(periodo.status || '-') + '</b></div>';
+
+    if (closingState.existingClosingError) {
+      html += errorStateHtml(closingState.existingClosingError.state, closingState.existingClosingError.message);
+    } else if (!closingState.existingClosingChecked) {
+      html += '<div class="modLoadingState"><span class="modLoadingDot"></span>Verificando fechamentos existentes...</div>';
+      return html;
+    } else if (closingState.existingClosing) {
+      html += '<div class="note gbWarn"><b>Esta competência já possui um fechamento ativo.</b> Consulte o Histórico de Competências. Esta tela não oferece reabertura.</div>';
+      return html;
+    }
+
+    if (closingState.successResult) {
+      html += '<div class="note suBannerOk"><b>' + (closingState.successResult.simulated ? 'Fechamento simulado com sucesso.' : 'Competência fechada com sucesso.') + '</b>' +
+        '<p class="maSubtle">' + (closingState.successResult.simulated ? 'Nenhum dado real foi alterado (modo simulação).' : 'Um snapshot real foi gravado.') + ' Consulte o Histórico de Competências para ver o resultado.</p></div>';
+    }
+
+    html += '<div class="modField" style="max-width:420px"><label><input type="checkbox" id="clSimulateToggle"' + (closingState.simulate ? ' checked' : '') + '> Modo simulação (recomendado) -- nenhum dado real é alterado</label></div>';
+    if (!closingState.simulate) {
+      html += '<div class="note gbWarn"><b>Atenção: modo real ativo.</b> Confirmar o fechamento abaixo grava um snapshot real e marca a competência como FECHADO no Supabase.</div>';
+    }
+
+    if (closingState.previewError) {
+      // These are hand-authored, safe, real safety-gate messages (Gate
+      // 20's Gestor F&I fail-closed copy, or a plain "data not ready"
+      // notice) -- shown verbatim, same discipline as the confirm
+      // modal's own real-error display and Histórico's export
+      // rejection (PM-5H).
+      html += (closingState.previewError.state === 'RPC_ERROR' && closingState.previewError.message)
+        ? '<div class="modErrorState"><div class="modStateTitle">' + (closingState.gestorBlocked ? 'Fechamento bloqueado' : 'Prévia indisponível') + '</div>' + esc(closingState.previewError.message) + '</div>'
+        : errorStateHtml(closingState.previewError.state, closingState.previewError.message);
+    }
+    if (closingState.previewLoading) {
+      html += '<div class="modLoadingState"><span class="modLoadingDot"></span>Calculando prévia...</div>';
+    } else if (closingState.preview) {
+      html += closingPreviewHtml();
+    } else {
+      html += '<button type="button" class="modBtn" id="clGeneratePreviewBtn">Gerar Prévia</button>';
+    }
+    return html;
+  }
+
   // ---------- master render ----------
   function renderPanel() {
     var panel = document.getElementById('maPanel');
@@ -4113,6 +4492,13 @@
 
     if (currentSection === 'historicoCompetencias') {
       panel.innerHTML = renderHistoricoCompetenciasSection();
+      wireInteraction();
+      return;
+    }
+
+    if (currentSection === 'fechamentoCompetencia') {
+      renderClosingModalRoot();
+      panel.innerHTML = renderFechamentoCompetenciaSection();
       wireInteraction();
       return;
     }
@@ -4459,6 +4845,17 @@
       el.addEventListener('click', function () { historyExportXlsx(el.getAttribute('data-id')); });
     });
 
+    // ---- Fechamento de Competência (Painel Master Phase PM-5J) ----
+    var clRetryPeriods = document.getElementById('clRetryPeriodsBtn');
+    if (clRetryPeriods) clRetryPeriods.addEventListener('click', closingLoadPeriods);
+    var clPeriodoSel = document.getElementById('clPeriodoSel');
+    if (clPeriodoSel) clPeriodoSel.addEventListener('change', function (e) { closingSelectPeriod(e.target.value); });
+    var clSimulateToggle = document.getElementById('clSimulateToggle');
+    if (clSimulateToggle) clSimulateToggle.addEventListener('change', function (e) { closingSetSimulate(e.target.checked); });
+    var clGeneratePreview = document.getElementById('clGeneratePreviewBtn');
+    if (clGeneratePreview) clGeneratePreview.addEventListener('click', closingGeneratePreview);
+    var clOpenConfirm = document.getElementById('clOpenConfirmBtn');
+    if (clOpenConfirm) clOpenConfirm.addEventListener('click', closingOpenConfirm);
     var search = document.getElementById('maSearch');
     if (search) search.addEventListener('input', function (e) { searchQuery = e.target.value; renderPanel(); });
     var fp = document.getElementById('maFilterPerfil');

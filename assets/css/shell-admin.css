@@ -737,3 +737,24 @@ col.absColStatus { width: 86px; }    /* badge content ~62px + cell padding, view
 .hcDetailHead { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2); }
 .hcDetailHead h2, .hcDetailHead h3 { margin: 0; }
 .hcIntegrityWarn { border-left: 3px solid var(--mod-critical, #c22); margin: var(--space-2) 0; }
+
+/* ==================== Fechamento de Competência (Painel Master Phase PM-5J) ====================
+   The only WRITE-capable screen in this whole file that can create a
+   real, immutable financial snapshot. Reuses .hcDesktopOnly/
+   .hcMobileOnly (900px breakpoint, Histórico) for its own preview
+   table -- same real content shape (person/profile/loja/status/
+   commission columns), no need for a third breakpoint pair. Applies
+   the same row-grid-integrity discipline from the start: table-
+   layout:fixed + <colgroup>, no display:flex directly on any <td>. */
+.clPreviewTable { table-layout: fixed; }
+.clPreviewTable th, .clPreviewTable td { text-align: left; vertical-align: top; white-space: normal; overflow-wrap: break-word; word-break: break-word; }
+.clPreviewTable th:first-child, .clPreviewTable td:first-child { position: static; left: auto; background: none; }
+.clColNome { width: 26%; }
+.clColPerfil { width: 12%; }
+.clColLoja { width: 16%; }
+.clColStatus { width: 16%; }
+.clColNum { width: 8%; text-align: right; }
+.clColMoney { width: 14%; text-align: right; }
+.clPreviewTable td:nth-child(5), .clPreviewTable td:nth-child(6), .clPreviewTable td:nth-child(7) { text-align: right; font-variant-numeric: tabular-nums; }
+
+.fechamentoPreviewGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-2); margin: var(--mod-space-control-gap) 0; }
