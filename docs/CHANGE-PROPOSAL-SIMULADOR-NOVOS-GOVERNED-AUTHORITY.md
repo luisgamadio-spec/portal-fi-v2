@@ -285,7 +285,73 @@ all 9 LinearRateTable golden values byte-for-byte unchanged) proves
 zero financial/business-logic regression from this narrowly-scoped
 visual correction.
 
-## Human UAT required (original financial migration, not yet satisfied)
+## Closure — Human product decision (2026-09-07)
+
+After the second visual-defect investigation (empty trailing grid tracks
+fixed, confirmed by the Human in Seminovos — "em seminovos - resolvido"
+— but a residual hairline remained visible in Novos Coparticipado and
+Novos Linear that a dedicated follow-up investigation could not trace to
+a provable DOM/CSS root cause after exhaustive testing — multiple
+viewport widths, multiple device-pixel-ratios, the complete production
+CSS set, computed-style and pseudo-element inspection, all returning
+clean/negative), the Human reviewed the remaining artifact directly and
+made an explicit product decision, recorded here **verbatim, not
+paraphrased**:
+
+> "acho que não precisamos seguir com isso, é um detalhe que só alguem
+> detalhista como eu ira se incomodar."
+
+This is **not** a claim that the hairline was fixed, and this document
+does not represent it as such. It is a conscious Human decision to
+**accept** a minor, unproven-root-cause, cosmetic detail as non-blocking
+for launch, rather than continue investigating it.
+
+**Classifications recorded:**
+- `RESIDUAL_INSTALLMENT_GRID_HAIRLINE_ACCEPTED_AS_NON_BLOCKING`
+- `RESIDUAL_INSTALLMENT_GRID_HAIRLINE_DEFERRED_P3_POLISH`
+- `SEMINOVOS_INSTALLMENT_GRID_VISUAL_HUMAN_APPROVED` (Human evidence:
+  "em seminovos - resolvido")
+- `NOVOS_INSTALLMENT_GRID_VISUAL_ACCEPTED_WITH_P3_DEBT`
+- `SIMULADOR_NOVOS_GOVERNED_AUTHORITY_HUMAN_APPROVED_LOCAL`
+- `SIMULADOR_SEMINOVOS_HUMAN_APPROVED_LOCAL`
+
+**P3 debt identifier (for future polish discovery):**
+`SIMULADOR_NOVOS_RESIDUAL_GRID_HAIRLINE_P3` — a faint, unproven-root-
+cause visual line reported by the Human in the installment grid of
+Novos "Plano Coparticipado" and "Financiamento Linear" (not observed by
+the Human in Seminovos' own grid, and not reproduced in this repository's
+own real-browser diagnostic testing across multiple widths/DPRs). Not a
+functional, financial, or security defect. No launch blocker. Priority
+P3 (visual polish), to be picked up only in a future dedicated polish
+wave, ideally starting from an actual screenshot/browser/zoom-level
+capture from the Human, since code-level investigation alone could not
+reproduce it.
+
+**Blockers confirmed NO:** launch blocker NO, functional blocker NO,
+financial blocker NO, security blocker NO.
+
+**Full chronology preserved, not erased:** (1) initial installment-grid
+defect reported by Human UAT; (2) empty-trailing-grid-track root cause
+proven and fixed (commit `39b021d`), Seminovos confirmed resolved by the
+Human; (3) a residual, narrower hairline defect remained visible in
+Novos only; (4) a dedicated second investigation exhaustively tested for
+a DOM/CSS root cause and could not prove one — reported honestly as
+`RESIDUAL_ROOT_CAUSE_NOT_PROVEN`, no code changed; (5) the Human reviewed
+this finding and explicitly chose to accept the residual detail as
+non-blocking, authorizing formal UAT closure and refreeze of both
+modules.
+
+**Refreeze:** AUTHORIZED / COMPLETE by this Human decision. `config/
+module-registry.json`'s `simulador-novos` and `simulador-seminovos`
+entries are restored to `migrationStatus: HUMAN_APPROVED` (chronology
+preserved in each entry's own notes, not overwritten). Both modules are
+FROZEN again as of this status — any future *functional* change again
+requires a new Change Proposal + new Human approval. The known
+`SIMULADOR_NOVOS_RESIDUAL_GRID_HAIRLINE_P3` debt does **not** by itself
+reopen either module; it remains a discoverable, accepted debt for a
+future dedicated polish wave.
+
+## Human UAT required (original financial migration — satisfied above)
 
 Refreeze criteria: the Human re-tests the V2 localhost build at
 `http://127.0.0.1:8080/portal-next-v2/` and confirms, at minimum:
