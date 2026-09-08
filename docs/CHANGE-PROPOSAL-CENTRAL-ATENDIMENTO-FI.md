@@ -4,8 +4,8 @@
 registry entry already existed as `NOT_MIGRATED` from AUTH FOUNDATION Phase 2A's
 discovery pass — this Wave proves the backend authority live and implements it).
 
-**Date:** 2026-09-07. **Author:** CA-1 wave (this session). **Status:** technically
-complete, **UAT_PENDING** — no Human approval claimed or fabricated by this document.
+**Date:** 2026-09-07 (CA-1) → 2026-09-08 (CA-1A/CA-1B). **Author:** this session.
+**Status:** **HUMAN_APPROVED — FROZEN** (chronology below; see §9).
 
 ## 1. Why this exists
 
@@ -252,3 +252,79 @@ Focused on the real MASTER workflow, not a mechanical RPC checklist:
 **Target state if this UAT is approved:** `CENTRAL_FI_V2_TECH_READY_HUMAN_UAT_
 PENDING` → `HUMAN_APPROVED` (with a verbatim quote recorded, same discipline as
 every other module in this registry). No approval is claimed by this document.
+
+> **Superseded by §9 below** — the plan above (written at CA-1 completion) included
+> mutation steps (Cadastrar, Status change, queue reorder, Encerrar Expediente).
+> CA-1A found no safe, reversible, already-established homologation analyst row in
+> the real database and narrowed the actually-executed plan to READ-ONLY + EXPORT
+> only. This original plan is preserved here as historical record, not deleted —
+> §9 records what was actually run and approved.
+
+## 9. Chronology — CA-1A (commit) and CA-1B (Human approval + freeze)
+
+**CA-1A (2026-09-08) — technical freeze + safe UAT preparation.** The CA-1
+implementation was reviewed hunk-by-hunk on every shared file touched (`index.html`,
+`assets/js/shell.js`, `config/landing-groups.json`, `config/module-registry.json`,
+`tests/registry-test.py`) and confirmed in-scope, then committed in one atomic,
+explicitly-staged commit: **`a0e7b9b`**, `feat(v2): migrate F&I service center`.
+Focused tests held at 64/64 (`central-atendimento-fi-test.py`) and 10/10
+(`central-atendimento-fi-route-test.py`) both pre- and post-commit, with zero
+regression on every sibling suite (`registry-test.py`, `auth-catalog-drift-test.py`
+40/40, `painel-analista-fi-test.py` 30/30, `painel-analista-fi-landing-visibility-
+test.py` 8/8, `master-admin-route-test.py` 18/18). Unrelated dirty/untracked work
+was preserved byte-identically throughout (no `git add -A`/`clean`/`reset` used).
+
+A dedicated, read-only, live query against the real `analistas_fi` table (11 real
+rows) found no test-like CPF pattern and no HOMOLOG/TESTE-named row; the one
+pre-existing dedicated homolog identity already in this codebase (a Phase 3A.2
+`usuarios`-table account, synthetic CPF) was cross-checked against `analistas_fi`
+and confirmed unrelated (zero match). **Classification:
+`NO_SAFE_MUTATION_TARGET_PROVEN`.** No homologation row was created. The Human UAT
+plan was therefore narrowed, for this approval only, to READ-ONLY + EXPORT actions —
+mutation paths remain technically covered by the automated evidence above, not by
+Human UAT.
+
+The local gitignored `assets/js/intelligence-runtime-config.local.js` had its
+`turnstileSiteKey` temporarily restored (the same established public value already
+used for prior local Human UAT waves, not a new value, not a secret) so a real
+MASTER could log in locally. No tracked/production config, Cloudflare, Supabase, or
+GitHub Pages configuration was touched.
+
+**CA-1B (2026-09-08) — Human approval + final refreeze.** The Human performed the
+narrowed READ-ONLY + EXPORT UAT and responded, verbatim: **"validado"**. Scope
+actually exercised: real MASTER login, Landing visibility (Atendimento F&I → Central
+de Atendimento F&I), opening the module, Dashboard visual/coherence review, Gestão
+de Analistas visual/readability review (no analyst created or mutated), Histórico
+rendering + a real history filter + Excel export, and a responsive/narrow-layout
+qualitative check. `config/module-registry.json`'s `central-atendimento-fi` entry
+was promoted `UAT_PENDING` → **`HUMAN_APPROVED`**, with `migrationCA1ANote` and
+`humanApprovalNote` fields recording this chronology in full (see that file for the
+verbatim registry text — not duplicated here to avoid drift between the two
+documents). **FROZEN as of this status**: any future functional change requires a
+new Change Proposal + new Human approval, same Freeze rule already applied to every
+other approved module in this registry.
+
+The local `turnstileSiteKey` was returned to `null` immediately after this approval
+was recorded (§10) — the temporary CA-1A activation is closed.
+
+## 10. Local Turnstile cleanup (CA-1B)
+
+`assets/js/intelligence-runtime-config.local.js` (confirmed gitignored, confirmed
+untracked, confirmed local-only) had `turnstileSiteKey` returned from its CA-1A
+temporary value back to `null`, restoring the pre-CA-1A inert baseline. No tracked
+file, no `intelligence-runtime-config.production.js`, no `.example.js`, no
+Cloudflare/Supabase/GitHub Pages configuration was touched by this cleanup.
+
+## 11. Final debt ledger (carried forward, none resolved by CA-1B)
+
+| ID | Priority | Description |
+|---|---|---|
+| `CENTRAL_CHAMAR_ANALISTA_CONCURRENCY_RACE` | P2 | V1 pre-existing, simulator-side race in `chamar_analista_fi`; requires a separate backend migration, out of scope |
+| `CENTRAL_QUEUE_REORDER_NON_ATOMIC` | P3 | Faithfully mirrors V1's own already-live behavior |
+| `ANALYST_PANEL_PERSISTENT_SIDEBAR_NAV_GAP` | P2 | Shared with Painel do Analista; Landing remains the approved discovery path |
+| `CENTRAL_SECONDARY_KPI_RECONSTRUCTED` | P3 | 6 of 8 dashboard KPIs are reconstructed counts, not verbatim-captured V1 aggregation code |
+| `NX_DEV_BADGE_LONG_SCROLL_OVERLAP` | P3 | Pre-existing global shell cosmetic issue, unrelated to this module |
+| `ABERTO_FOREVER_ATTENDANCE_DATA_FACT` | P3 (info only) | Real V1 historical records never close; rendered as-is |
+
+None of these were fixed opportunistically during CA-1B — this was a governance-only
+refreeze wave.

@@ -84,8 +84,13 @@ def main():
         # docs/CHANGE-PROPOSAL-CENTRAL-ATENDIMENTO-FI.md. V2 implementation
         # landed technically complete (roster CRUD, forced status changes,
         # bulk end-of-shift, filterable/exportable history), reusing the
-        # existing MASTER_ONLY authMode as-is. No Human approval on record
-        # yet — UAT_PENDING only, not HUMAN_APPROVED.
+        # existing MASTER_ONLY authMode as-is. CA-1A (2026-09-08): committed
+        # (a0e7b9b), NO_SAFE_MUTATION_TARGET_PROVEN against the real
+        # database, Human UAT scoped READ-ONLY + EXPORT accordingly. CA-1B
+        # (2026-09-08): Human explicit approval on record, verbatim
+        # "validado" — see this module's own humanApprovalNote in
+        # module-registry.json — HUMAN_APPROVED added on that basis, not an
+        # auto-promotion. FROZEN as of this status.
         "central-atendimento-fi": {"NOT_MIGRATED", "UAT_PENDING", "HUMAN_APPROVED"},
     }
 
