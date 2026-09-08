@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- Test-only harness to load the full Central de Atendimento F&I page/
+     provider surface in isolation, for the CA-1 migration automated
+     tests. Not part of the product shell. window.NX_AUTH / window.
+     NX_INTELLIGENCE_CONFIG are supplied by the test itself via
+     add_init_script -- same pattern as tests/_painel-analista-fi-
+     harness.html. XLSX/xlsx-export-helper are loaded so the Exportar
+     Excel button can be exercised. -->
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../design-system-2/tokens.css">
+<link rel="stylesheet" href="../assets/css/shell.css">
+<link rel="stylesheet" href="../assets/css/module-system.css">
+<link rel="stylesheet" href="../assets/css/painel-analista-fi.css">
+<link rel="stylesheet" href="../assets/css/central-atendimento-fi.css">
+</head>
+<body>
+<div id="caOutlet"></div>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="../assets/js/lib/xlsx-export-helper.js"></script>
+<script src="../assets/js/adapters/central-atendimento-fi-real-provider.js"></script>
+<script src="../assets/js/central-atendimento-fi.js"></script>
+</body></html>

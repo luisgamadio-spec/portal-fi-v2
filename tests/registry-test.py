@@ -77,6 +77,16 @@ def main():
         # this module's own humanApprovalNote in module-registry.json —
         # HUMAN_APPROVED added on that basis, not an auto-promotion.
         "painel-analista-fi": {"NOT_MIGRATED", "UAT_PENDING", "HUMAN_APPROVED"},
+        # CA-1 (2026-09-07): real V1 authority proven by direct source read
+        # PLUS live, read-only database introspection (table DDL, RLS,
+        # GRANTs, all 9 RPC bodies via pg_get_functiondef) — see this
+        # module's own migrationCA1Note in module-registry.json and
+        # docs/CHANGE-PROPOSAL-CENTRAL-ATENDIMENTO-FI.md. V2 implementation
+        # landed technically complete (roster CRUD, forced status changes,
+        # bulk end-of-shift, filterable/exportable history), reusing the
+        # existing MASTER_ONLY authMode as-is. No Human approval on record
+        # yet — UAT_PENDING only, not HUMAN_APPROVED.
+        "central-atendimento-fi": {"NOT_MIGRATED", "UAT_PENDING", "HUMAN_APPROVED"},
     }
 
     for m in modules:
