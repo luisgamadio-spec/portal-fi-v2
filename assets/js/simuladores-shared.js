@@ -132,6 +132,67 @@
         '</div>';
     }).join('') + '</div>';
   }
+
+  /* ---------- V2_SIMULATOR_INSTALLMENT_GRID_VISUAL_FIX ----------
+     Root cause (proven via rendered geometry, not guessed): .smTermGrid
+     used `grid-template-columns: repeat(auto-fill, minmax(110px, 1fr))`.
+     auto-fill computes a column count from container width alone, with
+     no awareness of the actual item count -- when the item count isn't
+     an exact multiple of that column count, the wrapped last row still
+     allocates every computed track (auto-fill never collapses unfilled
+     trailing tracks, unlike auto-fit), leaving a visible untinted void
+     from the last real cell to the grid's right edge -- reading as a
+     broken/dangling divider exactly at the row-wrap boundary. Novos'
+     own .smTermSelectGrid already solved this identical problem
+     (its own comment: "replacing .segmented's flex-wrap, which produced
+     an accidental 6+1 isolated last row") via a JS-computed --term-cols
+     custom property (balancedColumns() + ResizeObserver) instead of
+     auto-fill. balancedColumns() existed identically duplicated in both
+     simulador-novos.js and simulador-seminovos.js for that select grid;
+     moved here (additive -- the two local copies are untouched, still
+     used for their own .smTermSelectGrid) so the SAME deterministic
+     mechanism can drive the shared RESULT grid (.smTermGrid, used by
+     both pages) via a distinct --term-grid-cols custom property. */
+  function balancedColumns(containerWidth, itemMinWidth, n) {
+    if (n <= 1) return 1;
+    var maxFit = Math.max(1, Math.floor(containerWidth / itemMinWidth));
+    var cap = Math.min(maxFit, n);
+    if (cap >= n) return n;
+    var c;
+    for (c = cap; c >= 2; c--) { var rem = n % c; if (rem === 0 || rem >= 2) return c; }
+    for (c = cap + 1; c <= n; c++) { var rem2 = n % c; if (rem2 === 0 || rem2 >= 2) return c; }
+    return cap;
+  }
+  // .smTermGrid paints its dividers as background showing through 1px
+  // grid gaps -- unlike the flex-wrap select grid balancedColumns() was
+  // designed for (where a lone leftover item is merely visually
+  // isolated), an incomplete LAST ROW here leaves real empty grid
+  // tracks with no cell painted over them, exposing a visible untinted
+  // void (the reported "broken divider line"). The column count must
+  // therefore be an EXACT divisor of the item count -- no remainder
+  // tolerance -- so every row is always completely filled edge to edge.
+  function balancedColumnsExact(containerWidth, itemMinWidth, n) {
+    if (n <= 1) return 1;
+    var maxFit = Math.max(1, Math.floor(containerWidth / itemMinWidth));
+    var cap = Math.min(maxFit, n);
+    for (var c = cap; c >= 1; c--) { if (n % c === 0) return c; }
+    return 1;
+  }
+  function wireTermResultGrid(gridEl, itemMinWidth, n) {
+    if (!gridEl) return null;
+    function recompute() {
+      var w = gridEl.clientWidth || (gridEl.parentElement && gridEl.parentElement.clientWidth) || 0;
+      gridEl.style.setProperty('--term-grid-cols', String(balancedColumnsExact(w, itemMinWidth, n)));
+    }
+    recompute();
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(recompute);
+      ro.observe(gridEl);
+      return ro; // caller disconnects it (same lifecycle as its own termGridObservers)
+    }
+    window.addEventListener('resize', recompute);
+    return { disconnect: function () { window.removeEventListener('resize', recompute); } };
+  }
   function errorBlock(text) {
     return '<div class="errorState"><div class="t">Não foi possível calcular</div>' + esc(text) + '</div>';
   }
@@ -149,6 +210,7 @@
     getSegmentedValue: getSegmentedValue, wireSegmented: wireSegmented, wireMoneyMask: wireMoneyMask,
     moneyVal: moneyVal, numVal: numVal, textVal: textVal,
     resultHero: resultHero, secondaryGrid: secondaryGrid, termGrid: termGrid,
-    errorBlock: errorBlock, emptyBlock: emptyBlock, warningBlock: warningBlock
+    errorBlock: errorBlock, emptyBlock: emptyBlock, warningBlock: warningBlock,
+    balancedColumns: balancedColumns, balancedColumnsExact: balancedColumnsExact, wireTermResultGrid: wireTermResultGrid
   };
 })();

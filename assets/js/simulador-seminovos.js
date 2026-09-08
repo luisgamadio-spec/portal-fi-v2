@@ -178,6 +178,16 @@
     termGridObservers = [];
   }
 
+  // V2_SIMULATOR_INSTALLMENT_GRID_VISUAL_FIX: same shared mechanism as
+  // simulador-novos.js's own wireResultTermGrid -- see simuladores-
+  // shared.js's UI.wireTermResultGrid for the root-cause explanation.
+  function wireResultTermGrid(itemCount) {
+    var grid = document.querySelector('#smResultRegion .smTermGrid');
+    if (!grid) return;
+    var ro = UI.wireTermResultGrid(grid, 110, itemCount);
+    if (ro) termGridObservers.push(ro);
+  }
+
   function formHtml(mode) {
     switch (mode) {
       case 'tradicional':
@@ -321,6 +331,7 @@
     var html = UI.termGrid(r.terms.map(function (t) { return { prazo: t.prazo, payment: t.payment, rate: t.rate, best: false }; }));
     setResult('<p class="kpiLabel" style="margin-bottom:12px">Parcela por prazo — faixa ' + (r.band || '—') + ' · entrada ' + r.eBand + '%</p>' + html +
       '<p class="smFootnote">Financiado: ' + UI.brl(r.financiado) + '</p>');
+    wireResultTermGrid(r.terms.length);
   }
   function calcDescobridor() {
     var r = SN.calcularDescobridor({ financiado: UI.moneyVal('sFinanciado'), prazo: UI.numVal('sPrazoNum'), parcela: UI.moneyVal('sParcela') });

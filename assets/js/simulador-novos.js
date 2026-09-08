@@ -265,6 +265,19 @@
     termGridObservers = [];
   }
 
+  // V2_SIMULATOR_INSTALLMENT_GRID_VISUAL_FIX: wires the shared
+  // UI.wireTermResultGrid (simuladores-shared.js) onto the just-rendered
+  // #smResultRegion .smTermGrid, reusing the same disconnect lifecycle
+  // (termGridObservers/disconnectTermGridObservers) already used for the
+  // .smTermSelectGrid above -- every renderModeArea() call disconnects
+  // all of them before re-rendering, so no leak across mode switches.
+  function wireResultTermGrid(itemCount) {
+    var grid = document.querySelector('#smResultRegion .smTermGrid');
+    if (!grid) return;
+    var ro = UI.wireTermResultGrid(grid, 110, itemCount);
+    if (ro) termGridObservers.push(ro);
+  }
+
   /* ---------- forms ---------- */
   function formHtml(mode) {
     switch (mode) {
@@ -528,6 +541,7 @@
     var menor = valid.length ? Math.min.apply(null, valid.map(function (x) { return x.parcela; })) : null;
     var html = UI.termGrid(r.itens.map(function (x) { return { prazo: x.prazo, payment: x.parcela, rate: null, best: menor != null && x.parcela != null && Math.abs(x.parcela - menor) < 0.01 }; }));
     setResult('<p class="kpiLabel" style="margin-bottom:12px">Parcela por prazo — faixa de entrada ' + UI.pct1(r.faixa) + '</p>' + html);
+    wireResultTermGrid(r.itens.length);
   }
   function calcCampanha() {
     // Governed authority only -- never falls back to CAMP's internal
@@ -559,6 +573,7 @@
       { label: 'Rebate HPE', value: UI.brl(r.rebateHpe) }
     ]);
     setResult(html);
+    wireResultTermGrid(r.terms.length);
   }
   function calcSubsidiadas() {
     var r = N.calcularSubsidiadas({ bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'), minVenda: UI.moneyVal('nMinVenda') });

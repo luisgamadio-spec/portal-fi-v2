@@ -217,7 +217,75 @@ mechanism — if the governed authority is temporarily unavailable, the
 module should show its existing blocked/error/Retry state, exactly as
 the fail-closed tests already verify.
 
-## Human UAT required (not yet satisfied)
+## Human UAT visual finding (2026-09-07) — `HUMAN_UAT_VISUAL_DEFECT_FOUND`
+
+While performing the UAT below, the Human found a **visual** defect
+unrelated to the financial authority migration: the installment result
+grid's internal dividers rendered broken/inconsistent around specific
+cells ("erro na linha entre 24x e 36x"; also reported in Financiamento
+Linear at "24x e 30x"; also reported, independently, in **Simulador
+Seminovos**' own Linear grid). This is **not** a rejection of the
+governed-authority migration — the Human's own screenshots otherwise
+confirmed the intended calculations and rendering; the financial
+regression suite (governed-authority, campanha parity, Coparticipado,
+Cash Conversion) remained green throughout.
+
+**Root cause (proven by rendered DOM geometry, not guessed):**
+`.smTermGrid` (the shared installment RESULT grid, `simuladores-
+shared.js`'s `UI.termGrid`, used by both Simulador Novos and Simulador
+Seminovos) painted its dividers as the container's own background
+showing through 1px CSS Grid gaps, with `grid-template-columns:
+repeat(auto-fill, minmax(110px, 1fr))`. `auto-fill` computes a column
+count from container width alone, with no awareness of the actual item
+count — whenever the item count wasn't an exact multiple of that column
+count, the wrapped last row still allocated every computed track
+(`auto-fill` never collapses unfilled trailing tracks), leaving a
+visible untinted void from the last real cell to the grid's right edge
+— read as a broken/dangling divider exactly at the row-wrap boundary.
+The exact cell pair the Human saw ("24x/36x", "24x/30x") depends on
+their own window width, which determined where the grid happened to
+wrap — reproduced and measured directly at 1366/1024/900/480px.
+
+**Fix (additive, shared, non-financial):** a new `UI.balancedColumnsExact()`
++ `UI.wireTermResultGrid()` pair in `simuladores-shared.js` computes a
+column count that is an **exact divisor** of the item count (not merely
+"avoid a lone leftover," which the pre-existing `balancedColumns()` for
+the unrelated `.smTermSelectGrid` term-picker already did and was
+correctly left untouched) — guaranteeing every row is always completely
+filled, at any container width. `.smTermGrid`'s CSS now reads
+`--term-grid-cols` (set by the new function) instead of `auto-fill`.
+`simulador-novos.js` (`calcCampanha`, `calcLinear`) and `simulador-
+seminovos.js` (`calcRateTable`) each gained one call to a small local
+`wireResultTermGrid()` wrapper right after rendering their term grid —
+no CSS selector, formula, business logic, or financial value was
+touched in either page file.
+
+**New permanent regression:** `tests/simulator-installment-grid-
+geometry-test.py` (85/85) — DOM/geometry assertions (not screenshots)
+across all three real grid sizes (Coparticipado 6 cells, Novos Linear 8
+cells, Seminovos Linear 9 cells) and four viewport widths
+(1366/1024/900/480px): every row's last cell reaches the grid's own
+right edge, adjacent cells are separated by exactly the CSS gap, all
+rows within a grid have equal item counts, and both page-level and
+grid-wrapper horizontal overflow stay within 1px tolerance (never via
+`overflow-x:auto`/`hidden`). RED-before-fix proven empirically via a
+scoped `git stash` of the CSS/JS files (67/85, with the exact predicted
+failure modes); stash restored and 85/85 reconfirmed.
+
+**Seminovos governance impact:** `simulador-seminovos.js` (a production
+file of the `HUMAN_APPROVED`/`FROZEN` Seminovos module) required one
+additive line change to wire the shared fix into its own Linear/
+RATE_TABLE grid, since the same shared `.smTermGrid`/`UI.termGrid`
+component is genuinely used by both simulators and the Human
+independently reported the identical defect there. `config/module-
+registry.json`'s `simulador-seminovos` entry moved `HUMAN_APPROVED` →
+`UAT_PENDING` with a new `installmentGridVisualFixNote` field (existing
+notes preserved); `tests/simulador-seminovos-parity-test.py` (24/24,
+all 9 LinearRateTable golden values byte-for-byte unchanged) proves
+zero financial/business-logic regression from this narrowly-scoped
+visual correction.
+
+## Human UAT required (original financial migration, not yet satisfied)
 
 Refreeze criteria: the Human re-tests the V2 localhost build at
 `http://127.0.0.1:8080/portal-next-v2/` and confirms, at minimum:

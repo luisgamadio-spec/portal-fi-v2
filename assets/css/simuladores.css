@@ -331,7 +331,14 @@
 .resultSecondaryGrid .val { font-size: 16px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; word-break: break-word; }
 
 /* ---------- term grid (Linear/RATE_TABLE/Campanha: N terms at once) ---------- */
-.smTermGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 1px; background: var(--color-hairline); border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); overflow: hidden; margin-top: var(--space-4); }
+/* V2_SIMULATOR_INSTALLMENT_GRID_VISUAL_FIX: auto-fill left incomplete
+   wrapped rows with unfilled trailing tracks (a visible void reading as
+   a broken divider at the row-wrap boundary) whenever the item count
+   wasn't an exact multiple of the auto-computed column count. --term-
+   grid-cols is set by UI.wireTermResultGrid() (simuladores-shared.js)
+   from the real item count + container width, same mechanism already
+   proven for .smTermSelectGrid's own --term-cols. */
+.smTermGrid { display: grid; grid-template-columns: repeat(var(--term-grid-cols, 6), 1fr); gap: 1px; background: var(--color-hairline); border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); overflow: hidden; margin-top: var(--space-4); }
 .smTermCard { background: var(--color-surface-2); padding: 12px 8px; text-align: center; }
 .smTermCard.best { background: rgba(238, 75, 87, .1); }
 .smTermCard .term { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted); margin-bottom: 6px; }
