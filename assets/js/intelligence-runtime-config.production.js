@@ -7,12 +7,11 @@
    Secure's own file. No service-role key, no OpenAI key, no private
    secret of any kind belongs here, ever.
 
-   This file does NOT get loaded by index.html yet (see the deployment
-   reconciliation report's own "index.html not yet updated" note) -- it
-   exists, ready to be wired in behind an environment check (only on the
-   eventual real production hostname, never unconditionally), once
-   index.html's current collision with a parallel session's own edits is
-   resolved. Until then this file has zero runtime effect.
+   GL-1J: wired into index.html behind an exact-hostname check (see
+   index.html's own host-conditional loader) -- loads ONLY on
+   luisgamadio-spec.github.io, the proven GitHub Pages homologation
+   hostname (GL-1I.1). Everywhere else (localhost, any other host) this
+   file is never requested and has zero runtime effect.
 
    supabaseUrl / supabasePublishableKey / turnstileSiteKey: the SAME
    real, already-public values Secure's own tracked production config
@@ -52,13 +51,13 @@ window.NX_INTELLIGENCE_CONFIG = {
   // populate this until Intelligence Text is independently authorized
   // to go live, with its own real deployment + real Human UAT.
   textEndpoint: null,
-  // GL-1C -- deliberately EMPTY. The final V2 production hostname has
-  // not been chosen by the Human yet (Go-Live Human checkpoint, Section
-  // 15/16 of the deployment reconciliation report). An empty array
-  // means assets/js/environment-guard.js will correctly classify this
-  // production file's own real host as UNKNOWN_HOST (fail closed) until
-  // a Human explicitly records the chosen hostname here. Do not invent
-  // a hostname to make this "work" -- an empty allowlist is the
-  // correct, safe, intended state today.
-  authorizedHostnames: []
+  // GL-1J -- authorizes EXACTLY the proven GitHub Pages homologation
+  // hostname (GL-1I.1's REAL_HOMOLOGATION_HOSTNAME, confirmed live via
+  // GitHub's own Pages API, not guessed). This is a technical
+  // homologation environment, NOT the official brabus.blistiq.com.br
+  // production domain -- that domain is untouched and would require its
+  // own separate, later, explicitly-authorized Human cutover decision.
+  // Exact string match only (assets/js/environment-guard.js uses
+  // indexOf, not a pattern) -- no wildcard, no *.github.io.
+  authorizedHostnames: ['luisgamadio-spec.github.io']
 };

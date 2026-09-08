@@ -76,6 +76,13 @@
 <script>
 if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
   document.write('<script src="assets/js/intelligence-runtime-config.local.js"><\/script>');
+} else if(location.hostname==='luisgamadio-spec.github.io'){
+  // GL-1J -- exact-match only (no wildcard, no *.github.io); loads the
+  // tracked hosted config so environment-guard.js's DOMContentLoaded
+  // check (which runs after every synchronous script here has already
+  // executed) sees this hostname in authorizedHostnames instead of
+  // UNKNOWN_HOST. Any other hostname stays fail-closed, unchanged.
+  document.write('<script src="assets/js/intelligence-runtime-config.production.js"><\/script>');
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.0" integrity="sha384-De+l/Df7qym5QBDVocD3+gW1S7IjR3epf+6KbRDjB3FCCzM/LqVTwqckT6FhFar8" crossorigin="anonymous"></script>
