@@ -15,8 +15,10 @@ module.
 - **Permission classification:** `ANALYST_PANEL_PERMISSION_READY`.
 - **SAFE_TO_IMPLEMENT:** YES.
 - **Implementation:** COMPLETE (technical).
-- **Target state:** `UAT_PENDING` (this repository's canonical
-  equivalent of `TECH_READY_HUMAN_UAT_PENDING`). NOT `HUMAN_APPROVED`.
+- **Target state at implementation time:** `UAT_PENDING` (this
+  repository's canonical equivalent of `TECH_READY_HUMAN_UAT_PENDING`).
+- **Final state (PA-1C, this same date):** `HUMAN_APPROVED` / FROZEN —
+  see "PA-1C — Human approval and refreeze" below for the full record.
 
 ## V1 authority (read-only discovery, Secure repository)
 
@@ -286,10 +288,58 @@ before and after this fix, guarding the actual authorization logic
 against any future regression even though this specific incident's
 true cause was the caching gap, not that logic.
 
-## Human UAT required (not yet satisfied)
+## PA-1C — Human approval and refreeze (2026-09-07)
 
-Refreeze/approval criteria: the Human logs in locally as an ANALISTA or
-MASTER homolog user, opens Painel do Analista F&I, and confirms:
+Human completed the real local UAT and reported, verbatim: **"validado"**.
+
+**Validated scope:** real ANALISTA login; the PA-1B Landing-visibility
+correction; opening Painel do Analista F&I; visual inspection of the
+real module; exercising all 5 status controls (Online, Ocupado,
+Almoço, Férias, Offline, returning to Online); a responsive/narrow-
+layout check.
+
+### Final state
+
+| Dimension | State |
+|---|---|
+| Authority | PROVEN |
+| Backend | REAL |
+| Auth | ANALISTA_OR_MASTER |
+| Human UAT | APPROVED |
+| Landing | APPROVED |
+| Responsive | APPROVED |
+| Migration | COMPLETE |
+| Freeze | FROZEN |
+
+`config/module-registry.json`'s `painel-analista-fi` entry:
+`migrationStatus` `UAT_PENDING` → `HUMAN_APPROVED`, with a new
+`humanApprovalNote` recording this approval and its known debts.
+Prior `migrationPA1Note`/new `landingVisibilityPA1BNote` preserved as
+historical chronology, not rewritten.
+
+**FROZEN as of this status:** any future functional change requires a
+new Change Proposal + new Human approval, the same rule already
+applied to every other frozen V2 module.
+
+### Known debts (explicitly not resolved, non-blocking)
+
+| ID | Priority | Classification |
+|---|---|---|
+| `ANALYST_PANEL_PERSISTENT_SIDEBAR_NAV_GAP` | P2 | `NON_BLOCKING_FOR_ANALYST_PANEL_FREEZE` — the persistent sidebar's hardcoded `NAV_GROUPS` (a separate, pre-existing Shell Wave 2A decision) still omits this module; it remains fully discoverable via the approved Landing path |
+| `PA-1-RPC-BODY-UNSEEN` | Low | Documentation/evidence-completeness only — `atualizar_meu_status_analista_fi`'s exact server-side validation was never read (DB-only function); the real Human UAT already exercised the approved flow regardless |
+
+### Local Turnstile cleanup
+
+The gitignored local runtime config's `turnstileSiteKey` (temporarily
+restored for PA-1A's login checkpoint) was reverted to `null`, its
+established inert baseline for local automated test runs, now that
+Human UAT is complete. Local-only, gitignored, no tracked file
+touched by this cleanup.
+
+## Human UAT criteria (historical — satisfied, see PA-1C above)
+
+The original refreeze/approval criteria, preserved verbatim for the
+record:
 
 A. Current status loads and displays correctly (text + icon).
 B. Each of the 5 status buttons (Online/Ocupado/Almoço/Férias/Offline)
@@ -301,5 +351,7 @@ D. No horizontal scrollbar at any window width, including a narrow/
 E. The module tile appears under a new "Atendimento F&I" section on the
    Landing page, visible to ANALISTA/MASTER accounts only.
 
-Only after this UAT and an explicit Human approval statement may a
-separate, narrow registry action restore `HUMAN_APPROVED`.
+**These criteria were met.** The Human tested the V2 localhost build
+(after the PA-1B Landing-visibility correction) and responded
+**"validado."** See "PA-1C — Human approval and refreeze" above for
+the full closure record.
