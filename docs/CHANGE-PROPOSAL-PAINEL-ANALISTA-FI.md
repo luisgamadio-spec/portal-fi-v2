@@ -219,6 +219,73 @@ with any file this wave modified or created — confirmed by direct
   module already fails closed (server-reported `sucesso: false` message
   shown verbatim, status never silently changed) — no masking risk.
 
+## PA-1A — local Turnstile login blocker (2026-09-07)
+
+Human's first UAT attempt was blocked before reaching the module by a
+local-only login failure ("Não foi possível validar a verificação de
+segurança"). Root cause: the gitignored local runtime config
+(`assets/js/intelligence-runtime-config.local.js`) had
+`turnstileSiteKey: null`, so Login never rendered the real Cloudflare
+widget/token, and the real Supabase project rejected the captcha-less
+sign-in — the same historical pattern already fixed twice in earlier
+V2 waves. Fixed by restoring the already-documented, already-public
+site key value in that same gitignored file. Zero tracked files
+changed, zero commit for that fix (purely local/gitignored).
+
+## PA-1B — Landing visibility defect (2026-09-07)
+
+After PA-1A's login fix, the Human successfully logged in as ANALISTA
+and reached Landing — but the "Atendimento F&I" group / "Painel do
+Analista F&I" tile was not visible.
+
+**Root cause, proven, not assumed:** a rigorous reproduction of the
+real authentication flow (mocked Supabase client injected before any
+V2 script runs, via the exact same technique already established in
+`tests/auth-foundation-test.py` — not a naive `window.NX_AUTH`
+override, which `auth-boundary.js`'s own real client construction
+clobbers) with a genuinely authenticated ANALISTA session proved that
+`landing.js`/`module-registry.js`/`auth-core.js`'s authorization logic
+was **already 100% correct** — "Atendimento F&I" rendered, "Painel do
+Analista F&I" rendered as an authorized, clickable link, exactly as
+intended. **This ruled out every authorization-logic hypothesis**
+(ANALISTA_OR_MASTER unsupported at the Landing layer, module-ID
+normalization mismatch, dynamic-permission false filter, invalid group
+config, UAT_PENDING visibility policy, runtime context normalization
+error).
+
+The remaining, best-supported explanation: `config/landing-groups.json`
+and `config/module-registry.json` were fetched with a plain `fetch()`
+call, no cache directive, no `Cache-Control` header from the local
+static server (only `Last-Modified`) — across a single long Human
+browser session spanning this entire day's multiple Waves, a
+heuristically-cached stale response (predating PA-1's own commit,
+which is what structurally added the "Atendimento F&I" group) can be
+served silently, with no error, indefinitely, until a hard refresh.
+This is the same general class of caching bug already encountered and
+fixed once before in this project's history (a different, unrelated
+sub-resource, fixed with a versioned cache-buster at the time).
+
+**Fix (narrow, 2 files, no auth/authorization-logic change):**
+`assets/js/landing.js`'s `loadGroups()` and `assets/js/module-
+registry.js`'s `load()` now pass `{ cache: 'no-store' }` to their
+respective `fetch()` calls — forcing a real network read every load.
+Both files are metadata-only, small, and already fetched once per
+page load; the cost is negligible. No change to any authorization
+predicate, no change to `config/landing-groups.json`/`config/module-
+registry.json`'s own content, no change to any other module's
+visibility.
+
+**Note on RED-before-fix:** a caching-class defect cannot be
+demonstrated RED in a fresh Playwright browser context by construction
+(a fresh context has no pre-existing stale cache to reproduce against)
+— this is disclosed explicitly rather than fabricating a synthetic RED
+result. The new permanent test (`tests/painel-analista-fi-landing-
+visibility-test.py`, 8/8) instead proves the full ANALISTA/MASTER/
+VENDEDOR profile × route/Landing-visibility matrix is correct, both
+before and after this fix, guarding the actual authorization logic
+against any future regression even though this specific incident's
+true cause was the caching gap, not that logic.
+
 ## Human UAT required (not yet satisfied)
 
 Refreeze/approval criteria: the Human logs in locally as an ANALISTA or

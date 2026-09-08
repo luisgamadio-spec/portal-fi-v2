@@ -11,7 +11,16 @@
 
     load: function () {
       var self = this;
-      return fetch('config/module-registry.json')
+      // PA-1B: this file changes across Waves (new modules, status
+      // transitions) within the SAME long-lived browser session a
+      // Human keeps open across a whole day of UAT -- a plain fetch()
+      // can be served from the browser's HTTP cache (heuristic
+      // freshness from Last-Modified, no explicit Cache-Control here),
+      // silently keeping a stale module list/authMode/status long after
+      // the file on disk changed. cache:'no-store' forces a real
+      // network read every load; this is metadata, not large business
+      // data, so the cost is negligible.
+      return fetch('config/module-registry.json', { cache: 'no-store' })
         .then(function (r) {
           if (!r.ok) throw new Error('module-registry.json HTTP ' + r.status);
           return r.json();

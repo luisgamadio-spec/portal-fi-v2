@@ -86,7 +86,13 @@
 
   function loadGroups() {
     if (landingGroups) return Promise.resolve(landingGroups);
-    return fetch('config/landing-groups.json')
+    // PA-1B: same reasoning as module-registry.js's own load() --
+    // this file changes across Waves within one long-lived Human
+    // session; a plain fetch() risks a heuristically-cached stale
+    // response (proven root cause of the Atendimento F&I group
+    // appearing missing to a real Human despite the file/code being
+    // correct). cache:'no-store' forces a fresh network read.
+    return fetch('config/landing-groups.json', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (data) { landingGroups = data.groups; return landingGroups; });
   }
