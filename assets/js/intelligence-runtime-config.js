@@ -64,5 +64,15 @@ window.NX_INTELLIGENCE_CONFIG = {
   // gathers (the browser still calls the real function's real origin
   // directly, cross-origin, exercising its actual unmodified CORS
   // check for real).
-  textEndpoint: null
+  textEndpoint: null,
+  // SHARED (GL-1C, Go-Live deployment reconciliation): the explicit
+  // hostname allowlist assets/js/environment-guard.js consults to
+  // decide AUTHORIZED_PRODUCTION vs UNKNOWN_HOST. Deliberately empty by
+  // default -- committing a real hostname here is a Human decision made
+  // once V2's actual deployment identity is chosen (Go-Live Human
+  // checkpoint), never invented ahead of that decision. An empty array
+  // means every non-local-dev host is UNKNOWN_HOST (fail closed), which
+  // is the correct, safe behavior until that Human decision is made and
+  // recorded in a real intelligence-runtime-config.production.js.
+  authorizedHostnames: []
 };

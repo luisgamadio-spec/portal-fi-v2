@@ -1,0 +1,61 @@
+name: Deploy Portal V2 to GitHub Pages
+
+# GL-1E (Go-Live deployment reconciliation). Modeled directly on the
+# Secure repo's own proven pages.yml: same three standard GitHub Pages
+# actions, same "checkout -> assemble artifact -> configure-pages ->
+# upload-pages-artifact -> deploy-pages" shape.
+#
+# IMPORTANT: this file being committed does NOT deploy anything by
+# itself. This repository has no git remote as of this wave (GL-1A) --
+# a workflow file with no remote/no GitHub repository behind it cannot
+# run, cannot be triggered, and cannot publish anything. This is
+# committed now, in advance, as prepared infrastructure, per GL-1E's own
+# scope -- GL-1H (Human go/no-go) and GL-1I (first real deploy) remain
+# separate, later, explicitly-authorized gates.
+#
+# No secrets are embedded here. No Supabase migration or db push occurs
+# here. No OpenAI deployment occurs here. This workflow only ever copies
+# already-public, already-committed static files.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Montar artifact (allowlist único, compartilhado com o smoke test local)
+        run: bash scripts/build-pages-artifact.sh _pages_dist
+
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload do artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _pages_dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -78,8 +78,12 @@ created (`PORTAL-NEXT-01/SHADOW-UAT-PLAN.md` Gate 21).
 
 ## Guards
 
-`environment-guard.js` (Gate 18) declares `NEXT_LOCAL` and refuses to
-render if the hostname ever looks like production. `network-guard.js`
+`environment-guard.js` (Gate 18, redesigned GL-1C) classifies the
+current hostname as LOCAL_DEV, AUTHORIZED_PRODUCTION (only if the
+hostname is explicitly listed in the production config's own
+`authorizedHostnames`, never invented or client-authorized), or
+UNKNOWN_HOST, and refuses to render for the latter — fail-closed by
+default, since no hostname is listed yet. `network-guard.js`
 (Gate 19) wraps `fetch`/`XMLHttpRequest` to flag (never silently
 allow-and-ignore) any request to a known real-backend host.
 

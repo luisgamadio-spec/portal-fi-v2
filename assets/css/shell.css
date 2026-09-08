@@ -1,7 +1,9 @@
 /* PORTAL-NEXT V2 — Shell Foundation CSS.
    Every color/spacing/radius/font/motion value below is a var() read
-   from ../../../design-system-2/tokens.css (linked directly in
-   index.html, not copied). No new hex, no new radius, no new shadow,
+   from assets/css/vendor/design-tokens.css (linked directly in
+   index.html; vendored byte-identical from design-system-2/tokens.css
+   as of GL-1B, see docs/VENDORED-DESIGN-ASSETS-PROVENANCE.md — not
+   copied into THIS file). No new hex, no new radius, no new shadow,
    no new motion was introduced here — see Gate 45. */
 
 *, *::before, *::after { box-sizing: border-box; }

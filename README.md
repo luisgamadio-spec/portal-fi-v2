@@ -46,8 +46,10 @@ portal-next-v2/
   index.html                shell entry point
   assets/css/shell.css        shell layout (tokens only — see AUTHORITY.md)
   assets/js/
-    environment-guard.js         Gate 18 — asserts NEXT_LOCAL, refuses to
-                                  render on a production-looking hostname
+    environment-guard.js         Gate 18 (redesigned GL-1C) — LOCAL_DEV /
+                                  AUTHORIZED_PRODUCTION / UNKNOWN_HOST;
+                                  fails closed on any host not explicitly
+                                  authorized in the production config
     network-guard.js               Gate 19 — flags any fetch/XHR to a real
                                   backend host
     auth-boundary.js                 Gate 17 — auth CONTRACT only, no login

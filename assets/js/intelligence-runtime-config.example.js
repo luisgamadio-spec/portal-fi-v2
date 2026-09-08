@@ -15,5 +15,10 @@ window.NX_INTELLIGENCE_CONFIG = {
   // Phase 3B, Gate 20). Only set this to a real Cloudflare Turnstile
   // site key when supabaseUrl/supabasePublishableKey also point at a
   // real Supabase project -- never invent or guess a key.
+  // authorizedHostnames: intentionally omitted here -- this field only
+  // matters for AUTHORIZED_PRODUCTION classification in
+  // assets/js/environment-guard.js; localhost/127.0.0.1 are always
+  // LOCAL_DEV regardless of this field, so a local override never
+  // needs it (see intelligence-runtime-config.production.js instead).
   textEndpoint: 'http://127.0.0.1:8801/'
 };

@@ -15,9 +15,12 @@ NO PUSH        — this repo has zero remotes configured, on purpose.
                  promote V2 beyond local development.
 NO DEPLOY       — no GitHub Pages workflow, no Netlify/Vercel config,
                  no deploy script of any kind exists in this tree.
-NO PRODUCTION    — no production hostname appears anywhere as a deploy
-TARGET             target. assets/js/environment-guard.js actively
-                 refuses to render if it ever detects one at runtime.
+NO PRODUCTION    — no hostname is authorized as a deploy target yet.
+TARGET             assets/js/environment-guard.js (redesigned GL-1C)
+                 fails closed on any host not explicitly listed in the
+                 production config's authorizedHostnames array, which
+                 ships empty until a Human records a real, chosen
+                 hostname (Go-Live Human checkpoint) — never invented.
 ```
 
 ## Before starting any Wave
