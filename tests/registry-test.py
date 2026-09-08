@@ -69,6 +69,13 @@ def main():
         # the new value) so this guard continues to reject any future
         # silent self-promotion straight to HUMAN_APPROVED (Gate 139).
         "shell-admin": {"IN_PROGRESS", "UAT_PENDING"},
+        # PA-1 (2026-09-07): real V1 authority proven (analistas_fi table
+        # + 2 live RPCs confirmed against the real project), auth reused
+        # as-is (ANALISTA_OR_MASTER already existed in auth-core.js), V2
+        # implementation landed technically complete. UAT_PENDING per the
+        # same discipline as every other module above — not an
+        # auto-promotion to HUMAN_APPROVED, no human decision on record.
+        "painel-analista-fi": {"NOT_MIGRATED", "UAT_PENDING"},
     }
 
     for m in modules:

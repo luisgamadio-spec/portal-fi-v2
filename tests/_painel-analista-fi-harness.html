@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- Test-only harness to load the full Painel do Analista F&I page/
+     provider surface in isolation, for the PA-1 migration automated
+     tests. Not part of the product shell. window.NX_AUTH / window.
+     NX_INTELLIGENCE_CONFIG are supplied by the test itself via
+     add_init_script -- same pattern/reasoning as
+     tests/_simulador-novos-harness.html. -->
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../design-system-2/tokens.css">
+<link rel="stylesheet" href="../assets/css/shell.css">
+<link rel="stylesheet" href="../assets/css/module-system.css">
+<link rel="stylesheet" href="../assets/css/painel-analista-fi.css">
+</head>
+<body>
+<div id="paOutlet"></div>
+<script src="../assets/js/adapters/painel-analista-fi-real-provider.js"></script>
+<script src="../assets/js/painel-analista-fi.js"></script>
+</body></html>

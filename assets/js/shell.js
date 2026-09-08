@@ -113,6 +113,7 @@
     dashbi: 'NX_DASHBI_PAGE',
     'simulador-novos': 'NX_SIMULADOR_NOVOS_PAGE',
     'simulador-seminovos': 'NX_SIMULADOR_SEMINOVOS_PAGE',
+    'painel-analista-fi': 'NX_PAINEL_ANALISTA_FI_PAGE',
     'brabus-intelligence': 'NX_BRABUS_INTELLIGENCE_PAGE',
     'shell-admin': 'NX_SHELL_ADMIN_PAGE'
   };
