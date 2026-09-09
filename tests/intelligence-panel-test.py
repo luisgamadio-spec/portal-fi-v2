@@ -512,6 +512,72 @@ def main():
 
         page.close()
 
+        # ---------- IA-3G.3: transport provenance regression ----------
+        # Reproduces the exact live incident: a local UAT (intelligence-
+        # runtime-config.local.js, gitignored) went missing between
+        # Waves, silently reverting window.NX_INTELLIGENCE_CONFIG.mode
+        # to the committed 'fixture' default, and the Human's real UAT
+        # unknowingly exercised synthetic data with no visible signal
+        # that had happened. Uses its own isolated page (never touches
+        # the real network/auth boundary -- mode is stubbed exactly like
+        # the suite's own existing stub_real_text() helper already
+        # does) so this never depends on -- or is broken by -- whether
+        # a real .local.js happens to be present on this machine.
+        prov_page = browser.new_page(viewport={"width": 1366, "height": 900})
+        prov_page.goto(BASE)
+        prov_page.wait_for_timeout(400)
+        set_profile(prov_page, "AUTHORIZED", True, "MASTER")
+        open_panel(prov_page)
+        fixture_state = prov_page.evaluate(
+            """() => ({
+                attr: document.getElementById('baiPanelDrawer').getAttribute('data-nx-transport'),
+                bannerVisible: !!document.getElementById('baiPanelProvenanceBanner')
+            })"""
+        )
+        check("provenance: fixture mode marks data-nx-transport=fixture on the drawer", fixture_state["attr"] == "fixture", fixture_state)
+        check("provenance: fixture mode shows the visible dev-only banner (Human-observable, not just automated)", fixture_state["bannerVisible"] is True, fixture_state)
+
+        # Force a teardown + rebuild with mode flipped to real_text --
+        # SIGNED_OUT triggers real DOM removal (Section 49 -- panelBuilt
+        # resets), matching exactly what a genuine unauthenticated ->
+        # authenticated transition does; simulates what a present
+        # .local.js sets, without any real network/auth dependency.
+        set_profile(prov_page, "SIGNED_OUT")
+        prov_page.evaluate("window.NX_INTELLIGENCE_CONFIG.mode = 'real_text';")
+        set_profile(prov_page, "AUTHORIZED", True, "MASTER")
+        open_panel(prov_page)
+        real_state = prov_page.evaluate(
+            """() => ({
+                attr: document.getElementById('baiPanelDrawer').getAttribute('data-nx-transport'),
+                bannerVisible: !!document.getElementById('baiPanelProvenanceBanner')
+            })"""
+        )
+        check("provenance: real_text mode marks data-nx-transport=real_text on the drawer", real_state["attr"] == "real_text", real_state)
+        check("provenance: real_text mode shows NO dev-only banner (Human-approved drawer untouched)", real_state["bannerVisible"] is False, real_state)
+
+        # ---- Safety net (Section 21): a failing real transport must
+        # NEVER silently answer with fixture data. handleSend's own
+        # if/else (P.isRealTextMode() ? handleSendRealText :
+        # handleSendFixture) already makes this structurally impossible
+        # -- there is no shared code path -- this proves it end-to-end
+        # anyway: stub sendRealText to reject, and confirm the rendered
+        # reply is the real error copy, never a fixture scenario's own
+        # reply text (e.g. the 13-vendas/10-financiamentos payload) nor
+        # the fixture-miss message ("Não tenho um cenário de teste...").
+        stub_real_text(prov_page, "Promise.resolve({error:{status:0,message:'Não foi possível concluir a análise agora. Tente novamente.'}})")
+        prov_page.click("#baiPanelNewChatBtn")
+        prov_page.fill("#baiPanelInput", "Como foi o resultado do mês passado?")
+        prov_page.click("#baiPanelSendBtn")
+        prov_page.wait_for_timeout(300)
+        safety_text = prov_page.locator("#baiPanelConversation").inner_text()
+        check("provenance safety: real_text transport failure shows the real error copy", "Não foi possível concluir a análise agora" in safety_text, safety_text)
+        check("provenance safety: NEVER the fixture's own synthetic figures (13 vendas/10 financiamentos)", "13 vendas" not in safety_text and "10 financiamentos" not in safety_text, safety_text)
+        check("provenance safety: NEVER the fixture-miss message either (would imply fixture code ran)", "cenário de teste" not in safety_text, safety_text)
+        check("provenance safety: sendRealText called exactly once, resolveFixtureScenario never reached", prov_page.evaluate("window.__baiSendRealTextCalls") == 1, prov_page.evaluate("window.__baiSendRealTextCalls"))
+
+        restore_fixture_mode(prov_page)
+        prov_page.close()
+
         # ---------- Responsive / zero-scroll proof (Section 15/40) ----------
         BREAKPOINTS = [1366, 1024, 900, 480]
         for w in BREAKPOINTS:

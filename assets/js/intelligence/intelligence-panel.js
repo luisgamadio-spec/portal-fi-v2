@@ -451,7 +451,38 @@
     // No "INTELLIGENCE" eyebrow badge -- the title directly below it
     // already said the same thing (IA-3E.2 Section 8's own finding E);
     // removed from markup entirely, not just visually hidden.
-    return '<aside class="baiPanelDrawer" id="baiPanelDrawer" role="dialog" aria-modal="false" aria-label="Brabus Intelligence" hidden>' +
+    //
+    // IA-3G.3 -- transport provenance (Section 22). The drawer had NO
+    // way to tell a fixture-mode session apart from a real_text one --
+    // the routed page has its own fixtureBannerHtml(), but this panel
+    // never did. Found live: a local UAT scratchpad file
+    // (intelligence-runtime-config.local.js, gitignored) went missing
+    // between Waves, silently reverting the whole page to the
+    // committed 'fixture' default, and the Human's screenshot -- a
+    // perfectly plausible-looking synthetic answer -- gave no visible
+    // signal that had happened. Two layers, both inert on any
+    // non-real_text-configured host in production (mode there is
+    // always the committed 'fixture' default, so this never renders
+    // there either -- it's not a localhost-only check, it's a
+    // mode-only one, exactly like the routed page's own banner):
+    //   1. a data-nx-transport attribute (fixture|real_text) on the
+    //      drawer root -- zero visual footprint, lets a test or a
+    //      developer's own console check prove the mode directly;
+    //   2. a small text line, visible ONLY in fixture mode (mirrors
+    //      the routed page's fixtureBannerHtml() convention exactly),
+    //      so a Human doing local UAT sees it, not just an automated
+    //      test -- completely absent from the DOM in real_text mode,
+    //      so the Human-approved real-mode drawer is untouched.
+    var transportMode = (P && P.isRealTextMode()) ? 'real_text' : 'fixture';
+    // Reuses .modFixtureBanner as-is (module-system.css) -- the SAME
+    // shared "dev tooling, not production UI" visual language every
+    // other module's own fixture banner already uses, rather than
+    // inventing a second, competing visual treatment for the same
+    // concept.
+    var provenanceBannerHtml = transportMode === 'fixture'
+      ? '<p class="modFixtureBanner baiPanelProvenanceBanner" id="baiPanelProvenanceBanner" style="margin:0 var(--bai-rail);border-radius:var(--radius-sm)">Modo de teste local — respostas não vêm do servidor real.</p>'
+      : '';
+    return '<aside class="baiPanelDrawer" id="baiPanelDrawer" role="dialog" aria-modal="false" aria-label="Brabus Intelligence" data-nx-transport="' + transportMode + '" hidden>' +
       '<div class="baiPanelHeader">' +
       '<div><h2 class="baiPanelTitle">Brabus Intelligence</h2>' +
       '<p class="baiPanelContextChip" id="baiPanelContextChip" hidden></p></div>' +
@@ -459,6 +490,7 @@
       '<button type="button" class="modBtn modBtnGhost" id="baiPanelNewChatBtn">Nova conversa</button>' +
       '<button type="button" class="baiPanelCloseBtn" id="baiPanelCloseBtn" aria-label="Fechar Brabus Intelligence">&times;</button>' +
       '</div></div>' +
+      provenanceBannerHtml +
       '<div class="baiPanelBody"><div class="baiConversation" id="baiPanelConversation" aria-live="polite" aria-atomic="false"></div></div>' +
       '<div class="baiComposer baiPanelComposer">' +
       '<textarea id="baiPanelInput" class="baiComposerInput" aria-label="Pergunta para a Brabus Intelligence" placeholder="Pergunte sobre financiamento, resultado ou score..." rows="1"></textarea>' +
