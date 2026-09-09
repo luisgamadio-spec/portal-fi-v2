@@ -301,9 +301,11 @@
 .baiPanelBody .baiAnswerMetrics .baiBlockPeriod{display:inline;margin:0;font-size:10.5px;color:var(--mod-muted)}
 .baiPanelBody .baiAnswerMetrics .baiBlockPeriod::before{content:" · "}
 
-/* Exactly 2 columns, never 3 (Section 14) — a 5-item fixture reads as
-   2/2/1 (a single natural remainder), never the 3+2 orphan row the
-   Human screenshot showed. */
+/* Still used by score_breakdown's own summary .baiMetricsGrid (IA-3E.4
+   Section 21: unrelated block types unchanged) -- the compact `metrics`
+   type itself no longer emits .baiMetricsGrid at all (see
+   .baiCompactMetrics below), so this rule no longer applies to the
+   Human's own fixture, only to score_breakdown's identity/summary grid. */
 .baiPanelBody .baiMetricsGrid{margin-top:8px;grid-template-columns:1fr 1fr;gap:12px 16px}
 .baiPanelBody .baiMetricItem .modKpiLabel{font-size:9.5px}
 .baiPanelBody .baiMetricItem .modKpiValue{font-size:15px;margin-top:2px}
@@ -313,6 +315,52 @@
    same shared renderers, unmodified; only the wrapper differs. */
 .baiPanelBody .baiAnswerMetrics .modTableWrap{border-color:var(--mod-border);border-radius:8px;margin-bottom:0}
 .baiPanelBody .baiAnswerMetrics .baiOperationCard{border-color:var(--mod-border);border-radius:8px;padding:8px 10px}
+
+/* ---------- Compact metrics evidence (IA-3E.4) — the `metrics` block
+   type's OWN presentation, built by intelligence-panel.js's
+   compactMetricsHtml(), not by the shared renderer. Two lanes, split
+   purely by item.format (real metadata already on every item, never
+   an invented rule): currency items are "facts" (label above value,
+   2 per row, normal UI typography with tabular numerals — NOT
+   monospace, Section 10's explicit "not a developer console");
+   everything else is a compact, wrapping inline "strip" chip
+   ("13 Vendas"), read as a phrase rather than a tile. ---------- */
+.baiSrOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+.baiCompactMetrics{display:flex;flex-direction:column;gap:10px}
+
+.baiMetricStrip{display:flex;flex-wrap:wrap;align-items:baseline;row-gap:6px;font-size:12.5px;color:var(--color-text-secondary)}
+/* BUGFIX found live testing a pathologically long label (IA-3E.4):
+   `white-space:nowrap` here kept a value+label pair unbreakable, but
+   for a genuinely long label that meant the whole chip could exceed
+   the strip's own width and visually escape the drawer's right edge
+   -- undetected by every scrollWidth-based overflow check this Wave
+   had been using, because content overflowing a `position:fixed`
+   ancestor (the drawer) does not expand document.documentElement's
+   own scrollWidth the way normal in-flow overflow does. Found instead
+   by directly comparing the chip's own getBoundingClientRect().right
+   against the viewport width. Fixed by letting the label wrap inside
+   its own chip (max-width + overflow-wrap) instead of forcing the
+   whole chip onto one unbreakable line — short labels (the common
+   case) are unaffected since they have no wrap opportunity anyway. */
+.baiMetricChip{display:inline-flex;align-items:baseline;gap:4px;max-width:100%;overflow-wrap:break-word}
+.baiMetricChip strong{font-family:var(--font-ui);font-weight:600;color:var(--color-text-primary);font-variant-numeric:tabular-nums;flex-shrink:0}
+/* Decorative dot only, hidden from assistive tech (Section 19) -- the
+   DOM order of the chips themselves already gives a screen reader an
+   unambiguous, individually-readable "13 Vendas", "10 Financiamentos"
+   sequence without needing the separator announced. */
+.baiMetricChip:not(:last-child)::after{content:"·";margin:0 8px 0 4px;color:var(--mod-muted)}
+
+.baiMetricFacts{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+.baiMetricFact{display:flex;flex-direction:column;gap:2px;min-width:0}
+.baiMetricFactLabel{margin:0;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--mod-muted)}
+/* Normal UI typography, not --font-mono (Section 10) -- tabular-nums
+   keeps digits aligned without a monospace/terminal aesthetic. */
+.baiMetricFactValue{margin:0;font-family:var(--font-ui);font-weight:500;font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-text-primary);overflow-wrap:break-word}
+
+@media(max-width:380px){
+  .baiMetricFacts{grid-template-columns:1fr}
+}
 
 /* ---------- Composer: same rail, one composed control group ---------- */
 .baiPanelComposer{display:flex;gap:var(--space-2);align-items:flex-end;padding:var(--space-3) var(--bai-rail) var(--space-4)}

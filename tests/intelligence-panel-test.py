@@ -58,6 +58,33 @@ def shot(page, name):
     page.screenshot(path=os.path.join(SHOT_DIR, name))
 
 
+# IA-3E.4 finding: document.documentElement.scrollWidth does NOT
+# reflect content overflowing a `position:fixed` ancestor (the
+# drawer) -- a chip escaping the drawer's right edge by 10px was
+# invisible to every scrollWidth-based check this suite used before,
+# yet clearly visible on screen. This measures every real descendant's
+# own getBoundingClientRect() against the actual viewport instead --
+# the only reliable way to catch that class of bug. Used alongside
+# (not instead of) the scrollWidth checks elsewhere in this file.
+TRUE_OVERFLOW_JS = """
+() => {
+    var vw = window.innerWidth;
+    var worst = 0, worstSel = null;
+    document.querySelectorAll('#baiLauncherRoot *').forEach(el => {
+        var r = el.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) return;
+        var over = Math.max(0, r.right - vw) + Math.max(0, -r.left);
+        if (over > worst) { worst = over; worstSel = el.className || el.tagName; }
+    });
+    return { worst: worst, worstSel: String(worstSel) };
+}
+"""
+
+
+def true_overflow(page):
+    return page.evaluate(TRUE_OVERFLOW_JS)
+
+
 def open_panel(page):
     page.click("#baiLauncherBtn")
     page.wait_for_timeout(150)
@@ -179,7 +206,10 @@ def main():
         check("TEXT state reaches THINKING while in flight", page.evaluate("window.NX_INTELLIGENCE_STATE.getTextState()") in ("SENDING", "THINKING"))
         page.wait_for_timeout(400)
         check("assistant reply rendered", page.locator("#baiPanelConversation .baiMessageAssistant").count() >= 1)
-        check("structured block rendered", page.locator("#baiPanelConversation .baiBlockPanel").count() >= 1)
+        # .baiBlockPanel no longer applies to the `metrics` type as of
+        # IA-3E.4's compact-evidence renderer (.baiCompactMetrics) --
+        # this fixture is a metrics block, so check the new classes.
+        check("structured block rendered (compact metrics evidence)", page.locator("#baiPanelConversation .baiCompactMetrics").count() >= 1)
         check("TEXT state settles to OPEN_IDLE after COMPLETE", page.evaluate("window.NX_INTELLIGENCE_STATE.getTextState()") == "OPEN_IDLE")
         shot(page, "03-panel-metrics.png")
 
@@ -290,6 +320,102 @@ def main():
         shot(page, "07-long-content.png")
         page.evaluate("window.NX_INTELLIGENCE_STATE.resetConversation();")
 
+        # ---------- Compact metrics evidence (IA-3E.4) ----------
+        # The redundant block heading is no longer visible, but stays
+        # in the DOM (sr-only) -- title+period must never be dropped.
+        page.evaluate(
+            """() => {
+                window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'resposta', blocks:[{
+                    type:'metrics', title:'Grupo — mês anterior', period_label:'mês anterior', items:[
+                        {key:'sales', label:'Vendas', value:13, format:'int'},
+                        {key:'financed', label:'Financiamentos', value:10, format:'int'},
+                        {key:'share_percent', label:'Share', value:76.9, format:'percent'},
+                        {key:'production', label:'Produção', value:100500, format:'currency'},
+                        {key:'return', label:'Retorno', value:68600, format:'currency'}
+                    ]
+                }], isError:false});
+            }"""
+        )
+        page.wait_for_timeout(150)
+        sr = page.locator(".baiCompactMetrics .baiSrOnly")
+        sr_box = sr.bounding_box()
+        # Playwright's inner_text() includes clip-rect-hidden (sr-only)
+        # text, so "not visible" is proven by bounding-box size, not by
+        # excluding it from a text search (the same lesson from IA-3E.2's
+        # own role-label check) -- the strip/facts elements themselves
+        # structurally don't contain the heading at all, confirming it
+        # renders nowhere but the sr-only node.
+        check("compact metrics: redundant heading text absent from the visible strip/facts", "GRUPO" not in (page.locator(".baiMetricStrip").inner_text() + page.locator(".baiMetricFacts").inner_text()).upper())
+        check("compact metrics: heading preserved sr-only for a11y (~1px, in DOM)", sr.count() == 1 and sr_box is not None and sr_box["width"] <= 1)
+        check("compact metrics: 3 volume/share metrics rendered as chips", page.locator(".baiMetricChip").count() == 3)
+        check("compact metrics: 2 financial (currency) metrics rendered as facts", page.locator(".baiMetricFact").count() == 2)
+        check("compact metrics: no orphaned single KPI row (2 currency items = one balanced row)", page.locator(".baiMetricFacts").bounding_box()["height"] < 70)
+        metrics_h = page.locator(".baiAnswerMetrics").bounding_box()["height"]
+        check("compact metrics: region materially more compact than IA-3E.3 (measured <150px, was 208px)", metrics_h < 150, metrics_h)
+        check("compact metrics: financial value uses normal UI font, not monospace",
+              page.locator(".baiMetricFactValue").first.evaluate("e => getComputedStyle(e).fontFamily").find("Mono") == -1)
+        page.evaluate("window.NX_INTELLIGENCE_STATE.resetConversation();")
+
+        # No value dropped across 2-6 metrics (Section 16/18)
+        ALL_ITEMS_JS = """[
+            {key:'sales', label:'Vendas', value:13, format:'int'},
+            {key:'financed', label:'Financiamentos', value:10, format:'int'},
+            {key:'share_percent', label:'Share', value:76.9, format:'percent'},
+            {key:'production', label:'Produção', value:100500, format:'currency'},
+            {key:'return', label:'Retorno', value:68600, format:'currency'},
+            {key:'avg_ticket', label:'Ticket Médio', value:45000, format:'currency'}
+        ]"""
+        for n in (2, 3, 4, 5, 6):
+            page.evaluate(
+                """(n) => {
+                    window.NX_INTELLIGENCE_STATE.resetConversation();
+                    var all = """ + ALL_ITEMS_JS + """;
+                    window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'r', blocks:[{type:'metrics', title:'t', items: all.slice(0, n)}], isError:false});
+                }""",
+                n,
+            )
+            page.wait_for_timeout(100)
+            total = page.locator(".baiMetricChip").count() + page.locator(".baiMetricFact").count()
+            check(f"compact metrics: {n} items -> {n} rendered (chip+fact), none dropped", total == n, total)
+            ov = true_overflow(page)
+            check(f"compact metrics: {n} items -> no true viewport overflow", ov["worst"] <= 0.5, ov)
+
+        # Long-label stress -- the exact bug found live this Wave (a
+        # white-space:nowrap chip escaping the drawer's right edge,
+        # invisible to scrollWidth-based checks -- see TRUE_OVERFLOW_JS).
+        page.evaluate(
+            """() => {
+                window.NX_INTELLIGENCE_STATE.resetConversation();
+                window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'r', blocks:[{
+                    type:'metrics', title:'t', items:[
+                        {key:'a', label:'Vendedor com nome extremamente longo para teste de quebra de linha em qualquer largura', value:3, format:'int'},
+                        {key:'b', label:'Valor extremo', value:123456789.99, format:'currency'},
+                        {key:'c', label:'Percentual extremo', value:999.99, format:'percent'}
+                    ]
+                }], isError:false});
+            }"""
+        )
+        page.wait_for_timeout(150)
+        ov_long = true_overflow(page)
+        check("compact metrics: long label does not escape viewport (regression guard)", ov_long["worst"] <= 0.5, ov_long)
+        shot(page, "09-compact-metrics-long-label.png")
+
+        # Other structured-block types stay on the shared, unmodified renderer
+        page.evaluate(
+            """() => {
+                window.NX_INTELLIGENCE_STATE.resetConversation();
+                window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'r', blocks:[{
+                    type:'ranking', title:'Balão — comparação por prazo', period_label:'Simulação — não é proposta nem aprovação de crédito',
+                    dimension:'term_months', metric:'sim_payment',
+                    items:[{position:1,name:'30x',sim_payment:3620.1},{position:2,name:'36x',sim_payment:3180.45}]
+                }], isError:false});
+            }"""
+        )
+        page.wait_for_timeout(150)
+        check("other block types (ranking): title stays visible, unaffected by compact-metrics change", page.locator(".baiBlockTitle:visible").count() >= 1)
+        check("other block types (ranking): disclaimer period stays visible (never hidden)", "não é proposta" in page.locator(".baiAnswerMetrics").inner_text())
+        page.evaluate("window.NX_INTELLIGENCE_STATE.resetConversation();")
+
         page.close()
 
         # ---------- Responsive / zero-scroll proof (Section 15/40) ----------
@@ -305,6 +431,8 @@ def main():
                 drawer_overflow = rp.evaluate("(function(){var el=document.getElementById('baiPanelDrawer'); return el ? el.scrollWidth - el.clientWidth : 0;})()")
                 check(f"{w}px / {label}: page overflow 0", page_overflow <= 0, page_overflow)
                 check(f"{w}px / {label}: panel wrapper overflow 0", drawer_overflow <= 0, drawer_overflow)
+                true_ov = true_overflow(rp)
+                check(f"{w}px / {label}: no element truly escapes the viewport (fixed-position-blind-spot guard)", true_ov["worst"] <= 0.5, true_ov)
                 if w == 480:
                     check(f"{w}px / {label}: mobile backdrop visible (full-screen takeover)", rp.locator("#baiPanelBackdrop").is_visible())
                 shot(rp, f"08-responsive-{w}-{label}.png")

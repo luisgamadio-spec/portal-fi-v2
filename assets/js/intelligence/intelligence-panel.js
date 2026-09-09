@@ -77,8 +77,74 @@
      RENDERING — reuses NX_BRABUS_INTELLIGENCE_PAGE's own exported
      renderAssistantProse/renderStructuredBlock (the exact same
      Markdown-safety and structured-block logic the routed, Human-
-     approved page uses — never duplicated/reimplemented here).
+     approved page uses — never duplicated/reimplemented here) for
+     every block type EXCEPT the compact `metrics` type, which gets
+     its own presentation-only "evidence" treatment below (IA-3E.4).
+     Every other type (comparison/ranking/operations/score_*) still
+     goes through P.renderStructuredBlock completely unchanged.
      ============================================================ */
+
+  /* ---------- Compact metrics evidence (IA-3E.4) ----------
+     Human found the generic 2-column KPI grid still read as a "mini
+     dashboard" even after IA-3E.3's alignment fix, with a redundant
+     block heading ("GRUPO — MÊS ANTERIOR · mês anterior") repeating
+     what the prose above it already said. This groups a metrics
+     block's own items into two presentation lanes using metadata the
+     block ALREADY carries on every item — item.format — never an
+     invented business rule:
+       - format === 'currency'  -> a "financial fact" (label above
+         value, 2 per row) — the only values a Human actually reads
+         as money and wants aligned/scannable;
+       - anything else (int/percent/text/date/null) -> a compact,
+         wrapping inline "strip" chip ("13 Vendas") — volume/share/
+         count-shaped facts that read naturally as a phrase.
+     This is why it generalizes to 2-6+ metrics of any real block
+     without hardcoding this fixture's 5 specific keys: the grouping
+     rule is the same regardless of which/how-many items a block has.
+     No value is ever dropped — every item in block.items renders
+     somewhere, either as a chip or as a fact. Only the `metrics` type
+     is handled here (Section 15/35) — comparison/ranking/operations/
+     score_* keep using the shared renderer's own presentation. */
+
+  function isFinancialItem(item) {
+    return !!item && item.format === 'currency';
+  }
+
+  function metricChipHtml(item) {
+    var f = A.formatValue(item.value, item.format);
+    return '<span class="baiMetricChip"><strong>' + esc(f.text) + '</strong> ' + esc(item.label) + '</span>';
+  }
+
+  function metricFactHtml(item) {
+    var f = A.formatValue(item.value, item.format);
+    var titleAttr = f.title ? ' title="' + esc(f.title) + '"' : '';
+    return '<div class="baiMetricFact"><p class="baiMetricFactLabel">' + esc(item.label) + '</p>' +
+      '<p class="baiMetricFactValue"' + titleAttr + '>' + esc(f.text) + '</p></div>';
+  }
+
+  function compactMetricsHtml(block) {
+    var items = Array.isArray(block.items) ? block.items : [];
+    var strip = items.filter(function (it) { return !isFinancialItem(it); });
+    var facts = items.filter(isFinancialItem);
+    // The block's own title/period is NOT dropped -- it is real
+    // semantic context (e.g. which group/period this answer covers)
+    // -- just not visually repeated when the prose already says it.
+    // Screen-reader-only, same clip-rect technique as the role labels
+    // (Section 5/19/13: "preserve semantic information for
+    // accessibility... do not display redundant title/subtitle").
+    var headingParts = [block.title, block.period_label].filter(function (v) { return !!v; });
+    var headingSr = headingParts.length ? '<span class="baiSrOnly">' + esc(headingParts.join(' — ')) + '</span>' : '';
+    var stripHtml = strip.length ? '<div class="baiMetricStrip">' + strip.map(metricChipHtml).join('') + '</div>' : '';
+    var factsHtml = facts.length ? '<div class="baiMetricFacts">' + facts.map(metricFactHtml).join('') + '</div>' : '';
+    if (!strip.length && !facts.length) {
+      return '<div class="baiCompactMetrics">' + headingSr + '<p class="modMuted">Sem itens para exibir.</p></div>';
+    }
+    return '<div class="baiCompactMetrics">' + headingSr + stripHtml + factsHtml + '</div>';
+  }
+
+  function renderOneBlock(block) {
+    return block && block.type === 'metrics' ? compactMetricsHtml(block) : P.renderStructuredBlock(block);
+  }
 
   function messageHtml(msg) {
     var isUser = msg.role === 'user';
@@ -104,7 +170,7 @@
     var proseHtml = '<div class="baiAnswerProse baiBubbleMd">' + P.renderAssistantProse(msg.content) + '</div>';
     var metricsHtml = '';
     if (Array.isArray(msg.blocks) && msg.blocks.length) {
-      metricsHtml = '<div class="baiAnswerMetrics">' + msg.blocks.map(P.renderStructuredBlock).join('') + '</div>';
+      metricsHtml = '<div class="baiAnswerMetrics">' + msg.blocks.map(renderOneBlock).join('') + '</div>';
     }
     return '<div class="baiMessage ' + roleClass + '">' + labelHtml + proseHtml + metricsHtml + '</div>';
   }
