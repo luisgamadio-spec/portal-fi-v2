@@ -174,7 +174,7 @@
 .baiPanelCloseBtn:hover{color:var(--color-text-primary)}
 .baiPanelCloseBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
 
-.baiPanelBody{flex:1;min-height:0;overflow-y:auto;padding:var(--space-4)}
+.baiPanelBody{flex:1;min-height:0;overflow-y:auto;padding:var(--space-4);container-type:inline-size}
 .baiPanelBody .baiConversation{min-height:0}
 .baiPanelBody .baiStructuredRegion,
 .baiPanelBody .baiBubble{max-width:100%}
@@ -315,6 +315,32 @@
    same shared renderers, unmodified; only the wrapper differs. */
 .baiPanelBody .baiAnswerMetrics .modTableWrap{border-color:var(--mod-border);border-radius:8px;margin-bottom:0}
 .baiPanelBody .baiAnswerMetrics .baiOperationCard{border-color:var(--mod-border);border-radius:8px;padding:8px 10px}
+
+/* IA-3G.1 — comparison overflow fix (Human UAT finding: "E comparado
+   ao mês anterior?" produced two side-by-side comparison cards that
+   overflowed the drawer). Root cause: .baiComparisonGrid's own
+   side-by-side -> single-column breakpoint (below) reacts to the
+   VIEWPORT's width, but the drawer is a fixed min(420px,100vw)
+   overlay (Section 5/13/38 across IA-3E) — its usable content width
+   (~420px minus the --bai-rail padding on both sides, well under
+   400px) stays narrow even on a full desktop viewport, where that
+   media query never fires. A container query reacts to the panel's
+   OWN width instead (.baiPanelBody establishes the containment
+   context above), so this self-corrects for this architecture instead
+   of guessing a viewport number, and keeps working if this same
+   renderer is ever reused in a differently-sized surface later
+   (Section 22: one Intelligence core, reusable by a future Voice
+   surface too). The routed full page's own existing viewport rule
+   right below (@media(max-width:600px)) is untouched — correct as-is
+   there, since that page has no narrow container to query. Threshold
+   (520px) is comfortably above the drawer's real max content width, so
+   this always stacks inside the panel today, and would still allow
+   genuine side-by-side if the panel is ever widened past that in a
+   future Wave — never a hardcoded "always 1 column" assumption. */
+@container (max-width:520px){
+  .baiPanelBody .baiComparisonGrid{grid-template-columns:1fr}
+  .baiPanelBody .baiComparisonSide .baiMetricsGrid{grid-template-columns:1fr}
+}
 
 /* ---------- Compact metrics evidence (IA-3E.4) — the `metrics` block
    type's OWN presentation, built by intelligence-panel.js's

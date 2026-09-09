@@ -416,6 +416,70 @@ def main():
         check("other block types (ranking): disclaimer period stays visible (never hidden)", "não é proposta" in page.locator(".baiAnswerMetrics").inner_text())
         page.evaluate("window.NX_INTELLIGENCE_STATE.resetConversation();")
 
+        # ---------- IA-3G.1: comparison block overflow regression ----------
+        # Reproduces the exact Human UAT finding ("E comparado ao mês
+        # anterior?" -> two comparison cards overflowed the drawer on a
+        # normal desktop viewport). Uses the real 'comparison' fixture
+        # shape (adapter's own SCENARIOS['comparison'], not invented) at
+        # the panel's real, current drawer width (1366px viewport --
+        # the drawer itself never exceeds min(420px,100vw) regardless).
+        page.evaluate(
+            """() => {
+                window.NX_INTELLIGENCE_STATE.resetConversation();
+                window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'r', blocks:[{
+                    type:'comparison', title:'Comparação',
+                    a: { label:'Barra Funda', period_label:'mês atual', items:[
+                        {key:'sales', label:'Vendas', value:9, format:'int'},
+                        {key:'share_percent', label:'Share', value:81.2, format:'percent'},
+                        {key:'production', label:'Produção', value:62000, format:'currency'}
+                    ]},
+                    b: { label:'Santo Amaro', period_label:'mês atual', items:[
+                        {key:'sales', label:'Vendas', value:11, format:'int'},
+                        {key:'share_percent', label:'Share', value:74.6, format:'percent'},
+                        {key:'production', label:'Produção', value:79500, format:'currency'}
+                    ]},
+                    deltas: { sales:2, share_percent:-6.6, production:17500 }
+                }], isError:false});
+            }"""
+        )
+        page.wait_for_timeout(150)
+        cmp_true_ov = true_overflow(page)
+        check("comparison: no true viewport overflow at real drawer width", cmp_true_ov["worst"] <= 0.5, cmp_true_ov)
+        cmp_widths = page.evaluate(
+            """() => {
+                function w(sel) { var el = document.querySelector(sel); return el ? {scrollWidth: el.scrollWidth, clientWidth: el.clientWidth} : null; }
+                return { grid: w('.baiComparisonGrid'), sideA: w('.baiComparisonSide'), body: w('#baiPanelConversation') };
+            }"""
+        )
+        check("comparison grid: scrollWidth <= clientWidth", cmp_widths["grid"] and cmp_widths["grid"]["scrollWidth"] <= cmp_widths["grid"]["clientWidth"], cmp_widths["grid"])
+        check("comparison side card: scrollWidth <= clientWidth", cmp_widths["sideA"] and cmp_widths["sideA"]["scrollWidth"] <= cmp_widths["sideA"]["clientWidth"], cmp_widths["sideA"])
+        check("comparison: stacks to 1 column at the real (narrow) drawer width", page.evaluate("getComputedStyle(document.querySelector('.baiComparisonGrid')).gridTemplateColumns.split(' ').length") == 1)
+        check("comparison: both period labels present and readable (no metric dropped)", "Barra Funda" in page.locator(".baiComparisonGrid").inner_text() and "Santo Amaro" in page.locator(".baiComparisonGrid").inner_text())
+        shot(page, "10-comparison-fixed-drawer-width.png")
+
+        # Direct container-width injection -- proves the @container
+        # threshold itself is genuinely width-reactive (not merely
+        # "coincidentally always narrow"): a container query can never
+        # be exercised on its wide-enough branch by resizing the
+        # browser viewport alone, since the real drawer is capped at
+        # min(420px,100vw) and never grows past that regardless of
+        # viewport width (Section 33's own drawer-content-width matrix).
+        for forced_width, expect_columns, label in ((700, 2, "wide container (700px) allows side-by-side"), (480, 1, "narrow container (480px) stacks"), (400, 1, "very narrow container (400px) stacks")):
+            page.evaluate("(w) => { document.getElementById('baiPanelDrawer').style.width = w + 'px'; }", forced_width)
+            page.wait_for_timeout(80)
+            cols = page.evaluate("getComputedStyle(document.querySelector('.baiComparisonGrid')).gridTemplateColumns.split(' ').length")
+            check(f"container query @ {forced_width}px content width: {label}", cols == expect_columns, cols)
+            widths = page.evaluate(
+                """() => {
+                    function w(sel) { var el = document.querySelector(sel); return el ? {scrollWidth: el.scrollWidth, clientWidth: el.clientWidth} : null; }
+                    return { grid: w('.baiComparisonGrid'), drawer: w('#baiPanelDrawer') };
+                }"""
+            )
+            check(f"container query @ {forced_width}px: comparison grid never overflows its own box", widths["grid"] and widths["grid"]["scrollWidth"] <= widths["grid"]["clientWidth"], widths["grid"])
+            check(f"container query @ {forced_width}px: drawer itself never overflows", widths["drawer"] and widths["drawer"]["scrollWidth"] <= widths["drawer"]["clientWidth"], widths["drawer"])
+        page.evaluate("document.getElementById('baiPanelDrawer').style.width = '';")  # restore real width
+        page.evaluate("window.NX_INTELLIGENCE_STATE.resetConversation();")
+
         page.close()
 
         # ---------- Responsive / zero-scroll proof (Section 15/40) ----------
