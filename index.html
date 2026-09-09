@@ -139,6 +139,14 @@ if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
 <script src="assets/js/central-atendimento-fi.js"></script>
 <script src="assets/js/adapters/brabus-intelligence.adapter.js"></script>
 <script src="assets/js/brabus-intelligence.js"></script>
+<!-- IA-3E -- shell-level persistent Intelligence panel (context
+     provider + explicit state machine + launcher/drawer). Reuses the
+     adapter and page above (never a second transport/renderer); must
+     load after both, and before shell.js, which calls
+     NX_INTELLIGENCE_PANEL.mount() once in boot(). -->
+<script src="assets/js/intelligence/intelligence-context.js"></script>
+<script src="assets/js/intelligence/intelligence-state.js"></script>
+<script src="assets/js/intelligence/intelligence-panel.js"></script>
 <script src="assets/js/adapters/master-users-provider.js"></script>
 <script src="assets/js/adapters/master-users-view-model.js"></script>
 <script src="assets/js/adapters/master-acessos-provider.js"></script>

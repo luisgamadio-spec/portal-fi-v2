@@ -499,7 +499,13 @@
     // disabled. Same tone as 401/403: plain, non-technical, no retry
     // loop, no fixture fallback -- applyResult() already renders every
     // error identically as a normal conversation bubble.
-    503: 'Brabus Intelligence está temporariamente indisponível.'
+    503: 'Brabus Intelligence está temporariamente indisponível.',
+    // IA-3E, Section 53 — additive only (a new map key, every existing
+    // key/behavior above is unchanged): a clear, non-technical
+    // transient message, no automatic retry implied or performed here
+    // (errorMessageForStatus never schedules anything — the caller
+    // decides retry policy, and IA-3E's panel never auto-retries).
+    429: 'Muitas solicitações em pouco tempo — aguarde um instante e tente novamente.'
   };
   function errorMessageForStatus(status) {
     return ERROR_MESSAGE_BY_STATUS[status] || 'Não foi possível concluir a análise agora. Tente novamente.';

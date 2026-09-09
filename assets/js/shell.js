@@ -175,6 +175,14 @@
       return;
     }
 
+    // IA-3E, Section 33: route-level Intelligence context only — every
+    // module gets this same one line, no individual (frozen) module
+    // is edited to call it. NX_INTELLIGENCE_CONTEXT is presentation-
+    // only (see intelligence-context.js's own header) and safe to call
+    // unconditionally; guarded only because the panel's own scripts
+    // could in principle be absent from a given page.
+    if (window.NX_INTELLIGENCE_CONTEXT) window.NX_INTELLIGENCE_CONTEXT.setRoute(routeId, entry);
+
     window.NX_LANDING.renderRoute(routeId, entry).then(function () {
       if (myToken !== routeToken) return;
       if (!window.NX_LANDING.isLandingRoute(routeId)) {
@@ -260,6 +268,13 @@
   function boot() {
     setupDevBadge();
     setupNavDrawer();
+    // IA-3E: mounts the persistent Intelligence launcher into
+    // #nxOverlayRoot exactly once, before any route dispatch — its own
+    // visibility (MASTER-only) is then driven entirely by
+    // NX_AUTH_CORE's state changes, subscribed inside mount() itself,
+    // never by this boot sequence. See assets/js/intelligence/
+    // intelligence-panel.js.
+    if (window.NX_INTELLIGENCE_PANEL) window.NX_INTELLIGENCE_PANEL.mount();
     window.NX_AUTH_CORE.onStateChange(function (state) {
       var STATES = window.NX_AUTH_CORE.STATES;
       var bootLoading = document.getElementById('nxBootLoading');

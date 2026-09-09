@@ -105,3 +105,99 @@
   .baiComposer{flex-direction:column;align-items:stretch}
   .baiComposerActions{justify-content:flex-end}
 }
+
+/* ============================================================
+   PERSISTENT PANEL (IA-3E) — the shell-level launcher + drawer,
+   mounted once into #nxOverlayRoot (assets/js/intelligence/
+   intelligence-panel.js), independent of the routed full-page module
+   above (#/brabus-intelligence, unchanged). Reuses every .bai* content
+   class already defined above (bubbles/blocks/composer) for visual
+   consistency — only wrapper/chrome classes are new here.
+
+   #nxOverlayRoot itself is `position:fixed;inset:0;pointer-events:none`
+   (shell.css) so every interactive element below must opt back into
+   pointer-events:auto individually — the empty space around the
+   launcher/drawer stays click-through to whatever module is underneath,
+   which is what keeps navigation to other modules possible while the
+   panel is open (IA-3E Section 12/57). ============================ */
+
+.baiLauncherRoot{position:fixed;inset:0;pointer-events:none;z-index:1}
+
+.baiLauncherBtn{
+  position:fixed;right:var(--space-4);bottom:var(--space-4);
+  width:52px;height:52px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--color-accent-primary);color:var(--p-white-1);
+  border:none;box-shadow:var(--shadow-elevated);cursor:pointer;
+  pointer-events:auto;font-family:var(--font-ui);
+}
+.baiLauncherBtn:hover{filter:brightness(1.08)}
+.baiLauncherBtn:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-ring-offset)}
+.baiLauncherIcon{font-size:20px;line-height:1}
+
+.baiPanelBackdrop{
+  position:fixed;inset:0;background:var(--color-overlay-scrim);
+  pointer-events:auto;display:none
+}
+
+.baiPanelDrawer{
+  position:fixed;top:0;right:0;bottom:0;
+  width:min(420px,100vw);
+  background:var(--color-elevated-surface);
+  border-left:1px solid var(--color-hairline-strong);
+  box-shadow:var(--shadow-elevated);
+  display:flex;flex-direction:column;
+  pointer-events:auto;
+}
+/* Open/close is the `hidden` attribute (matching every other overlay
+   in this codebase, e.g. pNavBackdrop/nxDesignTrace) — no transform/
+   transition invented here (Gate: no new motion this Wave). */
+
+.baiPanelHeader{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-3);
+  padding:var(--space-4);border-bottom:1px solid var(--mod-border);flex-shrink:0
+}
+.baiPanelTitle{font-family:var(--font-ui);font-weight:300;font-size:18px;margin:2px 0 0}
+.baiPanelContextChip{
+  margin:var(--space-2) 0 0;font-family:var(--font-mono);font-size:11px;
+  color:var(--mod-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px
+}
+/* Reserved flex slot for a future Voice control (mic/connection state/
+   mute) — IA-3E Section 45. No element lives here yet; the layout
+   itself (a flex row that already accepts more than one action) is
+   the only thing "reserved" — adding a button later needs no redesign. */
+.baiPanelHeaderActions{display:flex;gap:var(--space-2);align-items:center;flex-shrink:0}
+.baiPanelCloseBtn{
+  background:none;border:none;color:var(--mod-muted);font-size:20px;line-height:1;
+  cursor:pointer;padding:4px 6px;border-radius:var(--radius-sm)
+}
+.baiPanelCloseBtn:hover{color:var(--color-text-primary)}
+.baiPanelCloseBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+
+.baiPanelBody{flex:1;min-height:0;overflow-y:auto;padding:var(--space-4)}
+.baiPanelBody .baiConversation{min-height:0}
+.baiPanelBody .baiStructuredRegion,
+.baiPanelBody .baiBubble{max-width:100%}
+
+.baiPanelComposer{padding:var(--space-3) var(--space-4);flex-shrink:0}
+.baiPanelStatusLine{
+  margin:0;padding:var(--space-2) var(--space-4);font-size:12px;
+  color:var(--color-critical);border-top:1px solid var(--mod-border);flex-shrink:0
+}
+
+/* Desktop/tablet: floating drawer, no backdrop — the module underneath
+   (and the nav sidebar) stays fully interactive so navigating to
+   another module while the panel is open genuinely works (Section 12/
+   57), it does not merely look open. */
+@media(min-width:769px){
+  .baiPanelBackdrop{display:none !important}
+}
+
+/* Mobile: near-full-screen takeover with a backdrop and no side gutter
+   — Section 14 ("do not squeeze module + chat side-by-side"). */
+@media(max-width:768px){
+  .baiPanelDrawer{width:100vw;border-left:none}
+  .baiPanelBackdrop{display:block}
+  .baiLauncherBtn{right:var(--space-3);bottom:var(--space-3)}
+}
+
