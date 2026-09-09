@@ -202,17 +202,32 @@
 }
 
 /* ============================================================
-   PANEL VISUAL REFINEMENT (IA-3E.2) — Human visual UAT findings.
-   Every rule below is scoped under .baiPanelHeader/.baiPanelBody/
-   .baiPanelDrawer/#baiLauncherRoot specifically so NONE of it touches
-   the routed #/brabus-intelligence page's own, separately Human-
+   PANEL COMPOSITION SYSTEM (IA-3E.3) — Human rejected IA-3E.2
+   ("desalinhado, estranho"): several independently aligned
+   components, not a whitespace problem. This is a full recompose,
+   not another layer of overrides — it REPLACES the IA-3E.2 block that
+   used to live here. Still scoped entirely under .baiPanelHeader/
+   .baiPanelBody/.baiPanelComposer/#baiLauncherRoot, so none of it
+   touches the routed #/brabus-intelligence page's own, separately
    approved visual language (the unscoped .baiBubble/.baiBlockPanel/
-   .modPanelResult rules above are untouched). Same tokens throughout
-   — no new hex/radius/shadow invented. ============================ */
+   .modPanelResult rules above stay exactly as they were).
 
-/* ---------- Header: one clear identity line, not three ---------- */
-.baiPanelHeader{padding:var(--space-3) var(--space-4)}
-.baiPanelTitle{font-size:16px;margin:0}
+   ONE shared horizontal rail (--bai-rail) is the spine every major
+   region derives its inline padding from: header, context, the
+   conversation column, and the composer all use the exact same 16px
+   inset (--space-4) — nothing here uses an arbitrary one-off margin.
+   No new hex/shadow; --bai-content-radius is the one new value
+   (a plain px), used everywhere a rounded surface appears (bubble,
+   composer, send button) for one coherent corner language. ========= */
+.baiPanelDrawer{
+  --bai-rail: var(--space-4);
+  --bai-turn-gap: var(--space-4);
+  --bai-content-radius: 12px;
+}
+
+/* ---------- Header / context: same rail, one identity line ---------- */
+.baiPanelHeader{padding:var(--space-3) var(--bai-rail)}
+.baiPanelTitle{font-size:16px;font-weight:400;margin:0}
 .baiPanelContextChip{
   display:flex;align-items:center;gap:6px;margin:4px 0 0;
   font-family:var(--font-ui);font-size:11.5px;color:var(--mod-muted);
@@ -221,82 +236,107 @@
 .baiPanelContextDot{width:5px;height:5px;border-radius:50%;background:var(--color-accent-primary);flex-shrink:0}
 .baiPanelContextChip .baiPanelContextText{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* ---------- Conversation: tighter turn/label rhythm ---------- */
-.baiPanelBody{padding:var(--space-4) var(--space-4) var(--space-3)}
-.baiPanelBody .baiConversation{gap:var(--space-4)}
-.baiPanelBody .baiMessage{gap:3px}
-.baiPanelBody .baiRoleLabel{font-size:9.5px;letter-spacing:.04em;opacity:.58}
-.baiPanelBody .baiMessageUser{padding-right:2px} /* Section 7 -- keep the label off the drawer's own edge */
-.baiPanelBody .baiMessageUser .baiBubble{max-width:86%;border-radius:14px 14px 4px 14px}
-/* The panel HEADER already identifies the speaker as Brabus
-   Intelligence for every reply in this surface -- repeating it per
-   turn, visually, was the redundancy Section 8 flagged. Kept in the
-   accessibility tree (screen-reader-only, not display:none) so turn
-   ownership is still announced -- Section 27 explicitly requires
-   preserving labels/announcements, visual decluttering must not cost
-   that. The user's "Você" label stays fully visible (Human vs.
-   Intelligence must stay distinguishable at a glance too). */
-.baiPanelBody .baiMessageAssistant .baiRoleLabel{
+/* ---------- Conversation column: same rail ---------- */
+.baiPanelBody{padding:var(--space-4) var(--bai-rail) var(--space-3)}
+.baiPanelBody .baiConversation{gap:var(--bai-turn-gap)}
+.baiPanelBody .baiMessage{gap:4px}
+
+/* No VISIBLE sender label on either side (Section 9, option A) --
+   right/left alignment plus a distinct bubble tone already say who's
+   speaking; a "VOCÊ" label sitting a few pixels from its own bubble
+   read as a floating, detached fragment, not clarity. Both labels
+   stay screen-reader-only (clip-rect, not display:none) so turn
+   ownership is still announced — Section 41 explicitly requires
+   preserving identity/announcements, decluttering must not cost that. */
+.baiPanelBody .baiRoleLabel{
   position:absolute;width:1px;height:1px;padding:0;margin:-1px;
   overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
 }
 
-/* ---------- Assistant answer: ONE cohesive card, not two boxes ----------
-   messageHtml() (intelligence-panel.js) wraps prose + any structured
-   block(s) inside a single .baiAnswerCard for a real assistant reply;
-   error bubbles keep the plain .baiBubble treatment (Section 6/8). */
-.baiPanelBody .baiAnswerCard{
-  background:var(--mod-surface-panel-2);border:1px solid var(--mod-border);
-  border-radius:14px;padding:12px 14px;max-width:100%;
-  display:flex;flex-direction:column;gap:10px;
+.baiPanelBody .baiMessageUser .baiBubble{
+  max-width:82%;border-radius:var(--bai-content-radius) var(--bai-content-radius) 4px var(--bai-content-radius);
+  border-color:transparent; /* surface tone alone now carries the distinction — Section 10/18: prefer surface tone over borders */
 }
-.baiPanelBody .baiAnswerProse{white-space:normal;font-size:var(--mod-body-size);line-height:1.5}
-.baiPanelBody .baiAnswerProse p{margin:0 0 6px}
-.baiPanelBody .baiAnswerProse p:last-child{margin-bottom:0}
-.baiPanelBody .baiAnswerProse ul,.baiPanelBody .baiAnswerProse ol{margin:6px 0;padding-left:1.1em;display:flex;flex-direction:column;gap:2px}
 
-/* ---------- Compact metrics, feels like supporting evidence ---------- */
-.baiPanelBody .baiAnswerMetrics{border-top:1px solid var(--mod-border);padding-top:10px}
+/* ---------- Assistant turn: conversation first, data second (Section
+   11, the major change) — NO card. Prose sits directly on the
+   conversation surface at full measure, exactly like the routed
+   page's own reading column, never boxed in by default.
+
+   BUGFIX found live comparing drawer widths (Section 19): the base,
+   unscoped `.baiMessageAssistant{align-items:flex-start}` rule (used
+   so a BUBBLE shrink-wraps its own text) was also shrinking
+   .baiAnswerProse/.baiAnswerMetrics down to their content width in a
+   flex column, instead of letting them use the full conversation
+   width — the KPI grid measured 250px wide inside a 387px-wide
+   message regardless of drawer width, because it was never actually
+   given the room to stretch. Overridden back to `stretch` here, the
+   correct behavior once these are full-width blocks, not bubbles. */
+.baiPanelBody .baiMessageAssistant{align-items:stretch}
+.baiPanelBody .baiAnswerProse{white-space:normal;font-size:var(--mod-body-size);line-height:1.55;max-width:100%}
+.baiPanelBody .baiAnswerProse p{margin:0 0 8px}
+.baiPanelBody .baiAnswerProse p:last-child{margin-bottom:0}
+.baiPanelBody .baiAnswerProse ul,.baiPanelBody .baiAnswerProse ol{margin:8px 0;padding-left:1.1em;display:flex;flex-direction:column;gap:2px}
+
+/* ---------- Structured facts: a subtle divided section, not a card,
+   never a competing bordered box (Section 15). ---------- */
+.baiPanelBody .baiAnswerMetrics{margin-top:10px;padding-top:10px;border-top:1px solid var(--mod-border)}
 .baiPanelBody .baiAnswerMetrics .modPanelResult,
-.baiPanelBody .baiAnswerMetrics .baiBlockPanel{
-  background:none;border:none;padding:0;border-radius:0;
-}
+.baiPanelBody .baiAnswerMetrics .baiBlockPanel{background:none;border:none;padding:0;border-radius:0}
+
+/* Title + period merged onto ONE visual line (a middle-dot separator,
+   not two stacked near-duplicate lines) — this is a LAYOUT change
+   only: period_label is never hidden, since on other tools' fixtures
+   it carries a real disclaimer ("Simulação — não é proposta nem
+   aprovação de crédito"), not decorative text, and this Wave does not
+   touch response data/renderer contracts (Section 27/46). Fully
+   removing the wording overlap for cases like this fixture's own
+   "Grupo — mês anterior" + "mês anterior" would require changing the
+   fixture/backend title text itself — out of scope here, carried as
+   an open item (§36). */
 .baiPanelBody .baiAnswerMetrics .baiBlockTitle{
-  font-family:var(--font-ui);font-size:10.5px;font-weight:500;
-  text-transform:uppercase;letter-spacing:.04em;color:var(--mod-muted);
-  margin:0 0 6px;
+  display:inline;margin:0;font-family:var(--font-ui);font-size:10.5px;
+  font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--mod-muted);
 }
-.baiPanelBody .baiAnswerMetrics .baiBlockPeriod{font-size:10.5px;margin:0 0 8px}
-.baiPanelBody .baiMetricsGrid{grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
+.baiPanelBody .baiAnswerMetrics .baiBlockPeriod{display:inline;margin:0;font-size:10.5px;color:var(--mod-muted)}
+.baiPanelBody .baiAnswerMetrics .baiBlockPeriod::before{content:" · "}
+
+/* Exactly 2 columns, never 3 (Section 14) — a 5-item fixture reads as
+   2/2/1 (a single natural remainder), never the 3+2 orphan row the
+   Human screenshot showed. */
+.baiPanelBody .baiMetricsGrid{margin-top:8px;grid-template-columns:1fr 1fr;gap:12px 16px}
 .baiPanelBody .baiMetricItem .modKpiLabel{font-size:9.5px}
 .baiPanelBody .baiMetricItem .modKpiValue{font-size:15px;margin-top:2px}
 
-/* Other structured-block types (ranking/operations/score_*) still get
-   the compact-card treatment generically -- Section 20's own "do not
-   optimize so narrowly that other block types break" requirement.
-   These are the same shared renderers, unmodified; only the wrapper
-   they sit in when produced through this panel differs. */
-.baiPanelBody .baiOperationCard{padding:8px 10px}
-.baiPanelBody .modTableWrap{margin-bottom:0}
+/* Other structured-block types (ranking/operations/score_*) get the
+   same border-reduction treatment generically (Section 40) — the
+   same shared renderers, unmodified; only the wrapper differs. */
+.baiPanelBody .baiAnswerMetrics .modTableWrap{border-color:var(--mod-border);border-radius:8px;margin-bottom:0}
+.baiPanelBody .baiAnswerMetrics .baiOperationCard{border-color:var(--mod-border);border-radius:8px;padding:8px 10px}
 
-/* ---------- Composer: comfortable, styled scrollbar, no white native
-   scrollbar at rest (Section 14, high priority) ---------- */
-.baiPanelComposer{padding:var(--space-3) var(--space-4) var(--space-4)}
+/* ---------- Composer: same rail, one composed control group ---------- */
+.baiPanelComposer{display:flex;gap:var(--space-2);align-items:flex-end;padding:var(--space-3) var(--bai-rail) var(--space-4)}
 .baiPanelComposer .baiComposerInput{
   min-height:40px;max-height:132px;padding:9px 12px;
+  border-radius:var(--bai-content-radius);
   scrollbar-width:thin;scrollbar-color:var(--mod-border-strong) transparent;
 }
 .baiPanelComposer .baiComposerInput::-webkit-scrollbar{width:6px}
 .baiPanelComposer .baiComposerInput::-webkit-scrollbar-track{background:transparent}
 .baiPanelComposer .baiComposerInput::-webkit-scrollbar-thumb{background:var(--mod-border-strong);border-radius:3px}
 .baiPanelComposer .baiComposerActions{align-self:flex-end}
-.baiPanelComposer #baiPanelSendBtn{padding:9px 16px;height:40px}
+/* Same V2 red (Section 22 explicitly keeps it — no desaturation), but
+   sized/shaped to match --bai-content-radius so it reads as part of
+   the same composed control instead of a separate loud rectangle. */
+.baiPanelComposer #baiPanelSendBtn{padding:0 16px;height:40px;border-radius:var(--bai-content-radius);font-size:13px}
 
-/* ---------- Drawer width: small, evidence-based increase (Section 24) ----------
-   440px (was 420px) gives the compact 2-3 column KPI grid a touch more
-   room at 1366 without approaching a width that would make Portal feel
-   unusable underneath (still well short of half the viewport at 1024). */
-.baiPanelDrawer{width:min(440px,100vw)}
+/* ---------- Drawer width (Section 19): visually re-evaluated at
+   420/424/432/440 — 420px (IA-3E's original) produces the best
+   proportion once the layout no longer needs to fit a 3rd KPI column;
+   440px's extra 20px only added dead space either side of the now-
+   narrower 2-column grid. Reverted. See docs/IA-3E-V2-INTELLIGENCE-
+   PANEL.md for the 4-width comparison. ---------- */
+.baiPanelDrawer{width:min(420px,100vw)}
 
 @media(max-width:768px){
   .baiPanelHeader{padding:var(--space-3)}

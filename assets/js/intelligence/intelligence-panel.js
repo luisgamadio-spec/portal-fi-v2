@@ -88,28 +88,25 @@
 
     if (isUser || msg.isError) {
       // User turns and error turns keep the plain bubble treatment --
-      // there is no metrics/evidence to cohere them with (IA-3E.2
-      // Section 6/8 only asked to fix the REAL-answer case below).
+      // there is no metrics/evidence to cohere them with.
       var plainClass = 'baiBubble' + (msg.isError ? ' baiBubbleError' : '');
       return '<div class="baiMessage ' + roleClass + '">' + labelHtml +
         '<div class="' + plainClass + '">' + esc(msg.content) + '</div></div>';
     }
 
-    // A real assistant answer: ONE cohesive card -- prose + (optional)
-    // compact supporting metrics -- instead of two separately bordered
-    // boxes stacked (IA-3E.2 Section 6/8's own finding G). The
-    // structured-block markup itself (P.renderStructuredBlock) is
-    // 100% the shared, unmodified renderer -- only the wrapper it
-    // sits in here differs; see intelligence.css's .baiAnswerMetrics
-    // rules, which neutralize .modPanelResult's own border/padding
-    // only inside this wrapper, never globally.
+    // A real assistant answer (IA-3E.3 Section 11 -- conversation
+    // first, data second): prose renders DIRECTLY on the conversation
+    // surface, no card. Optional structured facts follow as a subtly
+    // divided secondary section (intelligence.css's .baiAnswerMetrics),
+    // never a second competing bordered box. The structured-block
+    // markup itself (P.renderStructuredBlock) is 100% the shared,
+    // unmodified renderer -- only the wrapper it sits in here differs.
     var proseHtml = '<div class="baiAnswerProse baiBubbleMd">' + P.renderAssistantProse(msg.content) + '</div>';
     var metricsHtml = '';
     if (Array.isArray(msg.blocks) && msg.blocks.length) {
       metricsHtml = '<div class="baiAnswerMetrics">' + msg.blocks.map(P.renderStructuredBlock).join('') + '</div>';
     }
-    return '<div class="baiMessage ' + roleClass + '">' + labelHtml +
-      '<div class="baiAnswerCard">' + proseHtml + metricsHtml + '</div></div>';
+    return '<div class="baiMessage ' + roleClass + '">' + labelHtml + proseHtml + metricsHtml + '</div>';
   }
 
   function loadingHtml() {
@@ -117,9 +114,21 @@
       '<span class="modLoadingDot" aria-hidden="true"></span>Analisando os dados do Portal…</div></div>';
   }
 
+  var NEAR_BOTTOM_THRESHOLD_PX = 80;
+
   function renderConversation() {
     var el = document.getElementById('baiPanelConversation');
     if (!el) return;
+    // .baiPanelBody is the real `overflow-y:auto` container (see the
+    // scroll-target bugfix below) -- read its scroll position BEFORE
+    // re-rendering, so a Human who deliberately scrolled up to reread
+    // an earlier turn isn't yanked back down by a new message arriving
+    // (IA-3E.3 Section 26, a soft, deterministic improvement over the
+    // IA-3E.2-disclosed D1 limitation): only auto-scroll if they were
+    // already near the bottom.
+    var scrollHost = el.closest('.baiPanelBody') || el;
+    var wasNearBottom = (scrollHost.scrollHeight - scrollHost.scrollTop - scrollHost.clientHeight) <= NEAR_BOTTOM_THRESHOLD_PX;
+
     var snap = S.getSnapshot();
     var busy = snap.textState === S.TEXT_STATES.SENDING || snap.textState === S.TEXT_STATES.THINKING;
     if (snap.conversation.length === 0 && !busy) {
@@ -129,15 +138,11 @@
     el.innerHTML = snap.conversation.map(messageHtml).join('') + (busy ? loadingHtml() : '');
     // BUGFIX (found live during IA-3E.2's own long-conversation check):
     // #baiPanelConversation itself never overflows -- it grows freely
-    // inside .baiPanelBody, which is the actual `overflow-y:auto`
-    // container (unlike the routed page, where the whole WINDOW
-    // scrolls and #baiConversation's own scrollTop really was a
-    // no-op there too, by the same original design note). Setting
-    // scrollTop on the wrong (non-scrolling) element silently did
-    // nothing -- the newest message was reachable only by a human
-    // manually scrolling. Scroll the real container instead.
-    var scrollHost = el.closest('.baiPanelBody') || el;
-    scrollHost.scrollTop = scrollHost.scrollHeight;
+    // inside .baiPanelBody. Setting scrollTop on the wrong (non-
+    // scrolling) element silently did nothing -- the newest message
+    // was reachable only by a human manually scrolling. Scroll the
+    // real container instead, and only when appropriate (above).
+    if (wasNearBottom) scrollHost.scrollTop = scrollHost.scrollHeight;
   }
 
   function updateContextChip() {
