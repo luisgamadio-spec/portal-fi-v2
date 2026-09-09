@@ -338,8 +338,51 @@ was touched.
   `brabus.blistiq.com.br`) unchanged.
 
   CA-1 (Central de Atendimento F&I, `a0e7b9b`/`e6ab438`,
-  `CENTRAL_FI_HUMAN_APPROVED_REFROZEN` locally) remains intentionally
-  excluded from this deployment lineage — GL-1K did not synchronize it.
-  A later wave is required to reconcile the frozen, approved local
-  commits (including Central de Atendimento F&I) into the homologation
-  deployment lineage.
+  `CENTRAL_FI_HUMAN_APPROVED_REFROZEN` locally) remained intentionally
+  excluded from this deployment lineage as of GL-1K — GL-1K did not
+  synchronize it. GL-1L (below) is the later wave that performed that
+  reconciliation.
+
+- **GL-1L (controlled lineage reconciliation):** Merge commit
+  `69d2318e9d0e78e24805b59cf61fcd9bffd7d776` (parents `5598f7a`, `e6ab438`)
+  reconciled the Human-approved, frozen Central de Atendimento F&I
+  lineage into this deployment lineage. Merge-base proven
+  (`ec12de6`); the two lineages overlapped in exactly one file
+  (`index.html`, three non-adjacent regions) and merged with zero manual
+  conflict resolution. Full-tree diff against both parents proved no
+  content was lost on either side. Every required regression suite
+  passed at its exact expected baseline (Central 64/64 + 10/10, registry
+  PASS, auth-catalog 40/40, Painel do Analista 30/30 + 8/8,
+  master-admin-route 18/18, GL-1J hostname 13/13, GL-1K network-guard
+  6/6, landing composition 20/20), plus zero horizontal scroll on
+  Landing/Central Dashboard/Gestão/Histórico. Deployed and live-verified:
+  `AUTHORIZED_PRODUCTION`, network-guard clean, Intelligence inert, 0
+  console errors. Closed with `PUBLISHED_CENTRAL_TRANSPORT_SMOKE_PENDING`
+  — the Human was asked to perform one small published transport smoke
+  (real MASTER login, confirm Central visible on Landing, open Central
+  Dashboard, confirm normal render) before that status could close.
+
+- **GL-1M (integrated homologation transport-smoke refreeze,
+  governance-only, no runtime change):** the Human performed exactly the
+  requested published transport smoke and responded verbatim:
+
+  > "validado"
+
+  Scope of this evidence: real MASTER published login on
+  `https://luisgamadio-spec.github.io/portal-fi-v2/`; confirmed "Central
+  de Atendimento F&I" visible on Landing; opened Central Dashboard;
+  confirmed normal render. **No mutation performed. No export performed.
+  No functional Central re-UAT performed** — Central's own functional
+  approval remains the CA-1B evidence recorded above, unchanged.
+
+  Classification: `PUBLISHED_CENTRAL_TRANSPORT_SMOKE_HUMAN_APPROVED` —
+  closes GL-1L's `PUBLISHED_CENTRAL_TRANSPORT_SMOKE_PENDING`. Integrated
+  deployed commit at the time of this evidence:
+  `69d2318e9d0e78e24805b59cf61fcd9bffd7d776`. `CENTRAL_FI_HUMAN_APPROVED`,
+  `CENTRAL_FI_HUMAN_APPROVED_REFROZEN`, and `CENTRAL_FI_FROZEN` are
+  unchanged and preserved — this wave records deployment/transport
+  evidence only, not a new functional decision. No runtime, Auth,
+  deployment-infrastructure, or business-logic file was touched by this
+  wave; `config/module-registry.json` was left unmodified (Gate 12) since
+  it already correctly records Central's functional `HUMAN_APPROVED`
+  status and this wave's evidence is deployment-level, not functional.
