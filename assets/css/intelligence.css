@@ -58,8 +58,19 @@
 .baiBlockPeriod{color:var(--mod-muted);font-size:var(--mod-metadata-size);margin:0 0 var(--mod-space-card-gap)}
 
 .baiMetricsGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--mod-space-card-gap)}
-.baiMetricItem .modKpiLabel{color:var(--mod-muted);font-size:var(--mod-kpi-label-size);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
-.baiMetricItem .modKpiValue{font-family:var(--font-mono);font-size:18px;font-weight:500;margin-top:var(--mod-space-micro);font-variant-numeric:tabular-nums}
+/* IA-3G.3 -- .modKpiLabel/.modKpiValue are plain <p> tags; neither rule
+   below ever reset the browser's own default UA paragraph margin
+   (1em 0, computed against EACH element's own font-size), so ~9.5px
+   above/below the label and ~15px below the value leaked through
+   unintentionally on every single metric item -- found by measuring
+   real rendered row height (70.75px) against the label+value's own
+   actual content height (~37-41px) and tracing the ~30-40px gap to
+   these two unreset margins, not a grid/flex stretching behavior
+   (ruled out empirically: forcing align-items/align-content/
+   justify-items:start made no difference). Explicit margin:0 base,
+   with only the top gap between label and value re-added on purpose. */
+.baiMetricItem .modKpiLabel{color:var(--mod-muted);font-size:var(--mod-kpi-label-size);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin:0}
+.baiMetricItem .modKpiValue{font-family:var(--font-mono);font-size:18px;font-weight:500;margin:var(--mod-space-micro) 0 0;font-variant-numeric:tabular-nums}
 
 .baiComparisonGrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--mod-space-card-gap)}
 @media(max-width:600px){.baiComparisonGrid{grid-template-columns:1fr}}
@@ -339,8 +350,31 @@
    future Wave — never a hardcoded "always 1 column" assumption. */
 @container (max-width:520px){
   .baiPanelBody .baiComparisonGrid{grid-template-columns:1fr}
-  .baiPanelBody .baiComparisonSide .baiMetricsGrid{grid-template-columns:1fr}
 }
+
+/* IA-3G.3 — comparison DENSITY fix. IA-3G.1's own inner-grid rule
+   (forcing .baiComparisonSide .baiMetricsGrid to a single column
+   whenever the outer comparison stacked) over-corrected: a real
+   comparison side carries up to 9 governed metrics (Vendas,
+   Financiamentos, Share, Produção, Retorno, Retorno Médio, SPF, SPF
+   Líquido, Rentabilidade), and forcing all 9 into ONE column stacked
+   each period card to roughly 500px tall — two of them consumed
+   nearly the entire drawer viewport (Human: "ficou muito espaçada,
+   ruim de ler"), even though nothing about the actual spacing tokens
+   changed (--mod-space-card-gap stayed 12px throughout — the
+   regression was column COUNT, not gap size). Replaces the forced
+   single column with the same auto-fit pattern the base .baiMetricsGrid
+   already uses elsewhere (line 60), just with a smaller minmax floor
+   sized for a comparison side's own half-ish width: at the drawer's
+   real content width (~380px, comfortably ≤520px, where the outer
+   grid above is already stacked so each side gets the FULL ~380px, not
+   half), 130px×2 + gap fits with room to spare -- 2 columns render
+   naturally, no container query needed for this tier. Only at a
+   genuinely narrow width (Section 10's own "Level B") does auto-fit
+   itself fall back to 1 column, exactly the brief's own two-level
+   contract, driven by the grid algorithm rather than a second guessed
+   breakpoint number. */
+.baiPanelBody .baiComparisonSide .baiMetricsGrid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
 
 /* ---------- Compact metrics evidence (IA-3E.4) — the `metrics` block
    type's OWN presentation, built by intelligence-panel.js's

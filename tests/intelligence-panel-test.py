@@ -416,31 +416,47 @@ def main():
         check("other block types (ranking): disclaimer period stays visible (never hidden)", "não é proposta" in page.locator(".baiAnswerMetrics").inner_text())
         page.evaluate("window.NX_INTELLIGENCE_STATE.resetConversation();")
 
-        # ---------- IA-3G.1: comparison block overflow regression ----------
-        # Reproduces the exact Human UAT finding ("E comparado ao mês
-        # anterior?" -> two comparison cards overflowed the drawer on a
-        # normal desktop viewport). Uses the real 'comparison' fixture
-        # shape (adapter's own SCENARIOS['comparison'], not invented) at
-        # the panel's real, current drawer width (1366px viewport --
-        # the drawer itself never exceeds min(420px,100vw) regardless).
+        # ---------- IA-3G.1/IA-3G.3: comparison block overflow + density regression ----------
+        # Reproduces the exact Human UAT findings across both rounds:
+        # IA-3G.1 ("E comparado ao mês anterior?" -> two comparison cards
+        # overflowed the drawer horizontally) and IA-3G.3 (the horizontal
+        # fix over-corrected -> each period card became ~500px tall,
+        # unreadable). Uses the REAL comparison field set and shape,
+        # byte-matched against buildComparisonBlock's own 8 items
+        # (supabase/functions/portal-ai-homolog/index.ts) -- sales,
+        # financed, share_percent, production, return, return_avg_percent,
+        # spf, profitability (note: spf_net/"SPF Líquido" is NOT part of
+        # the real comparison block, only the single-period metrics
+        # block) -- and a real custom-range period_label
+        # ("2026-08-01 a 2026-08-31") exactly matching resolvePeriod()'s
+        # own "custom" kind output for a follow-up with no period enum,
+        # to also exercise the IA-3G.3 date-format presentation fix.
+        def comparison_side(label, period_label, sales, financed, share, production, ret, ret_avg, spf, profit):
+            return {
+                "label": label, "period_label": period_label,
+                "items": [
+                    {"key": "sales", "label": "Vendas", "value": sales, "format": "int"},
+                    {"key": "financed", "label": "Financiamentos", "value": financed, "format": "int"},
+                    {"key": "share_percent", "label": "Share", "value": share, "format": "percent"},
+                    {"key": "production", "label": "Produção", "value": production, "format": "currency"},
+                    {"key": "return", "label": "Retorno", "value": ret, "format": "currency"},
+                    {"key": "return_avg_percent", "label": "Retorno Médio", "value": ret_avg, "format": "percent"},
+                    {"key": "spf", "label": "SPF", "value": spf, "format": "currency"},
+                    {"key": "profitability", "label": "Rentabilidade / Receita Total", "value": profit, "format": "currency"},
+                ]
+            }
+        import json as _json
+        side_a = comparison_side("Grupo", "2026-08-01 a 2026-08-31", 378, 154, 40.74, 15287967.14, 683602.02, 4.95, 105305.66, 757316)
+        side_b = comparison_side("Grupo", "2026-07-01 a 2026-07-31", 341, 139, 38.2, 13120500.0, 601200.5, 4.6, 96500.0, 690000)
         page.evaluate(
-            """() => {
+            """(payload) => {
                 window.NX_INTELLIGENCE_STATE.resetConversation();
                 window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'r', blocks:[{
-                    type:'comparison', title:'Comparação',
-                    a: { label:'Barra Funda', period_label:'mês atual', items:[
-                        {key:'sales', label:'Vendas', value:9, format:'int'},
-                        {key:'share_percent', label:'Share', value:81.2, format:'percent'},
-                        {key:'production', label:'Produção', value:62000, format:'currency'}
-                    ]},
-                    b: { label:'Santo Amaro', period_label:'mês atual', items:[
-                        {key:'sales', label:'Vendas', value:11, format:'int'},
-                        {key:'share_percent', label:'Share', value:74.6, format:'percent'},
-                        {key:'production', label:'Produção', value:79500, format:'currency'}
-                    ]},
-                    deltas: { sales:2, share_percent:-6.6, production:17500 }
+                    type:'comparison', title:'Comparação', a: payload.a, b: payload.b,
+                    deltas: { sales:37, financed:15, share_percent:2.54, production:2167467.14, return:82401.52, return_avg_percent:0.35, spf:8805.66 }
                 }], isError:false});
-            }"""
+            }""",
+            {"a": side_a, "b": side_b},
         )
         page.wait_for_timeout(150)
         cmp_true_ov = true_overflow(page)
@@ -453,9 +469,23 @@ def main():
         )
         check("comparison grid: scrollWidth <= clientWidth", cmp_widths["grid"] and cmp_widths["grid"]["scrollWidth"] <= cmp_widths["grid"]["clientWidth"], cmp_widths["grid"])
         check("comparison side card: scrollWidth <= clientWidth", cmp_widths["sideA"] and cmp_widths["sideA"]["scrollWidth"] <= cmp_widths["sideA"]["clientWidth"], cmp_widths["sideA"])
-        check("comparison: stacks to 1 column at the real (narrow) drawer width", page.evaluate("getComputedStyle(document.querySelector('.baiComparisonGrid')).gridTemplateColumns.split(' ').length") == 1)
-        check("comparison: both period labels present and readable (no metric dropped)", "Barra Funda" in page.locator(".baiComparisonGrid").inner_text() and "Santo Amaro" in page.locator(".baiComparisonGrid").inner_text())
+        check("comparison: stacks to 1 column at the real (narrow) drawer width (outer grid)", page.evaluate("getComputedStyle(document.querySelector('.baiComparisonGrid')).gridTemplateColumns.split(' ').length") == 1)
+        # ---- IA-3G.3 density assertions ----
+        inner_cols = page.evaluate("getComputedStyle(document.querySelector('.baiComparisonSide .baiMetricsGrid')).gridTemplateColumns.split(' ').length")
+        check("comparison: internal KPI grid uses 2 columns at the real drawer width (density fix, not 1)", inner_cols == 2, inner_cols)
+        card_heights = page.evaluate(
+            """() => {
+                var sides = document.querySelectorAll('.baiComparisonSide');
+                return Array.from(sides).map(s => Math.round(s.getBoundingClientRect().height));
+            }"""
+        )
+        check("comparison: each period card height is compact (< 280px for 8 items in 2 columns), not ~500-700px", all(h < 280 for h in card_heights), card_heights)
+        check("comparison: both period labels present and readable (no metric dropped)", "378" in page.locator(".baiComparisonGrid").inner_text() and "341" in page.locator(".baiComparisonGrid").inner_text())
+        cmp_text = page.locator(".baiComparisonGrid").inner_text()
+        check("comparison: custom-range period label reformatted to dd/mm/aaaa (not raw ISO)", "01/08/2026 a 31/08/2026" in cmp_text and "01/07/2026 a 31/07/2026" in cmp_text)
+        check("comparison: no raw ISO date range leaked (YYYY-MM-DD) in the rendered label", "2026-08-01" not in cmp_text and "2026-07-01" not in cmp_text)
         shot(page, "10-comparison-fixed-drawer-width.png")
+        shot(page, "11-comparison-density-fixed.png")
 
         # Direct container-width injection -- proves the @container
         # threshold itself is genuinely width-reactive (not merely
