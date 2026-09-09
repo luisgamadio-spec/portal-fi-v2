@@ -201,3 +201,106 @@
   .baiLauncherBtn{right:var(--space-3);bottom:var(--space-3)}
 }
 
+/* ============================================================
+   PANEL VISUAL REFINEMENT (IA-3E.2) — Human visual UAT findings.
+   Every rule below is scoped under .baiPanelHeader/.baiPanelBody/
+   .baiPanelDrawer/#baiLauncherRoot specifically so NONE of it touches
+   the routed #/brabus-intelligence page's own, separately Human-
+   approved visual language (the unscoped .baiBubble/.baiBlockPanel/
+   .modPanelResult rules above are untouched). Same tokens throughout
+   — no new hex/radius/shadow invented. ============================ */
+
+/* ---------- Header: one clear identity line, not three ---------- */
+.baiPanelHeader{padding:var(--space-3) var(--space-4)}
+.baiPanelTitle{font-size:16px;margin:0}
+.baiPanelContextChip{
+  display:flex;align-items:center;gap:6px;margin:4px 0 0;
+  font-family:var(--font-ui);font-size:11.5px;color:var(--mod-muted);
+  max-width:260px;
+}
+.baiPanelContextDot{width:5px;height:5px;border-radius:50%;background:var(--color-accent-primary);flex-shrink:0}
+.baiPanelContextChip .baiPanelContextText{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- Conversation: tighter turn/label rhythm ---------- */
+.baiPanelBody{padding:var(--space-4) var(--space-4) var(--space-3)}
+.baiPanelBody .baiConversation{gap:var(--space-4)}
+.baiPanelBody .baiMessage{gap:3px}
+.baiPanelBody .baiRoleLabel{font-size:9.5px;letter-spacing:.04em;opacity:.58}
+.baiPanelBody .baiMessageUser{padding-right:2px} /* Section 7 -- keep the label off the drawer's own edge */
+.baiPanelBody .baiMessageUser .baiBubble{max-width:86%;border-radius:14px 14px 4px 14px}
+/* The panel HEADER already identifies the speaker as Brabus
+   Intelligence for every reply in this surface -- repeating it per
+   turn, visually, was the redundancy Section 8 flagged. Kept in the
+   accessibility tree (screen-reader-only, not display:none) so turn
+   ownership is still announced -- Section 27 explicitly requires
+   preserving labels/announcements, visual decluttering must not cost
+   that. The user's "Você" label stays fully visible (Human vs.
+   Intelligence must stay distinguishable at a glance too). */
+.baiPanelBody .baiMessageAssistant .baiRoleLabel{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+
+/* ---------- Assistant answer: ONE cohesive card, not two boxes ----------
+   messageHtml() (intelligence-panel.js) wraps prose + any structured
+   block(s) inside a single .baiAnswerCard for a real assistant reply;
+   error bubbles keep the plain .baiBubble treatment (Section 6/8). */
+.baiPanelBody .baiAnswerCard{
+  background:var(--mod-surface-panel-2);border:1px solid var(--mod-border);
+  border-radius:14px;padding:12px 14px;max-width:100%;
+  display:flex;flex-direction:column;gap:10px;
+}
+.baiPanelBody .baiAnswerProse{white-space:normal;font-size:var(--mod-body-size);line-height:1.5}
+.baiPanelBody .baiAnswerProse p{margin:0 0 6px}
+.baiPanelBody .baiAnswerProse p:last-child{margin-bottom:0}
+.baiPanelBody .baiAnswerProse ul,.baiPanelBody .baiAnswerProse ol{margin:6px 0;padding-left:1.1em;display:flex;flex-direction:column;gap:2px}
+
+/* ---------- Compact metrics, feels like supporting evidence ---------- */
+.baiPanelBody .baiAnswerMetrics{border-top:1px solid var(--mod-border);padding-top:10px}
+.baiPanelBody .baiAnswerMetrics .modPanelResult,
+.baiPanelBody .baiAnswerMetrics .baiBlockPanel{
+  background:none;border:none;padding:0;border-radius:0;
+}
+.baiPanelBody .baiAnswerMetrics .baiBlockTitle{
+  font-family:var(--font-ui);font-size:10.5px;font-weight:500;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--mod-muted);
+  margin:0 0 6px;
+}
+.baiPanelBody .baiAnswerMetrics .baiBlockPeriod{font-size:10.5px;margin:0 0 8px}
+.baiPanelBody .baiMetricsGrid{grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
+.baiPanelBody .baiMetricItem .modKpiLabel{font-size:9.5px}
+.baiPanelBody .baiMetricItem .modKpiValue{font-size:15px;margin-top:2px}
+
+/* Other structured-block types (ranking/operations/score_*) still get
+   the compact-card treatment generically -- Section 20's own "do not
+   optimize so narrowly that other block types break" requirement.
+   These are the same shared renderers, unmodified; only the wrapper
+   they sit in when produced through this panel differs. */
+.baiPanelBody .baiOperationCard{padding:8px 10px}
+.baiPanelBody .modTableWrap{margin-bottom:0}
+
+/* ---------- Composer: comfortable, styled scrollbar, no white native
+   scrollbar at rest (Section 14, high priority) ---------- */
+.baiPanelComposer{padding:var(--space-3) var(--space-4) var(--space-4)}
+.baiPanelComposer .baiComposerInput{
+  min-height:40px;max-height:132px;padding:9px 12px;
+  scrollbar-width:thin;scrollbar-color:var(--mod-border-strong) transparent;
+}
+.baiPanelComposer .baiComposerInput::-webkit-scrollbar{width:6px}
+.baiPanelComposer .baiComposerInput::-webkit-scrollbar-track{background:transparent}
+.baiPanelComposer .baiComposerInput::-webkit-scrollbar-thumb{background:var(--mod-border-strong);border-radius:3px}
+.baiPanelComposer .baiComposerActions{align-self:flex-end}
+.baiPanelComposer #baiPanelSendBtn{padding:9px 16px;height:40px}
+
+/* ---------- Drawer width: small, evidence-based increase (Section 24) ----------
+   440px (was 420px) gives the compact 2-3 column KPI grid a touch more
+   room at 1366 without approaching a width that would make Portal feel
+   unusable underneath (still well short of half the viewport at 1024). */
+.baiPanelDrawer{width:min(440px,100vw)}
+
+@media(max-width:768px){
+  .baiPanelHeader{padding:var(--space-3)}
+  .baiPanelBody{padding:var(--space-3)}
+  .baiPanelComposer{padding:var(--space-3)}
+}
+

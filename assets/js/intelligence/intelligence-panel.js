@@ -81,17 +81,35 @@
      ============================================================ */
 
   function messageHtml(msg) {
-    var roleClass = msg.role === 'user' ? 'baiMessageUser' : 'baiMessageAssistant';
-    var roleLabel = msg.role === 'user' ? 'Você' : 'Brabus Intelligence';
-    var isAssistantProse = msg.role !== 'user' && !msg.isError;
-    var bubbleContent = isAssistantProse ? P.renderAssistantProse(msg.content) : esc(msg.content);
-    var bubbleClass = 'baiBubble' + (msg.isError ? ' baiBubbleError' : '') + (isAssistantProse ? ' baiBubbleMd' : '');
-    var bubble = '<div class="' + bubbleClass + '">' + bubbleContent + '</div>';
-    var blocksHtml = '';
-    if (Array.isArray(msg.blocks) && msg.blocks.length) {
-      blocksHtml = '<div class="baiStructuredRegion">' + msg.blocks.map(P.renderStructuredBlock).join('') + '</div>';
+    var isUser = msg.role === 'user';
+    var roleClass = isUser ? 'baiMessageUser' : 'baiMessageAssistant';
+    var roleLabel = isUser ? 'Você' : 'Brabus Intelligence';
+    var labelHtml = '<span class="baiRoleLabel">' + esc(roleLabel) + '</span>';
+
+    if (isUser || msg.isError) {
+      // User turns and error turns keep the plain bubble treatment --
+      // there is no metrics/evidence to cohere them with (IA-3E.2
+      // Section 6/8 only asked to fix the REAL-answer case below).
+      var plainClass = 'baiBubble' + (msg.isError ? ' baiBubbleError' : '');
+      return '<div class="baiMessage ' + roleClass + '">' + labelHtml +
+        '<div class="' + plainClass + '">' + esc(msg.content) + '</div></div>';
     }
-    return '<div class="baiMessage ' + roleClass + '"><span class="baiRoleLabel">' + esc(roleLabel) + '</span>' + bubble + blocksHtml + '</div>';
+
+    // A real assistant answer: ONE cohesive card -- prose + (optional)
+    // compact supporting metrics -- instead of two separately bordered
+    // boxes stacked (IA-3E.2 Section 6/8's own finding G). The
+    // structured-block markup itself (P.renderStructuredBlock) is
+    // 100% the shared, unmodified renderer -- only the wrapper it
+    // sits in here differs; see intelligence.css's .baiAnswerMetrics
+    // rules, which neutralize .modPanelResult's own border/padding
+    // only inside this wrapper, never globally.
+    var proseHtml = '<div class="baiAnswerProse baiBubbleMd">' + P.renderAssistantProse(msg.content) + '</div>';
+    var metricsHtml = '';
+    if (Array.isArray(msg.blocks) && msg.blocks.length) {
+      metricsHtml = '<div class="baiAnswerMetrics">' + msg.blocks.map(P.renderStructuredBlock).join('') + '</div>';
+    }
+    return '<div class="baiMessage ' + roleClass + '">' + labelHtml +
+      '<div class="baiAnswerCard">' + proseHtml + metricsHtml + '</div></div>';
   }
 
   function loadingHtml() {
@@ -109,15 +127,36 @@
       return;
     }
     el.innerHTML = snap.conversation.map(messageHtml).join('') + (busy ? loadingHtml() : '');
-    el.scrollTop = el.scrollHeight;
+    // BUGFIX (found live during IA-3E.2's own long-conversation check):
+    // #baiPanelConversation itself never overflows -- it grows freely
+    // inside .baiPanelBody, which is the actual `overflow-y:auto`
+    // container (unlike the routed page, where the whole WINDOW
+    // scrolls and #baiConversation's own scrollTop really was a
+    // no-op there too, by the same original design note). Setting
+    // scrollTop on the wrong (non-scrolling) element silently did
+    // nothing -- the newest message was reachable only by a human
+    // manually scrolling. Scroll the real container instead.
+    var scrollHost = el.closest('.baiPanelBody') || el;
+    scrollHost.scrollTop = scrollHost.scrollHeight;
   }
 
   function updateContextChip() {
     var chip = document.getElementById('baiPanelContextChip');
     if (!chip) return;
     var desc = C.describe();
-    if (desc) { chip.hidden = false; chip.textContent = 'Contexto: ' + desc; }
-    else { chip.hidden = true; chip.textContent = ''; }
+    if (desc) {
+      chip.hidden = false;
+      // A small dot + "Analisando: X" reads as a subtle status line,
+      // not a technical "Contexto:" label (IA-3E.2 Section 10) --
+      // still presentation-only, still never sent anywhere (esc()
+      // used since desc can include a module-published, non-backend-
+      // trusted string via publish()).
+      chip.innerHTML = '<span class="baiPanelContextDot" aria-hidden="true"></span>' +
+        '<span class="baiPanelContextText">Analisando: ' + esc(desc) + '</span>';
+    } else {
+      chip.hidden = true;
+      chip.innerHTML = '';
+    }
   }
 
   /* ============================================================
@@ -236,12 +275,30 @@
     applyPersistentState(S.TEXT_STATES.OPEN_IDLE);
     renderConversation();
     var input = document.getElementById('baiPanelInput');
-    if (input) { input.value = ''; input.focus(); }
+    if (input) { input.value = ''; autoGrowComposer(input); input.focus(); }
   }
 
   /* ============================================================
-     COMPOSER
+     COMPOSER — auto-grow (IA-3E.2 Section 14, high priority). A
+     static `rows="1"` + fixed CSS height was the exact cause of the
+     Human-reported white native scrollbar: any wrapped second line
+     immediately overflowed a textarea whose height never changed,
+     forcing the browser's own default scrollbar UI to appear. This
+     resizes the element itself (bounded [MIN,MAX]) so the browser's
+     internal scrollbar only ever appears once content genuinely
+     exceeds MAX_COMPOSER_HEIGHT — and even then it is CSS-styled
+     (intelligence.css's scrollbar-width/::-webkit-scrollbar rules),
+     never the stark default.
      ============================================================ */
+
+  var MIN_COMPOSER_HEIGHT = 40;
+  var MAX_COMPOSER_HEIGHT = 132; // must match intelligence.css's .baiComposerInput max-height
+
+  function autoGrowComposer(el) {
+    el.style.height = 'auto';
+    var next = Math.min(Math.max(el.scrollHeight, MIN_COMPOSER_HEIGHT), MAX_COMPOSER_HEIGHT);
+    el.style.height = next + 'px';
+  }
 
   function wireComposer() {
     var input = document.getElementById('baiPanelInput');
@@ -250,6 +307,7 @@
       var text = (input.value || '').trim();
       if (!text) return;
       input.value = '';
+      autoGrowComposer(input);
       handleSend(text);
     }
     btn.addEventListener('click', submit);
@@ -259,11 +317,13 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
     });
     input.addEventListener('input', function () {
+      autoGrowComposer(input);
       var st = S.getTextState();
       if (st === S.TEXT_STATES.OPEN_IDLE || st === S.TEXT_STATES.COMPLETE || st === S.TEXT_STATES.ERROR) {
         S.setTextState(S.TEXT_STATES.COMPOSING);
       }
     });
+    autoGrowComposer(input);
   }
 
   /* ============================================================
@@ -317,9 +377,12 @@
   }
 
   function panelHtml() {
+    // No "INTELLIGENCE" eyebrow badge -- the title directly below it
+    // already said the same thing (IA-3E.2 Section 8's own finding E);
+    // removed from markup entirely, not just visually hidden.
     return '<aside class="baiPanelDrawer" id="baiPanelDrawer" role="dialog" aria-modal="false" aria-label="Brabus Intelligence" hidden>' +
       '<div class="baiPanelHeader">' +
-      '<div><span class="modEyebrow">INTELLIGENCE</span><h2 class="baiPanelTitle">Brabus Intelligence</h2>' +
+      '<div><h2 class="baiPanelTitle">Brabus Intelligence</h2>' +
       '<p class="baiPanelContextChip" id="baiPanelContextChip" hidden></p></div>' +
       '<div class="baiPanelHeaderActions">' +
       '<button type="button" class="modBtn modBtnGhost" id="baiPanelNewChatBtn">Nova conversa</button>' +
@@ -327,7 +390,7 @@
       '</div></div>' +
       '<div class="baiPanelBody"><div class="baiConversation" id="baiPanelConversation" aria-live="polite" aria-atomic="false"></div></div>' +
       '<div class="baiComposer baiPanelComposer">' +
-      '<textarea id="baiPanelInput" class="baiComposerInput" aria-label="Pergunta para a Brabus Intelligence" placeholder="Pergunte sobre financiamento, resultado, score ou condição financeira..." rows="1"></textarea>' +
+      '<textarea id="baiPanelInput" class="baiComposerInput" aria-label="Pergunta para a Brabus Intelligence" placeholder="Pergunte sobre financiamento, resultado ou score..." rows="1"></textarea>' +
       '<div class="baiComposerActions"><button type="button" class="modBtn modBtnPrimary" id="baiPanelSendBtn">Enviar</button></div>' +
       '</div>' +
       '<p class="baiPanelStatusLine" id="baiPanelStatusLine" hidden></p>' +
