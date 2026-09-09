@@ -7,6 +7,21 @@ own gitignored `.local.js`) — this Wave changes nothing about when the
 real backend is called, only what the Text experience looks like and
 how its own client state is organized.
 
+## 0. Human Approval Ledger
+
+| Field | Value |
+|---|---|
+| Classification | `BRABUS_INTELLIGENCE_V2_TEXT_FOUNDATION_HUMAN_APPROVED` |
+| Human evidence | Verbatim: **"Aprovado."** (following IA-3E.4) |
+| Approved V2 commit | `fb6e10fc85e234421ba1480e94d1c814473be230` (`ia3e-v2-intelligence-text`) |
+| Approval scope | The local, fixture/mock-driven Text UI/UX foundation: persistent launcher/drawer, 420px desktop width, shared content rail, compact header/context, conversational user/assistant composition, compact metric evidence (no KPI-dashboard presentation), composer auto-grow, corrected conversation scrolling, zero-horizontal-scroll behavior, navigation persistence |
+| Explicitly NOT approved | Real OpenAI runtime; real tool execution; non-MASTER access; Voice runtime; Voice UX; production deployment; production cutover |
+
+This record is not reinterpreted or expanded by any later wave — a
+future wave that changes the approved composition again requires its
+own, separate Human re-approval, exactly as IA-3E.2 → IA-3E.3 → IA-3E.4
+each did.
+
 ## 1. What this Wave found (read before assuming a blank slate)
 
 Two prior waves already exist and are untouched by this one:
