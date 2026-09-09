@@ -33,6 +33,7 @@ Requires: `python -m http.server <port>` running from this worktree's
 own root (index.html at the base URL) -- see main() for the port.
 """
 import io
+import json
 import os
 import sys
 
@@ -574,6 +575,60 @@ def main():
         check("provenance safety: NEVER the fixture's own synthetic figures (13 vendas/10 financiamentos)", "13 vendas" not in safety_text and "10 financiamentos" not in safety_text, safety_text)
         check("provenance safety: NEVER the fixture-miss message either (would imply fixture code ran)", "cenário de teste" not in safety_text, safety_text)
         check("provenance safety: sendRealText called exactly once, resolveFixtureScenario never reached", prov_page.evaluate("window.__baiSendRealTextCalls") == 1, prov_page.evaluate("window.__baiSendRealTextCalls"))
+
+        # ---------- IA-3G.5A: dev-timing diagnostic safety ----------
+        # Proves the CONSUMER side (logDevTiming in intelligence-panel.js)
+        # of the new pre-Edge latency instrumentation: given a result
+        # shaped exactly like what the real sendRealText() now produces
+        # (response + _devTiming, per brabus-intelligence.adapter.js's
+        # buildDevTiming), it must log a single '[bai-timing]' console
+        # line containing only numbers/ids -- never prompt or reply
+        # content -- and never render _devTiming anywhere in the DOM.
+        # Captured page-side (not via the `console` event's msg.text(),
+        # which truncates/summarizes a large object argument in
+        # Chromium's own console formatting) -- same robust pattern this
+        # suite already uses for __baiSendRealTextCalls.
+        prov_page.evaluate(
+            """() => {
+                window.__baiTimingCalls = [];
+                var origLog = console.log.bind(console);
+                console.log = function () {
+                    var args = Array.prototype.slice.call(arguments);
+                    if (args[0] === '[bai-timing]') window.__baiTimingCalls.push(args[1]);
+                    return origLog.apply(console, args);
+                };
+            }"""
+        )
+        stub_real_text(
+            prov_page,
+            """Promise.resolve({
+                response: A.normalizeResponse({reply:'resposta de teste', blocks:null, request_id:'r1', scenario_reset:false}),
+                _devTiming: {
+                    correlation_id: 'c-test-123', ui_submit_at: 1000, get_access_token_ms: 42,
+                    client_fetch_at: 1100, client_receive_at: 1300, client_round_trip_ms: 200,
+                    pre_fetch_total_ms: 100,
+                    fetch_to_edge_handler_ms_approx: 5, edge_internal_ms: 190,
+                    edge_response_to_browser_ms_approx: 5, edge_latency_ms: 190,
+                    edge_instance_id: 'inst-test-abc', edge_instance_age_ms: 999999
+                }
+            })"""
+        )
+        prov_page.click("#baiPanelNewChatBtn")
+        prov_page.fill("#baiPanelInput", "pergunta de teste para telemetria")
+        prov_page.click("#baiPanelSendBtn")
+        prov_page.wait_for_timeout(300)
+        timing_calls = prov_page.evaluate("window.__baiTimingCalls")
+        check("dev-timing: exactly one [bai-timing] console line emitted", isinstance(timing_calls, list) and len(timing_calls) == 1, timing_calls)
+        if timing_calls:
+            t = timing_calls[0]
+            line = json.dumps(t)
+            check("dev-timing: carries the correlation id", t.get("correlation_id") == "c-test-123", t)
+            check("dev-timing: carries the edge instance id", t.get("edge_instance_id") == "inst-test-abc", t)
+            check("dev-timing: carries render_ms/total_ui_ms computed by logDevTiming itself", isinstance(t.get("render_ms"), (int, float)) and isinstance(t.get("total_ui_ms"), (int, float)), t)
+            check("dev-timing: never leaks the prompt text", "pergunta de teste" not in line, line)
+            check("dev-timing: never leaks the reply text", "resposta de teste" not in line, line)
+        dom_html = prov_page.locator("#baiPanelConversation").inner_html()
+        check("dev-timing: correlation/instance ids never rendered into the conversation DOM", "c-test-123" not in dom_html and "inst-test-abc" not in dom_html, dom_html[:300])
 
         restore_fixture_mode(prov_page)
         prov_page.close()

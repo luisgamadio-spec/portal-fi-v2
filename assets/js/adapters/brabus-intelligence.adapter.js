@@ -511,7 +511,22 @@
     return ERROR_MESSAGE_BY_STATUS[status] || 'Não foi possível concluir a análise agora. Tente novamente.';
   }
 
-  function sendRealText(message, conversation, accessToken) {
+  // IA-3G.5A -- pre-Edge latency forensics. `clientTiming` is an
+  // OPTIONAL object the caller may pass ({ uiSubmitAt, getTokenMs } --
+  // both plain numbers, never content) purely to enrich the diagnostic
+  // breakdown attached to the returned result as `_devTiming`; omitting
+  // it changes nothing about the function's existing 3-arg contract or
+  // its {response}/{error} return shape, which every existing caller
+  // (fixture/panel/tests) already handles unchanged. `_devTiming` is
+  // additive-only: applyResult() (panel and routed page, both
+  // unmodified) only ever reads `.error`/`.response`, so this extra key
+  // is silently ignored by every existing code path -- never rendered,
+  // never part of the approved drawer UI. A random, non-identity
+  // correlation id is sent as a custom header (`x-nx-correlation-id`,
+  // the same allow-listed, homolog-only header IA-3G.5A adds
+  // server-side) so a frontend timing log can be matched to its own
+  // Edge Function log lines without any user/session identifier.
+  function sendRealText(message, conversation, accessToken, clientTiming) {
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
     if (!cfg.textEndpoint || !cfg.supabasePublishableKey) {
       return Promise.resolve({ error: { status: 0, message: 'Configuração de Intelligence ausente — modo real_text não está configurado neste ambiente.' } });
@@ -520,24 +535,71 @@
       return Promise.resolve({ error: { status: 401, message: errorMessageForStatus(401) } });
     }
     var body = createRequest(message, conversation);
+    var correlationId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
+    var clientFetchAt = Date.now();
     return fetch(cfg.textEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'apikey': cfg.supabasePublishableKey,
-        'Authorization': 'Bearer ' + accessToken
+        'Authorization': 'Bearer ' + accessToken,
+        'x-nx-correlation-id': correlationId
       },
       body: JSON.stringify(body)
     }).then(function (resp) {
       return resp.json().catch(function () { return {}; }).then(function (payload) {
+        var clientReceiveAt = Date.now();
+        var devTiming = buildDevTiming(payload, clientTiming, clientFetchAt, clientReceiveAt, correlationId);
         if (!resp.ok) {
-          return { error: { status: resp.status, message: errorMessageForStatus(resp.status) } };
+          return { error: { status: resp.status, message: errorMessageForStatus(resp.status) }, _devTiming: devTiming };
         }
-        return { response: normalizeResponse(payload) };
+        return { response: normalizeResponse(payload), _devTiming: devTiming };
       });
     }).catch(function () {
       return { error: { status: 0, message: errorMessageForStatus(0) } };
     });
+  }
+
+  // Pure -- only arithmetic on numbers already present in `payload`
+  // (the homolog-only `_homolog_edge_timing` field; absent/undefined on
+  // any response that doesn't carry it, e.g. a real production Edge
+  // Function, an error before the handler ran, or fixture mode never
+  // reaching this function at all) and the timestamps this same call
+  // already captured. Never reads/touches `payload.reply` or any
+  // business field.
+  function buildDevTiming(payload, clientTiming, clientFetchAt, clientReceiveAt, correlationId) {
+    var edge = payload && payload._homolog_edge_timing;
+    var t = {
+      correlation_id: correlationId,
+      ui_submit_at: (clientTiming && clientTiming.uiSubmitAt) || null,
+      get_access_token_ms: (clientTiming && typeof clientTiming.getTokenMs === 'number') ? clientTiming.getTokenMs : null,
+      client_fetch_at: clientFetchAt,
+      client_receive_at: clientReceiveAt,
+      client_round_trip_ms: clientReceiveAt - clientFetchAt
+    };
+    if (clientTiming && clientTiming.uiSubmitAt) {
+      // Full gap from the Human's action to the actual fetch() call --
+      // dominated by getAccessToken() in practice (reported separately
+      // above), plus whatever small synchronous UI work runs first.
+      t.pre_fetch_total_ms = clientFetchAt - clientTiming.uiSubmitAt;
+    }
+    if (edge && typeof edge.handler_entry_epoch_ms === 'number') {
+      // NOTE: client and Edge clocks are different machines -- this
+      // subtraction is only as trustworthy as their clock sync (no NTP
+      // calibration performed here). Treated as an approximate signal,
+      // not an exact figure -- documented explicitly wherever this is
+      // reported, never presented as precise.
+      t.fetch_to_edge_handler_ms_approx = edge.handler_entry_epoch_ms - clientFetchAt;
+      t.edge_internal_ms = edge.response_ready_epoch_ms - edge.handler_entry_epoch_ms;
+      t.edge_response_to_browser_ms_approx = clientReceiveAt - edge.response_ready_epoch_ms;
+      t.edge_latency_ms = edge.latency_ms;
+      t.edge_instance_id = edge.instance_id;
+      t.edge_instance_age_ms = edge.instance_age_ms;
+    }
+    if (clientTiming && clientTiming.uiSubmitAt) {
+      t.total_ui_ms = clientReceiveAt - clientTiming.uiSubmitAt;
+    }
+    return t;
   }
 
   window.NX_BRABUS_INTELLIGENCE_ADAPTER = {

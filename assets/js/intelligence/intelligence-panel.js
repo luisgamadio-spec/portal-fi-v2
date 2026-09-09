@@ -271,6 +271,26 @@
      explicit TEXT_STATES machine instead of two closure booleans.
      ============================================================ */
 
+  // IA-3G.5A -- dev-only console diagnostic (never rendered, never
+  // part of the approved drawer UI -- Section 23's own "console;
+  // dedicated dev object" allowance). Only fires when `result._devTiming`
+  // is present, which only ever happens for a real_text response that
+  // carried the homolog-only `_homolog_edge_timing` field -- absent for
+  // fixture mode, absent for any error short-circuited before fetch,
+  // and (by construction, since this repo never modified the real
+  // production Edge Function) absent for production. Logs numbers,
+  // a random correlation id, and an opaque instance id only -- no
+  // prompt, no reply text, no business data.
+  function logDevTiming(devTiming, renderCompleteAt) {
+    if (!devTiming) return;
+    var out = {};
+    for (var k in devTiming) out[k] = devTiming[k];
+    if (devTiming.client_receive_at) out.render_ms = renderCompleteAt - devTiming.client_receive_at;
+    if (devTiming.ui_submit_at) out.total_ui_ms = renderCompleteAt - devTiming.ui_submit_at;
+    // eslint-disable-next-line no-console
+    console.log('[bai-timing]', out);
+  }
+
   function applyResult(result) {
     if (result.error) {
       var status = result.error.status;
@@ -281,6 +301,7 @@
       else S.setTextState(S.TEXT_STATES.ERROR);
       applyPersistentState(S.getTextState());
       renderConversation();
+      logDevTiming(result._devTiming, Date.now());
       return;
     }
     var normalized = result.response;
@@ -290,6 +311,7 @@
     // composer-disabled state -- settle to OPEN_IDLE right after.
     S.setTextState(S.TEXT_STATES.COMPLETE);
     renderConversation();
+    logDevTiming(result._devTiming, Date.now());
     S.setTextState(S.TEXT_STATES.OPEN_IDLE);
     applyPersistentState(S.TEXT_STATES.OPEN_IDLE);
   }
@@ -310,14 +332,23 @@
     }, FIXTURE_LATENCY_MS);
   }
 
-  function handleSendRealText(text, priorTurns) {
+  function handleSendRealText(text, priorTurns, uiSubmitAt) {
     if (!window.NX_AUTH || typeof window.NX_AUTH.getAccessToken !== 'function') {
       applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
       return;
     }
+    // IA-3G.5A -- getAccessToken() calls the real Supabase SDK's own
+    // auth.getSession(), which can silently perform a real network
+    // token-refresh call before resolving (supabase-js's own documented
+    // behavior when the current access token is expired/near-expiry) --
+    // a plausible pre-fetch delay entirely invisible to Edge-side
+    // instrumentation. Measured here, separately from the fetch() that
+    // follows, specifically to test that hypothesis with real numbers.
+    var t_getToken = Date.now();
     window.NX_AUTH.getAccessToken().then(function (token) {
+      var getTokenMs = Date.now() - t_getToken;
       if (!token) { applyResult({ error: { status: 401, message: 'Sessão expirada — entre novamente.' } }); return; }
-      return A.sendRealText(text, priorTurns, token).then(applyResult);
+      return A.sendRealText(text, priorTurns, token, { uiSubmitAt: uiSubmitAt, getTokenMs: getTokenMs }).then(applyResult);
     }).catch(function () {
       applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
     });
@@ -325,6 +356,10 @@
 
   function handleSend(text) {
     if (!text) return;
+    // IA-3G.5A -- captured as the very first line, before any state
+    // change or DOM work, so it marks the true moment the Human's
+    // action was received by this code.
+    var uiSubmitAt = Date.now();
     var st = S.getTextState();
     if (st === S.TEXT_STATES.SENDING || st === S.TEXT_STATES.THINKING) return;
     S.pushMessage({ role: 'user', content: text, blocks: null, isError: false });
@@ -334,7 +369,7 @@
     var priorTurns = S.getConversation().slice(0, -1);
     S.setTextState(S.TEXT_STATES.THINKING);
     applyPersistentState(S.TEXT_STATES.THINKING);
-    if (P.isRealTextMode()) handleSendRealText(text, priorTurns);
+    if (P.isRealTextMode()) handleSendRealText(text, priorTurns, uiSubmitAt);
     else handleSendFixture(text, priorTurns);
   }
 
