@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brabus Intelligence — Voice Presence Lab</title>
+<!--
+  IA-3H.2.1A -- ISOLATED VISUAL SELECTION LAB ONLY.
+
+  This file is NOT part of the product. It is never linked from
+  index.html, never loaded by shell.js/intelligence-voice-focus.js, and
+  imports ZERO production script. It exists purely so the Human can
+  visually compare four candidate Voice "presence" concepts side by
+  side and pick one -- the chosen concept is integrated into the real
+  Focus Mode in a LATER, separate Wave (IA-3H.2.1B), never here.
+
+  No microphone access. No backend calls. No localStorage. The
+  "Ouvindo / Pensando / Falando" state selector and the amplitude
+  simulation below are LAB-only controls over a local CSS custom
+  property (--amp) -- the same normalized 0..1 contract the real
+  AnalyserNode-driven --bai-focus-amp already uses in production
+  (see intelligence-voice-focus.js), so whichever concept is chosen
+  later can consume that exact same value without inventing a new one.
+
+  Palette/typography below are hand-copied VALUES from
+  assets/css/vendor/design-tokens.css (not a <link>, so this file has
+  zero dependency on any production stylesheet) -- kept in sync by eye,
+  a deliberate LAB-only duplication, never a shared token file.
+-->
+<style>
+  :root{
+    --p-black-1:#0a0a0a; --p-black-2:#111111; --p-black-3:#161616; --p-black-4:#1c1c1e;
+    --surface:#191a1c; --hairline:rgba(255,255,255,.16);
+    --text-1:#eef0f1; --text-2:#9a9da2; --text-3:#808080;
+    --red-1:#ee4b57; --red-2:#c1121f;
+    --font-ui:'IBM Plex Sans','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
+    --font-mono:'IBM Plex Mono',Consolas,"SF Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--p-black-1);color:var(--text-1);font-family:var(--font-ui)}
+  body{
+    min-height:100vh;padding:40px 24px 64px;
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, rgba(238,75,87,.10), transparent 60%),
+      var(--p-black-1);
+  }
+  .lgWrap{max-width:1180px;margin:0 auto}
+
+  /* ---------- Header ---------- */
+  .lgHeader{text-align:center;margin-bottom:48px}
+  .lgEyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--red-1);margin:0 0 10px}
+  .lgTitle{font-size:clamp(28px,4vw,44px);font-weight:300;letter-spacing:-.01em;margin:0 0 10px;line-height:1.1}
+  .lgTitle strong{font-weight:600}
+  .lgSubtitle{font-size:15px;color:var(--text-2);margin:0;font-weight:400}
+
+  /* ---------- Grid ---------- */
+  .lgGrid{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;
+  }
+  @media(max-width:900px){.lgGrid{grid-template-columns:1fr}}
+
+  .lgCard{
+    background:var(--surface);border:1px solid var(--hairline);border-radius:16px;
+    padding:28px 24px 24px;display:flex;flex-direction:column;align-items:center;gap:18px;
+    cursor:pointer;transition:border-color .2s,transform .2s;text-align:center;min-width:0;
+  }
+  .lgCard:hover{border-color:rgba(238,75,87,.5);transform:translateY(-2px)}
+  .lgCard:focus-visible{outline:2px solid var(--red-1);outline-offset:3px}
+
+  .lgOrbStage{
+    width:100%;max-width:320px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+    position:relative;min-height:220px;
+  }
+  .lgCardMeta{display:flex;flex-direction:column;gap:6px;align-items:center}
+  .lgCardLetter{
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;color:var(--red-1);
+    border:1px solid rgba(238,75,87,.4);border-radius:20px;padding:3px 12px;
+  }
+  .lgCardName{font-size:18px;font-weight:500;margin:0}
+  .lgCardDesc{font-size:13px;color:var(--text-2);margin:0;max-width:280px;line-height:1.5}
+  .lgCardHint{font-family:var(--font-mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+
+  /* ---------- Large preview overlay ---------- */
+  .lgPreviewOverlay{
+    position:fixed;inset:0;background:rgba(6,6,7,.88);backdrop-filter:blur(10px);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:24px;
+  }
+  .lgPreviewOverlay.show{display:flex}
+  .lgPreviewPanel{
+    width:min(720px,100%);max-height:calc(100vh - 48px);overflow-y:auto;
+    background:var(--surface);border:1px solid var(--hairline);border-radius:20px;
+    padding:32px 28px 28px;display:flex;flex-direction:column;align-items:center;gap:20px;
+  }
+  .lgPreviewHeader{display:flex;align-items:center;justify-content:space-between;width:100%}
+  .lgPreviewTitle{font-size:20px;font-weight:500;margin:0;display:flex;align-items:center;gap:10px}
+  .lgBackBtn{
+    background:none;border:1px solid var(--hairline);color:var(--text-2);border-radius:10px;
+    padding:8px 14px;font-family:var(--font-ui);font-size:13px;cursor:pointer;
+  }
+  .lgBackBtn:hover{color:var(--text-1);border-color:var(--text-2)}
+  .lgBackBtn:focus-visible,.lgStateBtn:focus-visible,.lgAmpBtn:focus-visible{outline:2px solid var(--red-1);outline-offset:2px}
+
+  .lgPreviewStage{width:100%;max-width:360px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;min-height:280px}
+
+  /* ---------- LAB-only controls ---------- */
+  .lgControls{width:100%;display:flex;flex-direction:column;gap:14px;align-items:center}
+  .lgControlLabel{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin:0}
+  .lgStateRow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .lgStateBtn{
+    background:none;border:1px solid var(--hairline);color:var(--text-2);border-radius:20px;
+    padding:8px 18px;font-family:var(--font-ui);font-size:13px;cursor:pointer;transition:.15s;
+  }
+  .lgStateBtn.active{border-color:var(--red-1);color:var(--text-1);background:rgba(238,75,87,.12)}
+  .lgAmpRow{display:flex;align-items:center;gap:10px;width:100%;max-width:340px}
+  .lgAmpBtn{background:none;border:1px solid var(--hairline);color:var(--text-2);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:var(--font-ui)}
+  .lgAmpBtn.active{border-color:var(--red-1);color:var(--text-1)}
+  .lgAmpSlider{flex:1;accent-color:var(--red-1)}
+  .lgSimBadge{font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;color:var(--red-1);text-transform:uppercase}
+
+  /* ============================================================
+     ORB A -- QUANTUM CORE
+     Layered translucent energy membranes + inner nucleus. Multiple
+     independent radial-gradient layers, each its own asymmetric
+     rotation/scale timing (never synchronized), blurred for
+     volumetric depth, blended with mix-blend-mode:screen so
+     overlapping membranes brighten rather than muddy.
+     ============================================================ */
+  .orbA{position:relative;width:78%;max-width:300px;aspect-ratio:1;--amp:0}
+  .orbA .mem{position:absolute;inset:0;border-radius:50%;mix-blend-mode:screen;filter:blur(6px)}
+  .orbA .mem1{
+    background:radial-gradient(circle at 38% 34%, rgba(238,75,87,.55), rgba(238,75,87,.05) 55%, transparent 70%);
+    animation:orbA-drift1 9s ease-in-out infinite;
+  }
+  .orbA .mem2{
+    background:radial-gradient(circle at 62% 60%, rgba(255,255,255,.28), rgba(238,75,87,.10) 50%, transparent 72%);
+    animation:orbA-drift2 13s ease-in-out infinite;
+  }
+  .orbA .mem3{
+    background:radial-gradient(circle at 50% 72%, rgba(193,18,31,.45), transparent 65%);
+    animation:orbA-drift3 16s ease-in-out infinite;
+  }
+  .orbA .ring{
+    position:absolute;inset:6%;border-radius:50%;border:1px solid rgba(238,75,87,.28);
+    filter:blur(.3px);animation:orbA-spin 22s linear infinite;
+  }
+  .orbA .ring2{position:absolute;inset:16%;border-radius:50%;border:1px solid rgba(255,255,255,.12);animation:orbA-spin 30s linear infinite reverse}
+  .orbA .nucleus{
+    position:absolute;left:50%;top:50%;width:26%;height:26%;border-radius:50%;
+    transform:translate(-50%,-50%) scale(calc(1 + var(--amp) * .45));
+    background:radial-gradient(circle at 40% 35%, #fff, var(--red-1) 45%, var(--red-2) 80%);
+    box-shadow:0 0 calc(24px + var(--amp) * 40px) rgba(238,75,87,calc(.55 + var(--amp) * .35));
+    transition:transform .12s linear,box-shadow .12s linear;
+  }
+  @keyframes orbA-drift1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(4%,-5%) scale(1.06)}66%{transform:translate(-3%,3%) scale(.97)}}
+  @keyframes orbA-drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-6%,4%) scale(1.08)}}
+  @keyframes orbA-drift3{0%,100%{transform:translate(0,0) scale(1)}40%{transform:translate(3%,6%) scale(1.05)}70%{transform:translate(-4%,-2%) scale(.95)}}
+  @keyframes orbA-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  /* State reactions -- distinct behavior, not merely faster/slower */
+  .orbA.stLISTENING .mem{animation-duration:5s,7s,8s}
+  .orbA.stLISTENING .nucleus{transform:translate(-50%,-50%) scale(calc(1 + var(--amp) * .65))}
+  .orbA.stTHINKING .ring{animation-duration:6s}
+  .orbA.stTHINKING .ring2{animation-duration:8s}
+  .orbA.stTHINKING .mem{opacity:.7}
+  .orbA.stSPEAKING .mem1{animation-duration:3.2s}
+  .orbA.stSPEAKING .mem2{animation-duration:4s}
+  .orbA.stSPEAKING .nucleus{transform:translate(-50%,-50%) scale(calc(1.05 + var(--amp) * .8))}
+
+  /* ============================================================
+     ORB B -- LIQUID INTELLIGENCE
+     SVG feTurbulence + feDisplacementMap genuinely deforms a circle
+     into an organic, glass/metallic silhouette -- real liquid
+     distortion, not a CSS blob hack. A moving specular highlight
+     (offset-path) reinforces the material read.
+     ============================================================ */
+  .orbB{position:relative;width:78%;max-width:300px;aspect-ratio:1;--amp:0}
+  .orbB svg{width:100%;height:100%;overflow:visible}
+  .orbB .liquidBody{animation:orbB-breathe 6s ease-in-out infinite;transform-origin:100px 100px}
+  /* Highlight lives in the SVG's own 0..200 user space (offset-path
+     resolves against the element's local coordinate system for SVG
+     children), so it glides across the sphere surface and can never
+     drift outside the orb's own box the way an HTML-layer overlay
+     positioned in pixel space could. */
+  .orbB .highlight{
+    offset-path:path('M 60,40 C 140,20 200,80 190,150 C 180,220 100,240 50,200 C 10,170 20,90 60,40 Z');
+    animation:orbB-glide 7s linear infinite;
+  }
+  @keyframes orbB-breathe{0%,100%{transform:scale(1)}50%{transform:scale(calc(1.02 + var(--amp) * .06))}}
+  @keyframes orbB-glide{from{offset-distance:0%}to{offset-distance:100%}}
+  .orbB.stLISTENING .liquidBody{animation-duration:3.4s}
+  .orbB.stTHINKING .liquidBody{animation-duration:9s}
+  .orbB.stTHINKING .highlight{animation-duration:12s}
+  .orbB.stSPEAKING .liquidBody{animation-duration:1.6s}
+  .orbB.stSPEAKING .highlight{animation-duration:3.5s}
+
+  /* ============================================================
+     ORB C -- NEURAL SINGULARITY
+     A dense glowing nucleus with delicate, irregularly-angled
+     filament paths (dashed, low-opacity -- traced energy lines, not
+     solid rings). Nodes travel each filament via native SMIL
+     <animateMotion> bound to the SAME <path> the visible filament
+     itself uses (one geometry, zero hand-approximation drift).
+     Filaments/nodes are painted BEFORE the nucleus in SVG document
+     order, so any filament whose curve dips inside the nucleus
+     radius is genuinely occluded there -- real passing-behind, not
+     a z-index trick -- and each filament group spins continuously at
+     its own independent speed/direction, so the three never settle
+     into the flat, coplanar stack that would read as Saturn's rings.
+     ============================================================ */
+  .orbC{position:relative;width:78%;max-width:300px;aspect-ratio:1;--amp:0}
+  .orbC svg{width:100%;height:100%;overflow:visible}
+  .orbC .filament{fill:none;stroke:rgba(238,75,87,.32);stroke-width:1;stroke-dasharray:2 5}
+  .orbC .f2{stroke:rgba(255,255,255,.18);stroke-dasharray:1 6}
+  .orbC .f3{stroke:rgba(238,75,87,.22);stroke-dasharray:3 4}
+  .orbC .filGroup{animation:orbC-filspin 26s linear infinite;transform-box:view-box;transform-origin:100px 100px}
+  .orbC .g2{animation-duration:34s;animation-direction:reverse}
+  .orbC .g3{animation-duration:19s}
+  @keyframes orbC-filspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  .orbC .node{filter:url(#orbC-glow-x)}
+  .orbC .nucleus{
+    transform-box:fill-box;transform-origin:center;
+    transform:scale(calc(1 + var(--amp) * .4));
+    transition:transform .12s linear;
+    animation:orbC-pulse 3s ease-in-out infinite;
+  }
+  @keyframes orbC-pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
+  .orbC.stLISTENING .filGroup{animation-duration:14s}
+  .orbC.stLISTENING .g2{animation-duration:19s}
+  .orbC.stLISTENING .g3{animation-duration:11s}
+  .orbC.stTHINKING .filament{stroke-opacity:.85}
+  .orbC.stTHINKING .filGroup{animation-duration:9s}
+  .orbC.stSPEAKING .filGroup{animation-duration:4s}
+  .orbC.stSPEAKING .g2{animation-duration:5.5s}
+  .orbC.stSPEAKING .g3{animation-duration:3s}
+  .orbC.stSPEAKING .nucleus{transform:scale(calc(1.06 + var(--amp) * .7))}
+
+  /* ============================================================
+     ORB D -- DIGITAL AURORA
+     Elongated blurred gradient ribbons drifting through the volume
+     (translate+skew+opacity, never a flat circle), mix-blend-mode
+     screen for luminous layering, a restrained red->white spectral
+     range (never a full rainbow).
+     ============================================================ */
+  /* clip-path (not border-radius+overflow) is the reliable circular
+     clip here -- overflow:hidden can let a blurred descendant's
+     compositing bleed past the border-radius edge in some Chromium
+     versions, producing a squared-off silhouette instead of a disc. */
+  .orbD{position:relative;width:82%;max-width:310px;aspect-ratio:1;--amp:0;clip-path:circle(50%)}
+  .orbD .ribbon{position:absolute;left:-10%;width:120%;height:30%;border-radius:50%;filter:blur(14px);mix-blend-mode:screen;opacity:.7}
+  .orbD .r1{top:12%;background:linear-gradient(90deg, transparent, rgba(238,75,87,.65), transparent);animation:orbD-wave1 8s ease-in-out infinite}
+  .orbD .r2{top:38%;background:linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);animation:orbD-wave2 10s ease-in-out infinite}
+  .orbD .r3{top:58%;background:linear-gradient(90deg, transparent, rgba(193,18,31,.55), transparent);animation:orbD-wave3 12s ease-in-out infinite}
+  .orbD .r4{top:76%;background:linear-gradient(90deg, transparent, rgba(238,75,87,.35), transparent);animation:orbD-wave1 9.5s ease-in-out infinite reverse}
+  .orbD .core{
+    position:absolute;left:50%;top:50%;width:30%;height:30%;border-radius:50%;
+    transform:translate(-50%,-50%) scale(calc(1 + var(--amp) * .3));
+    background:radial-gradient(circle, rgba(255,255,255,.5), rgba(238,75,87,.15) 60%, transparent 75%);
+    filter:blur(4px);transition:transform .15s linear;
+  }
+  @keyframes orbD-wave1{0%,100%{transform:translateY(0) skewX(0deg) scaleX(1)}50%{transform:translateY(-14%) skewX(-6deg) scaleX(1.1)}}
+  @keyframes orbD-wave2{0%,100%{transform:translateY(0) skewX(0deg)}50%{transform:translateY(12%) skewX(5deg)}}
+  @keyframes orbD-wave3{0%,100%{transform:translateY(0) scaleX(1)}50%{transform:translateY(-10%) scaleX(1.15)}}
+  .orbD.stLISTENING .ribbon{animation-duration:4s}
+  .orbD.stTHINKING .ribbon{animation-duration:14s;opacity:.45}
+  .orbD.stSPEAKING .ribbon{animation-duration:2.2s;opacity:.9}
+  .orbD.stSPEAKING .core{transform:translate(-50%,-50%) scale(calc(1.08 + var(--amp) * .6))}
+
+  /* ---------- Reduced motion: freeze at a beautiful still frame,
+     never disappear -- comprehension stays via the labeled state
+     control, never via animation alone. ---------- */
+  @media(prefers-reduced-motion:reduce){
+    .orbA .mem,.orbA .ring,.orbA .ring2,.orbA .nucleus,
+    .orbB .liquidBody,.orbB .highlight,
+    .orbC .node,.orbC .nucleus,
+    .orbD .ribbon,.orbD .core{
+      animation:none !important;
+    }
+    .orbA .mem1{transform:translate(2%,-2%) scale(1.04)}
+    .orbA .mem2{transform:translate(-3%,2%) scale(1.05)}
+  }
+
+  .lgFooterNote{text-align:center;font-size:12px;color:var(--text-3);margin-top:40px}
+  .lgFooterNote code{font-family:var(--font-mono);color:var(--text-2)}
+</style>
+</head>
+<body>
+<div class="lgWrap">
+  <header class="lgHeader">
+    <p class="lgEyebrow">Brabus Intelligence</p>
+    <h1 class="lgTitle">Voice <strong>Presence</strong> Lab</h1>
+    <p class="lgSubtitle">Escolha a presença visual da Brabus Intelligence</p>
+  </header>
+
+  <div class="lgGrid" id="lgGrid">
+    <!-- Cards injected by JS from ORB_DATA, but kept static-readable here for clarity -->
+  </div>
+
+  <p class="lgFooterNote">Laboratório visual isolado — <code>tests/voice-orb-selection-lab.html</code> — não faz parte do produto.</p>
+</div>
+
+<div class="lgPreviewOverlay" id="lgPreview">
+  <div class="lgPreviewPanel">
+    <div class="lgPreviewHeader">
+      <h2 class="lgPreviewTitle"><span id="lgPreviewLetter"></span><span id="lgPreviewName"></span></h2>
+      <button type="button" class="lgBackBtn" id="lgBackBtn">← Voltar às opções</button>
+    </div>
+    <div class="lgPreviewStage" id="lgPreviewStage"></div>
+    <div class="lgControls">
+      <div>
+        <p class="lgControlLabel">Estado simulado (apenas laboratório)</p>
+        <div class="lgStateRow" id="lgStateRow">
+          <button type="button" class="lgStateBtn" data-state="LISTENING">Ouvindo</button>
+          <button type="button" class="lgStateBtn" data-state="THINKING">Pensando</button>
+          <button type="button" class="lgStateBtn" data-state="SPEAKING">Falando</button>
+        </div>
+      </div>
+      <div>
+        <p class="lgControlLabel">Amplitude <span class="lgSimBadge">simulação visual</span></p>
+        <div class="lgAmpRow">
+          <button type="button" class="lgAmpBtn active" id="lgAmpAuto">Automático</button>
+          <input type="range" class="lgAmpSlider" id="lgAmpSlider" min="0" max="100" value="30" disabled>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // LAB-only data -- never imported by production. rendering/technique
+  // strings are engineering notes for the report, not shown in the UI.
+  var ORB_DATA = [
+    { id: 'A', className: 'orbA', name: 'Quantum Core', desc: 'Núcleo de energia multidimensional suspenso, com membranas translúcidas em profundidade.' },
+    { id: 'B', className: 'orbB', name: 'Liquid Intelligence', desc: 'Inteligência líquido-metálica sofisticada, com deformação orgânica controlada.' },
+    { id: 'C', className: 'orbC', name: 'Neural Singularity', desc: 'Singularidade central densa cercada por estruturas orbitais delicadas.' },
+    { id: 'D', className: 'orbD', name: 'Digital Aurora', desc: 'Presença volumétrica etérea formada por campos de luz fluindo.' }
+  ];
+
+  function orbMarkup(orb) {
+    if (orb.id === 'A') {
+      return '<div class="orbA"><div class="mem mem1"></div><div class="mem mem2"></div><div class="mem mem3"></div>' +
+        '<div class="ring"></div><div class="ring2"></div><div class="nucleus"></div></div>';
+    }
+    if (orb.id === 'B') {
+      return '<div class="orbB">' +
+        '<svg viewBox="0 0 200 200">' +
+        '<defs>' +
+        '<filter id="orbB-liquid-x" x="-30%" y="-30%" width="160%" height="160%">' +
+        '<feTurbulence type="fractalNoise" baseFrequency="0.018 0.026" numOctaves="3" seed="7" result="noise">' +
+        '<animate attributeName="baseFrequency" values="0.014 0.022;0.022 0.014;0.014 0.022" dur="11s" repeatCount="indefinite"/>' +
+        '</feTurbulence>' +
+        '<feDisplacementMap in="SourceGraphic" in2="noise" scale="20"/>' +
+        '</filter>' +
+        '<filter id="orbB-blur-x" x="-100%" y="-100%" width="300%" height="300%">' +
+        '<feGaussianBlur stdDeviation="4"/>' +
+        '</filter>' +
+        '<radialGradient id="orbB-mat-x" cx="38%" cy="32%" r="70%">' +
+        '<stop offset="0%" stop-color="#ffffff"/>' +
+        '<stop offset="35%" stop-color="#ee4b57"/>' +
+        '<stop offset="75%" stop-color="#3a0d10"/>' +
+        '<stop offset="100%" stop-color="#0a0a0a"/>' +
+        '</radialGradient>' +
+        '</defs>' +
+        '<circle class="liquidBody" cx="100" cy="100" r="78" fill="url(#orbB-mat-x)" filter="url(#orbB-liquid-x)"/>' +
+        '<circle class="highlight" r="9" fill="rgba(255,255,255,.9)" filter="url(#orbB-blur-x)"/>' +
+        '</svg></div>';
+    }
+    if (orb.id === 'C') {
+      return '<div class="orbC"><svg viewBox="0 0 200 200">' +
+        '<defs>' +
+        '<radialGradient id="orbC-nuc-x" cx="50%" cy="50%" r="55%">' +
+        '<stop offset="0%" stop-color="#ffffff"/>' +
+        '<stop offset="42%" stop-color="#ee4b57"/>' +
+        '<stop offset="100%" stop-color="#c1121f" stop-opacity="0"/>' +
+        '</radialGradient>' +
+        '<filter id="orbC-glow-x" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="1"/></filter>' +
+        '</defs>' +
+        // f2 is deliberately the shallowest ellipse (ry=16, smaller than
+        // the nucleus radius of 24) so its node/path genuinely dips
+        // behind the nucleus -- real occlusion via SVG paint order, not
+        // a simulated z-index swap.
+        '<g class="filGroup g1"><path class="filament f1" id="orbC-f1-x" d="M 10,100 A 90,34 0 1 1 190,100 A 90,34 0 1 1 10,100"/>' +
+        '<circle class="node" r="4" fill="#ee4b57"><animateMotion dur="7s" repeatCount="indefinite"><mpath href="#orbC-f1-x"/></animateMotion></circle></g>' +
+        '<g class="filGroup g2"><path class="filament f2" id="orbC-f2-x" d="M 20,100 A 80,16 0 1 1 180,100 A 80,16 0 1 1 20,100"/>' +
+        '<circle class="node" r="3" fill="#ffffff"><animateMotion dur="9s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#orbC-f2-x"/></animateMotion></circle></g>' +
+        '<g class="filGroup g3"><path class="filament f3" id="orbC-f3-x" d="M 5,100 A 95,48 0 1 1 195,100 A 95,48 0 1 1 5,100"/>' +
+        '<circle class="node" r="3.5" fill="#ee4b57"><animateMotion dur="12s" repeatCount="indefinite"><mpath href="#orbC-f3-x"/></animateMotion></circle></g>' +
+        '<circle class="nucleus" cx="100" cy="100" r="24" fill="url(#orbC-nuc-x)"/>' +
+        '</svg></div>';
+    }
+    return '<div class="orbD"><div class="ribbon r1"></div><div class="ribbon r2"></div><div class="ribbon r3"></div><div class="ribbon r4"></div><div class="core"></div></div>';
+  }
+
+  // SVG <filter>/gradient ids must be document-unique (the grid card
+  // and the large-preview clone of the same concept can be in the DOM
+  // together), so every "-x" placeholder id gets rewritten to a fresh
+  // random id right after insertion, and every same-SVG reference
+  // (filter="url(#..)" / fill="url(#..)") is repointed to match.
+  function fixSvgFilterIds(container) {
+    var svgs = container.querySelectorAll('svg');
+    svgs.forEach(function (svg) {
+      var idMap = {};
+      svg.querySelectorAll('[id$="-x"]').forEach(function (el) {
+        var oldId = el.getAttribute('id');
+        var newId = oldId.slice(0, -1) + Math.random().toString(36).slice(2);
+        idMap[oldId] = newId;
+        el.setAttribute('id', newId);
+      });
+      Object.keys(idMap).forEach(function (oldId) {
+        var newId = idMap[oldId];
+        svg.querySelectorAll('[filter="url(#' + oldId + ')"]').forEach(function (el) {
+          el.setAttribute('filter', 'url(#' + newId + ')');
+        });
+        svg.querySelectorAll('[fill="url(#' + oldId + ')"]').forEach(function (el) {
+          el.setAttribute('fill', 'url(#' + newId + ')');
+        });
+        svg.querySelectorAll('[href="#' + oldId + '"]').forEach(function (el) {
+          el.setAttribute('href', '#' + newId);
+        });
+      });
+    });
+  }
+
+  var grid = document.getElementById('lgGrid');
+  ORB_DATA.forEach(function (orb) {
+    var card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'lgCard';
+    card.setAttribute('data-orb', orb.id);
+    card.innerHTML =
+      '<div class="lgOrbStage">' + orbMarkup(orb) + '</div>' +
+      '<div class="lgCardMeta">' +
+      '<span class="lgCardLetter">' + orb.id + '</span>' +
+      '<h3 class="lgCardName">' + orb.name + '</h3>' +
+      '<p class="lgCardDesc">' + orb.desc + '</p>' +
+      '<span class="lgCardHint">Clique para ampliar</span>' +
+      '</div>';
+    fixSvgFilterIds(card);
+    card.addEventListener('click', function () { openPreview(orb); });
+    grid.appendChild(card);
+  });
+
+  var previewOverlay = document.getElementById('lgPreview');
+  var previewStage = document.getElementById('lgPreviewStage');
+  var previewLetter = document.getElementById('lgPreviewLetter');
+  var previewName = document.getElementById('lgPreviewName');
+  var stateRow = document.getElementById('lgStateRow');
+  var ampAutoBtn = document.getElementById('lgAmpAuto');
+  var ampSlider = document.getElementById('lgAmpSlider');
+
+  var currentOrbEl = null;
+  var currentState = 'LISTENING';
+  var ampAuto = true;
+  var rafId = null;
+
+  function reducedMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function applyState(state) {
+    currentState = state;
+    Array.prototype.forEach.call(stateRow.children, function (btn) {
+      btn.classList.toggle('active', btn.dataset.state === state);
+    });
+    if (currentOrbEl) {
+      currentOrbEl.className = currentOrbEl.className.replace(/\bst[A-Z]+\b/g, '').trim() + ' st' + state;
+    }
+  }
+
+  function setAmp(v) {
+    if (currentOrbEl) currentOrbEl.style.setProperty('--amp', String(v));
+  }
+
+  function ampLoop(t) {
+    if (ampAuto && !reducedMotion()) {
+      var v = (Math.sin(t / 650) + 1) / 2; // 0..1 smooth pattern -- SIMULAÇÃO VISUAL only
+      setAmp(v * 0.85);
+      ampSlider.value = String(Math.round(v * 85));
+    }
+    rafId = requestAnimationFrame(ampLoop);
+  }
+
+  function openPreview(orb) {
+    previewStage.innerHTML = orbMarkup(orb);
+    fixSvgFilterIds(previewStage);
+    currentOrbEl = previewStage.firstElementChild;
+    previewLetter.textContent = orb.id + ' — ';
+    previewName.textContent = orb.name;
+    applyState(currentState);
+    setAmp(reducedMotion() ? 0 : 0.3);
+    previewOverlay.classList.add('show');
+  }
+
+  document.getElementById('lgBackBtn').addEventListener('click', function () {
+    previewOverlay.classList.remove('show');
+  });
+
+  Array.prototype.forEach.call(stateRow.children, function (btn) {
+    btn.addEventListener('click', function () { applyState(btn.dataset.state); });
+  });
+
+  ampAutoBtn.addEventListener('click', function () {
+    ampAuto = !ampAuto;
+    ampAutoBtn.classList.toggle('active', ampAuto);
+    ampSlider.disabled = ampAuto;
+  });
+  ampSlider.addEventListener('input', function () {
+    if (!ampAuto) setAmp(Number(ampSlider.value) / 100);
+  });
+
+  applyState('LISTENING');
+  rafId = requestAnimationFrame(ampLoop);
+})();
+</script>
+</body>
+</html>
