@@ -67,8 +67,9 @@ AUDIO_INIT_SCRIPT = """
     window.__analysersCreated++;
     Object.defineProperty(this, 'frequencyBinCount', { get: function () { return 128; } });
   }
+  window.__fakeAmplitudeByte = 128; // overridable by tests -- see "real amplitude authority" checks
   FakeAnalyser.prototype.getByteFrequencyData = function (arr) {
-    for (var i = 0; i < arr.length; i++) arr[i] = 128; // constant mid-level amplitude
+    for (var i = 0; i < arr.length; i++) arr[i] = window.__fakeAmplitudeByte;
   };
 
   function FakeSource() {}
@@ -144,12 +145,34 @@ def main():
         page.wait_for_timeout(500)
         set_profile(page, "AUTHORIZED", True, "MASTER")
         open_panel(page)
+        # Wired early (not just before the dedicated lifecycle section
+        # below) -- every check in this file that reads real amplitude,
+        # including the Fluid Aperture pixel-reactivity checks, needs a
+        # real (fake) mic/remote stream attached, or micAnalyser/
+        # remoteAnalyser stay null and amplitude silently stays 0.
+        page.evaluate(
+            """() => {
+                window.NX_INTELLIGENCE_VOICE.getRemoteAudioElement = () => ({ srcObject: window.__fakeRemoteStream });
+                window.NX_INTELLIGENCE_VOICE.getMicStream = () => window.__fakeMicStream;
+            }"""
+        )
 
         # ---------- Registration ----------
         check("NX_INTELLIGENCE_VOICE_FOCUS registered", page.evaluate("typeof window.NX_INTELLIGENCE_VOICE_FOCUS === 'object'"))
         check("baiVoiceFocusRoot mounted into #nxOverlayRoot", page.evaluate("document.getElementById('baiVoiceFocusRoot') !== null"))
         check("Focus root starts hidden (no active Voice session)", page.evaluate("document.getElementById('baiVoiceFocusRoot').hidden") is True)
         check("real Voice session store untouched -- same NX_INTELLIGENCE_STATE, no second store", page.evaluate("typeof window.NX_INTELLIGENCE_STATE.getVoiceState === 'function'"))
+
+        # ---------- Fluid Aperture presence (IA-3H.2.1B) ----------
+        # Recovered Human-selected visual identity replaces the rejected
+        # generic orb -- prove the OLD CSS-only presence is gone and the
+        # new Canvas 2D Fluid Aperture + ambient line field are in place.
+        check("Fluid Aperture orb canvas present", page.evaluate("document.getElementById('baiVoiceFocusOrbCanvas') !== null"))
+        check("ambient line field canvas present", page.evaluate("document.getElementById('baiVoiceFocusAmbientCanvas') !== null"))
+        check("rejected old CSS-only presence core is GONE (not just hidden)", page.evaluate("document.querySelector('.baiVoiceFocusPresenceCore') === null"))
+        check("rejected old CSS-only presence ring is GONE (not just hidden)", page.evaluate("document.querySelector('.baiVoiceFocusPresenceRing') === null"))
+        check("IA-3H.2.1A A/B/C/D orb-selection LAB is not production-loaded (index.html)", "voice-orb-selection-lab" not in open(os.path.join(V2_ROOT, "index.html"), encoding="utf-8").read())
+        check("IA-3H.2.1A A/B/C/D orb-selection LAB is not production-loaded (shell.js)", "voice-orb-selection-lab" not in open(os.path.join(V2_ROOT, "assets", "js", "shell.js"), encoding="utf-8").read())
 
         # ---------- Entry: every VOICE_* active state shows Focus Mode, correct status text ----------
         STATUS_MAP = {
@@ -187,17 +210,52 @@ def main():
             check(f"{state}: Focus Mode hidden", page.evaluate("document.getElementById('baiVoiceFocusRoot').hidden") is True)
 
         # ---------- Distinct listening vs speaking vs thinking rhythm (Section 10) ----------
+        # The orb is Canvas 2D now (no CSS animation to introspect) -- the
+        # real proof is the rendered PIXELS themselves, read back via the
+        # canvas's own standard toDataURL(), a real browser primitive
+        # (never a test-only seam added to the production file).
+        ORB_CANVAS_JS = "document.getElementById('baiVoiceFocusOrbCanvas').toDataURL()"
+        page.evaluate("window.__fakeAmplitudeByte = 128")
         page.evaluate("window.NX_INTELLIGENCE_STATE.setVoiceState('VOICE_LISTENING')")
-        page.wait_for_timeout(50)
-        listening_anim = page.evaluate("getComputedStyle(document.querySelector('.baiVoiceFocusPresenceCore')).animationName")
+        page.wait_for_timeout(150)
+        listening_frame_a = page.evaluate(ORB_CANVAS_JS)
+        page.wait_for_timeout(140)
+        listening_frame_b = page.evaluate(ORB_CANVAS_JS)
+        check("LISTENING: canvas keeps redrawing frame-to-frame (continuous motion, not a static image)", listening_frame_a != listening_frame_b)
+
         page.evaluate("window.NX_INTELLIGENCE_STATE.setVoiceState('VOICE_THINKING')")
-        page.wait_for_timeout(50)
-        thinking_anim = page.evaluate("getComputedStyle(document.querySelector('.baiVoiceFocusPresenceCore')).animationName")
+        page.wait_for_timeout(150)
+        thinking_frame = page.evaluate(ORB_CANVAS_JS)
+        check("THINKING orb pixels differ from LISTENING (Section 10 semantic distinction)", thinking_frame != listening_frame_b)
+
         page.evaluate("window.NX_INTELLIGENCE_STATE.setVoiceState('VOICE_SPEAKING')")
-        page.wait_for_timeout(50)
-        speaking_anim = page.evaluate("getComputedStyle(document.querySelector('.baiVoiceFocusPresenceCore')).animationName")
-        check("THINKING core animation differs from LISTENING (Section 10 semantic distinction)", thinking_anim != listening_anim, (thinking_anim, listening_anim))
-        check("SPEAKING and LISTENING each apply their own (possibly same-named, differently-timed) animation, never none", speaking_anim != "none" and listening_anim != "none", (speaking_anim, listening_anim))
+        page.wait_for_timeout(150)
+        speaking_frame = page.evaluate(ORB_CANVAS_JS)
+        check("SPEAKING orb pixels differ from THINKING", speaking_frame != thinking_frame)
+        check("SPEAKING orb pixels differ from LISTENING (direction=+1 vs -1)", speaking_frame != listening_frame_b)
+
+        # ---------- Real amplitude authority actually drives the orb (Section 25) ----------
+        # State held constant at LISTENING; only the mocked analyser's
+        # returned amplitude changes -- any resulting pixel difference is
+        # attributable to amplitude alone, proving the canvas genuinely
+        # consumes the EXISTING readAmplitude()/analyser pipeline rather
+        # than rendering a fixed, amplitude-blind shape.
+        page.evaluate("window.NX_INTELLIGENCE_STATE.setVoiceState('VOICE_LISTENING')")
+        page.evaluate("window.__fakeAmplitudeByte = 0")
+        page.wait_for_timeout(150)
+        amp_zero_frame = page.evaluate(ORB_CANVAS_JS)
+        page.evaluate("window.__fakeAmplitudeByte = 255")
+        page.wait_for_timeout(150)
+        amp_max_frame = page.evaluate(ORB_CANVAS_JS)
+        check("real mic amplitude (mocked analyser) measurably changes the LISTENING orb", amp_zero_frame != amp_max_frame)
+        page.evaluate("window.__fakeAmplitudeByte = 128")
+
+        # ---------- No duplicate analyser across a restart (Section 41, re-verified for the new canvas path) ----------
+        before_analysers = page.evaluate("window.__analysersCreated")
+        page.evaluate("window.NX_INTELLIGENCE_STATE.setVoiceState('VOICE_LISTENING')")
+        page.wait_for_timeout(80)
+        after_analysers = page.evaluate("window.__analysersCreated")
+        check("re-entering an already-attached state does not create a second analyser", after_analysers == before_analysers, (before_analysers, after_analysers))
 
         # ---------- Dismiss ("Voltar ao texto") + fresh-restart clears it (Section 8/9) ----------
         page.evaluate("window.NX_INTELLIGENCE_STATE.setVoiceState('VOICE_LISTENING')")
@@ -286,8 +344,14 @@ def main():
         open_panel(rp)
         rp.evaluate("window.NX_INTELLIGENCE_STATE.setVoiceState('VOICE_LISTENING')")
         rp.wait_for_timeout(200)
-        reduced_anim = rp.evaluate("getComputedStyle(document.querySelector('.baiVoiceFocusPresenceCore')).animationName")
-        check("reduced motion: presence animation disabled", reduced_anim in ("none", ""), reduced_anim)
+        reduced_frame_a = rp.evaluate("document.getElementById('baiVoiceFocusOrbCanvas').toDataURL()")
+        rp.wait_for_timeout(300)
+        reduced_frame_b = rp.evaluate("document.getElementById('baiVoiceFocusOrbCanvas').toDataURL()")
+        check("reduced motion: orb canvas draws a single static frame (no continuous rAF loop)", reduced_frame_a == reduced_frame_b)
+        check("reduced motion: orb silhouette still visible (not blank/cleared)", rp.evaluate(
+            "(() => { var c = document.getElementById('baiVoiceFocusOrbCanvas'); var d = c.getContext('2d').getImageData(0,0,c.width,c.height).data; "
+            "for (var i = 3; i < d.length; i += 4) if (d[i] > 0) return true; return false; })()"
+        ))
         check("reduced motion: status text still communicates state", "Ouvindo" in rp.evaluate("document.getElementById('baiVoiceFocusStatus').textContent"))
         rp.close()
 
@@ -324,12 +388,6 @@ def main():
         page.evaluate("window.NX_INTELLIGENCE_STATE.setVoiceState('VOICE_DISCONNECTED')")
         page.wait_for_timeout(80)
         page.evaluate("window.__audioCtxCreated = 0; window.__audioCtxClosed = 0; window.__analysersCreated = 0;")
-        page.evaluate(
-            """() => {
-                window.NX_INTELLIGENCE_VOICE.getRemoteAudioElement = () => ({ srcObject: window.__fakeRemoteStream });
-                window.NX_INTELLIGENCE_VOICE.getMicStream = () => window.__fakeMicStream;
-            }"""
-        )
         page.evaluate("window.NX_INTELLIGENCE_STATE.setVoiceState('VOICE_LISTENING')")
         page.wait_for_timeout(150)
         check("LISTENING: an AudioContext was created (mic analyser)", page.evaluate("window.__audioCtxCreated") == 1)

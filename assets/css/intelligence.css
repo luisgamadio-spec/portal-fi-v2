@@ -573,6 +573,13 @@
   background:var(--color-overlay-scrim);
   backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
 }
+/* Recovered ambient line field (IA-3H.2.1B, Section 15) -- a very
+   thin, very-low-opacity Lissajous ribbon field, painted behind the
+   panel. Visible mainly in the scrim margin around the panel, by
+   design: the CURRENT V2 panel-based Focus Mode layout stays the
+   layout authority (Section 16), this only restores the recovered
+   atmosphere, never the old prototype's full-bleed chrome. */
+.baiVoiceFocusAmbientCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .baiVoiceFocusPanel{
   width:min(420px,100%);max-height:calc(100vh - var(--space-8,64px));
   display:flex;flex-direction:column;gap:var(--space-4);
@@ -595,48 +602,20 @@
    this panel is quiet by comparison. ---------- */
 .baiVoiceFocusStage{
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-4);
-  min-height:200px;flex:1;
+  min-height:260px;flex:1;
 }
+/* Fluid Aperture presence (IA-3H.2.1B) -- the Human-selected design,
+   recovered from the old facelift-prototype-01 lab (see this Wave's
+   report). 220px matches the recovered original's own restrained
+   scale exactly -- deliberately NOT the 260-340px exploratory scale
+   used by the IA-3H.2.1A LAB. All motion/deformation is drawn by the
+   canvas itself (intelligence-voice-focus.js's drawFluidAperture) --
+   no CSS keyframes here; state is still readable via .baiVoiceFocusStatus text alone (Section 27). */
 .baiVoiceFocusPresence{
-  position:relative;width:128px;height:128px;flex-shrink:0;
+  position:relative;width:220px;height:220px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
-  --bai-focus-amp:0;
 }
-.baiVoiceFocusPresenceCore{
-  position:absolute;width:72px;height:72px;border-radius:50%;
-  background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--color-accent-primary) 85%,white 15%),var(--color-accent-primary) 70%);
-  box-shadow:0 0 32px color-mix(in srgb,var(--color-accent-primary) 45%,transparent);
-  transform:scale(calc(1 + var(--bai-focus-amp) * 0.35));
-  transition:transform 80ms linear;
-}
-.baiVoiceFocusPresenceRing{
-  position:absolute;width:128px;height:128px;border-radius:50%;
-  border:1px solid color-mix(in srgb,var(--color-accent-primary) 40%,transparent);
-  opacity:calc(0.35 + var(--bai-focus-amp) * 0.5);
-  transform:scale(calc(1 + var(--bai-focus-amp) * 0.18));
-  transition:transform 80ms linear,opacity 80ms linear;
-}
-
-/* State-specific motion -- CONNECTING/THINKING are pure CSS keyframes
-   (no real audio exists yet at either stage, so nothing to react to);
-   LISTENING/SPEAKING are driven by --bai-focus-amp (see the JS's own
-   AnalyserNode loop) layered on top of a gentle idle breathing motion
-   so the presence never looks perfectly static between amplitude
-   samples. Each state's rhythm is deliberately distinct (Section 10:
-   "THINKING must be semantically distinct from LISTENING/SPEAKING"). */
-.baiVoiceFocusStateCONNECTING .baiVoiceFocusPresenceRing{animation:baiFocusSpin 2.2s linear infinite}
-.baiVoiceFocusStateCONNECTING .baiVoiceFocusPresenceCore{animation:baiFocusBreathe 1.6s ease-in-out infinite}
-.baiVoiceFocusStateLISTENING .baiVoiceFocusPresenceCore{animation:baiFocusBreathe 2.4s ease-in-out infinite}
-.baiVoiceFocusStateTHINKING .baiVoiceFocusPresenceRing{animation:baiFocusOrbit 1.4s ease-in-out infinite}
-.baiVoiceFocusStateTHINKING .baiVoiceFocusPresenceCore{animation:baiFocusPulseSoft 0.9s ease-in-out infinite}
-.baiVoiceFocusStateSPEAKING .baiVoiceFocusPresenceCore{animation:baiFocusBreathe 0.5s ease-in-out infinite}
-.baiVoiceFocusStateERROR .baiVoiceFocusPresenceCore{background:color-mix(in srgb,var(--color-critical,#e2543a) 80%,var(--color-accent-primary) 20%);box-shadow:none;transform:none}
-.baiVoiceFocusStateERROR .baiVoiceFocusPresenceRing{opacity:.3;transform:none}
-
-@keyframes baiFocusBreathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
-@keyframes baiFocusPulseSoft{0%,100%{opacity:1}50%{opacity:.75}}
-@keyframes baiFocusSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes baiFocusOrbit{0%,100%{transform:rotate(0deg) scale(1)}50%{transform:rotate(180deg) scale(1.08)}}
+.baiVoiceFocusOrbCanvas{display:block;width:100%;height:100%}
 
 /* Status text is the state's PRIMARY, non-optional signal (Section 27
    -- comprehension must never depend on animation alone). */
@@ -671,26 +650,27 @@
 .baiVoiceFocusEndBtn:hover{filter:brightness(1.08)}
 .baiVoiceFocusTextBtn:focus-visible,.baiVoiceFocusEndBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
 
-/* ---------- Reduced motion (Section 27) -- every keyframe above is
-   disabled; state remains fully comprehensible via .baiVoiceFocusStatus
-   text alone (the JS loop itself also short-circuits amplitude to 0,
-   so the transform scale() expressions above resolve to a static 1). */
-@media(prefers-reduced-motion:reduce){
-  .baiVoiceFocusPresenceCore,.baiVoiceFocusPresenceRing{animation:none !important;transition:none !important}
-}
+/* ---------- Reduced motion (Section 27/28) -- the canvas's own JS
+   loop (animationLoop/startAmbient in intelligence-voice-focus.js)
+   short-circuits to a SINGLE static drawn frame, no rAF loop, when
+   prefers-reduced-motion is set -- the Fluid Aperture silhouette
+   stays visible and identifiable, only the continuous motion stops.
+   State remains fully comprehensible via .baiVoiceFocusStatus text
+   alone regardless. Nothing to disable here at the CSS layer. */
 
 /* ---------- Responsive / zero horizontal scroll (Section 23-26) ---------- */
 @media(max-width:1024px){
   .baiVoiceFocusPanel{width:min(380px,100%)}
 }
 @media(max-width:900px){
-  .baiVoiceFocusPresence{width:104px;height:104px}
-  .baiVoiceFocusPresenceCore{width:60px;height:60px}
-  .baiVoiceFocusPresenceRing{width:104px;height:104px}
+  .baiVoiceFocusPresence{width:180px;height:180px}
 }
 @media(max-width:480px){
   .baiVoiceFocusOverlay{padding:var(--space-3);padding-top:max(var(--space-3),env(safe-area-inset-top));padding-bottom:max(var(--space-3),env(safe-area-inset-bottom))}
   .baiVoiceFocusPanel{width:100%;max-height:calc(100vh - max(var(--space-3),env(safe-area-inset-top)) - max(var(--space-3),env(safe-area-inset-bottom)));padding:var(--space-4) var(--space-3)}
   .baiVoiceFocusControls{flex-direction:column}
+  /* 160px matches the recovered original's own mobile value exactly
+     (facelift-prototype-01/styles.css: .vfOrbFrame @480px). */
+  .baiVoiceFocusPresence{width:160px;height:160px}
 }
 
