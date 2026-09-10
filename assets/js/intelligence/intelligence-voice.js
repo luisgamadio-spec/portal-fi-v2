@@ -199,7 +199,23 @@
     S.pushMessage({ role: role, content: content, blocks: null, isError: false });
   }
 
-  function bridgeToPortalIntelligence(message) {
+  // IA-3H.1A D1 fix -- found live by this Wave's own barge-in test: a
+  // tool call superseded by a newer turn (latestCallId moved on) was
+  // correctly never SPOKEN back to Realtime, but its assistant answer
+  // was still being pushed onto the shared conversation store
+  // unconditionally, a few lines before the caller's own staleness
+  // check ever ran -- a real defect (a withdrawn/interrupted question
+  // would still show its answer on screen, silently mismatched against
+  // what was actually spoken). Fixed by accepting the tool's own callId
+  // here and re-checking `callId === latestCallId` immediately before
+  // the assistant push, the same guard handleFunctionCall's caller
+  // already applies before speaking it -- one staleness check, applied
+  // at both points it matters, not two independent implementations of
+  // it. The user's own turn is NOT gated by this check: asking a
+  // question is a real historical fact even if superseded before an
+  // answer arrives, and hiding it would misrepresent what was actually
+  // said (matches V1's own transcript-everything-spoken philosophy).
+  function bridgeToPortalIntelligence(message, callId) {
     var t0 = Date.now();
     // Same ordering as intelligence-panel.js's own handleSend: push the
     // user's turn onto the SHARED conversation BEFORE sending, then
@@ -212,9 +228,10 @@
       return A.sendRealText(message, prior, token);
     }).then(function (result) {
       diagPush('tool_call', { ms: Date.now() - t0, ok: !result.error });
+      var stale = callId !== latestCallId;
       if (result.error) {
-        S.pushMessage({ role: 'assistant', content: result.error.message, blocks: null, isError: true });
-        return { spoken: result.error.message, ok: false };
+        if (!stale) S.pushMessage({ role: 'assistant', content: result.error.message, blocks: null, isError: true });
+        return { spoken: result.error.message, ok: false, stale: stale };
       }
       var normalized = result.response;
       if (normalized.scenario_reset) S.spliceFromLastUser();
@@ -223,8 +240,8 @@
       // to the Realtime session is stripped for natural TTS delivery
       // (mechanical text transform only, never a second model call,
       // never a changed fact).
-      S.pushMessage({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false });
-      return { spoken: stripMarkdown(normalized.reply), ok: true };
+      if (!stale) S.pushMessage({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false });
+      return { spoken: stripMarkdown(normalized.reply), ok: true, stale: stale };
     });
   }
 
@@ -253,7 +270,7 @@
     }
 
     setV(S.VOICE_STATES.VOICE_THINKING);
-    bridgeToPortalIntelligence(message).then(function (outcome) {
+    bridgeToPortalIntelligence(message, callId).then(function (outcome) {
       // Interrupted/superseded by a newer turn while the bridge call
       // was in flight -- discard silently, never inject a stale answer
       // into a conversation that has already moved on (Section 32).
