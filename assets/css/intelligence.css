@@ -515,7 +515,16 @@
 .baiVoiceDiagHeader h2{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);margin:0}
 .baiVoiceDiagHeader button{background:none;border:1px solid var(--color-hairline-strong);border-radius:var(--radius-sm);color:var(--color-text-secondary);font-family:var(--font-mono);font-size:9px;cursor:pointer;padding:2px 6px}
 #baiVoiceDiagBody{white-space:pre-wrap;word-break:break-word;margin:0;max-width:100%}
+/* IA-3H.1A -- found live via screenshot review (Section 44), not caught
+   by the automated true-overflow check (which proves nothing escapes
+   the viewport, not that two elements never overlap each other): at
+   480px the drawer takes over the full viewport, so bottom:72px/96px
+   (safe at wider widths, clear of the composer there) sits INSIDE the
+   composer's own ~113px-tall box and visually covers the textarea's
+   placeholder text. Pushed above the composer entirely at this
+   breakpoint instead -- same fix class as the two Section 23 bugs. */
 @media(max-width:480px){
-  .baiVoiceDiagPanel{left:var(--space-2);right:var(--space-2);width:auto}
+  .baiVoiceDiagPanel{left:var(--space-2);right:var(--space-2);width:auto;bottom:144px}
+  .baiVoiceDiagToggle{bottom:120px}
 }
 

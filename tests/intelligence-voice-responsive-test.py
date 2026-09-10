@@ -124,6 +124,21 @@ def main():
             check(f"{w}px: Voice diagnostics dev panel introduces no true viewport overflow", ov_diag["worst"] <= 0.5, ov_diag)
             diag_panel_overflow = page.evaluate("(function(){var el=document.getElementById('baiVoiceDiagPanel'); return el ? el.scrollWidth - el.clientWidth : 0;})()")
             check(f"{w}px: Voice diagnostics panel itself has no internal overflow", diag_panel_overflow <= 0, diag_panel_overflow)
+            # IA-3H.1A finding (Section 44 screenshot review): "no true
+            # viewport overflow" does NOT prove two elements never
+            # overlap each other -- the diag toggle at 480px visually
+            # covered the composer's textarea despite passing every
+            # overflow check above. Explicit non-overlap proof against
+            # the composer, the toggle's own known collision partner.
+            overlap = page.evaluate("""() => {
+                function r(sel){ var el=document.querySelector(sel); return el ? el.getBoundingClientRect() : null; }
+                var a = r('.baiPanelComposer'), b = r('#baiVoiceDiagToggle');
+                if (!a || !b) return 0;
+                var ox = Math.max(0, Math.min(a.right,b.right) - Math.max(a.left,b.left));
+                var oy = Math.max(0, Math.min(a.bottom,b.bottom) - Math.max(a.top,b.top));
+                return ox * oy;
+            }""")
+            check(f"{w}px: Voice diagnostics toggle never overlaps the composer (not just 'in viewport')", overlap <= 0, overlap)
             page.click("#baiVoiceDiagToggle")
 
             if w == 480:
