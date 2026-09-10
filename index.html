@@ -160,6 +160,13 @@ if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
      consumes; mounted explicitly by shell.js's boot(), same convention
      as NX_INTELLIGENCE_PANEL.mount() just above it. -->
 <script src="assets/js/intelligence/intelligence-voice.js"></script>
+<!-- IA-3H.2 -- Voice Focus Mode presentation layer. A second, read-only
+     subscriber to the same NX_INTELLIGENCE_STATE the panel above
+     already renders from -- never a second session/conversation store.
+     Loads after intelligence-voice.js (whose read-only stream
+     references it uses) and is mounted by shell.js's boot(), same
+     convention as the two mounts above it. -->
+<script src="assets/js/intelligence/intelligence-voice-focus.js"></script>
 <script src="assets/js/adapters/master-users-provider.js"></script>
 <script src="assets/js/adapters/master-users-view-model.js"></script>
 <script src="assets/js/adapters/master-acessos-provider.js"></script>

@@ -586,6 +586,17 @@
     toggle: toggle,
     isActive: function () { return active; },
     diagnostics: readDiag,
-    clearDiagnostics: clearDiag
+    clearDiagnostics: clearDiag,
+    // IA-3H.2 -- read-only references for intelligence-voice-focus.js's
+    // own, entirely separate visualization layer (a second, independent
+    // consumer of the SAME already-captured MediaStreams -- attaching a
+    // Web Audio AnalyserNode to a stream does not remove it from this
+    // file's own <audio> element playback or WebRTC track usage, and
+    // this file never mutates either stream). Never a new capture,
+    // never persisted, never sent anywhere -- see intelligence-voice-
+    // focus.js's own privacy discipline. null whenever no session is
+    // active, exactly mirroring isActive()'s own truthfulness.
+    getRemoteAudioElement: function () { return remoteAudioEl; },
+    getMicStream: function () { return micStream; }
   };
 })();

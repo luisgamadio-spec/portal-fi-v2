@@ -554,3 +554,143 @@
   .baiVoiceDiagToggle{bottom:120px}
 }
 
+/* ============================================================
+   VOICE FOCUS MODE (IA-3H.2) -- a shell-level overlay, sibling of the
+   drawer/backdrop/diag panel under #nxOverlayRoot, never a second
+   Intelligence surface or a second conversation store (intelligence-
+   voice-focus.js only ever reads NX_INTELLIGENCE_STATE, already
+   rendered by the drawer). Built entirely on the existing mod-,
+   color- and space- prefixed tokens -- no new hex, no gaming/neon aesthetic
+   (Section 21): the presence uses the SAME --color-accent-primary red
+   every other Voice-state signal in this file already uses, at low
+   opacity, never a rainbow/RGB equalizer.
+   ============================================================ */
+.baiVoiceFocusRoot{position:fixed;inset:0;z-index:250;pointer-events:none}
+.baiVoiceFocusRoot[hidden]{display:none}
+.baiVoiceFocusOverlay{
+  position:absolute;inset:0;pointer-events:auto;
+  display:flex;align-items:center;justify-content:center;padding:var(--space-4);
+  background:var(--color-overlay-scrim);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.baiVoiceFocusPanel{
+  width:min(420px,100%);max-height:calc(100vh - var(--space-8,64px));
+  display:flex;flex-direction:column;gap:var(--space-4);
+  background:var(--color-elevated-surface);border:1px solid var(--color-hairline-strong);
+  border-radius:var(--radius-lg,16px);box-shadow:var(--shadow-elevated);
+  padding:var(--space-5,24px) var(--space-4);
+}
+
+.baiVoiceFocusHeader{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.baiVoiceFocusTitle{font-family:var(--font-ui);font-weight:400;font-size:15px;color:var(--color-text-secondary)}
+.baiVoiceFocusCloseBtn{
+  background:none;border:none;color:var(--color-text-muted);font-size:22px;line-height:1;
+  cursor:pointer;padding:2px 6px;border-radius:var(--radius-sm)
+}
+.baiVoiceFocusCloseBtn:hover{color:var(--color-text-primary)}
+.baiVoiceFocusCloseBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+
+/* ---------- Center stage: the animated presence is the protagonist
+   (Section 9's own "Voice is the protagonist") -- everything else on
+   this panel is quiet by comparison. ---------- */
+.baiVoiceFocusStage{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-4);
+  min-height:200px;flex:1;
+}
+.baiVoiceFocusPresence{
+  position:relative;width:128px;height:128px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  --bai-focus-amp:0;
+}
+.baiVoiceFocusPresenceCore{
+  position:absolute;width:72px;height:72px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--color-accent-primary) 85%,white 15%),var(--color-accent-primary) 70%);
+  box-shadow:0 0 32px color-mix(in srgb,var(--color-accent-primary) 45%,transparent);
+  transform:scale(calc(1 + var(--bai-focus-amp) * 0.35));
+  transition:transform 80ms linear;
+}
+.baiVoiceFocusPresenceRing{
+  position:absolute;width:128px;height:128px;border-radius:50%;
+  border:1px solid color-mix(in srgb,var(--color-accent-primary) 40%,transparent);
+  opacity:calc(0.35 + var(--bai-focus-amp) * 0.5);
+  transform:scale(calc(1 + var(--bai-focus-amp) * 0.18));
+  transition:transform 80ms linear,opacity 80ms linear;
+}
+
+/* State-specific motion -- CONNECTING/THINKING are pure CSS keyframes
+   (no real audio exists yet at either stage, so nothing to react to);
+   LISTENING/SPEAKING are driven by --bai-focus-amp (see the JS's own
+   AnalyserNode loop) layered on top of a gentle idle breathing motion
+   so the presence never looks perfectly static between amplitude
+   samples. Each state's rhythm is deliberately distinct (Section 10:
+   "THINKING must be semantically distinct from LISTENING/SPEAKING"). */
+.baiVoiceFocusStateCONNECTING .baiVoiceFocusPresenceRing{animation:baiFocusSpin 2.2s linear infinite}
+.baiVoiceFocusStateCONNECTING .baiVoiceFocusPresenceCore{animation:baiFocusBreathe 1.6s ease-in-out infinite}
+.baiVoiceFocusStateLISTENING .baiVoiceFocusPresenceCore{animation:baiFocusBreathe 2.4s ease-in-out infinite}
+.baiVoiceFocusStateTHINKING .baiVoiceFocusPresenceRing{animation:baiFocusOrbit 1.4s ease-in-out infinite}
+.baiVoiceFocusStateTHINKING .baiVoiceFocusPresenceCore{animation:baiFocusPulseSoft 0.9s ease-in-out infinite}
+.baiVoiceFocusStateSPEAKING .baiVoiceFocusPresenceCore{animation:baiFocusBreathe 0.5s ease-in-out infinite}
+.baiVoiceFocusStateERROR .baiVoiceFocusPresenceCore{background:color-mix(in srgb,var(--color-critical,#e2543a) 80%,var(--color-accent-primary) 20%);box-shadow:none;transform:none}
+.baiVoiceFocusStateERROR .baiVoiceFocusPresenceRing{opacity:.3;transform:none}
+
+@keyframes baiFocusBreathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
+@keyframes baiFocusPulseSoft{0%,100%{opacity:1}50%{opacity:.75}}
+@keyframes baiFocusSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes baiFocusOrbit{0%,100%{transform:rotate(0deg) scale(1)}50%{transform:rotate(180deg) scale(1.08)}}
+
+/* Status text is the state's PRIMARY, non-optional signal (Section 27
+   -- comprehension must never depend on animation alone). */
+.baiVoiceFocusStatus{
+  margin:0;font-family:var(--font-ui);font-size:14px;font-weight:500;
+  color:var(--color-text-secondary);text-align:center;
+}
+.baiVoiceFocusStateERROR ~ .baiVoiceFocusStatus,
+.baiVoiceFocusStage:has(.baiVoiceFocusStateERROR) .baiVoiceFocusStatus{color:var(--color-critical,#e2543a)}
+
+/* ---------- Compact transcript preview (Section 18) -- the LATEST
+   exchange only, never a scrolling chat; full history stays in the
+   drawer/Text surface, unmodified by this file. ---------- */
+.baiVoiceFocusTranscript{
+  flex-shrink:0;min-height:36px;max-height:88px;overflow-y:auto;
+  padding:var(--space-2) var(--space-3);border-top:1px solid var(--mod-border);
+  font-size:12.5px;line-height:1.5;color:var(--color-text-secondary);
+}
+.baiVoiceFocusTranscript:empty{border-top-color:transparent}
+.baiVoiceFocusTranscriptRole{display:block;font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mod-muted);margin-bottom:2px}
+.baiVoiceFocusTranscriptText{display:block;overflow-wrap:break-word;color:var(--color-text-primary)}
+
+/* ---------- Bottom controls ---------- */
+.baiVoiceFocusControls{display:flex;gap:var(--space-3);flex-shrink:0}
+.baiVoiceFocusTextBtn,.baiVoiceFocusEndBtn{
+  flex:1;min-height:44px;border-radius:var(--radius-md);font-family:var(--font-ui);font-size:13px;font-weight:500;
+  cursor:pointer;border:1px solid var(--color-hairline-strong);
+}
+.baiVoiceFocusTextBtn{background:none;color:var(--color-text-secondary)}
+.baiVoiceFocusTextBtn:hover{color:var(--color-text-primary);border-color:var(--color-text-secondary)}
+.baiVoiceFocusEndBtn{background:var(--color-accent-primary);color:var(--p-white-1,#fff);border-color:transparent}
+.baiVoiceFocusEndBtn:hover{filter:brightness(1.08)}
+.baiVoiceFocusTextBtn:focus-visible,.baiVoiceFocusEndBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+
+/* ---------- Reduced motion (Section 27) -- every keyframe above is
+   disabled; state remains fully comprehensible via .baiVoiceFocusStatus
+   text alone (the JS loop itself also short-circuits amplitude to 0,
+   so the transform scale() expressions above resolve to a static 1). */
+@media(prefers-reduced-motion:reduce){
+  .baiVoiceFocusPresenceCore,.baiVoiceFocusPresenceRing{animation:none !important;transition:none !important}
+}
+
+/* ---------- Responsive / zero horizontal scroll (Section 23-26) ---------- */
+@media(max-width:1024px){
+  .baiVoiceFocusPanel{width:min(380px,100%)}
+}
+@media(max-width:900px){
+  .baiVoiceFocusPresence{width:104px;height:104px}
+  .baiVoiceFocusPresenceCore{width:60px;height:60px}
+  .baiVoiceFocusPresenceRing{width:104px;height:104px}
+}
+@media(max-width:480px){
+  .baiVoiceFocusOverlay{padding:var(--space-3);padding-top:max(var(--space-3),env(safe-area-inset-top));padding-bottom:max(var(--space-3),env(safe-area-inset-bottom))}
+  .baiVoiceFocusPanel{width:100%;max-height:calc(100vh - max(var(--space-3),env(safe-area-inset-top)) - max(var(--space-3),env(safe-area-inset-bottom)));padding:var(--space-4) var(--space-3)}
+  .baiVoiceFocusControls{flex-direction:column}
+}
+

@@ -282,6 +282,10 @@
     // actual microphone button only exists at all inside the panel's
     // own MASTER-gated drawer markup -- nothing here changes that.
     if (window.NX_INTELLIGENCE_VOICE) window.NX_INTELLIGENCE_VOICE.mount();
+    // IA-3H.2 -- same "mount once, own lifecycle from there" convention;
+    // a second, read-only subscriber to NX_INTELLIGENCE_STATE, never a
+    // second session/conversation store.
+    if (window.NX_INTELLIGENCE_VOICE_FOCUS) window.NX_INTELLIGENCE_VOICE_FOCUS.mount();
     window.NX_AUTH_CORE.onStateChange(function (state) {
       var STATES = window.NX_AUTH_CORE.STATES;
       var bootLoading = document.getElementById('nxBootLoading');
