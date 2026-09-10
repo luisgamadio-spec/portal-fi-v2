@@ -54,6 +54,14 @@
   <div class="nxDevBadge">
     <span class="nxDevDot" aria-hidden="true"></span>
     <span>V2 LOCAL · NEXT_LOCAL — não é produção</span>
+    <!-- IA-3H.1A Section 10/11 -- local/homolog-only Voice UAT provenance
+         marker (never rendered in production: this whole badge/element
+         lives inside the same LOCAL/HOMOLOG-only #nxDevBadge every other
+         dev-only marker here already uses). data-short-head is a stable,
+         automatable assertion point (Section 11) -- no user/project
+         ref/secret/JWT, just a short commit hash a Human can read aloud
+         if asked, and Codex can assert against before any real call. -->
+    <span id="nxVoiceUatProvenance" data-short-head="4948fa4">· VOICE UAT LOCAL · 4948fa4</span>
     <button type="button" id="nxDesignTraceToggle" aria-expanded="false" aria-controls="nxDesignTrace">trace</button>
   </div>
 

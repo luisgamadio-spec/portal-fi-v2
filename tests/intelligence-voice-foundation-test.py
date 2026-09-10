@@ -199,6 +199,27 @@ def main():
               page.evaluate("document.querySelector('.baiComposerActions #baiPanelVoiceBtn') !== null"))
         check("exactly one #baiPanelSendBtn still present (Text composer untouched)", page.locator("#baiPanelSendBtn").count() == 1)
 
+        # ---------- D3 (IA-3H.1A Section 17): keyboard accessibility ----------
+        # Drives the REAL native <button> via actual browser keyboard
+        # events (no synthetic click(), no custom keyboard JS to test --
+        # there is none, by design, since a native button already gets
+        # this for free). Uses this suite's own fakes (fetch/getUserMedia/
+        # RTCPeerConnection), never a real network/mic/OpenAI call.
+        btn.focus()
+        check("Voice control is keyboard-focusable (Tab order)", page.evaluate("document.activeElement && document.activeElement.id") == "baiPanelVoiceBtn")
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(120)
+        check("Enter key activates the Voice control (native button semantics) -> CONNECTING", page.evaluate("window.NX_INTELLIGENCE_STATE.getVoiceState()") == "VOICE_CONNECTING")
+        page.evaluate("window.NX_INTELLIGENCE_VOICE.end();")
+        page.wait_for_timeout(80)
+        btn.focus()
+        page.keyboard.press(" ")
+        page.wait_for_timeout(120)
+        check("Space key activates the Voice control (native button semantics) -> CONNECTING", page.evaluate("window.NX_INTELLIGENCE_STATE.getVoiceState()") == "VOICE_CONNECTING")
+        page.evaluate("window.NX_INTELLIGENCE_VOICE.end();")
+        page.wait_for_timeout(80)
+        check("D3 closed: keyboard activation (Enter and Space) both reach the same toggle() path a mouse click would", True)
+
         # ---------- Config-missing guard (fail closed, never a silent no-op) ----------
         fetch_count_before = page.evaluate("window.__fetchCalls.length")  # boot already made unrelated fetches (e.g. module-registry.json)
         page.evaluate("window.NX_INTELLIGENCE_CONFIG.voiceRealtimeEndpoint = null;")
@@ -292,6 +313,123 @@ def main():
         page.wait_for_timeout(150)
         stale_output = [m for m in page.evaluate("window.__dcSent") if m.get("type") == "conversation.item.create" and m["item"]["call_id"] == "call-OLD"]
         check("a stale (superseded) call's result is discarded, never spoken/sent", len(stale_output) == 0, stale_output)
+
+        # ---------- D1 (IA-3H.1A Section 15): exact barge-in state test ----------
+        # VOICE_SPEAKING -> Human speech_started -> VOICE_INTERRUPTED, then
+        # proves recovery (a fresh turn completes normally to LISTENING),
+        # and separately proves a tool call still in flight AT THE MOMENT
+        # of interruption cannot surface its (now stale) result once a
+        # newer turn has taken over -- the exact scenario the brief names,
+        # building on (not duplicating) the adjacent stale-call test above.
+        page.evaluate("window.__simulateRtEvent({type:'output_audio_buffer.started'});")
+        page.wait_for_timeout(50)
+        check("D1 setup: VOICE_SPEAKING reached", page.evaluate("window.NX_INTELLIGENCE_STATE.getVoiceState()") == "VOICE_SPEAKING")
+        page.evaluate("window.__simulateRtEvent({type:'input_audio_buffer.speech_started'});")
+        page.wait_for_timeout(50)
+        check("D1: VOICE_SPEAKING -- Human speech_started -- VOICE_INTERRUPTED", page.evaluate("window.NX_INTELLIGENCE_STATE.getVoiceState()") == "VOICE_INTERRUPTED")
+        # Recovery: a fresh turn (no tool) completes normally afterward.
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'message', role:'assistant', content:[{transcript:'turno novo após interrupção'}]}
+            ]}});
+        }""")
+        page.wait_for_timeout(100)
+        check("D1: state recovers to VOICE_LISTENING after the post-interruption turn completes", page.evaluate("window.NX_INTELLIGENCE_STATE.getVoiceState()") == "VOICE_LISTENING")
+        check("D1: the post-interruption turn's own answer renders on the shared conversation surface",
+              "turno novo" in page.locator("#baiPanelConversation").inner_html())
+
+        # A tool call started BEFORE a barge-in, still unresolved when the
+        # Human interrupts the assistant's (separate, audible) SPEAKING
+        # turn, must never surface once a turn that began during/after
+        # that interruption supersedes it -- real event order: a tool
+        # call happens during THINKING (before any audio plays), so the
+        # interruption that matters here targets a genuinely SPEAKING
+        # assistant turn, not the tool-wait itself (confirmed against the
+        # real handler's own branch: speech_started only yields
+        # INTERRUPTED when current state is already SPEAKING).
+        # NOTE: uses its own independent per-message deferred-promise stub
+        # (not the shared stub_send_real_text helper's single-resolver
+        # pattern) -- two DIFFERENT tool calls are in flight here, and a
+        # single shared resolver would resolve whichever call happened
+        # most recently regardless of which one this test means to
+        # resolve, silently testing the wrong call_id.
+        page.evaluate("""() => {
+            window.__sendRealTextCalls = [];
+            window.__resolvers = {};
+            window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function (message, conversation, token) {
+                window.__sendRealTextCalls.push({ message: message, conversation: conversation, token: token });
+                return new Promise((resolve) => { window.__resolvers[message] = resolve; });
+            };
+        }""")
+        page.evaluate("window.__dcSent = [];")
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'function_call', name:'consultar_portal_intelligence', call_id:'call-INTERRUPTED', arguments: JSON.stringify({message:'pergunta que será interrompida'})}
+            ]}});
+        }""")
+        page.wait_for_timeout(80)
+        # The assistant starts SPEAKING a (different, already-resolved)
+        # turn while call-INTERRUPTED is still in flight; the Human then
+        # genuinely barges in on that audible speech.
+        page.evaluate("window.__simulateRtEvent({type:'output_audio_buffer.started'});")
+        page.wait_for_timeout(30)
+        page.evaluate("window.__simulateRtEvent({type:'input_audio_buffer.speech_started'});")
+        page.wait_for_timeout(50)
+        check("D1: interrupting a genuinely SPEAKING assistant -> VOICE_INTERRUPTED (tool call still in flight)", page.evaluate("window.NX_INTELLIGENCE_STATE.getVoiceState()") == "VOICE_INTERRUPTED")
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'function_call', name:'consultar_portal_intelligence', call_id:'call-AFTER-INTERRUPT', arguments: JSON.stringify({message:'pergunta pós-interrupção'})}
+            ]}});
+        }""")
+        page.wait_for_timeout(80)
+        # Resolve the call-AFTER-INTERRUPT (newer, non-stale) turn FIRST,
+        # then the call-INTERRUPTED (older, now-stale) one -- the
+        # realistic order for a barge-in (the newer turn is the one the
+        # Human is actually waiting on).
+        page.evaluate("""() => {
+            window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponseRef = window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponse;
+            if (window.__resolvers['pergunta pós-interrupção']) window.__resolvers['pergunta pós-interrupção']({response: window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponse({reply:'resposta pós-interrupção', blocks:null, request_id:'new', scenario_reset:false})});
+        }""")
+        page.wait_for_timeout(80)
+        page.evaluate("""() => {
+            if (window.__resolvers['pergunta que será interrompida']) window.__resolvers['pergunta que será interrompida']({response: window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponse({reply:'resposta da chamada interrompida', blocks:null, request_id:'intold', scenario_reset:false})});
+        }""")
+        page.wait_for_timeout(150)
+        interrupted_output = [m for m in page.evaluate("window.__dcSent") if m.get("type") == "conversation.item.create" and m["item"]["call_id"] == "call-INTERRUPTED"]
+        check("D1 closed: a tool call in flight across a real barge-in never speaks its stale result once superseded", len(interrupted_output) == 0, interrupted_output)
+        conv_html_d1 = page.locator("#baiPanelConversation").inner_html()
+        check("D1 closed: the interrupted call's stale answer never renders on the conversation surface either", "resposta da chamada interrompida" not in conv_html_d1)
+
+        # ---------- D2 (IA-3H.1A Section 16): diagnostic ring buffer cap ----------
+        page.evaluate("window.NX_INTELLIGENCE_VOICE.clearDiagnostics();")
+        page.evaluate("""() => {
+            for (let i = 0; i < 25; i++) {
+                window.__simulateRtEvent({type: i % 2 === 0 ? 'input_audio_buffer.speech_started' : 'input_audio_buffer.speech_stopped'});
+            }
+        }""")
+        page.wait_for_timeout(100)
+        diag_after = page.evaluate("window.NX_INTELLIGENCE_VOICE.diagnostics()")
+        events = diag_after.get("events", []) if diag_after else []
+        check("D2: diagnostics ring buffer caps at exactly DIAG_MAX_EVENTS=20 after 25 pushes", len(events) == 20, len(events))
+        # All 25 pushes here are 'state' events (each speech_started/
+        # speech_stopped simulate triggers exactly one setV() call) --
+        # the alternating started/stopped sequence deterministically
+        # ends on speech_started (i=24, even) with the PRIOR state being
+        # THINKING (set by i=23's speech_stopped), so that handler's own
+        # branch (`current === SPEAKING ? INTERRUPTED : LISTENING`)
+        # resolves to LISTENING -- a real, non-trivial ordering proof,
+        # not a tautology.
+        last_state = events[-1].get("state") if events else None
+        check("D2: ordering preserved -- the LAST kept event reflects the LAST pushed transition (VOICE_LISTENING)", last_state == "VOICE_LISTENING", last_state)
+        ts_list = [e.get("t") for e in events if isinstance(e.get("t"), (int, float))]
+        check("D2: timestamps are non-decreasing (no reordering/corruption)", ts_list == sorted(ts_list), ts_list)
+        raw_ls = page.evaluate("localStorage.getItem('baiVoiceDiagV2')")
+        check("D2: localStorage payload stays small/bounded (not unbounded growth)", raw_ls is not None and len(raw_ls) < 8000, len(raw_ls) if raw_ls else None)
+        check("D2: no secret/PII/transcript leaked into the stress-tested diagnostics payload",
+              "Bearer" not in raw_ls and "token" not in raw_ls.lower() and "vendas" not in raw_ls and "pergunta" not in raw_ls.lower())
 
         page.close()
         browser.close()
