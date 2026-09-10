@@ -96,6 +96,24 @@
 .baiComposerInput:focus-visible{outline:var(--focus-ring);outline-offset:2px}
 .baiComposerActions{display:flex;gap:var(--mod-space-compact);flex-shrink:0}
 
+/* ---------- Voice entry control (IA-3H.1) ----------
+   One affordance inside the existing composer actions -- never a
+   second toolbar. State is carried by the button's own text label
+   (VOICE_LABEL_BY_STATE in intelligence-panel.js) first; the small
+   pulse dot below is a secondary, non-exclusive signal (color/motion
+   is never the only cue -- Section 44). */
+.baiVoiceBtn{display:flex;align-items:center;gap:6px;position:relative;padding:0 12px;height:40px}
+.baiVoiceBtnLabel{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.baiVoiceBtn::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--mod-muted);flex-shrink:0}
+.baiVoiceStateVOICE_LISTENING::before,.baiVoiceStateVOICE_INTERRUPTED::before{background:var(--color-accent-primary)}
+.baiVoiceStateVOICE_CONNECTING::before,.baiVoiceStateVOICE_THINKING::before{background:var(--mod-warning);animation:baiVoicePulse 1.1s ease-in-out infinite}
+.baiVoiceStateVOICE_SPEAKING::before{background:var(--color-accent-primary);animation:baiVoicePulse 1.1s ease-in-out infinite}
+.baiVoiceStateVOICE_ERROR::before{background:#e2543a}
+@keyframes baiVoicePulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){
+  .baiVoiceStateVOICE_CONNECTING::before,.baiVoiceStateVOICE_THINKING::before,.baiVoiceStateVOICE_SPEAKING::before{animation:none}
+}
+
 .baiHeaderActions{display:flex;gap:var(--mod-space-compact)}
 
 /* A <select> sizes to its widest <option> by default -- without a cap
@@ -115,6 +133,7 @@
 @media(max-width:480px){
   .baiComposer{flex-direction:column;align-items:stretch}
   .baiComposerActions{justify-content:flex-end}
+  .baiVoiceBtnLabel{max-width:64px}
 }
 
 /* ============================================================
@@ -437,6 +456,7 @@
    sized/shaped to match --bai-content-radius so it reads as part of
    the same composed control instead of a separate loud rectangle. */
 .baiPanelComposer #baiPanelSendBtn{padding:0 16px;height:40px;border-radius:var(--bai-content-radius);font-size:13px}
+.baiPanelComposer .baiVoiceBtn{border-radius:var(--bai-content-radius);font-size:13px}
 
 /* ---------- Drawer width (Section 19): visually re-evaluated at
    420/424/432/440 — 420px (IA-3E's original) produces the best
@@ -450,5 +470,52 @@
   .baiPanelHeader{padding:var(--space-3)}
   .baiPanelBody{padding:var(--space-3)}
   .baiPanelComposer{padding:var(--space-3)}
+}
+
+/* ============================================================
+   VOICE DIAGNOSTICS (IA-3H.1) — LOCAL DEV TOOLING ONLY, mirrors
+   shell.css's own #nxDesignTraceToggle/#nxDesignTrace convention
+   (same font-mono/opacity treatment, same "never part of any future
+   product experience" framing) so a Human or Codex can read the last
+   Voice session's sanitized diagnostics without ever opening DevTools
+   (Section 38/39). Not part of the approved drawer -- a sibling node
+   under #nxOverlayRoot, never inside .baiPanelDrawer's own markup.
+   ============================================================ */
+/* Anchored to the RIGHT, stacked above the launcher FAB
+   (.baiLauncherBtn, right:var(--space-3);bottom:var(--space-3), 52px
+   tall) -- deliberately NOT left-anchored like #nxDevBadge/
+   #nxDesignTrace: those live inside .pMain, whose ancestor chain
+   happens to form a containing block for position:fixed that keeps
+   them clear of #pGlobalNav's persistent 232px desktop column; this
+   root is appended to #nxOverlayRoot (a sibling of .pShell, outside
+   that containing block), so position:fixed here resolves against the
+   true viewport -- a left anchor would sit UNDER the nav at >=1280px
+   (found live testing this Wave's own responsive suite: the
+   nav's subtree intercepted every click at 1366px). The right edge has
+   no nav at any breakpoint (persistent column and off-canvas drawer
+   are both left-anchored), so it is the only safe default here. */
+.baiVoiceDiagToggle{
+  position:fixed;right:var(--space-2);bottom:72px;z-index:300;pointer-events:auto;
+  background:none;border:none;color:var(--color-text-muted);
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.03em;
+  text-decoration:underline;cursor:pointer;opacity:.5;padding:3px 5px;
+}
+.baiVoiceDiagToggle:hover,.baiVoiceDiagToggle:focus-visible{opacity:1;color:var(--color-accent-primary)}
+.baiVoiceDiagToggle:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+.baiVoiceDiagPanel{
+  position:fixed;right:var(--space-3);bottom:96px;z-index:300;pointer-events:auto;
+  width:340px;max-width:calc(100vw - 2 * var(--space-3));max-height:50vh;
+  overflow:auto;background:var(--color-elevated-surface);
+  border:1px solid var(--color-hairline-strong);border-radius:var(--radius-md);
+  box-shadow:var(--shadow-elevated);padding:var(--space-4);
+  font-family:var(--font-mono);font-size:10.5px;color:var(--color-text-secondary);
+}
+.baiVoiceDiagPanel[hidden]{display:none}
+.baiVoiceDiagHeader{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);margin-bottom:var(--space-2)}
+.baiVoiceDiagHeader h2{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);margin:0}
+.baiVoiceDiagHeader button{background:none;border:1px solid var(--color-hairline-strong);border-radius:var(--radius-sm);color:var(--color-text-secondary);font-family:var(--font-mono);font-size:9px;cursor:pointer;padding:2px 6px}
+#baiVoiceDiagBody{white-space:pre-wrap;word-break:break-word;margin:0;max-width:100%}
+@media(max-width:480px){
+  .baiVoiceDiagPanel{left:var(--space-2);right:var(--space-2);width:auto}
 }
 

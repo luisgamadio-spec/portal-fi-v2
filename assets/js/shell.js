@@ -275,6 +275,13 @@
     // never by this boot sequence. See assets/js/intelligence/
     // intelligence-panel.js.
     if (window.NX_INTELLIGENCE_PANEL) window.NX_INTELLIGENCE_PANEL.mount();
+    // IA-3H.1 -- same "mount once, own lifecycle from there" convention
+    // as the panel above; the Voice session manager's own dev-only
+    // diagnostics toggle is unconditional (mirrors #nxDesignTraceToggle
+    // just above it in setupDevBadge(), not MASTER-gated), but the
+    // actual microphone button only exists at all inside the panel's
+    // own MASTER-gated drawer markup -- nothing here changes that.
+    if (window.NX_INTELLIGENCE_VOICE) window.NX_INTELLIGENCE_VOICE.mount();
     window.NX_AUTH_CORE.onStateChange(function (state) {
       var STATES = window.NX_AUTH_CORE.STATES;
       var bootLoading = document.getElementById('nxBootLoading');

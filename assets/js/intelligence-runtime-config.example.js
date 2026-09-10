@@ -20,5 +20,8 @@ window.NX_INTELLIGENCE_CONFIG = {
   // assets/js/environment-guard.js; localhost/127.0.0.1 are always
   // LOCAL_DEV regardless of this field, so a local override never
   // needs it (see intelligence-runtime-config.production.js instead).
-  textEndpoint: 'http://127.0.0.1:8801/'
+  textEndpoint: 'http://127.0.0.1:8801/',
+  // IA-3H.1 -- same local dual-origin mock pattern as textEndpoint, a
+  // separate port for the Realtime ephemeral-credential mint mock.
+  voiceRealtimeEndpoint: 'http://127.0.0.1:8802/'
 };

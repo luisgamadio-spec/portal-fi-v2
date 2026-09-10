@@ -433,6 +433,57 @@
   }
 
   /* ============================================================
+     VOICE ENTRY CONTROL (IA-3H.1, Section 9/10/11/43/44) -- a single
+     microphone affordance inside the existing composer actions, never
+     a second drawer/dashboard. This file owns ONLY the button's own
+     markup/label/aria state; every real session mechanic (WebRTC,
+     auth, ephemeral credential, tool bridge, cleanup) lives in
+     assets/js/intelligence/intelligence-voice.js, which this button
+     merely calls into -- matching the existing adapter/state/panel
+     separation (transport vs. store vs. UI) this drawer already uses
+     for Text. ============================================================ */
+
+  var VOICE_LABEL_BY_STATE = {
+    VOICE_IDLE: 'Voz', VOICE_DISCONNECTED: 'Voz',
+    VOICE_CONNECTING: 'Conectando…', VOICE_LISTENING: 'Ouvindo',
+    VOICE_THINKING: 'Pensando…', VOICE_SPEAKING: 'Falando',
+    VOICE_INTERRUPTED: 'Ouvindo', VOICE_ERROR: 'Erro — tentar de novo'
+  };
+
+  // Subtle, non-decorative state signal (Section 11 -- no waveform, no
+  // full-screen mode): a plain CSS class per state drives a small
+  // color/pulse treatment in intelligence.css; color is never the only
+  // signal, the button's own text label always changes too.
+  function voiceStateClass(state) {
+    return state ? 'baiVoiceState' + state.replace('VOICE_', '') : '';
+  }
+
+  function voiceButtonHtml() {
+    return '<button type="button" class="modBtn modBtnGhost baiVoiceBtn" id="baiPanelVoiceBtn" aria-pressed="false" aria-label="Iniciar conversa por voz com a Brabus Intelligence">' +
+      '<svg class="baiVoiceBtnIcon" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M10 2.5a2.5 2.5 0 0 0-2.5 2.5v4a2.5 2.5 0 0 0 5 0v-4A2.5 2.5 0 0 0 10 2.5z"/>' +
+      '<path d="M5.5 9v1a4.5 4.5 0 0 0 9 0V9"/><path d="M10 14.5v3"/><path d="M7.5 17.5h5"/>' +
+      '</svg>' +
+      '<span class="baiVoiceBtnLabel" id="baiPanelVoiceBtnLabel">Voz</span>' +
+      '</button>';
+  }
+
+  function updateVoiceButton() {
+    var btn = document.getElementById('baiPanelVoiceBtn');
+    var label = document.getElementById('baiPanelVoiceBtnLabel');
+    if (!btn || !label || !S) return;
+    var state = S.getVoiceState();
+    var VS = S.VOICE_STATES;
+    var isActive = state !== VS.VOICE_DISCONNECTED && state !== VS.VOICE_IDLE && state !== VS.VOICE_ERROR;
+    label.textContent = VOICE_LABEL_BY_STATE[state] || 'Voz';
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    btn.setAttribute('aria-label', isActive
+      ? 'Encerrar conversa por voz com a Brabus Intelligence'
+      : 'Iniciar conversa por voz com a Brabus Intelligence');
+    btn.className = 'modBtn modBtnGhost baiVoiceBtn ' + voiceStateClass(state);
+  }
+
+  /* ============================================================
      OPEN / CLOSE
      ============================================================ */
 
@@ -448,6 +499,7 @@
     applyPersistentState(S.getTextState());
     renderConversation();
     updateContextChip();
+    updateVoiceButton();
     var input = document.getElementById('baiPanelInput');
     if (input) input.focus();
   }
@@ -529,8 +581,10 @@
       '<div class="baiPanelBody"><div class="baiConversation" id="baiPanelConversation" aria-live="polite" aria-atomic="false"></div></div>' +
       '<div class="baiComposer baiPanelComposer">' +
       '<textarea id="baiPanelInput" class="baiComposerInput" aria-label="Pergunta para a Brabus Intelligence" placeholder="Pergunte sobre financiamento, resultado ou score..." rows="1"></textarea>' +
-      '<div class="baiComposerActions"><button type="button" class="modBtn modBtnPrimary" id="baiPanelSendBtn">Enviar</button></div>' +
-      '</div>' +
+      '<div class="baiComposerActions">' +
+      voiceButtonHtml() +
+      '<button type="button" class="modBtn modBtnPrimary" id="baiPanelSendBtn">Enviar</button>' +
+      '</div></div>' +
       '<p class="baiPanelStatusLine" id="baiPanelStatusLine" hidden></p>' +
       '</aside>';
   }
@@ -559,13 +613,19 @@
       }
     });
 
-    S.onChange(function () { renderConversation(); });
+    var voiceBtn = document.getElementById('baiPanelVoiceBtn');
+    if (voiceBtn) voiceBtn.addEventListener('click', function () {
+      if (window.NX_INTELLIGENCE_VOICE) window.NX_INTELLIGENCE_VOICE.toggle();
+    });
+
+    S.onChange(function () { renderConversation(); updateVoiceButton(); });
     C.onChange(function () { updateContextChip(); });
 
     panelBuilt = true;
     renderConversation();
     applyPersistentState(S.getTextState());
     updateContextChip();
+    updateVoiceButton();
   }
 
   function refreshVisibility() {

@@ -147,6 +147,11 @@ if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
 <script src="assets/js/intelligence/intelligence-context.js"></script>
 <script src="assets/js/intelligence/intelligence-state.js"></script>
 <script src="assets/js/intelligence/intelligence-panel.js"></script>
+<!-- IA-3H.1 -- V2 Voice session manager. Loads after the panel (whose
+     composer mic button calls into it) and after the state/adapter it
+     consumes; mounted explicitly by shell.js's boot(), same convention
+     as NX_INTELLIGENCE_PANEL.mount() just above it. -->
+<script src="assets/js/intelligence/intelligence-voice.js"></script>
 <script src="assets/js/adapters/master-users-provider.js"></script>
 <script src="assets/js/adapters/master-users-view-model.js"></script>
 <script src="assets/js/adapters/master-acessos-provider.js"></script>

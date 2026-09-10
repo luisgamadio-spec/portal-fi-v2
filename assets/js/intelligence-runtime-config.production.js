@@ -51,6 +51,11 @@ window.NX_INTELLIGENCE_CONFIG = {
   // populate this until Intelligence Text is independently authorized
   // to go live, with its own real deployment + real Human UAT.
   textEndpoint: null,
+  // INTELLIGENCE_ONLY (IA-3H.1) -- stays null for the same reason as
+  // textEndpoint: Voice has no real deployment/Human UAT of its own
+  // authorized yet. Never populate until Voice is independently
+  // authorized to go live.
+  voiceRealtimeEndpoint: null,
   // GL-1J -- authorizes EXACTLY the proven GitHub Pages homologation
   // hostname (GL-1I.1's REAL_HOMOLOGATION_HOSTNAME, confirmed live via
   // GitHub's own Pages API, not guessed). This is a technical

@@ -47,9 +47,10 @@
     FORBIDDEN: 'FORBIDDEN'
   };
 
-  // Voice-ready state architecture (IA-3E Section 17). Reserved so a
-  // future Voice wave can slot in without redesigning this store —
-  // nothing in this codebase ever calls setVoiceState() this Wave.
+  // Voice-ready state architecture (IA-3E Section 17, activated IA-3H.1).
+  // Reserved so a future Voice wave could slot in without redesigning
+  // this store — that Wave is this one; see setVoiceState() below and
+  // assets/js/intelligence/intelligence-voice.js, its only caller.
   var VOICE_STATES = {
     VOICE_IDLE: 'VOICE_IDLE',
     VOICE_CONNECTING: 'VOICE_CONNECTING',
@@ -103,10 +104,19 @@
       notify();
     },
 
-    // Exposed for architecture completeness/tests only — always
-    // VOICE_DISCONNECTED in this Wave (Section 17: "do not implement
-    // microphone/runtime yet").
+    // IA-3H.1 -- the enum itself (VOICE_STATES, above) already existed
+    // as inert architecture since IA-3E; this is the first Wave that
+    // actually transitions it, via intelligence-voice.js's own session
+    // manager. Same validate/assign/notify shape as setTextState — one
+    // explicit state machine, not ad hoc booleans (Section 10).
     getVoiceState: function () { return voiceState; },
+    setVoiceState: function (next) {
+      if (!VOICE_STATES.hasOwnProperty(next)) {
+        throw new Error('[intelligence-state] unknown VOICE state: ' + next);
+      }
+      voiceState = next;
+      notify();
+    },
 
     getConversation: function () { return conversation.slice(); },
     pushMessage: function (msg) {
