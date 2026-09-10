@@ -112,23 +112,40 @@ def set_profile(page, state, is_master=None, perfil=None):
     page.wait_for_timeout(50)
 
 
-def stub_real_text(page, resolve_js):
+def stub_real_text(page, resolve_js, text_surface_enabled=True):
     """Replaces sendRealText (a plain function property) with a stub
     resolving the given result, and flips mode to real_text -- the
     ONLY two things changed; createRequest/normalizeResponse/applyResult
-    and everything else stay the real, unmodified code."""
+    and everything else stay the real, unmodified code.
+
+    IA-3H.1C.4 (D14) -- handleSendRealText now checks isTextSurfaceEnabled()
+    (window.NX_MASTER_CONFIG_PROVIDER.readConfig()) BEFORE ever calling
+    sendRealText; every one of this helper's existing callers is testing
+    a DIFFERENT failure class (401/403/429/malformed/etc.), not the
+    surface gate itself, so this stubs the config read to resolve
+    ia_texto_habilitada=true by default -- sendRealText is still reached
+    exactly as each of those tests already expects. Pass
+    text_surface_enabled=False only for a test that specifically wants
+    the gate itself to block (see the dedicated D14 gate tests below)."""
     page.evaluate(
-        """(resolveJs) => {
+        """([resolveJs, enabled]) => {
             window.NX_INTELLIGENCE_CONFIG = window.NX_INTELLIGENCE_CONFIG || {};
             window.NX_INTELLIGENCE_CONFIG.mode = 'real_text';
             window.__baiSendRealTextCalls = 0;
             window.NX_AUTH = { getAccessToken: () => Promise.resolve('fake-token') };
+            window.__baiReadConfigCalls = 0;
+            window.NX_MASTER_CONFIG_PROVIDER = {
+                readConfig: function () {
+                    window.__baiReadConfigCalls++;
+                    return Promise.resolve([{ chave: 'ia_texto_habilitada', valor: enabled ? 'true' : 'false' }]);
+                }
+            };
             window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function () {
                 window.__baiSendRealTextCalls++;
                 return (new Function('A', 'return ' + resolveJs))(window.NX_BRABUS_INTELLIGENCE_ADAPTER);
             };
         }""",
-        resolve_js,
+        [resolve_js, text_surface_enabled],
     )
 
 
@@ -293,6 +310,49 @@ def main():
         check("malformed response: no literal 'undefined' rendered", "undefined" not in body_text)
         check("malformed response: no [object Object] rendered", "[object Object]" not in body_text)
         shot(page, "06-malformed-response.png")
+
+        # ---------- IA-3H.1C.4 (D14): proactive Text surface gate ----------
+        # ia_texto_habilitada=false: a real Text send must be blocked
+        # BEFORE sendRealText is ever called (Section 19's own explicit
+        # requirement -- 0 portal-ai-homolog invocations for a blocked
+        # Text request). stub_real_text's own sendRealText replacement
+        # would fail this test instantly if ever invoked (the counter
+        # assertion below), so this is a genuine proof the gate runs
+        # first, not merely that the stub happens to also reject.
+        stub_real_text(page, "Promise.resolve({response: A.normalizeResponse({reply:'NUNCA deveria ter chegado aqui', blocks:null, request_id:'r', scenario_reset:false})})", text_surface_enabled=False)
+        page.click("#baiPanelNewChatBtn")
+        page.fill("#baiPanelInput", "teste D14 gate via botao")
+        page.click("#baiPanelSendBtn")
+        page.wait_for_timeout(300)
+        check("D14 gate (button send): TEXT state DISABLED", page.evaluate("window.NX_INTELLIGENCE_STATE.getTextState()") == "DISABLED")
+        check("D14 gate (button send): sendRealText NEVER called (0 portal-ai invocations)", page.evaluate("window.__baiSendRealTextCalls") == 0)
+        check("D14 gate (button send): the gate's own config read DID happen (proves the check actually ran, not a pre-existing 503)", page.evaluate("window.__baiReadConfigCalls") >= 1)
+        check("D14 gate (button send): composer disabled, safe message shown, no leaked config key name", "ia_texto_habilitada" not in page.locator("#baiPanelStatusLine").inner_text() and page.locator("#baiPanelStatusLine").is_visible())
+        no_leak_text = page.locator("#baiPanelConversation").inner_text()
+        check("D14 gate (button send): the stub's own reply text never rendered (proves the blocked path, not a slow-but-real send)", "NUNCA deveria ter chegado aqui" not in no_leak_text)
+
+        # Same proof for Enter-key submission (a second, independent user
+        # Text entry path -- Section 11/29's explicit requirement).
+        page.click("#baiPanelNewChatBtn")
+        page.evaluate("window.__baiSendRealTextCalls = 0; window.__baiReadConfigCalls = 0;")
+        page.fill("#baiPanelInput", "teste D14 gate via enter")
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(300)
+        check("D14 gate (Enter-key send): TEXT state DISABLED", page.evaluate("window.NX_INTELLIGENCE_STATE.getTextState()") == "DISABLED")
+        check("D14 gate (Enter-key send): sendRealText NEVER called (0 portal-ai invocations)", page.evaluate("window.__baiSendRealTextCalls") == 0)
+
+        # Flip the gate back on (same stub, only the flag value changes)
+        # and prove a real send proceeds normally -- the gate is a real
+        # boolean switch, not a one-way lock.
+        stub_real_text(page, "Promise.resolve({response: A.normalizeResponse({reply:'resposta real apos gate liberado', blocks:null, request_id:'r2', scenario_reset:false})})", text_surface_enabled=True)
+        page.click("#baiPanelNewChatBtn")
+        page.fill("#baiPanelInput", "teste D14 gate liberado")
+        page.click("#baiPanelSendBtn")
+        page.wait_for_timeout(300)
+        check("D14 gate (re-enabled): TEXT state settles to OPEN_IDLE", page.evaluate("window.NX_INTELLIGENCE_STATE.getTextState()") == "OPEN_IDLE")
+        check("D14 gate (re-enabled): sendRealText WAS called exactly once", page.evaluate("window.__baiSendRealTextCalls") == 1)
+        check("D14 gate (re-enabled): the real reply rendered", "resposta real apos gate liberado" in page.locator("#baiPanelConversation").inner_text())
+        page.evaluate("window.NX_INTELLIGENCE_STATE.resetConversation();")
 
         restore_fixture_mode(page)
         page.evaluate("delete window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText; window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = undefined;")

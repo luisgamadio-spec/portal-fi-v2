@@ -234,7 +234,16 @@
     // dominates a slow turn.
     var turnIndex = prior.filter(function (m) { return m.role === 'user'; }).length + 1;
     return window.NX_AUTH.getAccessToken().then(function (token) {
-      return A.sendRealText(message, prior, token, { uiSubmitAt: t0, turnIndex: turnIndex });
+      // IA-3H.1C.4 -- declares this call as the trusted internal Voice
+      // bridge (never a user-typed Text submission) via the literal
+      // 'voice' string, becoming the x-nx-intelligence-surface header
+      // the server's own surface-authority check reads. This is the
+      // ONLY call site in this file that ever passes a 5th argument to
+      // sendRealText -- D14's own load-bearing requirement (Section 12
+      // of its brief): this bridge must keep working under Text=false/
+      // Voice=true, which it does because it declares "voice", gated on
+      // ia_voz_habilitada alone, never on the Text composer's own flag.
+      return A.sendRealText(message, prior, token, { uiSubmitAt: t0, turnIndex: turnIndex }, 'voice');
     }).then(function (result) {
       diagPush('tool_call', { ms: Date.now() - t0, ok: !result.error, turn: turnIndex });
       if (result._devTiming) {

@@ -526,7 +526,18 @@
   // the same allow-listed, homolog-only header IA-3G.5A adds
   // server-side) so a frontend timing log can be matched to its own
   // Edge Function log lines without any user/session identifier.
-  function sendRealText(message, conversation, accessToken, clientTiming) {
+  // IA-3H.1C.4 -- `surface` is an OPTIONAL 5th arg, additive-only (every
+  // existing 4-arg call site -- Text's own handleSendRealText, every
+  // test -- is unaffected and omits it entirely, defaulting to the
+  // server's own "text" interpretation). Only intelligence-voice.js's
+  // internal governed-tool bridge passes the literal string 'voice'
+  // here, which becomes the `x-nx-intelligence-surface` header the
+  // server's own surface-authority check reads (see portal-ai-homolog's
+  // intelligenceEnabled derivation). Never a user-suppliable value --
+  // the ONLY two call sites in this codebase are this file's own two
+  // callers, both under source control, neither reading this string
+  // from any user input.
+  function sendRealText(message, conversation, accessToken, clientTiming, surface) {
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
     if (!cfg.textEndpoint || !cfg.supabasePublishableKey) {
       return Promise.resolve({ error: { status: 0, message: 'Configuração de Intelligence ausente — modo real_text não está configurado neste ambiente.' } });
@@ -537,14 +548,16 @@
     var body = createRequest(message, conversation);
     var correlationId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
     var clientFetchAt = Date.now();
+    var reqHeaders = {
+      'Content-Type': 'application/json',
+      'apikey': cfg.supabasePublishableKey,
+      'Authorization': 'Bearer ' + accessToken,
+      'x-nx-correlation-id': correlationId
+    };
+    if (surface) reqHeaders['x-nx-intelligence-surface'] = surface;
     return fetch(cfg.textEndpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': cfg.supabasePublishableKey,
-        'Authorization': 'Bearer ' + accessToken,
-        'x-nx-correlation-id': correlationId
-      },
+      headers: reqHeaders,
       body: JSON.stringify(body)
     }).then(function (resp) {
       return resp.json().catch(function () { return {}; }).then(function (payload) {

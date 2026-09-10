@@ -152,8 +152,8 @@ def stub_send_real_text(page, resolve_js):
     page.evaluate(
         """(resolveJs) => {
             window.__sendRealTextCalls = [];
-            window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function (message, conversation, token) {
-                window.__sendRealTextCalls.push({ message: message, conversation: conversation, token: token });
+            window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function (message, conversation, token, clientTiming, surface) {
+                window.__sendRealTextCalls.push({ message: message, conversation: conversation, token: token, surface: surface });
                 return (new Function('A', 'return ' + resolveJs))(window.NX_BRABUS_INTELLIGENCE_ADAPTER);
             };
         }""",
@@ -271,6 +271,14 @@ def main():
         if calls:
             check("bridge forwards the Realtime tool's own message verbatim", calls[0]["message"] == "Qual foi o resultado do mês passado?", calls[0])
             check("bridge uses the SAME real access token as Text would", calls[0]["token"] == "fake-access-token", calls[0])
+            # IA-3H.1C.4 (D14) -- the ONE call site in this codebase that
+            # declares itself as the trusted internal Voice bridge (the
+            # x-nx-intelligence-surface header the server's own surface-
+            # authority check reads). Proves the governed bridge keeps
+            # working under Text=false/Voice=true (D14's own load-bearing
+            # requirement) -- it is gated on ia_voz_habilitada alone,
+            # never on the Text composer's own flag.
+            check("bridge declares itself as the trusted Voice surface (5th sendRealText arg)", calls[0]["surface"] == "voice", calls[0])
         check("VOICE state reaches THINKING while the bridge call is in flight (already settled here, was THINKING)", True)
         dc_sent = page.evaluate("window.__dcSent")
         fco = [m for m in dc_sent if m.get("type") == "conversation.item.create"]
@@ -357,8 +365,8 @@ def main():
         page.evaluate("""() => {
             window.__sendRealTextCalls = [];
             window.__resolvers = {};
-            window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function (message, conversation, token) {
-                window.__sendRealTextCalls.push({ message: message, conversation: conversation, token: token });
+            window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function (message, conversation, token, clientTiming, surface) {
+                window.__sendRealTextCalls.push({ message: message, conversation: conversation, token: token, surface: surface });
                 return new Promise((resolve) => { window.__resolvers[message] = resolve; });
             };
         }""")

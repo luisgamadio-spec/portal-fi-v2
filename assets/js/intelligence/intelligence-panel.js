@@ -406,6 +406,35 @@
     }, FIXTURE_LATENCY_MS);
   }
 
+  // IA-3H.1C.4 (D14) -- proactive Text surface gate, checked fresh
+  // before every real send, never cached across sends (an admin could
+  // toggle the flag mid-session; this endpoint is already read fresh on
+  // every request server-side too -- operational_current_scope() has
+  // the same "no caching" discipline). Reuses the EXISTING, already-
+  // governed, already-authenticated-general-user RPC
+  // (operational_portal_config(), via window.NX_MASTER_CONFIG_PROVIDER
+  // -- the same provider Painel Master's own Configurações page already
+  // calls) -- no new RPC, no new endpoint, no new authorization
+  // subsystem. Resolves `false` (fail-closed) on any error/malformed
+  // response/missing row, the identical rule the server's own
+  // findFlag() uses. This is the Text UI's OWN decision about whether
+  // to even attempt a send -- it does not touch, weaken, or duplicate
+  // the server's own independent enforcement of the same flag (see
+  // portal-ai-homolog's surface-aware intelligenceEnabled derivation),
+  // and it has zero effect on intelligence-voice.js's bridge, which
+  // never calls this function.
+  function isTextSurfaceEnabled() {
+    if (!window.NX_MASTER_CONFIG_PROVIDER || typeof window.NX_MASTER_CONFIG_PROVIDER.readConfig !== 'function') {
+      return Promise.resolve(false);
+    }
+    return window.NX_MASTER_CONFIG_PROVIDER.readConfig().then(function (rows) {
+      var row = Array.isArray(rows) ? rows.filter(function (r) { return r && r.chave === 'ia_texto_habilitada'; })[0] : null;
+      return !!row && String(row.valor || '').trim().toLowerCase() === 'true';
+    }, function () {
+      return false;
+    });
+  }
+
   function handleSendRealText(text, priorTurns, uiSubmitAt) {
     if (!window.NX_AUTH || typeof window.NX_AUTH.getAccessToken !== 'function') {
       applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
@@ -416,20 +445,32 @@
     // carried through to _devTiming so a multi-turn latency pattern is
     // readable directly off the existing [bai-timing] log line.
     var turnIndex = priorTurns.filter(function (m) { return m.role === 'user'; }).length + 1;
-    // IA-3G.5A -- getAccessToken() calls the real Supabase SDK's own
-    // auth.getSession(), which can silently perform a real network
-    // token-refresh call before resolving (supabase-js's own documented
-    // behavior when the current access token is expired/near-expiry) --
-    // a plausible pre-fetch delay entirely invisible to Edge-side
-    // instrumentation. Measured here, separately from the fetch() that
-    // follows, specifically to test that hypothesis with real numbers.
-    var t_getToken = Date.now();
-    window.NX_AUTH.getAccessToken().then(function (token) {
-      var getTokenMs = Date.now() - t_getToken;
-      if (!token) { applyResult({ error: { status: 401, message: 'Sessão expirada — entre novamente.' } }); return; }
-      return A.sendRealText(text, priorTurns, token, { uiSubmitAt: uiSubmitAt, getTokenMs: getTokenMs, turnIndex: turnIndex }).then(applyResult);
-    }).catch(function () {
-      applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
+    isTextSurfaceEnabled().then(function (enabled) {
+      if (!enabled) {
+        // Same error shape/status the server itself would return for
+        // this exact condition (errorMessageForStatus(503) in the
+        // adapter) -- applyResult()'s own existing 503 handling
+        // (TEXT_STATES.DISABLED, composer disabled, no retry loop)
+        // applies unchanged. No network request was made: sendRealText
+        // is never called on this path.
+        applyResult({ error: { status: 503, message: 'Brabus Intelligence está temporariamente indisponível.' } });
+        return;
+      }
+      // IA-3G.5A -- getAccessToken() calls the real Supabase SDK's own
+      // auth.getSession(), which can silently perform a real network
+      // token-refresh call before resolving (supabase-js's own documented
+      // behavior when the current access token is expired/near-expiry) --
+      // a plausible pre-fetch delay entirely invisible to Edge-side
+      // instrumentation. Measured here, separately from the fetch() that
+      // follows, specifically to test that hypothesis with real numbers.
+      var t_getToken = Date.now();
+      window.NX_AUTH.getAccessToken().then(function (token) {
+        var getTokenMs = Date.now() - t_getToken;
+        if (!token) { applyResult({ error: { status: 401, message: 'Sessão expirada — entre novamente.' } }); return; }
+        return A.sendRealText(text, priorTurns, token, { uiSubmitAt: uiSubmitAt, getTokenMs: getTokenMs, turnIndex: turnIndex }).then(applyResult);
+      }).catch(function () {
+        applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
+      });
     });
   }
 
