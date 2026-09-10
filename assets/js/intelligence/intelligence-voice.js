@@ -568,6 +568,24 @@
      MOUNT
      ============================================================ */
 
+  // IA-3H.2.1C: the "Voice Diag" toggle/panel is a dev-only affordance
+  // that must never appear in normal product UI (Human explicitly
+  // rejected its permanent visibility) -- but this Wave must not
+  // destroy the underlying diagnostics themselves (diagPush/persistDiag
+  // keep recording to localStorage regardless, unconditionally, for
+  // NX_INTELLIGENCE_VOICE.diagnostics()/.clearDiagnostics() and any
+  // future harness to read). Gating on LOCAL_DEV alone would NOT hide
+  // it during a normal localhost session (this Wave's own Human UAT is
+  // itself on localhost) -- an explicit, deliberate opt-in query
+  // parameter is the only signal that distinguishes "someone is
+  // intentionally debugging Voice right now" from ordinary use.
+  function diagUiRequested() {
+    try {
+      return typeof URLSearchParams !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('voiceDiag') === '1';
+    } catch (e) { return false; }
+  }
+
   function mount() {
     if (!window.NX_BRABUS_INTELLIGENCE_ADAPTER || !window.NX_INTELLIGENCE_STATE) {
       console.error('[intelligence-voice] a required dependency is missing -- not mounting');
@@ -575,7 +593,7 @@
     }
     A = window.NX_BRABUS_INTELLIGENCE_ADAPTER;
     S = window.NX_INTELLIGENCE_STATE;
-    buildDiagDom();
+    if (diagUiRequested()) buildDiagDom();
   }
 
   window.NX_INTELLIGENCE_VOICE = {

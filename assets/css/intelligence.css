@@ -96,22 +96,41 @@
 .baiComposerInput:focus-visible{outline:var(--focus-ring);outline-offset:2px}
 .baiComposerActions{display:flex;gap:var(--mod-space-compact);flex-shrink:0}
 
-/* ---------- Voice entry control (IA-3H.1) ----------
+/* ---------- Voice entry control (IA-3H.1, refined IA-3H.2.1C) ----------
    One affordance inside the existing composer actions -- never a
    second toolbar. State is carried by the button's own text label
-   (VOICE_LABEL_BY_STATE in intelligence-panel.js) first; the small
-   pulse dot below is a secondary, non-exclusive signal (color/motion
-   is never the only cue -- Section 44). */
-.baiVoiceBtn{display:flex;align-items:center;gap:6px;position:relative;padding:0 12px;height:40px}
-.baiVoiceBtnLabel{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.baiVoiceBtn::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--mod-muted);flex-shrink:0}
-.baiVoiceStateVOICE_LISTENING::before,.baiVoiceStateVOICE_INTERRUPTED::before{background:var(--color-accent-primary)}
-.baiVoiceStateVOICE_CONNECTING::before,.baiVoiceStateVOICE_THINKING::before{background:var(--mod-warning);animation:baiVoicePulse 1.1s ease-in-out infinite}
-.baiVoiceStateVOICE_SPEAKING::before{background:var(--color-accent-primary);animation:baiVoicePulse 1.1s ease-in-out infinite}
-.baiVoiceStateVOICE_ERROR::before{background:#e2543a}
+   (VOICE_LABEL_BY_STATE in intelligence-panel.js) first; the mini
+   Fluid Aperture mark's color/motion is a secondary, non-exclusive
+   signal (Section 44) -- never the only cue.
+
+   IA-3H.2.1C: replaces the earlier plain-link treatment (underlined
+   text + tiny dot, `.modBtnGhost`) the Human found too weak/secondary
+   -- a dark bordered surface with a small Fluid-Aperture-family mark,
+   deliberately NOT the "Enviar" primary-fill treatment and NOT a
+   neon/glowing button (Section 7). The mark is decorative-only SVG:
+   no analyser, no microphone, no second Voice runtime (Section 9). */
+.baiVoiceBtn{
+  display:flex;align-items:center;gap:8px;position:relative;padding:0 14px;height:40px;
+  background:var(--color-surface-1);border:1px solid var(--color-hairline-strong);color:var(--color-text-secondary);
+  transition:background-color .15s ease,border-color .15s ease,transform .1s ease;
+}
+.baiVoiceBtn:hover:not(:disabled){background:var(--color-surface-2);border-color:color-mix(in srgb,var(--color-accent-primary) 55%,var(--color-hairline-strong) 45%)}
+.baiVoiceBtn:hover:not(:disabled) .baiVoiceBtnMark{filter:brightness(1.25)}
+.baiVoiceBtn:active:not(:disabled){transform:scale(.97)}
+.baiVoiceBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+.baiVoiceBtn:disabled{opacity:.42;cursor:not-allowed}
+.baiVoiceBtnMark{color:var(--color-accent-primary);flex-shrink:0;transition:filter .15s ease}
+.baiVoiceBtnMarkContour{opacity:.9}
+.baiVoiceBtnMarkSeam{opacity:.5}
+.baiVoiceBtnLabel{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;color:var(--color-text-primary)}
+
+.baiVoiceStateVOICE_LISTENING .baiVoiceBtnMark,.baiVoiceStateVOICE_INTERRUPTED .baiVoiceBtnMark,.baiVoiceStateVOICE_SPEAKING .baiVoiceBtnMark{color:var(--color-accent-primary)}
+.baiVoiceStateVOICE_CONNECTING .baiVoiceBtnMark,.baiVoiceStateVOICE_THINKING .baiVoiceBtnMark{color:var(--mod-warning);animation:baiVoicePulse 1.1s ease-in-out infinite}
+.baiVoiceStateVOICE_SPEAKING .baiVoiceBtnMark{animation:baiVoicePulse 1.1s ease-in-out infinite}
+.baiVoiceStateVOICE_ERROR .baiVoiceBtnMark{color:#e2543a}
 @keyframes baiVoicePulse{0%,100%{opacity:1}50%{opacity:.35}}
 @media(prefers-reduced-motion:reduce){
-  .baiVoiceStateVOICE_CONNECTING::before,.baiVoiceStateVOICE_THINKING::before,.baiVoiceStateVOICE_SPEAKING::before{animation:none}
+  .baiVoiceStateVOICE_CONNECTING .baiVoiceBtnMark,.baiVoiceStateVOICE_THINKING .baiVoiceBtnMark,.baiVoiceStateVOICE_SPEAKING .baiVoiceBtnMark{animation:none}
 }
 
 .baiHeaderActions{display:flex;gap:var(--mod-space-compact)}
@@ -580,10 +599,18 @@
    layout authority (Section 16), this only restores the recovered
    atmosphere, never the old prototype's full-bleed chrome. */
 .baiVoiceFocusAmbientCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+/* IA-3H.2.1C: darkened from --color-elevated-surface (#191a1c, the
+   shared modal/drawer/toast token -- Section 13 forbids changing that
+   token globally) to the existing, already-darker --color-surface-2
+   (#161616) token, LOCAL to this selector only. Moves the panel toward
+   the recovered LAB's near-black hierarchy while staying one real,
+   already-established tonal step above the page/scrim behind it --
+   elevation via that step + the existing border/shadow, not via a
+   brighter gray (Section 12). */
 .baiVoiceFocusPanel{
   width:min(420px,100%);max-height:calc(100vh - var(--space-8,64px));
   display:flex;flex-direction:column;gap:var(--space-4);
-  background:var(--color-elevated-surface);border:1px solid var(--color-hairline-strong);
+  background:var(--color-surface-2);border:1px solid var(--color-hairline-strong);
   border-radius:var(--radius-lg,16px);box-shadow:var(--shadow-elevated);
   padding:var(--space-5,24px) var(--space-4);
 }

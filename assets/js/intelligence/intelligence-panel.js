@@ -578,11 +578,19 @@
     return state ? 'baiVoiceState' + state.replace('VOICE_', '') : '';
   }
 
+  // IA-3H.2.1C: the icon is a small, static Fluid-Aperture-family mark
+  // (NOT the real dynamic orb algorithm -- decorative UI only, no
+  // analyser/microphone/second Voice runtime, Section 9). A slightly
+  // irregular circular contour + a small inner seam arc, the same
+  // visual language as the real Focus Mode presence, drawn once as a
+  // hand-authored static path (no JS deformation math needed for an
+  // 18x18 icon). aria-hidden -- the button's own aria-label already
+  // carries the accessible name; this never duplicates it for AT.
   function voiceButtonHtml() {
-    return '<button type="button" class="modBtn modBtnGhost baiVoiceBtn" id="baiPanelVoiceBtn" aria-pressed="false" aria-label="Iniciar conversa por voz com a Brabus Intelligence">' +
-      '<svg class="baiVoiceBtnIcon" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-      '<path d="M10 2.5a2.5 2.5 0 0 0-2.5 2.5v4a2.5 2.5 0 0 0 5 0v-4A2.5 2.5 0 0 0 10 2.5z"/>' +
-      '<path d="M5.5 9v1a4.5 4.5 0 0 0 9 0V9"/><path d="M10 14.5v3"/><path d="M7.5 17.5h5"/>' +
+    return '<button type="button" class="modBtn baiVoiceBtn" id="baiPanelVoiceBtn" aria-pressed="false" aria-label="Iniciar conversa por voz com a Brabus Intelligence">' +
+      '<svg class="baiVoiceBtnMark" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true" focusable="false">' +
+      '<path class="baiVoiceBtnMarkContour" d="M12 3.4c1.9.2 3.9 1 5.3 2.6 1.6 1.8 2.3 4.4 1.7 6.9-.6 2.5-2.6 4.7-5.1 5.5-2.5.8-5.5.2-7.4-1.7-1.9-1.9-2.7-4.9-1.9-7.5.8-2.6 3-4.7 5.6-5.5.6-.2 1.2-.3 1.8-.3z" stroke="currentColor" stroke-width="1.6"/>' +
+      '<path class="baiVoiceBtnMarkSeam" d="M9.3 15c.9.8 2.3.9 3.4.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>' +
       '</svg>' +
       '<span class="baiVoiceBtnLabel" id="baiPanelVoiceBtnLabel">Voz</span>' +
       '</button>';
@@ -600,7 +608,7 @@
     btn.setAttribute('aria-label', isActive
       ? 'Encerrar conversa por voz com a Brabus Intelligence'
       : 'Iniciar conversa por voz com a Brabus Intelligence');
-    btn.className = 'modBtn modBtnGhost baiVoiceBtn ' + voiceStateClass(state);
+    btn.className = 'modBtn baiVoiceBtn ' + voiceStateClass(state);
   }
 
   /* ============================================================

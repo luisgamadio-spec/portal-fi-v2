@@ -7,9 +7,11 @@ Proves the new Voice entry control (inside the already Human-approved
 drawer's composer) introduces zero horizontal overflow at the 4
 required breakpoints (1366/1024/900/480), both at page level and at
 drawer/composer/status level, including while the Voice button is in
-an active (longer-label) state and while the dev-only diagnostics panel
-is open. Does not open any real/faked WebRTC session -- pure layout
-proof, flags stay false throughout (Section 53).
+an active (longer-label) state; also proves the dev-only diagnostics
+panel is absent from the normal product load (IA-3H.2.1C: opt-in only
+via ?voiceDiag=1) and, when explicitly opted into via that same query
+param, still never overflows. Does not open any real/faked WebRTC
+session -- pure layout proof, flags stay false throughout (Section 53).
 
 Requires: `python -m http.server <port>` running from this worktree's
 own root.
@@ -116,6 +118,19 @@ def main():
             check(f"{w}px: composer still non-overflowing in the longest-label state", composer_overflow_2 <= 0, composer_overflow_2)
             page.evaluate("window.NX_INTELLIGENCE_STATE.setVoiceState('VOICE_DISCONNECTED');")
 
+            # IA-3H.2.1C: the diag toggle is no longer built at all
+            # without an explicit ?voiceDiag=1 opt-in (Human-rejected
+            # permanent visibility) -- proves the NORMAL product UI
+            # (this page's own default load, no query param) never
+            # renders it, before reloading WITH the opt-in below to
+            # exercise the dev-only panel's own responsive behavior.
+            check(f"{w}px: Voice Diag toggle absent from normal product UI (no opt-in)", page.locator("#baiVoiceDiagToggle").count() == 0)
+
+            page.goto(BASE + "?voiceDiag=1#/landing")
+            page.wait_for_timeout(500)
+            set_profile(page, "AUTHORIZED", True, "MASTER")
+            open_panel(page)
+
             # Dev-only diagnostics panel (sibling of the drawer, not part
             # of the approved UI) -- must also never overflow.
             page.click("#baiVoiceDiagToggle")
@@ -145,6 +160,77 @@ def main():
                 check("480px: Voice button remains reachable alongside the mobile full-screen backdrop", page.locator("#baiPanelBackdrop").is_visible() and voice_box["width"] > 0)
 
             page.close()
+
+        # ---------- IA-3H.2.1C: Voice entry CTA structural/isolation checks ----------
+        # A single fresh page -- these are not per-breakpoint concerns.
+        GUM_GUARD = """
+        (function () {
+          window.__getUserMediaCalls = 0;
+          window.__analysersCreated = 0;
+          if (navigator.mediaDevices) {
+            navigator.mediaDevices.getUserMedia = function () {
+              window.__getUserMediaCalls++;
+              return Promise.reject(new Error('CTA must never call getUserMedia'));
+            };
+          }
+          if (window.AudioContext) {
+            var OrigAC = window.AudioContext;
+            window.AudioContext = function () {
+              var ctx = new OrigAC();
+              var origCreateAnalyser = ctx.createAnalyser.bind(ctx);
+              ctx.createAnalyser = function () { window.__analysersCreated++; return origCreateAnalyser(); };
+              return ctx;
+            };
+          }
+        })();
+        """
+        cp = browser.new_page(viewport={"width": 1366, "height": 900})
+        cp.add_init_script(GUM_GUARD)
+        cp.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+        cp.on("pageerror", lambda e: errors.append(str(e)))
+        cp.goto(BASE + "#/landing")
+        cp.wait_for_timeout(500)
+        set_profile(cp, "AUTHORIZED", True, "MASTER")
+        open_panel(cp)
+
+        check("Voice CTA is a real <button> element (semantically interactive)",
+              cp.evaluate("document.getElementById('baiPanelVoiceBtn').tagName") == "BUTTON")
+        aria_label = cp.evaluate("document.getElementById('baiPanelVoiceBtn').getAttribute('aria-label')")
+        check("Voice CTA accessible name includes 'voz'", "voz" in (aria_label or "").lower(), aria_label)
+        check("Voice CTA is keyboard-focusable (no explicit tabindex=-1)",
+              cp.evaluate("document.getElementById('baiPanelVoiceBtn').tabIndex") >= 0)
+        check("decorative mini Fluid Aperture mark is aria-hidden (no duplicate AT content)",
+              cp.evaluate("document.querySelector('#baiPanelVoiceBtn .baiVoiceBtnMark').getAttribute('aria-hidden')") == "true")
+        check("mini Fluid Aperture mark has no accessible text of its own (title/aria-label)",
+              cp.evaluate("!document.querySelector('#baiPanelVoiceBtn .baiVoiceBtnMark').hasAttribute('aria-label') && !document.querySelector('#baiPanelVoiceBtn svg title')"))
+        check("mini Fluid Aperture mark is plain SVG/CSS -- no <canvas> in the CTA (no second Voice runtime)",
+              cp.evaluate("document.querySelectorAll('#baiPanelVoiceBtn canvas').length") == 0)
+        check("old weak-link treatment (.modBtnGhost) no longer applied to the Voice CTA",
+              "modBtnGhost" not in cp.evaluate("document.getElementById('baiPanelVoiceBtn').className"))
+
+        # Enter/Space activation -- real keyboard interaction, not just
+        # an attribute check -- proves the CTA is genuinely operable.
+        real_toggle_calls = cp.evaluate(
+            """() => {
+                window.__toggleCalls = 0;
+                window.__realToggle = window.NX_INTELLIGENCE_VOICE.toggle;
+                window.NX_INTELLIGENCE_VOICE.toggle = function () { window.__toggleCalls++; };
+                document.getElementById('baiPanelVoiceBtn').focus();
+                return document.activeElement.id;
+            }"""
+        )
+        check("Voice CTA can receive real keyboard focus", real_toggle_calls == "baiPanelVoiceBtn")
+        cp.keyboard.press("Enter")
+        cp.wait_for_timeout(50)
+        check("Enter key activates the Voice CTA", cp.evaluate("window.__toggleCalls") >= 1)
+        cp.evaluate("window.NX_INTELLIGENCE_VOICE.toggle = window.__realToggle;")
+
+        check("CTA never calls getUserMedia merely by rendering/focusing/activating (decorative only)",
+              cp.evaluate("window.__getUserMediaCalls") == 0)
+        check("CTA never creates an AnalyserNode merely by rendering/focusing/activating (no duplicate analyser)",
+              cp.evaluate("window.__analysersCreated") == 0)
+
+        cp.close()
 
         browser.close()
 

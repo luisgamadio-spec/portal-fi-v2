@@ -79,10 +79,20 @@
     return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
   }
 
+  // IA-3H.2.1C fix: the recovered original's drawFluidAperture uses TWO
+  // distinct reds -- the deeper, more saturated --color-brand-red
+  // (#c1121f) for the main contour, and the lighter --color-accent-
+  // primary (#ee4b57) only for the smaller inner seam accent. The
+  // IA-3H.2.1B port collapsed both onto accent-primary alone, which is
+  // the real, evidenced root cause of the Human's "muted/desaturated"
+  // feedback -- restoring the original's own two-red split, not an
+  // arbitrary new value, is the fix (brief Section 14: "use the
+  // strongest appropriate red already available").
   function ensureOrbColors() {
     if (orbColors) return orbColors;
     var css = getComputedStyle(document.documentElement);
     orbColors = {
+      brand: (css.getPropertyValue('--color-brand-red').trim() || '#c1121f'),
       primary: (css.getPropertyValue('--color-accent-primary').trim() || '#ee4b57'),
       critical: (css.getPropertyValue('--color-critical').trim() || '#e2543a')
     };
@@ -152,8 +162,8 @@
       if (s === 0) orbCtx.moveTo(x, y); else orbCtx.lineTo(x, y);
     }
     orbCtx.closePath();
-    orbCtx.strokeStyle = orbRgba(meta.error ? c.critical : c.primary, 0.7);
-    orbCtx.lineWidth = 1.5 + energy * 1.2;
+    orbCtx.strokeStyle = orbRgba(meta.error ? c.critical : c.brand, 0.85);
+    orbCtx.lineWidth = 1.7 + energy * 1.2;
     orbCtx.stroke();
 
     // Inner seam accent -- opens/closes with energy. THINKING lets it
@@ -166,7 +176,7 @@
     if (meta.gathering) openAngle *= 0.6 + Math.sin(t * 0.0015) * 0.15;
     orbCtx.beginPath();
     orbCtx.arc(cx, cy, Rmod * 0.55, seamCenter - openAngle, seamCenter + openAngle);
-    orbCtx.strokeStyle = orbRgba(c.primary, meta.error ? 0.85 : 0.45);
+    orbCtx.strokeStyle = orbRgba(c.primary, meta.error ? 0.85 : 0.55);
     orbCtx.lineWidth = 1.2;
     orbCtx.stroke();
   }
@@ -197,7 +207,12 @@
         var y = ambientH / 2 + Math.sin(r.b * u) * ambientH * 0.36;
         if (s === 0) ambientCtx.moveTo(x, y); else ambientCtx.lineTo(x, y);
       }
-      ambientCtx.strokeStyle = orbRgba(c.primary, Math.max(0.02, 0.09 - i * 0.02));
+      // IA-3H.2.1C: opacity trimmed slightly (was 0.09/0.07/0.05) -- the
+      // same values read visually stronger against the newly darkened
+      // panel (Section 17: "re-evaluate ambient opacity" after the
+      // panel/aperture contrast changes below), so this keeps the field
+      // perceived "mostly subconsciously" rather than competing.
+      ambientCtx.strokeStyle = orbRgba(c.primary, Math.max(0.015, 0.07 - i * 0.017));
       ambientCtx.lineWidth = 0.8;
       ambientCtx.stroke();
     });
