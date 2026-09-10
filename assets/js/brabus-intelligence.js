@@ -707,6 +707,12 @@
     // exposed for tests, DOM-independent
     renderStructuredBlock: renderStructuredBlock,
     isRealTextMode: isRealTextMode,
-    renderAssistantProse: renderAssistantProse
+    renderAssistantProse: renderAssistantProse,
+    // IA-3H.1C.3 -- the one authoritative field-label/format lookup for
+    // a ranking item's own keys (RANKING_FIELD_META above), exposed so
+    // the drawer's own compact ranking-card presentation (intelligence-
+    // panel.js) can label every value correctly without maintaining a
+    // second, independently-drifting copy of this table.
+    rankingFieldMeta: fieldMeta
   };
 })();

@@ -571,6 +571,12 @@
     var edge = payload && payload._homolog_edge_timing;
     var t = {
       correlation_id: correlationId,
+      // IA-3H.1C.3 -- sanitized conversation-turn sequence number only
+      // (an integer count, never message content), so a repeated-turn
+      // latency pattern (e.g. "does turn 3+ get slower?") can be read
+      // directly off this same existing log line instead of a second,
+      // parallel telemetry system.
+      turn_index: (clientTiming && typeof clientTiming.turnIndex === 'number') ? clientTiming.turnIndex : null,
       ui_submit_at: (clientTiming && clientTiming.uiSubmitAt) || null,
       get_access_token_ms: (clientTiming && typeof clientTiming.getTokenMs === 'number') ? clientTiming.getTokenMs : null,
       client_fetch_at: clientFetchAt,

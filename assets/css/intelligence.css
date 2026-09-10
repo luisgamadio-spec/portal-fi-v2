@@ -441,6 +441,32 @@
   .baiMetricFacts{grid-template-columns:1fr}
 }
 
+/* ---------- Compact ranking cards (IA-3H.1C.3) — the `ranking` block
+   type's OWN drawer presentation, built by intelligence-panel.js's
+   rankingCardsHtml(), not by the shared table renderer (still used
+   unchanged by the routed full page and by every other structured
+   type). One labeled fact per value, same visual language as
+   .baiMetricFact/.baiOperationCard above (no new hex/shadow/radius
+   token) -- a bordered card per ranked item, never a table, so it
+   never needs a horizontal-scroll escape hatch regardless of how many
+   metric fields a real payload carries. ---------- */
+.baiRankList{display:flex;flex-direction:column;gap:8px;min-width:0}
+.baiRankCard{border:1px solid var(--mod-border);border-radius:8px;padding:10px 12px;min-width:0}
+.baiRankCardHeader{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.baiRankPos{font-family:var(--font-mono);font-size:11px;color:var(--mod-muted);flex-shrink:0}
+.baiRankName{font-weight:500;font-size:13px;overflow-wrap:break-word;min-width:0}
+.baiRankMetrics{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;min-width:0}
+.baiRankMetric{display:flex;flex-direction:column;gap:2px;min-width:0}
+.baiRankMetricLabel{margin:0;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--mod-muted)}
+.baiRankMetricValue{margin:0;font-family:var(--font-ui);font-weight:500;font-size:13px;font-variant-numeric:tabular-nums;color:var(--color-text-primary);overflow-wrap:break-word}
+/* The block's own declared primary metric (Section 13's "primary
+   metric emphasized") -- larger, accent-colored, and always the first
+   card in reading order (rankingItemKeys already sorts it first). */
+.baiRankMetricPrimary .baiRankMetricValue{font-size:15px;color:var(--color-accent-primary)}
+@media(max-width:380px){
+  .baiRankMetrics{grid-template-columns:1fr}
+}
+
 /* ---------- Composer: same rail, one composed control group ---------- */
 .baiPanelComposer{display:flex;gap:var(--space-2);align-items:flex-end;padding:var(--space-3) var(--bai-rail) var(--space-4)}
 .baiPanelComposer .baiComposerInput{

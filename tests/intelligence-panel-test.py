@@ -401,20 +401,144 @@ def main():
         check("compact metrics: long label does not escape viewport (regression guard)", ov_long["worst"] <= 0.5, ov_long)
         shot(page, "09-compact-metrics-long-label.png")
 
-        # Other structured-block types stay on the shared, unmodified renderer
+        # score_ranking/score_breakdown/operations stay on the shared,
+        # unmodified table/card renderer (P.renderStructuredBlock) --
+        # only `metrics` (IA-3E.4) and now `ranking` (IA-3H.1C.3, below)
+        # get their own drawer-only compact presentation.
         page.evaluate(
             """() => {
                 window.NX_INTELLIGENCE_STATE.resetConversation();
                 window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'r', blocks:[{
-                    type:'ranking', title:'Balão — comparação por prazo', period_label:'Simulação — não é proposta nem aprovação de crédito',
-                    dimension:'term_months', metric:'sim_payment',
-                    items:[{position:1,name:'30x',sim_payment:3620.1},{position:2,name:'36x',sim_payment:3180.45}]
+                    type:'score_ranking', title:'Ranking Score F&I — período atual',
+                    items:[{rank:1,seller:'Ana Paula Ribeiro',store:'Barra Funda',department:'NOVOS',score:87.4,classification:'Alto Desempenho',sales:12,financed:10}]
                 }], isError:false});
             }"""
         )
         page.wait_for_timeout(150)
-        check("other block types (ranking): title stays visible, unaffected by compact-metrics change", page.locator(".baiBlockTitle:visible").count() >= 1)
-        check("other block types (ranking): disclaimer period stays visible (never hidden)", "não é proposta" in page.locator(".baiAnswerMetrics").inner_text())
+        check("score_ranking: still uses the shared table renderer (unaffected by this Wave)", page.locator(".baiAnswerMetrics table").count() >= 1)
+        page.evaluate("window.NX_INTELLIGENCE_STATE.resetConversation();")
+
+        # ---------- IA-3H.1C.3: compact ranking cards (structured-response renderer fix) ----------
+        # Reproduces the real Human-visible shape from the UAT screenshot
+        # ("Qual loja teve o melhor resultado?" -> RANKING DE LOJAS POR
+        # RETORNO) generically -- real field keys from the shared,
+        # authoritative RANKING_FIELD_META (brabus-intelligence.js),
+        # never invented, never special-cased to Bandeirantes/retorno.
+        RANKING_STORES_FIXTURE = {
+            "type": "ranking", "title": "Ranking de Lojas por Retorno", "period_label": "mês anterior",
+            "dimension": "store", "metric": "return",
+            "items": [
+                {"position": 1, "name": "Bandeirantes", "return": 197172.96, "sales": 84, "financed": 33, "penetration_percent": 39.3, "production": 4050000, "return_avg_percent": 4.9},
+                {"position": 2, "name": "Loja com Nome Extremamente Longo Para Teste de Quebra", "return": 152300.5, "sales": 61, "financed": 28, "penetration_percent": 45.9, "production": 128456789.99, "return_avg_percent": 87.65},
+                {"position": 3, "name": "Nações", "return": 98450.1, "sales": 40, "financed": 15, "penetration_percent": 37.5, "production": 2100000, "return_avg_percent": 4.1},
+            ],
+        }
+        page.evaluate(
+            """(block) => {
+                window.NX_INTELLIGENCE_STATE.resetConversation();
+                window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'Bandeirantes teve o maior retorno; Nações teve o maior retorno médio.', blocks:[block], isError:false});
+            }""",
+            RANKING_STORES_FIXTURE,
+        )
+        page.wait_for_timeout(150)
+        # NOTE: .baiBlockTitle/.baiRankMetricLabel both carry an
+        # intentional `text-transform:uppercase` (matching the existing
+        # .baiMetricFactLabel/.baiBlockTitle visual convention elsewhere
+        # in this file/CSS) -- Playwright's inner_text() returns the
+        # RENDERED (post-CSS-transform) text, so label/title assertions
+        # below compare case-insensitively; .baiRankName carries no such
+        # transform, so entity-name assertions stay case-sensitive.
+        check("ranking cards: narrative answer preserved above the structured evidence", "maior retorno" in page.locator("#baiPanelConversation").inner_text())
+        check("ranking cards: title preserved", "RANKING DE LOJAS POR RETORNO" in page.locator(".baiBlockTitle").inner_text().upper())
+        check("ranking cards: period label preserved", "mês anterior" in page.locator(".baiBlockPeriod").inner_text().lower())
+        check("ranking cards: rendered as cards, not a table (Section 11)", page.locator(".baiAnswerMetrics table").count() == 0 and page.locator(".baiRankCard").count() == 3)
+        rank_text = page.locator(".baiRankList").inner_text()
+        rank_text_upper = rank_text.upper()
+        check("ranking cards: every item has a semantic label, not a raw field key (Section 10)", "RETURN_AVG_PERCENT" not in rank_text_upper and "PENETRATION_PERCENT" not in rank_text_upper)
+        check("ranking cards: semantic label 'Retorno' present", "RETORNO" in rank_text_upper)
+        check("ranking cards: semantic label 'Vendas' present", "VENDAS" in rank_text_upper)
+        check("ranking cards: semantic label 'Financiamentos' present", "FINANCIAMENTOS" in rank_text_upper)
+        check("ranking cards: semantic label 'Penetração' present", "PENETRA" in rank_text_upper)
+        check("ranking cards: semantic label 'Produção' present", "PRODU" in rank_text_upper)
+        check("ranking cards: rank #1 visible", "#1" in rank_text)
+        check("ranking cards: entity name visible (Bandeirantes)", "Bandeirantes" in rank_text)
+        check("ranking cards: order preserved (Bandeirantes before Nações)", rank_text.index("Bandeirantes") < rank_text.index("Nações"))
+        check("ranking cards: large money formatted (R$ ... mi, real formatValue, not a raw number)", "128,46 mi" in rank_text or "128.46 mi" in rank_text or "mi" in rank_text)
+        check("ranking cards: percent value formatted with a %", "87,7%" in rank_text or "87,6%" in rank_text or "87.7%" in rank_text or "87.6%" in rank_text)
+        check("ranking cards: long entity name present in full, never truncated/hidden", "Loja com Nome Extremamente Longo Para Teste de Quebra" in rank_text)
+        primary_label = page.locator(".baiRankCard").first.locator(".baiRankMetricPrimary .baiRankMetricLabel").inner_text()
+        check("ranking cards: primary metric (return) emphasized as the first card in reading order", primary_label.strip().upper() == "RETORNO")
+
+        # Fallback for an unknown field -- never an anonymous number.
+        page.evaluate(
+            """() => {
+                window.NX_INTELLIGENCE_STATE.resetConversation();
+                window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'r', blocks:[{
+                    type:'ranking', title:'Campo desconhecido', dimension:'store', metric:'a_never_before_seen_field',
+                    items:[{position:1,name:'Loja X', a_never_before_seen_field: 4242}]
+                }], isError:false});
+            }"""
+        )
+        page.wait_for_timeout(150)
+        fallback_text = page.locator(".baiRankList").inner_text()
+        # fieldMeta's own fallback ({label: key, format: null}) formats
+        # the raw number via the generic pt-BR branch (thousands
+        # separator, e.g. "4.242"), not a plain "4242" string -- this
+        # checks for that real formatted output, not a guessed shape.
+        check("ranking cards: unknown field gets a safe readable fallback label (the raw key), never a blank/anonymous value", "A_NEVER_BEFORE_SEEN_FIELD" in fallback_text.upper() and "4.242" in fallback_text)
+
+        # Empty items -- safe message, never a blank card region.
+        page.evaluate(
+            """() => {
+                window.NX_INTELLIGENCE_STATE.resetConversation();
+                window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'r', blocks:[{type:'ranking', title:'Sem dados', dimension:'store', metric:'return', items:[]}], isError:false});
+            }"""
+        )
+        page.wait_for_timeout(150)
+        check("ranking cards: empty items shows a safe message, not a blank region", "Sem itens" in page.locator(".baiAnswerMetrics").inner_text())
+
+        # ---------- Component-level + responsive zero-scroll proof (Section 12/31/32) ----------
+        # scrollWidth<=clientWidth alone can pass on an element with
+        # overflow-x:auto and a hidden scrollbar (Section 31's own
+        # explicit warning) -- this renderer uses no overflow-x:auto
+        # anywhere, so the same check here is a genuine proof, not a
+        # false negative in waiting.
+        page.evaluate(
+            """(block) => {
+                window.NX_INTELLIGENCE_STATE.resetConversation();
+                window.NX_INTELLIGENCE_STATE.pushMessage({role:'assistant', content:'r', blocks:[block], isError:false});
+            }""",
+            RANKING_STORES_FIXTURE,
+        )
+        page.wait_for_timeout(150)
+        for w in (1366, 1024, 900, 480, 375):
+            page.set_viewport_size({"width": w, "height": 900})
+            page.wait_for_timeout(80)
+            widths = page.evaluate(
+                """() => {
+                    function w(sel) { var el = document.querySelector(sel); return el ? {scrollWidth: el.scrollWidth, clientWidth: el.clientWidth} : null; }
+                    return { list: w('.baiRankList'), card: w('.baiRankCard'), metrics: w('.baiRankMetrics'), drawer: w('#baiPanelDrawer') };
+                }"""
+            )
+            check(f"{w}px: ranking list component no overflow (scrollWidth<=clientWidth)", widths["list"] and widths["list"]["scrollWidth"] <= widths["list"]["clientWidth"] + 1, widths["list"])
+            check(f"{w}px: ranking card component no overflow", widths["card"] and widths["card"]["scrollWidth"] <= widths["card"]["clientWidth"] + 1, widths["card"])
+            check(f"{w}px: ranking metrics grid no overflow", widths["metrics"] and widths["metrics"]["scrollWidth"] <= widths["metrics"]["clientWidth"] + 1, widths["metrics"])
+            check(f"{w}px: drawer wrapper no overflow", widths["drawer"] and widths["drawer"]["scrollWidth"] <= widths["drawer"]["clientWidth"], widths["drawer"])
+            page_overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+            check(f"{w}px: page no horizontal overflow", page_overflow <= 0, page_overflow)
+            tov = true_overflow(page)
+            check(f"{w}px: no element truly escapes the viewport (ranking cards)", tov["worst"] <= 0.5, tov)
+        shot(page, "12-ranking-cards-drawer.png")
+        # IA-3H.1C.3 -- restore the page's own original viewport (this
+        # sweep leaves it at the LAST tested width, 375px) before the
+        # next section runs; that section forces the drawer's own width
+        # directly via inline style, but still assumes the page's real
+        # viewport is the original 1366x768 (found live: leaving the
+        # viewport at 375px made the immediately-following container-
+        # query check intermittently read a stale/mobile-constrained
+        # layout instead of the forced 700px content width).
+        page.set_viewport_size({"width": 1366, "height": 768})
+        page.wait_for_timeout(80)
         page.evaluate("window.NX_INTELLIGENCE_STATE.resetConversation();")
 
         # ---------- IA-3G.1/IA-3G.3: comparison block overflow + density regression ----------

@@ -224,10 +224,35 @@
     // more than Text already would for the same conversation length).
     S.pushMessage({ role: 'user', content: message, blocks: null, isError: false });
     var prior = S.getConversation().slice(0, -1);
+    // IA-3H.1C.3 -- same sanitized turn-sequence number Text's own
+    // handleSendRealText computes (a plain count, never content), and
+    // the SAME _devTiming hook (buildDevTiming, already proven for
+    // Text) reused here rather than inventing a second timing shape --
+    // this bridge previously only ever measured one end-to-end number
+    // (the diagPush('tool_call',...) ms below), with no visibility into
+    // which stage (client round trip vs. Edge-internal processing)
+    // dominates a slow turn.
+    var turnIndex = prior.filter(function (m) { return m.role === 'user'; }).length + 1;
     return window.NX_AUTH.getAccessToken().then(function (token) {
-      return A.sendRealText(message, prior, token);
+      return A.sendRealText(message, prior, token, { uiSubmitAt: t0, turnIndex: turnIndex });
     }).then(function (result) {
-      diagPush('tool_call', { ms: Date.now() - t0, ok: !result.error });
+      diagPush('tool_call', { ms: Date.now() - t0, ok: !result.error, turn: turnIndex });
+      if (result._devTiming) {
+        // Same shape/prefix as intelligence-panel.js's own logDevTiming
+        // -- numbers, a random correlation id, and an opaque Edge
+        // instance id only, never prompt/reply content. Not extracted
+        // into a shared helper across these two sibling files (neither
+        // imports the other -- matches this codebase's existing
+        // module-boundary convention), but intentionally the exact same
+        // three lines/shape, not a new logging format.
+        var out = {};
+        for (var k in result._devTiming) out[k] = result._devTiming[k];
+        var now = Date.now();
+        if (result._devTiming.client_receive_at) out.render_ms = now - result._devTiming.client_receive_at;
+        out.total_ui_ms = now - t0;
+        // eslint-disable-next-line no-console
+        console.log('[bai-timing]', out);
+      }
       var stale = callId !== latestCallId;
       if (result.error) {
         if (!stale) S.pushMessage({ role: 'assistant', content: result.error.message, blocks: null, isError: true });

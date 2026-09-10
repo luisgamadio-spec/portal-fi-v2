@@ -142,8 +142,82 @@
     return '<div class="baiCompactMetrics">' + headingSr + stripHtml + factsHtml + '</div>';
   }
 
+  /* ---------- Compact ranking cards (IA-3H.1C.3) ----------
+     Human evidence ("Qual loja teve o melhor resultado?" -> "RANKING DE
+     LOJAS POR RETORNO") found the shared `ranking` renderer's wide,
+     multi-column <table> (brabus-intelligence.js's renderRanking, still
+     used unmodified by the routed full-page module and by every OTHER
+     structured-block type here) unreadable once compressed into this
+     420px drawer -- numeric values sat under raw/near-raw column
+     headers with no per-value label, exactly the "compressed desktop
+     table" the brief calls out. This mirrors compactMetricsHtml's own
+     precedent (a drawer-only presentation, built from the SAME shared,
+     authoritative field metadata -- P.rankingFieldMeta -- never a
+     second guessed label table) instead of reformatting the table:
+     one labeled fact per value, so a single card is understandable on
+     its own (Section 15's own bar: "screenshot one card and still
+     understand what each number means"). Generic by construction --
+     covers every real `ranking` payload (Resultado/Balão/Subsidiado/
+     Coparticipado/Histórico all share this exact {dimension, metric,
+     items:[{position,name,...}]} shape, already proven in intelligence-
+     structured-block-test.py), not special-cased to stores or to this
+     one screenshot's "retorno" metric. Only the `ranking` type is
+     handled here -- score_ranking (a fixed, different item shape, not
+     implicated by the Human's evidence) keeps using the shared
+     renderer's own table, unchanged, per the same narrow-scope
+     discipline IA-3E.4 already established for `metrics`. */
+
+  function rankingItemKeys(item, primaryMetric) {
+    var keys = Object.keys(item).filter(function (k) { return k !== 'position' && k !== 'name'; });
+    // The block's own declared primary metric (e.g. "return" for a
+    // retorno ranking) leads -- same ordering rule as the shared
+    // table renderer, so which value is "the point" of this ranking
+    // never disagrees between the two presentations.
+    if (primaryMetric && keys.indexOf(primaryMetric) > 0) {
+      keys.splice(keys.indexOf(primaryMetric), 1);
+      keys.unshift(primaryMetric);
+    }
+    return keys;
+  }
+
+  function rankingMetricHtml(key, value, isPrimary) {
+    var meta = P.rankingFieldMeta(key);
+    var f = A.formatValue(value, meta.format);
+    var titleAttr = f.title ? ' title="' + esc(f.title) + '"' : '';
+    return '<div class="baiRankMetric' + (isPrimary ? ' baiRankMetricPrimary' : '') + '">' +
+      '<p class="baiRankMetricLabel">' + esc(meta.label) + '</p>' +
+      '<p class="baiRankMetricValue"' + titleAttr + '>' + esc(f.text) + '</p></div>';
+  }
+
+  function rankingCardHtml(item, idx, keys) {
+    var pos = (item.position !== undefined && item.position !== null) ? item.position : idx + 1;
+    var name = (item.name !== undefined && item.name !== null) ? String(item.name) : '';
+    var metricsHtml = keys.map(function (k, ki) { return rankingMetricHtml(k, item[k], ki === 0); }).join('');
+    return '<div class="baiRankCard">' +
+      '<div class="baiRankCardHeader"><span class="baiRankPos">#' + esc(String(pos)) + '</span>' +
+      '<span class="baiRankName">' + esc(name) + '</span></div>' +
+      '<div class="baiRankMetrics">' + metricsHtml + '</div></div>';
+  }
+
+  function rankingCardsHtml(block) {
+    var items = Array.isArray(block.items) ? block.items : [];
+    var headingParts = [block.title, block.period_label].filter(function (v) { return !!v; });
+    var headingHtml = headingParts.length
+      ? '<h2 class="baiBlockTitle">' + esc(block.title || '') + '</h2>' + (block.period_label ? '<p class="baiBlockPeriod">' + esc(block.period_label) + '</p>' : '')
+      : '';
+    if (!items.length) {
+      return '<div class="baiBlockPanel">' + headingHtml + '<p class="modMuted">Sem itens para exibir.</p></div>';
+    }
+    var keys = rankingItemKeys(items[0], block.metric);
+    var listHtml = items.map(function (it, idx) { return rankingCardHtml(it, idx, keys); }).join('');
+    return '<div class="baiBlockPanel">' + headingHtml + '<div class="baiRankList">' + listHtml + '</div></div>';
+  }
+
   function renderOneBlock(block) {
-    return block && block.type === 'metrics' ? compactMetricsHtml(block) : P.renderStructuredBlock(block);
+    if (!block) return '';
+    if (block.type === 'metrics') return compactMetricsHtml(block);
+    if (block.type === 'ranking') return rankingCardsHtml(block);
+    return P.renderStructuredBlock(block);
   }
 
   function messageHtml(msg) {
@@ -337,6 +411,11 @@
       applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
       return;
     }
+    // IA-3H.1C.3 -- sanitized turn sequence number (a plain count of the
+    // Human's own prior questions in this conversation, never content),
+    // carried through to _devTiming so a multi-turn latency pattern is
+    // readable directly off the existing [bai-timing] log line.
+    var turnIndex = priorTurns.filter(function (m) { return m.role === 'user'; }).length + 1;
     // IA-3G.5A -- getAccessToken() calls the real Supabase SDK's own
     // auth.getSession(), which can silently perform a real network
     // token-refresh call before resolving (supabase-js's own documented
@@ -348,7 +427,7 @@
     window.NX_AUTH.getAccessToken().then(function (token) {
       var getTokenMs = Date.now() - t_getToken;
       if (!token) { applyResult({ error: { status: 401, message: 'Sessão expirada — entre novamente.' } }); return; }
-      return A.sendRealText(text, priorTurns, token, { uiSubmitAt: uiSubmitAt, getTokenMs: getTokenMs }).then(applyResult);
+      return A.sendRealText(text, priorTurns, token, { uiSubmitAt: uiSubmitAt, getTokenMs: getTokenMs, turnIndex: turnIndex }).then(applyResult);
     }).catch(function () {
       applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
     });
