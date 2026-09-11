@@ -1,0 +1,73 @@
+<!doctype html>
+<!-- SIM-NAV-LAB-1 -- Premium Simulator Navigation LAB.
+
+     Development-only Human review artifact. NOT linked from production
+     navigation, NOT registered in config/module-registry.json, NOT
+     reachable through normal Portal cards, NOT used by either real
+     simulator. Exists solely to let the Human compare four navigation
+     concepts for the option area above Simulador de Financiamento --
+     Novos/Seminovos, side by side, before any real implementation.
+
+     Reuses the REAL, unmodified, already-approved Portal V2 design
+     authority (fonts.css / design-tokens.css / module-system.css,
+     read-only <link>s, never edited) so the comparison is honest --
+     this LAB should feel native to the current Portal, not a
+     disconnected mockup. All LAB-specific navigation-concept styling
+     lives in its own file (simuladores-navigation-lab.css), never
+     mixed into the shared production stylesheets. -->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAB — Navegação dos Simuladores (SIM-NAV-LAB-1)</title>
+<link rel="stylesheet" href="../assets/css/vendor/fonts.css">
+<link rel="stylesheet" href="../assets/css/vendor/design-tokens.css">
+<link rel="stylesheet" href="../assets/css/module-system.css">
+<link rel="stylesheet" href="simuladores-navigation-lab.css">
+</head>
+<body>
+
+<div class="labShell">
+
+  <header class="labHeader">
+    <div class="labHeaderTop">
+      <span class="labTag">SIM-NAV-LAB-1 — LAB interno, não é Portal real</span>
+      <label class="labInventoryToggle">
+        <span class="labInventoryToggleLabel">Inventário</span>
+        <span class="labSeg" id="labInventorySeg" role="radiogroup" aria-label="Inventário do simulador">
+          <button type="button" class="labSegBtn active" data-inventory="novos" role="radio" aria-checked="true">Novos</button>
+          <button type="button" class="labSegBtn" data-inventory="seminovos" role="radio" aria-checked="false">Seminovos</button>
+        </span>
+      </label>
+    </div>
+    <p class="labIntro">Comparação isolada de quatro conceitos de navegação para a área de opções dos Simuladores. Mesmo conteúdo, mesma estrutura semântica (Financiamento / Campanhas / Ferramentas) em todos os conceitos — apenas a apresentação muda. Nenhum simulador aprovado foi alterado.</p>
+  </header>
+
+  <nav class="labConceptSwitch" aria-label="Seleção de conceito">
+    <button type="button" class="labConceptBtn active" data-concept="a">A · Segmented</button>
+    <button type="button" class="labConceptBtn" data-concept="b">B · Tiles</button>
+    <button type="button" class="labConceptBtn" data-concept="c">C · Cockpit</button>
+    <button type="button" class="labConceptBtn" data-concept="d">D · Hybrid</button>
+    <span class="labConceptSwitchSep" aria-hidden="true"></span>
+    <button type="button" class="labConceptBtn labCompareBtn" data-concept="compare">Comparar todos</button>
+  </nav>
+
+  <main id="labStage" class="labStage"></main>
+
+  <section class="labReview" aria-labelledby="labReviewTitle">
+    <h2 id="labReviewTitle" class="labReviewTitle">Checklist de revisão (Human, informativo)</h2>
+    <ol class="labReviewList">
+      <li>Qual parece mais premium?</li>
+      <li>Qual parece mais integrado ao Portal V2?</li>
+      <li>Qual tem melhor leitura?</li>
+      <li>Qual parece menos "botão de sistema"?</li>
+      <li>Qual interação parece mais sofisticada?</li>
+      <li>Qual você escolheria como base?</li>
+    </ol>
+  </section>
+
+</div>
+
+<script src="simuladores-navigation-lab.js"></script>
+</body>
+</html>
