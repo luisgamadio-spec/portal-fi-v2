@@ -213,6 +213,104 @@
     return '<div class="baiBlockPanel">' + headingHtml + '<div class="baiRankList">' + listHtml + '</div></div>';
   }
 
+  /* ---------- Financing plan cards (IA-3J.4C) ----------
+     Real Human UAT ("continua confuso... precisamos separar em cards
+     para entender do que se trata cada plano") traced to
+     compactMetricsHtml above: it renders a metrics block's own
+     title/period as screen-reader-ONLY (baiSrOnly), which is exactly
+     right for a block whose title just repeats what the prose already
+     said (e.g. "Resultado do Grupo — Mês Anterior") -- but wrong for a
+     financing recommendation, where the title is the ONLY thing
+     distinguishing "this is Balão" from "this is Linear". Human was
+     left reading an anonymous metric grid and inferring the plan from
+     field names alone.
+
+     buildBalaoMetricsBlock/buildSimulationMetricsBlock (portal-ai-
+     homolog, IA-3J.4C) now attach an explicit `financing_card`
+     object to exactly these two block shapes (payment mode only) --
+     {kind:"BALAO"|"LINEAR", term_months, monthly_payment, down_payment,
+     financed_amount, balloons?, target_payment, target_distance} --
+     presentation metadata only, never consumed by any calculation.
+     This is a robust, non-title-parsing signal; every OTHER metrics
+     block (Score, Comissões, Resultado, Coparticipado, etc.) has no
+     financing_card and keeps using compactMetricsHtml completely
+     unchanged below. */
+
+  function hasFinancingCard(block) {
+    return !!(block && block.type === 'metrics' && block.financing_card);
+  }
+
+  function financingPlanFactHtml(label, value, format) {
+    var f = A.formatValue(value, format);
+    var titleAttr = f.title ? ' title="' + esc(f.title) + '"' : '';
+    return '<div class="baiPlanFact"><p class="baiPlanFactLabel">' + esc(label) + '</p>' +
+      '<p class="baiPlanFactValue"' + titleAttr + '>' + esc(f.text) + '</p></div>';
+  }
+
+  function financingPlanCardHtml(block, isPrimary) {
+    var fc = block.financing_card;
+    var kindLabel = fc.kind === 'BALAO' ? 'Balão' : 'Linear';
+    var cardClass = 'baiPlanCard' + (isPrimary ? ' baiPlanCardPrimary' : ' baiPlanCardSecondary');
+    var badgeHtml = isPrimary ? '<p class="baiPlanCardBadge">Recomendado</p>' : '';
+    var heroValue = A.formatValue(fc.monthly_payment, 'currency');
+    var headerHtml =
+      '<div class="baiPlanCardHeader">' + badgeHtml +
+      '<p class="baiPlanCardKind">' + esc(kindLabel) + ' · ' + esc(String(fc.term_months)) + ' meses</p>' +
+      '<p class="baiPlanCardHero">' + esc(heroValue.text) + '<span class="baiPlanCardHeroUnit"> /mês</span></p>' +
+      '</div>';
+
+    var facts = [];
+    if (fc.down_payment != null) facts.push(financingPlanFactHtml('Entrada', fc.down_payment, 'currency'));
+    if (fc.financed_amount != null) facts.push(financingPlanFactHtml('Financiado', fc.financed_amount, 'currency'));
+    var factsHtml = facts.length ? '<div class="baiPlanCardFacts">' + facts.join('') + '</div>' : '';
+
+    var balloonsHtml = '';
+    if (Array.isArray(fc.balloons) && fc.balloons.length) {
+      var balloonItems = fc.balloons.map(function (b, i) {
+        return financingPlanFactHtml('Balão ' + (i + 1) + ' · mês ' + b.month, b.value, 'currency');
+      }).join('');
+      balloonsHtml = '<div class="baiPlanCardFacts baiPlanCardBalloons">' + balloonItems + '</div>';
+    }
+
+    var targetHtml = '';
+    if (fc.target_payment != null && fc.target_distance != null) {
+      var distFmt = A.formatValue(fc.target_distance, 'currency');
+      var direction = fc.monthly_payment <= fc.target_payment ? 'abaixo da meta' : 'acima da meta';
+      targetHtml = '<p class="baiPlanCardTarget">' + esc(distFmt.text) + ' ' + esc(direction) +
+        ' (meta: ' + esc(A.formatValue(fc.target_payment, 'currency').text) + ')</p>';
+    }
+
+    return '<div class="' + cardClass + '">' + headerHtml + factsHtml + balloonsHtml + targetHtml + '</div>';
+  }
+
+  /* Groups ALL financing-plan blocks in one message's blocks[] and
+     decides which is visually primary -- purely by comparing
+     target_distance (the exact "closest to the target the Human
+     stated" semantic IA-3J.4A already made authoritative backend-side,
+     applied here across independent tool calls/blocks). Falls back to
+     "first one in the array" only when no block carries a usable
+     distance (e.g. no target_payment was ever given) -- reading order,
+     never an invented ranking. Every non-financing block in the same
+     message renders through the existing, unmodified renderOneBlock. */
+  function renderBlocksHtml(blocks) {
+    var financing = blocks.filter(hasFinancingCard);
+    if (!financing.length) return blocks.map(renderOneBlock).join('');
+
+    var primary = financing[0];
+    var haveDistances = financing.every(function (b) { return b.financing_card.target_distance != null; });
+    if (haveDistances) {
+      primary = financing.reduce(function (best, b) {
+        return b.financing_card.target_distance < best.financing_card.target_distance ? b : best;
+      });
+    }
+
+    var groupHtml = '<div class="baiPlanCardGroup">' +
+      financing.map(function (b) { return financingPlanCardHtml(b, b === primary); }).join('') +
+      '</div>';
+    var otherHtml = blocks.filter(function (b) { return !hasFinancingCard(b); }).map(renderOneBlock).join('');
+    return groupHtml + otherHtml;
+  }
+
   function renderOneBlock(block) {
     if (!block) return '';
     if (block.type === 'metrics') return compactMetricsHtml(block);
@@ -244,7 +342,7 @@
     var proseHtml = '<div class="baiAnswerProse baiBubbleMd">' + P.renderAssistantProse(msg.content) + '</div>';
     var metricsHtml = '';
     if (Array.isArray(msg.blocks) && msg.blocks.length) {
-      metricsHtml = '<div class="baiAnswerMetrics">' + msg.blocks.map(renderOneBlock).join('') + '</div>';
+      metricsHtml = '<div class="baiAnswerMetrics">' + renderBlocksHtml(msg.blocks) + '</div>';
     }
     return '<div class="baiMessage ' + roleClass + '">' + labelHtml + proseHtml + metricsHtml + '</div>';
   }
