@@ -87,6 +87,16 @@ def main():
         results.append(("Gate25/no_empty_groups", "" not in group_labels and len(group_labels) == len(set(group_labels))))
 
         def select_mode(mode):
+            # SIM-NAV-4 (F.2, Human-approved): rows now stay hidden/inert
+            # until their category header is opened, so the owning
+            # category must be opened first (self-discovered via
+            # closest('.smModeGroup'), not a hardcoded mode->group map).
+            group = page.eval_on_selector(
+                f'.smModeBtn[data-mode="{mode}"]',
+                "el => el.closest('.smModeGroup').querySelector('.smModeGroupHeader').getAttribute('data-group')",
+            )
+            page.click(f'.smModeGroupHeader[data-group="{group}"]')
+            page.wait_for_timeout(80)
             page.click(f'.smModeBtn[data-mode="{mode}"]')
             page.wait_for_timeout(80)
 

@@ -58,6 +58,20 @@ def main():
         page.goto(URL)
         page.wait_for_timeout(400)
 
+        # SIM-NAV-4 (F.2, Human-approved): rows now stay hidden/inert
+        # until their category header is opened, so every mode switch in
+        # this file must open the owning category first (self-discovered
+        # via closest('.smModeGroup'), not a hardcoded mode->group map).
+        def select_mode(mode):
+            group = page.eval_on_selector(
+                f'.smModeBtn[data-mode="{mode}"]',
+                "el => el.closest('.smModeGroup').querySelector('.smModeGroupHeader').getAttribute('data-group')",
+            )
+            page.click(f'.smModeGroupHeader[data-group="{group}"]')
+            page.wait_for_timeout(80)
+            page.click(f'.smModeBtn[data-mode="{mode}"]')
+            page.wait_for_timeout(80)
+
         # ==================== balloonScheduleSummary ====================
         def summary(prazo, parcela, baloes):
             return page.evaluate(
@@ -146,7 +160,7 @@ def main():
         results.append(("balancedColumns: 1 term -> 1 column", c == 1, c))
 
         # ==================== Live DOM: currency width/duplication ====================
-        page.click('.smModeBtn[data-mode="tradicional"]')
+        select_mode("tradicional")
         page.wait_for_timeout(100)
         page.fill("#nBem", "150000")
         page.click("#nEntrada")  # blur nBem -- not mask-wired in Tradicional, expect raw digits unchanged
@@ -173,14 +187,14 @@ def main():
         trad_buttons = page.evaluate("document.querySelectorAll('#nPrazo button').length")
         results.append(("term_grid: Tradicional renders exactly 7 term buttons", trad_buttons == 7, trad_buttons))
 
-        page.click('.smModeBtn[data-mode="periodico"]')
+        select_mode("periodico")
         page.wait_for_timeout(100)
         period_buttons = page.evaluate("document.querySelectorAll('#nPrazo button').length")
         results.append(("term_grid: Periodico renders exactly 3 term buttons", period_buttons == 3, period_buttons))
 
         # No isolated single button in the last row of the rendered grid at
         # a narrow simulated width (structural check via --term-cols).
-        page.click('.smModeBtn[data-mode="tradicional"]')
+        select_mode("tradicional")
         page.wait_for_timeout(100)
         page.set_viewport_size({"width": 390, "height": 900})
         page.wait_for_timeout(150)
@@ -192,8 +206,7 @@ def main():
         # ==================== PORTAL-NEXT-08.3 Gate 28 ====================
 
         def click_mode(mode):
-            page.click(f'.smModeBtn[data-mode="{mode}"]')
-            page.wait_for_timeout(80)
+            select_mode(mode)
 
         def result_field(label_text):
             return page.evaluate(

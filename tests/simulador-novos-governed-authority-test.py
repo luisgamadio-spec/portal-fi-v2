@@ -136,8 +136,21 @@ def mount(page):
     page.evaluate("window.NX_SIMULADOR_NOVOS_PAGE.render(document.getElementById('smOutlet'))")
 
 
+# SIM-NAV-4 (F.2, Human-approved): rows now stay hidden/inert until
+# their category header is opened, so every mode switch in this file
+# must open the owning category first (self-discovered via
+# closest('.smModeGroup'), not a hardcoded mode->group map).
+def select_mode(page, mode):
+    group = page.eval_on_selector(
+        f'.smModeBtn[data-mode="{mode}"]',
+        "el => el.closest('.smModeGroup').querySelector('.smModeGroupHeader').getAttribute('data-group')",
+    )
+    page.click(f'.smModeGroupHeader[data-group="{group}"]')
+    page.click(f'.smModeBtn[data-mode="{mode}"]')
+
+
 def enter_campanha(page):
-    page.click('.smModeBtn[data-mode="campanha"]')
+    select_mode(page, "campanha")
 
 
 def wait_camp_state(page, state, timeout_ms=5000):
@@ -338,7 +351,7 @@ def main():
         mount(page)
         enter_campanha(page)
         wait_camp_state(page, "READY")
-        page.click('.smModeBtn[data-mode="tradicional"]')
+        select_mode(page, "tradicional")
         enter_campanha(page)
         page.wait_for_timeout(150)
         check("11: governed authority loaded once per session (cached across mode re-entry)", call_count["n"] == 1)
@@ -348,7 +361,7 @@ def main():
         page = new_page(browser)
         page.route(GOVERNED_RPC_URL + "*", json_route(200, GOVERNED_CONTRACT))
         mount(page)
-        page.click('.smModeBtn[data-mode="linear"]')
+        select_mode(page, "linear")
         page.fill("#nBem", "100000")
         page.fill("#nEntrada", "20000")
         page.wait_for_timeout(120)

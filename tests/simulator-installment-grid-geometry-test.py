@@ -66,6 +66,19 @@ def check(label, cond):
     results.append((label, bool(cond)))
 
 
+# SIM-NAV-4 (F.2, Human-approved): rows now stay hidden/inert until
+# their category header is opened, so every mode switch in this file
+# must open the owning category first (self-discovered via
+# closest('.smModeGroup'), not a hardcoded mode->group map).
+def select_mode(page, mode):
+    group = page.eval_on_selector(
+        f'.smModeBtn[data-mode="{mode}"]',
+        "el => el.closest('.smModeGroup').querySelector('.smModeGroupHeader').getAttribute('data-group')",
+    )
+    page.click(f'.smModeGroupHeader[data-group="{group}"]')
+    page.click(f'.smModeBtn[data-mode="{mode}"]')
+
+
 def analyze_grid(page):
     return page.evaluate(
         """
@@ -168,7 +181,7 @@ def main():
             page.wait_for_function("!!window.NX_SIMULADOR_NOVOS_PAGE")
             page.evaluate("window.NX_SIMULADOR_NOVOS_PAGE.render(document.getElementById('smOutlet'))")
 
-            page.click('.smModeBtn[data-mode="campanha"]')
+            select_mode(page, "campanha")
             page.wait_for_function("window.NX_SIMULADOR_NOVOS_PAGE.getCampState() === 'READY'")
             page.select_option("#nModelo", "ECLIPSE CROSS RUSH")
             page.fill("#nSale", "200000")
@@ -182,7 +195,7 @@ def main():
             check(f"Novos Coparticipado @{width}px: grid wrapper horizontal overflow clean", grid_wrapper_overflow_ok(page))
             check(f"Novos Coparticipado @{width}px: no overflow-masking relied on", no_overflow_hidden_masking(page))
 
-            page.click('.smModeBtn[data-mode="linear"]')
+            select_mode(page, "linear")
             page.fill("#nBem", "100000")
             page.fill("#nEntrada", "20000")
             page.wait_for_timeout(120)
@@ -199,7 +212,7 @@ def main():
             page.goto(SEMINOVOS_BASE)
             page.wait_for_function("!!window.NX_SIMULADOR_SEMINOVOS_PAGE")
             page.evaluate("window.NX_SIMULADOR_SEMINOVOS_PAGE.render(document.getElementById('smOutlet'))")
-            page.click('.smModeBtn[data-mode="ratetable"]')
+            select_mode(page, "ratetable")
             page.fill("#sAnoRT", "2020")
             page.fill("#sValorRT", "80000")
             page.fill("#sEntradaRT", "0")

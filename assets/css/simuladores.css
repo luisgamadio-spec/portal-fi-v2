@@ -78,23 +78,22 @@
   margin: var(--space-1) 0 0;
 }
 
-/* ---------- SIM-NAV-3: Hybrid Luxury Final (Concept E) navigation —
-   Human-approved (SIM_NAV_CONCEPT_E_HUMAN_APPROVED, SIM-NAV-LAB-2
-   commit 11b9bad), transferred faithfully from labs/simuladores-
-   navigation-lab.css's Concept E into production. Shared by BOTH
-   Novos and Seminovos (both files emit identical .smModeNav/
-   .smModeGroup/.smModeGroupLabel/.smModeButtons/.smModeBtn markup and
-   data-mode attributes — same classes/attributes the pre-existing
-   simulator test suites already assert on, so only styling and
-   purely-additive markup (a label span + a decorative chevron,
-   neither changes .textContent) changed here; 0 renamed/removed
-   selector). Three semantic instruments (Financiamento / Campanhas /
-   Ferramentas for Novos; Financiamento / Ferramentas for Seminovos) —
-   auto-fit column grid so Seminovos's 2 categories stay balanced
-   without a forced empty column, exactly like the LAB. Category index
-   (01/02/03) is pure CSS (counter() on .smModeGroupLabel::before), so
-   .smModeGroupLabel's own .textContent used by the Seminovos
-   ui-binding test stays exactly 'Financiamento'/'Ferramentas'. ---------- */
+/* ---------- SIM-NAV-4: Hybrid Luxury Collapsible (Concept F.2) —
+   Human-approved final authority (SIM_NAV_F2_HUMAN_APPROVED,
+   F_HYBRID_LUXURY_COLLAPSIBLE_FINAL_AUTHORITY; SIM-NAV-LAB-3/4/5
+   commits 1909bd1/8ded4b0/5158925), replacing SIM-NAV-3's Concept E
+   navigation. Shared by BOTH Novos and Seminovos. Categories start
+   collapsed; only one may be open; selecting an option auto-collapses
+   it. .smModeGroup/.smModeGroupLabel/.smModeButtons/.smModeBtn/
+   data-mode/.smModeBtnLabel/.smChevron are ALL UNCHANGED from E (the
+   row/marker/hover/active/focus-visible treatment the pre-existing
+   simulator test suites already assert on is untouched) — this wave
+   only adds a new clickable .smModeGroupHeader (replacing the old
+   always-visible label row) and a grid-template-rows-animated
+   .smModeRowsWrap around the existing .smModeButtons, so 0 renamed/
+   removed selector. Category index (01/02/03) stays the same pure-CSS
+   counter() on .smModeGroupLabel::before -- .smModeGroupLabel's own
+   .textContent stays exactly 'Financiamento'/'Ferramentas'/etc. ---------- */
 .smModeNav {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -113,17 +112,36 @@
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-md);
   overflow: hidden;
+  transition: border-color var(--duration-standard) var(--ease-precise);
 }
+.smModeGroup.open { border-color: rgba(238,75,87,.28); }
+.smModeGroupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-ui);
+  color: var(--color-text-secondary);
+  transition: background var(--duration-standard) var(--ease-precise), color var(--duration-standard) var(--ease-precise);
+}
+.smModeGroupHeader:hover { background: rgba(255,255,255,.025); color: var(--color-text-primary); }
+.smModeGroup.open .smModeGroupHeader { color: var(--color-text-primary); border-bottom: 1px solid var(--color-hairline); }
+.smModeGroupHeader:focus-visible { outline: var(--focus-ring); outline-offset: -2px; z-index: 1; }
+.smModeGroupHeaderMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .smModeGroupLabel {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-hairline);
   font-size: 11px;
   letter-spacing: .06em;
   text-transform: uppercase;
-  color: var(--color-text-secondary);
+  color: inherit;
   font-weight: 500;
 }
 .smModeGroupLabel::before {
@@ -134,7 +152,22 @@
   color: var(--color-text-muted);
   opacity: .7;
 }
-.smModeButtons { display: flex; flex-direction: column; }
+/* SIM-NAV-4 / F.2: collapsed current-mode hint -- only ever rendered
+   for the category owning the CURRENT simulator mode (see
+   modeNavHtml() in the JS). Same token E/F's own selected-row marker
+   already uses (functional: state/selection/interactive emphasis),
+   not an invented red; font-weight:700 matches the codebase's one
+   other established "must stand out" precedent
+   (.modKpiCardInfo .modKpiValue, module-system.css). */
+.smModeHint { font-size: 11.5px; color: var(--color-accent-primary); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.smModeDisclosure { flex: 0 0 auto; color: var(--color-text-muted); transform: rotate(0deg); transition: transform var(--duration-standard) var(--ease-precise), color var(--duration-standard) var(--ease-precise); }
+.smModeGroup.open .smModeDisclosure { transform: rotate(90deg); color: var(--p-red-1); }
+.smModeGroupHeader:hover .smModeDisclosure { color: var(--color-text-primary); }
+.smModeGroup.open .smModeGroupHeader:hover .smModeDisclosure { color: var(--p-red-1); }
+.smModeRowsWrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--duration-standard) var(--ease-precise); }
+.smModeGroup.open .smModeRowsWrap { grid-template-rows: 1fr; }
+.smModeRowsInner { overflow: hidden; min-height: 0; }
+.smModeButtons { display: flex; flex-direction: column; border-top: 1px solid var(--color-hairline); }
 .smModeBtn {
   position: relative;
   display: flex;
@@ -174,7 +207,7 @@
 .smModeBtn.active::before { height: 22px; opacity: 1; box-shadow: 0 0 6px 0 rgba(238,75,87,.45); }
 .smModeBtn.active .smChevron { color: var(--p-red-1); transform: translateX(1px); }
 .smModeBtn:focus-visible { outline: var(--focus-ring); outline-offset: -2px; z-index: 1; }
-@media (prefers-reduced-motion: reduce) { .smModeBtn, .smModeBtn::before, .smChevron { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .smModeBtn, .smModeBtn::before, .smChevron, .smModeGroup, .smModeGroupHeader, .smModeDisclosure, .smModeRowsWrap { transition: none; } }
 /* Production's sidebar/page chrome leaves less usable width than the
    LAB's standalone page at the same viewport, so auto-fit alone still
    fits 2 columns at 480px here (vs. 1 in the LAB) -- forced to match

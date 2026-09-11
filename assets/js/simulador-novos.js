@@ -156,18 +156,31 @@
 
   var currentMode = MODES[0].id;
   var balloons = []; // {mes, valor} for Tradicional
+  // SIM-NAV-4 / Concept F.2 (Human-approved final authority,
+  // SIM_NAV_F2_HUMAN_APPROVED) -- which category group is currently
+  // expanded; null = all collapsed (the default on every page load).
+  // Deliberately separate from currentMode: browsing/opening a
+  // category must NEVER change the selected simulator mode -- only an
+  // actual option click/Enter does (see the .smModeBtn click handler
+  // in wireModeNav() below).
+  var openCategory = null;
 
   /* ---------- PORTAL-NEXT-08.2 Change 1: grouped button mode nav,
      replacing the single <select> the human explicitly rejected.
      Local to this file (Seminovos still uses its own unaffected
      rendering; Gate: avoid touching shared primitives unless
      unavoidable — this component isn't).
-     SIM-NAV-3: markup refined to the Human-approved Concept E look
-     (labs/simuladores-navigation-lab.css) — the label span + chevron
-     below are purely additive (0 change to .textContent, 0 renamed
-     class, data-mode untouched), so pre-existing tests that click
-     '.smModeBtn[data-mode="..."]' or read .smModeGroupLabel keep
-     working unmodified. ---------- */
+     SIM-NAV-4: markup refined again to the Human-approved Concept F.2
+     look (labs/simuladores-navigation-lab.css, commits 1909bd1/
+     8ded4b0/5158925), replacing SIM-NAV-3's Concept E. Categories
+     collapsed by default; only one open at a time; selecting an
+     option auto-collapses it and shows a red+bold current-mode hint
+     on its (now collapsed) header. .smModeBtn/.smModeBtnLabel/
+     .smModeGroupLabel/data-mode are UNCHANGED from E -- pre-existing
+     tests that click '.smModeBtn[data-mode="..."]' or read
+     .smModeGroupLabel keep working unmodified; only a new clickable
+     .smModeGroupHeader and a .smModeRowsWrap animation wrapper were
+     added around the same existing elements. ---------- */
   function modeGroups() {
     var groups = {}, order = [];
     MODES.forEach(function (m) {
@@ -179,29 +192,91 @@
   function modeChevron() {
     return '<svg class="smChevron" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   }
+  // SIM-NAV-4 / F.2 -- which category (group name) owns a given mode
+  // id. Used to restore focus to the correct (now-collapsed) header
+  // after a selection auto-collapses its panel.
+  function groupForMode(mode) {
+    var owner = null;
+    MODES.forEach(function (m) { if (m.id === mode) owner = m.group; });
+    return owner;
+  }
   function modeNavHtml() {
     return '<nav class="smModeNav" aria-label="Modalidade de financiamento">' +
       modeGroups().map(function (g) {
-        return '<div class="smModeGroup">' +
-          '<span class="smModeGroupLabel">' + UI.esc(g.name) + '</span>' +
-          '<div class="smModeButtons" role="group" aria-label="' + UI.esc(g.name) + '">' +
+        var isOpen = g.name === openCategory;
+        var slug = g.name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+        var panelId = 'smModePanel-' + slug;
+        var current = null;
+        g.items.forEach(function (m) { if (m.id === currentMode) current = m; });
+        // SIM-NAV-4 / F.2: collapsed current-mode hint -- only for the
+        // category that actually owns the current mode, never while
+        // that same category is open (the expanded row's own active
+        // treatment already shows it there; no duplication, brief §24).
+        var hintHtml = (!isOpen && current) ? '<span class="smModeHint">' + UI.esc(current.label) + '</span>' : '';
+        return '<div class="smModeGroup' + (isOpen ? ' open' : '') + '">' +
+          '<button type="button" class="smModeGroupHeader" data-group="' + UI.esc(g.name) + '" aria-expanded="' + isOpen + '" aria-controls="' + panelId + '">' +
+            '<span class="smModeGroupHeaderMain">' +
+              '<span class="smModeGroupLabel">' + UI.esc(g.name) + '</span>' +
+              hintHtml +
+            '</span>' +
+            '<svg class="smChevron smModeDisclosure" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+          '</button>' +
+          '<div class="smModeRowsWrap"><div class="smModeRowsInner">' +
+          '<div class="smModeButtons" id="' + panelId + '" role="group" aria-label="' + UI.esc(g.name) + '"' + (isOpen ? '' : ' inert') + '>' +
           g.items.map(function (m) {
             var active = m.id === currentMode;
-            return '<button type="button" class="smModeBtn' + (active ? ' active' : '') + '" data-mode="' + m.id + '"' + (active ? ' aria-current="true"' : '') + '>' +
+            return '<button type="button" class="smModeBtn' + (active ? ' active' : '') + '" data-mode="' + m.id + '" tabindex="' + (isOpen ? '0' : '-1') + '"' + (active ? ' aria-current="true"' : '') + '>' +
               '<span class="smModeBtnLabel">' + UI.esc(m.label) + '</span>' + modeChevron() +
               '</button>';
           }).join('') +
-          '</div></div>';
+          '</div></div></div>' +
+        '</div>';
       }).join('') +
       '</nav>';
   }
+  // SIM-NAV-4 / F.2 -- toggles the open category. Clicking the
+  // already-open category collapses back to all-collapsed; clicking a
+  // different one closes the previous and opens the new one
+  // (single-open). Re-renders ONLY the nav region -- never touches
+  // currentMode/balloons/renderModeArea(), so browsing a category
+  // never disturbs the in-progress form in the currently selected mode.
+  function toggleCategory(groupName) {
+    openCategory = (openCategory === groupName) ? null : groupName;
+    document.getElementById('smModeNavRegion').innerHTML = modeNavHtml();
+    wireModeNav();
+    var header = document.querySelector('.smModeGroupHeader[data-group="' + groupName + '"]');
+    if (header) header.focus();
+  }
   function wireModeNav() {
     document.querySelectorAll('.smModeBtn').forEach(function (btn) {
-      btn.addEventListener('click', function () { switchMode(btn.getAttribute('data-mode')); });
+      btn.addEventListener('click', function () {
+        var m = btn.getAttribute('data-mode');
+        var owner = groupForMode(m);
+        // SIM-NAV-4 / F.2: an ACTUAL option selection (this handler
+        // only -- never the category-header toggle, hover, or roving
+        // keyboard focus below) auto-collapses its panel. switchMode()
+        // is the existing, unmodified mode-switch business authority;
+        // it already re-renders/rewires the nav region itself, so
+        // openCategory is simply reset before calling it -- no
+        // duplicate render, no duplicate dispatch.
+        openCategory = null;
+        switchMode(m);
+        // The just-selected row is now inert (its panel collapsed) --
+        // focusing it would silently fail and strand keyboard focus.
+        // Return focus to the header that now shows this selection's
+        // hint instead.
+        var header = owner ? document.querySelector('.smModeGroupHeader[data-group="' + owner + '"]') : null;
+        if (header) header.focus();
+      });
+    });
+    document.querySelectorAll('.smModeGroupHeader').forEach(function (btn) {
+      btn.addEventListener('click', function () { toggleCategory(btn.getAttribute('data-group')); });
     });
     // SIM-NAV-3 / Concept E: roving keyboard nav within each category
     // group, additive to (not replacing) native Tab access and native
     // Enter/Space button activation — no conflicting keyboard model.
+    // A collapsed group is `inert`, so its items are simply
+    // unreachable here -- no special-casing needed.
     document.querySelectorAll('.smModeButtons').forEach(function (group) {
       var items = Array.prototype.slice.call(group.querySelectorAll('.smModeBtn'));
       items.forEach(function (item, idx) {
@@ -213,6 +288,20 @@
           else if (e.key === 'End') next = items[items.length - 1];
           if (next) { e.preventDefault(); next.focus(); }
         });
+      });
+    });
+    // SIM-NAV-4 / F.2: Left/Right (or Up/Down) roving nav between the
+    // category headers themselves. Separate, simple mechanism --
+    // headers carry no data-mode, so the generic loop above never
+    // touches them, and this loop never touches rows. No conflicting
+    // keyboard model.
+    var headers = Array.prototype.slice.call(document.querySelectorAll('.smModeGroupHeader'));
+    headers.forEach(function (h, idx) {
+      h.addEventListener('keydown', function (e) {
+        var next = null;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = headers[(idx + 1) % headers.length];
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = headers[(idx - 1 + headers.length) % headers.length];
+        if (next) { e.preventDefault(); next.focus(); }
       });
     });
   }
@@ -720,6 +809,7 @@
     render: function (outlet) {
       currentMode = MODES[0].id;
       balloons = [];
+      openCategory = null; // SIM-NAV-4 / F.2: all categories collapsed on entry
       outlet.innerHTML =
         '<div class="smPage">' +
         '<span class="smProductBadge">Simulador · Novos</span>' +

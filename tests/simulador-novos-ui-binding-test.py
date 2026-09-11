@@ -62,6 +62,16 @@ def main():
         def select_mode(mode):
             # PORTAL-NEXT-08.2 Change 1: the <select> mode switcher was
             # replaced with grouped buttons per human UAT rejection.
+            # SIM-NAV-4 (F.2, Human-approved): rows now stay hidden/inert
+            # until their category header is opened, so the owning
+            # category must be opened first (self-discovered via
+            # closest('.smModeGroup'), not a hardcoded mode->group map).
+            group = page.eval_on_selector(
+                f'.smModeBtn[data-mode="{mode}"]',
+                "el => el.closest('.smModeGroup').querySelector('.smModeGroupHeader').getAttribute('data-group')",
+            )
+            page.click(f'.smModeGroupHeader[data-group="{group}"]')
+            page.wait_for_timeout(80)
             page.click(f'.smModeBtn[data-mode="{mode}"]')
             page.wait_for_timeout(80)
 

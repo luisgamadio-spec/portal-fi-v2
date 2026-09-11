@@ -61,7 +61,7 @@
     c: { label: 'C — Cockpit Command List', desc: 'Lista técnica, quase sem caixas -- índice numérico, separadores finos, leitura de instrumento.' },
     d: { label: 'D — Hybrid Luxury Navigation', desc: 'Três instrumentos contínuos (um por categoria) com linhas internas, não dez botões soltos.', badge: 'Direção selecionada' },
     e: { label: 'E — Hybrid Luxury Final', desc: 'Refinamento de D: hierarquia de material mais precisa, cabeçalho de categoria integrado, marcador vermelho inset com brilho localizado e restrito.', badge: 'Refinamento do Conceito D' },
-    f: { label: 'F — Hybrid Luxury Collapsible', desc: 'Ideia do Human: categorias sempre visíveis, opções ocultas até a categoria ser aberta -- uma categoria aberta por vez, mesma linguagem visual de E. Auto-collapse após seleção: escolher uma opção já recolhe a categoria, sem precisar clicar na seta.', badge: 'Direção preferida — refinamento em avaliação' }
+    f: { label: 'F — Hybrid Luxury Collapsible', desc: 'Ideia do Human: categorias sempre visíveis, opções ocultas até a categoria ser aberta -- uma categoria aberta por vez, mesma linguagem visual de E. Auto-collapse após seleção: escolher uma opção já recolhe a categoria, sem precisar clicar na seta. Integrado nos simuladores reais (SIM-NAV-4).', badge: 'Direção final aprovada' }
   };
 
   // ---------- state ----------

@@ -57,6 +57,20 @@ def main():
         page.goto(URL)
         page.wait_for_timeout(400)
 
+        # SIM-NAV-4 (F.2, Human-approved): rows now stay hidden/inert
+        # until their category header is opened, so every mode switch in
+        # this file must open the owning category first (self-discovered
+        # via closest('.smModeGroup'), not a hardcoded mode->group map).
+        def select_mode(mode):
+            group = page.eval_on_selector(
+                f'.smModeBtn[data-mode="{mode}"]',
+                "el => el.closest('.smModeGroup').querySelector('.smModeGroupHeader').getAttribute('data-group')",
+            )
+            page.click(f'.smModeGroupHeader[data-group="{group}"]')
+            page.wait_for_timeout(80)
+            page.click(f'.smModeBtn[data-mode="{mode}"]')
+            page.wait_for_timeout(80)
+
         # ==================== Gate 32: balloonScheduleSummary ====================
         def summary(prazo, parcela, baloes):
             return page.evaluate(
@@ -123,7 +137,7 @@ def main():
             results.append((f"nav: unreachable '{dead}' not exposed", dead not in mode_options))
 
         # ==================== Gate 11/12: money input / balloon width ====================
-        page.click('.smModeBtn[data-mode="tradicional"]')
+        select_mode("tradicional")
         page.wait_for_timeout(100)
         page.fill("#sBem", "150000")
         page.click("#sAddBalao")
@@ -157,7 +171,7 @@ def main():
         results.append(("tradicional: vehicle year field (sAno) present", year_visible))
 
         # ==================== Gate 16/33: Linear -- 50x + result hierarchy ====================
-        page.click('.smModeBtn[data-mode="ratetable"]')
+        select_mode("ratetable")
         page.wait_for_timeout(100)
         page.fill("#sAnoRT", "2020")
         page.fill("#sValorRT", "80000")
