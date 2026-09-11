@@ -266,6 +266,15 @@
     sim_payment: { label: 'Parcela', format: 'currency' },
     sim_financed: { label: 'Financiado', format: 'currency' },
     sim_down_payment: { label: 'Entrada', format: 'currency' },
+    // IA-3J.3A -- these two existed on the real Balão comparison item
+    // shape (buildBalaoOptimizeComparisonBlock, portal-ai-homolog) since
+    // before this fix, but had no entry here, so fieldMeta()'s own
+    // fallback rendered the raw key name itself ("sim_balloon",
+    // "sim_balloon_count") as the label -- a real Human UAT reported
+    // seeing exactly that. Presentation-label lookup only, same as every
+    // other entry in this table -- no financial formula involved.
+    sim_balloon: { label: 'Balão', format: 'currency' },
+    sim_balloon_count: { label: 'Nº de Balões', format: 'int' },
     hist_count: { label: 'Operações', format: 'int' },
     hist_avg_down_payment_percent: { label: 'Entrada Média', format: 'percent' },
     hist_avg_installment_value: { label: 'Parcela Média', format: 'currency' },
