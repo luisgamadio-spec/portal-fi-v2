@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="assets/css/simuladores.css">
 <link rel="stylesheet" href="assets/css/painel-analista-fi.css">
 <link rel="stylesheet" href="assets/css/central-atendimento-fi.css">
+<link rel="stylesheet" href="assets/css/salarios-comissoes.css">
 <link rel="stylesheet" href="assets/css/intelligence.css">
 <link rel="stylesheet" href="assets/css/shell-admin.css">
 </head>
@@ -130,6 +131,12 @@ if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
 <script src="assets/js/painel-analista-fi.js"></script>
 <script src="assets/js/adapters/central-atendimento-fi-real-provider.js"></script>
 <script src="assets/js/central-atendimento-fi.js"></script>
+<!-- RH-4D: Histórico consumes the canonical window.NX_MASTER_COMPETENCE_
+     HISTORY_PROVIDER / _VM (loaded further below, Painel Master's own
+     script block) via lazy window.* lookups inside salarios-comissoes.js
+     -- no separate historical provider script tag needed here anymore. -->
+<script src="assets/js/adapters/salarios-comissoes-real-provider.js"></script>
+<script src="assets/js/salarios-comissoes.js"></script>
 <script src="assets/js/adapters/brabus-intelligence.adapter.js"></script>
 <script src="assets/js/brabus-intelligence.js"></script>
 <script src="assets/js/adapters/master-users-provider.js"></script>

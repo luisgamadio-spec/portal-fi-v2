@@ -1,0 +1,141 @@
+<!doctype html>
+<!-- RH-5B -- Salários & Comissões LOCAL HUMAN UAT HARNESS.
+
+     Test-only, never linked from index.html/shell.js/config/*.json --
+     matches this repo's own established tests/_*-harness.html
+     convention (RH-4A/PM-5H etc: real production JS files loaded
+     as-is, never a re-implementation). Renders the REAL, unmodified
+     index.html — fetched as text and written into an iframe with
+     <base href="../"> plus ONE injected mock <script> spliced in
+     before the real scripts run — so every asset (CSS/JS) is the
+     exact real production file, byte-identical, never a visual clone.
+     Zero change to index.html on disk.
+
+     SYNTHETIC FIXTURE DATA ONLY. No real Supabase project is ever
+     contacted (window.fetch is overridden inside the iframe to
+     intercept every RPC/config URL this module calls; every other
+     request is passed through to the real static file server so real
+     CSS/JS/font assets still load normally). No credentials, no login
+     form is shown -- the mock session is pre-authenticated so opening
+     this page goes straight to the selected profile's real module. -->
+<html lang="pt-BR"><head><meta charset="utf-8">
+<title>RH-5B — UAT Salários &amp; Comissões (local, dados sintéticos)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0b0c; color: #e6e6e6; font-family: system-ui, sans-serif; }
+  #uatBar {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 16px; background: #1a1300; border-bottom: 2px solid #caa200;
+  }
+  #uatBar .tag { font-weight: 700; color: #ffcf33; font-size: 12.5px; letter-spacing: .03em; text-transform: uppercase; }
+  #uatBar label { font-size: 12.5px; color: #cfcfcf; display: flex; align-items: center; gap: 6px; }
+  #uatBar select, #uatBar button {
+    font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 6px;
+    border: 1px solid #444; background: #111; color: #eee;
+  }
+  #uatBar button { background: #caa200; color: #1a1300; font-weight: 700; border: none; cursor: pointer; }
+  #uatFrame { display: block; width: 100%; height: calc(100vh - 48px); border: 0; }
+  #uatHint { font-size: 11.5px; color: #a89660; }
+</style>
+</head>
+<body>
+<div id="uatBar">
+  <span class="tag">RH-5C.1 · HEAD PENDING · GOVERNED AUTHORITY ACTIVATION · UAT local · dados sintéticos</span>
+  <label>Perfil
+    <select id="uatProfile">
+      <option value="MASTER">MASTER</option>
+      <option value="RH">RH</option>
+      <option value="GERENTE">GERENTE</option>
+      <option value="ANALISTA">ANALISTA</option>
+      <option value="VENDEDOR">VENDEDOR</option>
+    </select>
+  </label>
+  <label>Fechamento histórico (só MASTER)
+    <select id="uatHistory">
+      <option value="complete">COMPLETO (sintético)</option>
+      <option value="legacy">HISTÓRICO PARCIAL (sintético)</option>
+      <option value="broken">SEM INTEGRIDADE (sintético)</option>
+    </select>
+  </label>
+  <button id="uatApply" type="button">Aplicar</button>
+  <span id="uatHint">Esta é a implementação real do módulo — apenas os dados são sintéticos/locais.</span>
+</div>
+<iframe id="uatFrame" title="Salários & Comissões (UAT local)"></iframe>
+<script src="_salarios-uat-fixtures.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  function buildMockScript(profile, historyState) {
+    var fx = window.NX_RH5B_UAT_FIXTURES;
+    var payload = {
+      profile: profile,
+      periods: fx.PERIODS,
+      metrics: fx.METRICS,
+      analyst: fx.ANALYST,
+      directory: fx.DIRECTORY,
+      details: fx.DETAILS,
+      config: fx.CONFIG,
+      gestorFi: profile === 'MASTER' ? fx.GESTOR_FI_READY : fx.GESTOR_FI_NOT_READY,
+      faixaRows: fx.FAIXA_ROWS,
+      closings: fx.CLOSINGS_ALL,
+      snapshots: { 'c-complete': fx.ROWS_COMPLETE, 'c-legacy': fx.ROWS_LEGACY, 'c-broken': fx.ROWS_BROKEN },
+      opDetail: fx.OP_DETAIL_COMPLETE,
+      exportRows: fx.ROWS_COMPLETE,
+      defaultHistoryClosing: 'c-' + historyState
+    };
+    // Serialized once, then re-parsed inside the iframe -- avoids any
+    // cross-window function/object identity issues with document.write.
+    return '<script>window.__RH5B_UAT_PAYLOAD__ = ' + JSON.stringify(payload) + ';<' + '/script>' +
+      '<script src="tests/_salarios-uat-mock.js"><' + '/script>';
+  }
+
+  function loadFrame() {
+    var profile = document.getElementById('uatProfile').value;
+    var historyState = document.getElementById('uatHistory').value;
+    fetch('../index.html', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
+      // The real @supabase/supabase-js CDN script would otherwise load
+      // asynchronously and could overwrite window.supabase after our
+      // mock installs it -- stripped here (never on disk), same as
+      // every automated Playwright test in this repo already does via
+      // page.route(...).abort() for that exact URL.
+      html = html.replace(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^>]*><\/script>\s*/, '');
+      // The real intelligence-runtime-config*.js script tags would
+      // otherwise load (via a normal <script src>, not fetch(), so
+      // window.fetch interception alone can't stop them) AFTER our mock
+      // and overwrite window.NX_INTELLIGENCE_CONFIG with their own
+      // default -- the same real gotcha already documented in this
+      // repo's own RH-4B test-authoring notes. Stripped here only,
+      // never on disk; our mock already sets the correct value.
+      html = html.replace(/<script src="assets\/js\/intelligence-runtime-config\.js"><\/script>[\s\S]*?<\/script>\s*/, '');
+      // RH-5B.2 render-provenance fix: every real asset (CSS/JS) below
+      // is loaded by the BROWSER's own normal <link>/<script> resource
+      // fetch once written into the iframe via document.write -- this
+      // is NOT covered by this function's own `fetch(..., {cache:
+      // 'no-store'})` call above (that only cache-busts the outer HTML
+      // text fetch). The static server (python -m http.server) sends no
+      // Cache-Control header at all, only Last-Modified, so a browser
+      // that already cached these files from an EARLIER visit to this
+      // exact harness URL (e.g. during a previous Wave) can silently
+      // reuse the stale copy on a normal reload. A fresh cache-busting
+      // query string on every real call to loadFrame() (this function)
+      // guarantees the browser always issues a genuinely new request,
+      // regardless of server-side cache headers -- proven root cause of
+      // the "não mudou nada" Human report, RH-5B.2.
+      var cacheBust = 'rh5b2=' + Date.now();
+      html = html.replace(/(src|href)="(assets\/[^"]+)"/g, function (m, attr, path) {
+        return attr + '="' + path + (path.indexOf('?') === -1 ? '?' : '&') + cacheBust + '"';
+      });
+      var injected = html.replace('<head>', '<head><base href="../">' + buildMockScript(profile, historyState));
+      var frame = document.getElementById('uatFrame');
+      var doc = frame.contentDocument;
+      doc.open();
+      doc.write(injected);
+      doc.close();
+    });
+  }
+
+  document.getElementById('uatApply').addEventListener('click', loadFrame);
+  loadFrame();
+})();
+</script>
+</body></html>

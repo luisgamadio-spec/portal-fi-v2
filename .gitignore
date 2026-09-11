@@ -7,3 +7,8 @@ Thumbs.db
 # it points at a LOCAL mock/homolog backend for this machine's own
 # testing, never a real endpoint or secret.
 assets/js/intelligence-runtime-config.local.js
+
+# RH-5F.2 -- local-only real-data UAT snapshots (may contain a real
+# employee's authorized-but-personal metrics, captured read-only for a
+# local preview harness). Never committed, never leaves this machine.
+tests/.tmp/

@@ -92,6 +92,16 @@ def main():
         # module-registry.json — HUMAN_APPROVED added on that basis, not an
         # auto-promotion. FROZEN as of this status.
         "central-atendimento-fi": {"NOT_MIGRATED", "UAT_PENDING", "HUMAN_APPROVED"},
+        # SAL-INTEGRATION-1 (2026-09-11): the already Human-approved
+        # Salary module (RH-4B through RH-5F.3B, approved on
+        # rh4a-salarios-provider @ cd7cf34) was integrated into V2 main.
+        # migrationStatus promoted NOT_MIGRATED -> UAT_PENDING on that
+        # basis -- this is the module's first appearance in the live,
+        # integrated main shell; no Human UAT of the INTEGRATED
+        # experience has occurred yet, so HUMAN_APPROVED is not claimed
+        # by this entry (module-registry.json's own migrationSALINT1Note
+        # records the same).
+        "salarios-comissoes": {"NOT_MIGRATED", "UAT_PENDING", "HUMAN_APPROVED"},
     }
 
     for m in modules:

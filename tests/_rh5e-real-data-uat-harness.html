@@ -1,0 +1,279 @@
+<!doctype html>
+<!-- RH-5E -- Salários & Comissões REAL-DATA Human UAT harness.
+
+     Test-only, never linked from index.html/shell.js/config/*.json --
+     matches this repo's own established tests/_*-harness.html
+     convention. Unlike tests/_salarios-uat-harness.html (RH-5B, which
+     intentionally uses SYNTHETIC fixtures and a fetch-mock, and is
+     kept exactly as-is by this Wave for internal/automated use), this
+     harness renders the REAL, unmodified index.html against the REAL
+     Supabase project (yacqlelpzchcotgngwbh) -- real login, real
+     session, real RPCs, real read-only data. Zero fetch interception,
+     zero mocked auth, zero synthetic data.
+
+     supabaseUrl/supabasePublishableKey/turnstileSiteKey below are the
+     SAME public-by-design values already committed in
+     assets/js/intelligence-runtime-config.production.js (see that
+     file's own header comment for why these are safe to expose
+     client-side -- a Supabase publishable/anon key and a Turnstile
+     SITE key, never a secret). This harness does NOT create or modify
+     assets/js/intelligence-runtime-config.local.js on disk (that file's
+     own header explicitly warns against ever pointing it at a real
+     project) -- the override is injected at runtime into the iframe
+     only, exactly like RH-5B's fixture injection, never persisted.
+
+     Zero change to index.html on disk. Zero database writes possible
+     from this page beyond whatever the real, already-governed,
+     already-authorized module itself allows for the profile that logs
+     in (same authorization rules as production).
+
+     RH-5F.2/RH-5F.3 -- ?preview=analyst|seller|manager mode (ADDITIVE,
+     UAT ONLY): the default mode above (no query string) is completely
+     unchanged and still does a REAL login. This second mode exists
+     because a real login AS the real person is impossible without their
+     password (forbidden -- see the RH-5F.2 report, §9/§28) and the
+     Secure/V1 "Homologação" preview feature does not re-authenticate
+     server-side (its own on-screen copy: "sem alterar login, Supabase
+     ou senhas"), so it cannot reproduce her real RPC-level scope
+     either. Instead this mode loads a LOCAL, NEVER-COMMITTED JSON
+     snapshot (tests/.tmp/rh5f2_analyst_preview_snapshot.json,
+     .gitignore'd) captured this Wave via the same read-only
+     BEGIN...ROLLBACK technique used throughout this engagement, as the
+     real, server-authorized ANALISTA -- i.e. every value shown is real
+     and really hers, really scoped by the real RPCs, just replayed
+     through a mocked transport (same technique tests/_salarios-uat-
+     harness.html already uses with SYNTHETIC data -- this is that same
+     proven mechanism, fed real captured output instead). This is a
+     VISUAL ANALYST-SHAPED PREVIEW, NOT a real login -- labeled as such
+     on screen, never entering production navigation. If the snapshot
+     file is missing, this mode fails loudly (visible error), never
+     silently falling back to a fabricated dataset. -->
+<html lang="pt-BR"><head><meta charset="utf-8">
+<title>RH-5E — UAT Salários &amp; Comissões (dados reais, somente leitura)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0b0c; color: #e6e6e6; font-family: system-ui, sans-serif; }
+  #provBar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 6px 14px; background: #0f1c14; border-bottom: 2px solid #35c46a;
+    font-size: 11.5px; letter-spacing: .02em;
+  }
+  #provBar.previewMode { background: #241708; border-bottom-color: #ffcf33; }
+  #provBar .tag { font-weight: 700; color: #35c46a; text-transform: uppercase; }
+  #provBar.previewMode .tag { color: #ffcf33; }
+  #provBar .sep { color: #3a5142; }
+  #provBar .warn { color: #ffcf33; }
+  #uatFrame { display: block; width: 100%; height: calc(100vh - 30px); border: 0; }
+</style>
+</head>
+<body>
+<div id="provBar">
+  <span class="tag">RH-5F.1</span><span class="sep">·</span>
+  <span id="pvBranch"></span><span class="sep">·</span>
+  <span id="pvHead"></span><span class="sep">·</span>
+  <span class="tag" style="color:#35c46a">DADOS REAIS</span><span class="sep">·</span>
+  <span class="tag" style="color:#35c46a">SOMENTE LEITURA</span><span class="sep">·</span>
+  <span class="tag">LOCAL</span><span class="sep">·</span>
+  <span class="warn">Recurso de comissão do analista: resolução PRÉ-RH-ANALYST-4 (ainda a seleção anterior)</span>
+</div>
+<iframe id="uatFrame" title="Salários & Comissões (UAT local, dados reais)"></iframe>
+<script>
+(function () {
+  'use strict';
+
+  // Filled in by the harness at build time (git rev-parse), never
+  // guessed -- see the RH-5E report for the exact values used.
+  var BRANCH = 'rh4a-salarios-provider';
+  var HEAD_SHORT = '2b68cee';
+  document.getElementById('pvBranch').textContent = BRANCH;
+  document.getElementById('pvHead').textContent = HEAD_SHORT;
+
+  // RH-5F.3: generalized from RH-5F.2's analyst-only mode to any of the
+  // 3 roles Secure has ever shown a personal commission to. Each maps to
+  // its own local, never-committed snapshot file captured the same
+  // read-only way (rh5f3_capture_snapshots.js).
+  var PREVIEW_SNAPSHOT_FILE = {
+    analyst: '.tmp/rh5f2_analyst_preview_snapshot.json',
+    seller: '.tmp/rh5f3_seller_preview_snapshot.json',
+    manager: '.tmp/rh5f3_manager_preview_snapshot.json'
+  };
+  var previewMatch = /[?&]preview=(analyst|seller|manager)\b/.exec(location.search);
+  var PREVIEW_ROLE = previewMatch ? previewMatch[1] : null;
+  var PREVIEW_MODE = !!PREVIEW_ROLE;
+
+  // Same public-by-design values as assets/js/intelligence-runtime-
+  // config.production.js. Injected at runtime only -- never written to
+  // disk, never overrides that file, never a new gitignored local
+  // override either.
+  var REAL_CONFIG = {
+    mode: 'fixture', // INTELLIGENCE_ONLY -- this UAT is Salários only, Intelligence stays inert
+    supabaseUrl: 'https://yacqlelpzchcotgngwbh.supabase.co',
+    supabasePublishableKey: 'sb_publishable__J96gDH1kOqlc4iFW24Z2Q_u_lWAg5_',
+    turnstileSiteKey: '0x4AAAAAAEFmBWKvC-l1_CEs',
+    textEndpoint: null,
+    authorizedHostnames: []
+  };
+
+  // RH-5F.2 preview=analyst: no real project is ever contacted -- a
+  // fake host, only ever reached through the mock fetch() below.
+  var PREVIEW_CONFIG = {
+    mode: 'fixture',
+    supabaseUrl: 'https://rh5f2-preview.invalid',
+    supabasePublishableKey: 'preview-key',
+    turnstileSiteKey: '',
+    textEndpoint: null,
+    authorizedHostnames: []
+  };
+
+  // RH-5F.2: mocked auth + RPC transport for ?preview=analyst, built
+  // from the real captured snapshot (tests/.tmp/rh5f2_analyst_preview_
+  // snapshot.json). Same shape/technique as tests/_salarios-uat-
+  // harness.html's own mock (Gate-proven, RH-5B), ported to a plain
+  // iframe (no Playwright route() available here): window.supabase is
+  // replaced before index.html's own script runs (real supabase-js
+  // script tag is stripped from the injected HTML below, so it can
+  // never overwrite this), and window.fetch is patched to answer only
+  // the exact RPC endpoints the real provider calls, exactly the way
+  // Camile's own real session answered them this Wave -- including the
+  // two that were REALLY denied (operational_commission_faixa_rows,
+  // operational_gestor_fi_commission -> real 42501, never a fabricated
+  // success), because the frontend never even attempts to call the
+  // gestor_fi ones for a non-MASTER profile in the first place.
+  var DENIED_BODY = { code: '42501', message: 'Acesso exclusivo do perfil Master.' };
+
+  function loadFrame() {
+    if (PREVIEW_MODE) {
+      document.getElementById('provBar').classList.add('previewMode');
+    }
+    fetch('../index.html', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
+      var cacheBust = 'rh5e=' + Date.now();
+      html = html.replace(/(src|href)="(assets\/[^"]+)"/g, function (m, attr, path) {
+        return attr + '="' + path + (path.indexOf('?') === -1 ? '?' : '&') + cacheBust + '"';
+      });
+
+      if (!PREVIEW_MODE) {
+        // Unchanged default path (RH-5E): real login, real session, real
+        // RPCs, no fetch interception whatsoever.
+        var override = '<script>window.NX_INTELLIGENCE_CONFIG=' + JSON.stringify(REAL_CONFIG) + ';location.hash="#/salarios-comissoes";<' + '/script>';
+        html = html.replace(
+          /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js/,
+          override + '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js'
+        );
+        var injected = html.replace('<head>', '<head><base href="../">');
+        writeFrame(injected);
+        return;
+      }
+
+      // ?preview=analyst|seller|manager: fetch the local, never-committed
+      // real snapshot for that role; fail loudly (never fall back to
+      // fabricated data) if it is missing.
+      fetch(PREVIEW_SNAPSHOT_FILE[PREVIEW_ROLE], { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('snapshot not found (run rh5f2_capture_snapshot.js first)');
+        return r.json();
+      }).then(function (snapshot) {
+        // Defensive: a real name/value could in principle contain the
+        // literal closing-script-tag sequence, which would prematurely
+        // end this inline script element -- escaped the same way this
+        // file already escapes its own closing tag below.
+        function safeJson(v) { return JSON.stringify(v).replace(/<\//g, '<\\/'); }
+        // Mock built as literal INLINE SCRIPT TEXT (not assigned via
+        // frame.contentWindow after the fact) -- doc.write()/doc.close()
+        // parses and runs the iframe's own scripts SYNCHRONOUSLY, so a
+        // post-hoc window.supabase/window.fetch assignment would race
+        // against (and lose to) index.html's own bootstrap. Only the
+        // DATA is JSON-embedded; the mock's own logic is real JS source,
+        // exactly mirroring tests/_salarios-uat-harness.html's proven
+        // mock shape, evaluated first because it appears first in
+        // document order.
+        var mockScript = '<script>' +
+          'window.NX_INTELLIGENCE_CONFIG=' + JSON.stringify(PREVIEW_CONFIG) + ';' +
+          'location.hash="#/salarios-comissoes";' +
+          '(function(){' +
+          'var META=' + safeJson(snapshot.__meta) + ';' +
+          'var BY_RPC=' + safeJson({
+            operational_commission_periods: snapshot.periods,
+            operational_commission_metrics: snapshot.metrics,
+            operational_analyst_commission_metrics_v2: snapshot.analystMetrics,
+            operational_salary_manager_directory: snapshot.directory,
+            operational_portal_config: snapshot.config,
+            operational_own_commission_summary: snapshot.ownCommission,
+            operational_scope_commission_rows: snapshot.scopeCommission
+          }) + ';' +
+          'var BULK_DETAILS=' + safeJson(snapshot.details) + ';' +
+          'var DENIED=' + safeJson(DENIED_BODY) + ';' +
+          'window.supabase={createClient:function(){' +
+          '  var fakeSession={access_token:"preview-token",user:{id:"preview-analyst-1"}};' +
+          '  return {' +
+          '    auth:{' +
+          '      getSession:function(){return Promise.resolve({data:{session:fakeSession},error:null});},' +
+          '      signInWithPassword:function(){return Promise.resolve({data:{session:fakeSession},error:null});},' +
+          '      onAuthStateChange:function(){return {data:{subscription:{unsubscribe:function(){}}}};},' +
+          '      signOut:function(){return Promise.resolve({error:null});}' +
+          '    },' +
+          '    rpc:function(name){' +
+          '      if(name==="usuario_logado_fi") return Promise.resolve({data:[{usuario_id:"preview-analyst-1",auth_user_id:"preview-analyst-1",nome:META.display_name,perfil:META.profile,loja:META.store,status:META.status,ativo:true}],error:null});' +
+          '      if(name==="portal_modulos_permitidos") return Promise.resolve({data:["comissoes"],error:null});' +
+          '      return Promise.resolve({data:null,error:null});' +
+          '    }' +
+          '  };' +
+          '}};' +
+          'var realFetch=window.fetch.bind(window);' +
+          'window.fetch=function(url,opts){' +
+          '  var m=/\\/rest\\/v1\\/rpc\\/([a-z0-9_]+)/i.exec(String(url));' +
+          '  if(!m) return realFetch(url,opts);' +
+          '  var rpcName=m[1];' +
+          '  console.log("[RH-5F.2 preview] RPC", rpcName, "in BY_RPC:", Object.prototype.hasOwnProperty.call(BY_RPC,rpcName));' +
+          '  if(rpcName==="operational_commission_faixa_rows"||rpcName==="operational_gestor_fi_commission"){' +
+          '    return Promise.resolve(new Response(JSON.stringify(DENIED),{status:403,headers:{"Content-Type":"application/json"}}));' +
+          '  }' +
+          '  if(rpcName==="operational_salary_details"){' +
+          '    var body={}; try{body=JSON.parse((opts&&opts.body)||"{}");}catch(e){}' +
+          '    var rows=(BULK_DETAILS&&BULK_DETAILS.rows)||[];' +
+          '    if(body.p_seller_id) rows=rows.filter(function(r){return r.seller_id===body.p_seller_id;});' +
+          '    var shaped=Object.assign({},BULK_DETAILS,{rows:rows,row_count:rows.length});' +
+          '    return Promise.resolve(new Response(JSON.stringify(shaped),{status:200,headers:{"Content-Type":"application/json"}}));' +
+          '  }' +
+          '  if(Object.prototype.hasOwnProperty.call(BY_RPC,rpcName)){' +
+          '    return Promise.resolve(new Response(JSON.stringify(BY_RPC[rpcName]),{status:200,headers:{"Content-Type":"application/json"}}));' +
+          '  }' +
+          '  return Promise.resolve(new Response(JSON.stringify({rows:[]}),{status:200,headers:{"Content-Type":"application/json"}}));' +
+          '};' +
+          '})();' +
+          '<' + '/script>';
+
+        // The mock must land at the SAME position the default (real)
+        // path already uses -- immediately before the supabase-js CDN
+        // tag, i.e. AFTER index.html's own unconditional assets/js/
+        // intelligence-runtime-config.js has already run (it
+        // unconditionally sets window.NX_INTELLIGENCE_CONFIG.
+        // supabaseUrl=null). Injecting any earlier -- e.g. right after
+        // <head> -- gets silently overwritten by that later script,
+        // which was this mode's first real bug this Wave (auth-
+        // boundary.js then saw supabaseUrl:null, treated itself as
+        // unconfigured, and never issued a single RPC). The REAL CDN
+        // tag is replaced outright (not just preceded) so the genuine
+        // supabase-js library never loads and never overwrites this
+        // mock's own window.supabase afterwards.
+        var injected = html.replace(
+          /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^>]*><\/script>/,
+          mockScript
+        );
+        injected = injected.replace('<head>', '<head><base href="../">');
+        writeFrame(injected);
+      }).catch(function (err) {
+        document.getElementById('uatFrame').outerHTML = '<div style="padding:24px;color:#ff6b6b;font:14px monospace">RH-5F.2 preview=analyst FAILED: ' + String(err && err.message || err) + '</div>';
+      });
+    });
+  }
+
+  function writeFrame(injected) {
+    var frame = document.getElementById('uatFrame');
+    var doc = frame.contentDocument;
+    doc.open();
+    doc.write(injected);
+    doc.close();
+  }
+
+  loadFrame();
+})();
+</script>
+</body></html>

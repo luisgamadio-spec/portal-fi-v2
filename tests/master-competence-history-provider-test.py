@@ -347,6 +347,41 @@ def main():
         check("23: no native window.confirm/alert/prompt dialog ever fired across the whole suite (shared modal only)", len(dialogs_fired) == 0)
         check("24: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
 
+        # ---------- 24b-24d: RH-4D CPF transport hardening ----------
+        # snapshot_comissoes has a real `cpf` column (live-confirmed by
+        # RH-4C, non-null on 95/2138 rows for one legacy test closing).
+        # getSnapshot/exportSnapshot serialize the full row, so the raw
+        # RPC response CAN legitimately carry it. Prove the provider
+        # strips it before it ever reaches this screen's rendering --
+        # and that every other real field still renders unchanged
+        # (zero regression from the hardening).
+        page = new_page(browser)
+        install_tripwire(page)
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        page.route(READ_URL + "*", json_route(200, {"periods": [], "absences": [], "store_changes": []}))
+        page.route(CLOSINGS_URL + "*", json_route(200, {"rows": CLOSINGS}))
+        cpf_row = dict(SNAPSHOT_HEALTHY[0], cpf="00000000000")
+        page.route(SNAPSHOT_URL + "*", snapshot_route({"hc-001": [cpf_row]}))
+        page.route(EXPORT_URL + "*", json_route(200, {"rows": [cpf_row]}))
+        mount(page)
+        goto_hc(page)
+        page.click('.hcViewBtn[data-id="hc-001"]')
+        page.wait_for_timeout(200)
+        view_text = page.content()
+        check("24b (RH-4D CPF HARDENING): the real seller name still renders (zero regression from the strip)", "Vendedor Com Nome Extremamente Longo" in view_text)
+        check("24c (RH-4D CPF HARDENING): the raw CPF value never reaches the rendered DOM for the viewer path", "00000000000" not in view_text)
+        # exportSnapshot()'s own resolved value is asserted directly --
+        # its consumer (historyExportXlsx) hands the result straight to
+        # XLSX.writeFile (a real browser download, not a DOM render, and
+        # XLSX is not loaded in this harness), so a DOM-content check
+        # here would be vacuous. Calling the provider method itself
+        # proves the transport-level strip precisely.
+        export_result = page.evaluate("(id) => window.NX_MASTER_COMPETENCE_HISTORY_PROVIDER.exportSnapshot(id)", "hc-001")
+        check("24d (RH-4D CPF HARDENING): exportSnapshot()'s own resolved rows never carry a cpf key", all("cpf" not in r for r in export_result))
+        check("24e (RH-4D CPF HARDENING): exportSnapshot() still returns every other real field unmodified", export_result[0]["nome"] == cpf_row["nome"] and export_result[0]["comissao"] == cpf_row["comissao"])
+        page.close()
+
         # ---------- 25-33: responsive matrix + row-grid integrity (Gate 26/27/48/49/50) ----------
         page = new_page(browser)
         install_tripwire(page)

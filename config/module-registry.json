@@ -243,16 +243,17 @@
       "density": "MEDIUM",
       "authRequirement": "session + role scope",
       "designPattern": "no dedicated Approved Reference — cross-cutting domain, not a single V1 page",
-      "entryPoint": "NOT YET CREATED in V2",
+      "entryPoint": "assets/js/salarios-comissoes.js (NX_SALARIOS_COMISSOES_PAGE) + assets/js/adapters/salarios-comissoes-real-provider.js (NX_SALARIOS_COMISSOES_REAL_PROVIDER) + assets/css/salarios-comissoes.css",
       "businessSource": "assets/js/portal-app.js — commissionCalc()/commissionSummaryFromBlocks() (pure functions, NOT ported this phase)",
       "functionalSource": "assets/js/portal-app.js:commissionCalc (portal-financiamento-brabus-secure)",
       "approvedReference": null,
       "migrationWave": 4,
       "risk": "MEDIUM",
-      "migrationStatus": "NOT_MIGRATED",
+      "migrationStatus": "UAT_PENDING",
       "landingTitle": "Salários & Comissões",
       "landingDesc": "Composição de comissão, produção e status da equipe.",
-      "notes": "commissionCalc() is already a clean pure function in V1 — good extraction candidate. Same RC BLOCKER #6 as 'gestao': cannot claim reconciled parity with analise-fi-grupo.html's separate hardcoded rule until a human decides."
+      "notes": "commissionCalc() is already a clean pure function in V1 — good extraction candidate. Same RC BLOCKER #6 as 'gestao': cannot claim reconciled parity with analise-fi-grupo.html's separate hardcoded rule until a human decides. RC BLOCKER #6 remains OPEN and UNRESOLVED by this integration -- not a Salary business-rule change, out of this Wave's scope.",
+      "migrationSALINT1Note": "SAL-INTEGRATION-1: the already Human-approved Salary module (RH-4B through RH-5F.3B, approved on rh4a-salarios-provider @ cd7cf34 -- RH5F3B_HUMAN_APPROVED, SALARIOS_COMMISSION_TIER_VISUAL_HUMAN_APPROVED) was integrated into V2 main -- Landing entry, route, shell.js module-loader mapping, and its two source files (salarios-comissoes.js, salarios-comissoes-real-provider.js) plus its CSS, all copied byte-identical from the approved source. Also carries RH-4D's shared master-competence-history-provider.js CPF-transport hardening (a pure, additive strip with proven zero behavior change for Painel Master's own existing Histórico consumer), which Salary's own Histórico tab depends on as its sole transport authority. migrationStatus promoted from NOT_MIGRATED to UAT_PENDING on this basis -- integration is technically complete and tested, but this is the module's first appearance in the live, integrated main shell; no Human UAT of the INTEGRATED experience has occurred yet, so HUMAN_APPROVED is deliberately not claimed here. 0 Salary business logic changed, 0 DB writes, 0 migrations, 0 Secure changes, 0 IA files touched."
     },
     {
       "id": "brabus-intelligence",

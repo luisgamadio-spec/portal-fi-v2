@@ -83,7 +83,20 @@
    file -- enforced structurally by this file simply never importing/
    referencing them (see tests/master-competence-history-provider-
    test.py's read-only-proof check, which asserts on this file's own
-   source text). */
+   source text).
+
+   RH-4D: this is now the SINGLE canonical frontend transport authority
+   for the master_commission_* historical/snapshot RPC family -- the
+   Salários & Comissões module's own Histórico tab (formerly a separate
+   duplicate provider, salarios-comissoes-history-provider.js, retired
+   this Wave) now consumes THIS file directly, never a second transport
+   path. RH-4D also hardened getSnapshot/exportSnapshot to strip the
+   real `cpf` column snapshot_comissoes can legitimately carry (see
+   stripCpf below) -- neither this file's own existing consumer
+   (shell-admin.js's Histórico de Competências screen) nor the new
+   Salários consumer ever read `.cpf`, so removing it at this single
+   transport choke point is a pure hardening with zero behavior change
+   for either consumer. */
 (function () {
   'use strict';
 
@@ -94,6 +107,32 @@
   }
 
   var DEFAULT_TIMEOUT_MS = 15000;
+
+  // RH-4D hardening: snapshot_comissoes has a real `cpf` column
+  // (live-confirmed non-null on 95/2138 rows, one legacy test closing
+  // predating the current closing RPC -- the live closing path never
+  // writes it). getSnapshot/exportSnapshot serialize the full row via
+  // to_jsonb(s) server-side, so `cpf` CAN legitimately arrive here.
+  // Product contract (DO_NOT_CARRY_CPF_FORWARD): no current V2
+  // consumer of this provider (this file's own downstream view-model/
+  // export-engine templates, nor the new Salários & Comissões
+  // consumer) ever reads `.cpf`, so stripping it at this single
+  // transport choke point removes the field for every present and
+  // future consumer without touching any of their code. Every OTHER
+  // field is passed through unmodified -- this is a targeted strip,
+  // not a speculative sanitizer.
+  function stripCpf(rows) {
+    var out = rows.map(function (row) {
+      if (!row || typeof row !== 'object' || !Object.prototype.hasOwnProperty.call(row, 'cpf')) return row;
+      var copy = {};
+      Object.keys(row).forEach(function (k) { if (k !== 'cpf') copy[k] = row[k]; });
+      return copy;
+    });
+    if (out.some(function (row) { return row && typeof row === 'object' && Object.prototype.hasOwnProperty.call(row, 'cpf'); })) {
+      throw { state: 'MALFORMED_RESPONSE', message: 'Falha ao remover dado sensível da resposta.' };
+    }
+    return out;
+  }
 
   function callRpc(fnName, params, signal) {
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
@@ -162,7 +201,11 @@
       if (!data || !Array.isArray(data.rows)) {
         return Promise.reject({ state: 'MALFORMED_RESPONSE', message: 'Resposta inesperada do servidor.' });
       }
-      return data.rows;
+      try {
+        return stripCpf(data.rows);
+      } catch (e) {
+        return Promise.reject(e);
+      }
     });
   }
 
@@ -179,7 +222,11 @@
       if (!data || !Array.isArray(data.rows)) {
         return Promise.reject({ state: 'MALFORMED_RESPONSE', message: 'Resposta inesperada do servidor.' });
       }
-      return data.rows;
+      try {
+        return stripCpf(data.rows);
+      } catch (e) {
+        return Promise.reject(e);
+      }
     });
   }
 
