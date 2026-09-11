@@ -614,6 +614,16 @@
       t.edge_latency_ms = edge.latency_ms;
       t.edge_instance_id = edge.instance_id;
       t.edge_instance_age_ms = edge.instance_age_ms;
+      // IA-3J.4E.1 -- `edge.stage_ms` (portal-ai-homolog v50+) is the
+      // already-safe per-stage breakdown (auth_ms/master_gate_ms/
+      // config_scope_ms/openai_pass_ms/tool_dispatch_ms) IA-3J.4E added
+      // to `_homolog_edge_timing` specifically so it would reach this
+      // dev timing log without needing Edge Function log access. This
+      // block was a hand-listed field copy, not a generic spread, so
+      // the new field was silently dropped until this line was added --
+      // proven via a real Human capture whose expanded [bai-timing]
+      // object ended at `ui_submit_at` with no `stage_ms` present.
+      if (edge.stage_ms) t.stage_ms = edge.stage_ms;
     }
     if (clientTiming && clientTiming.uiSubmitAt) {
       t.total_ui_ms = clientReceiveAt - clientTiming.uiSubmitAt;
