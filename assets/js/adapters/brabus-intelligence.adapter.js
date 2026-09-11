@@ -624,6 +624,17 @@
       // proven via a real Human capture whose expanded [bai-timing]
       // object ended at `ui_submit_at` with no `stage_ms` present.
       if (edge.stage_ms) t.stage_ms = edge.stage_ms;
+      // IA-3J.4J.1 -- `edge.prompt_profile`/`edge.prompt_chars`
+      // (portal-ai-homolog v52+, IA-3J.4I) are the same class of
+      // already-safe metadata as `stage_ms` above -- a short enum
+      // string ("finance"|"full") and a plain character count, never
+      // prompt content -- and hit the EXACT SAME hand-listed-copy gap:
+      // this allowlist is deliberate (it is what keeps arbitrary future
+      // backend metadata from automatically becoming browser-visible),
+      // so each new safe field still needs its own explicit line here,
+      // with its own type guard, never a generic spread of `edge`.
+      if (typeof edge.prompt_profile === 'string' && edge.prompt_profile.length > 0) t.prompt_profile = edge.prompt_profile;
+      if (typeof edge.prompt_chars === 'number') t.prompt_chars = edge.prompt_chars;
     }
     if (clientTiming && clientTiming.uiSubmitAt) {
       t.total_ui_ms = clientReceiveAt - clientTiming.uiSubmitAt;
