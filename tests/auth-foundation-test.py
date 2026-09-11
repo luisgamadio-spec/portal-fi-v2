@@ -133,6 +133,22 @@ def new_page(browser, mock_state, viewport=None):
     # clobbering the mock. Block that one request so the mock stays
     # authoritative -- everything else on the page loads normally.
     page.route("**/supabase-js@*", lambda route: route.abort())
+    # TEST-MAINT-2 (TMAINT-001): same document-order problem applies to
+    # BOTH index.html's committed-default intelligence-runtime-config.js
+    # AND (when a developer machine has one) its local override -- each
+    # loads its own <script> tag after these add_init_script hooks and
+    # unconditionally reassigns window.NX_INTELLIGENCE_CONFIG again,
+    # clobbering CONFIG_SCRIPT's mock values regardless of which one
+    # runs. Every scenario using this helper is MOCK_CONFIG_CONTROLLED
+    # (relies on CONFIG_SCRIPT's fake supabaseUrl/key to reach its
+    # mocked auth states) -- neither file should be allowed to overwrite
+    # it. This is the counterpart to scenario 26's own, deliberately
+    # different, standalone page below, which blocks ONLY the local
+    # override because it specifically wants the committed default's
+    # real (null) values to take effect for its AUTH_NOT_CONFIGURED
+    # assertion -- do not apply this same two-file block there.
+    page.route("**/intelligence-runtime-config.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
+    page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
     page.add_init_script(CONFIG_SCRIPT)
     page.add_init_script("window.__MOCK__ = " + mock_state + ";")
     page.add_init_script(MOCK_CLIENT_SCRIPT)
@@ -254,10 +270,17 @@ def main():
         check("19: MASTER_ONLY (shell-admin) allowed for MASTER even with empty matrix list", page.evaluate("window.NX_ROUTER.currentRouteId()") == "shell-admin")
         page.evaluate("window.NX_ROUTER.navigate('central-atendimento-fi')")
         page.wait_for_timeout(300)
-        # .nxStatusTag renders text-transform:uppercase -- inner_text
-        # reflects rendered case ("EM BREVE"), not the source HTML's
-        # mixed-case "Em breve"; match case-insensitively.
-        check("20: MASTER_ONLY (central-atendimento-fi) allowed for MASTER, but NOT_MIGRATED still shows deferred placeholder, never mounts", "em breve" in page.inner_text("#nxContentOutlet").lower())
+        # TEST-MAINT-2 (TMAINT-001 follow-on): this scenario's own
+        # assertion was written while central-atendimento-fi was still
+        # NOT_MIGRATED and asserted the "em breve" deferred placeholder
+        # -- stale since the module's own CA-1A/CA-1B Human UAT
+        # ("validado") migrated and froze it. Live-reconfirmed this
+        # module now mounts its own real heading for MASTER; assert
+        # that instead (the actual current contract: MASTER_ONLY
+        # authorization allows the route AND the real module renders,
+        # not a placeholder), without inventing a new selector.
+        content = page.inner_text("#nxContentOutlet")
+        check("20: MASTER_ONLY (central-atendimento-fi) allowed for MASTER, real module mounts (not the deferred placeholder)", "Central de Atendimento F&I" in content and "em breve" not in content.lower())
         page.close()
 
         # ---------- 21: ANALISTA_OR_MASTER for ANALISTA ----------

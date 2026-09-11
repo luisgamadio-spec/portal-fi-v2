@@ -534,9 +534,25 @@ def main():
         # how an actual user reaches the card.
         landing_page.click("text=Brabus Intelligence")
         landing_page.wait_for_timeout(300)
-        intel_card = landing_page.locator("[data-route='brabus-intelligence']")
+        # TEST-MAINT-2 (TMAINT-002): [data-route='brabus-intelligence']
+        # was stale -- no element anywhere on Landing carries a
+        # data-route attribute (confirmed live and via source grep).
+        # landing.js's real, current card contract (moduleBlockHtml(),
+        # AUTH FOUNDATION Phase 2E Gate 7/17) is a genuine <a href>
+        # link, deliberately upgraded FROM a role="button" div for
+        # correct native link semantics -- assert on that real,
+        # existing contract (href + visible title, the link's own
+        # accessible name) rather than reintroducing a role="button"
+        # expectation the product code intentionally moved away from,
+        # and rather than inventing a new product attribute.
+        intel_card = landing_page.locator("a.fModuleBlock[href='#/brabus-intelligence']")
         check("Intelligence now appears as an ACTIVE module card on Landing (not a deferred/disabled entry)", intel_card.count() == 1)
-        check("Intelligence card is a real, focusable, labeled control (role=button, aria-label, tabindex)", intel_card.get_attribute("role") == "button" and bool(intel_card.get_attribute("aria-label")) and intel_card.get_attribute("tabindex") is not None)
+        check("Intelligence card is a real, focusable, labeled link (native <a href>, non-empty accessible name from its own title)", intel_card.evaluate("el => el.tagName") == "A" and "Brabus Intelligence" in intel_card.locator(".fModuleTitle").inner_text())
+        # Prove user intent end-to-end: activating the card must
+        # actually open the Intelligence Workspace, not just exist.
+        intel_card.click()
+        landing_page.wait_for_timeout(400)
+        check("Activating the card opens the Intelligence Workspace", landing_page.evaluate("window.NX_ROUTER.currentRouteId()") == "brabus-intelligence" and landing_page.locator("#baiInput").count() > 0)
         shot(landing_page, "30-landing-regression.png", "1366x768", "Landing after Intelligence work")
         landing_page.close()
 

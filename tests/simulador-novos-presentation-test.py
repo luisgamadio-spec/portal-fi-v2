@@ -280,22 +280,28 @@ def main():
         ui_markers_triton = page.evaluate("[...document.querySelectorAll('.smScheduleMarker')].map(e => Number(e.textContent))")
         results.append((f"schedule: Triton markers match S.SEMESTRAL_TRITON_MESES ({ui_markers_triton} == {expected_triton})", ui_markers_triton == expected_triton, (ui_markers_triton, expected_triton)))
 
-        # ---- Coparticipado: Rebate Brabus + Valor Final de Venda emphasized ----
-        click_mode("campanha")
-        page.select_option("#nModelo", "ECLIPSE CROSS HPE-S S-AWC")
-        page.fill("#nSale", "200000")
-        page.fill("#nEntry", "120000")
-        page.click("#nCalc")
-        page.wait_for_timeout(100)
-        camp_r = page.evaluate(
-            "() => NX_CAMPANHA_ADAPTER.compute({model:'ECLIPSE CROSS HPE-S S-AWC', saleValue:200000, entryValue:120000})"
-        )
-        rebate_in_emphasis = page.evaluate("!!document.querySelector('.smEmphasisPair .smEmphasisCard:first-child')")
-        venda_in_emphasis = page.evaluate("!!document.querySelector('.smEmphasisCardPrimary')")
-        rebate_txt = page.evaluate("document.querySelector('.smEmphasisPair .smEmphasisCard:first-child .smEmphasisValue') ? document.querySelector('.smEmphasisPair .smEmphasisCard:first-child .smEmphasisValue').textContent : null")
-        venda_txt = page.evaluate("document.querySelector('.smEmphasisCardPrimary .smEmphasisValue') ? document.querySelector('.smEmphasisCardPrimary .smEmphasisValue').textContent : null")
-        results.append(("coparticipado: Rebate Brabus rendered in the emphasis block", rebate_in_emphasis, rebate_txt))
-        results.append(("coparticipado: Valor Final de Venda rendered as the PRIMARY emphasis card", venda_in_emphasis, venda_txt))
+        # ---- Coparticipado (Campanha mode): intentionally NOT exercised
+        # here (TEST-MAINT-2 / TMAINT-003). Campanha mode calls the real
+        # governed-authority RPC (simulador_get_coparticipado) via
+        # GOVERNED.loadGovernedCoparticipadoRates() -- it has no offline/
+        # fixture path, unlike every other mode on this page -- and
+        # cannot pass under the AUTH_NOT_CONFIGURED fixture bypass this
+        # file otherwise runs under. This is not a gap: Campanha's
+        # presentation (model select, Rebate Brabus + Valor Final de
+        # Venda emphasis rendering) and its governed-rate business logic
+        # are already thoroughly covered, safely, with 0 real network
+        # calls, by simulador-novos-governed-authority-test.py -- a
+        # dedicated harness-page test (tests/_simulador-novos-harness.html)
+        # using a minimal window.NX_AUTH shim and the real, committed
+        # governed-contract fixture (tests/fixtures/simulador-novos-
+        # governed-campanha-contract.json), asserting on these same
+        # .smEmphasisCard/#nModelo elements across all 15 real governed
+        # models. Duplicating that coverage here, in a file that mocks
+        # nothing about auth/network, would either require reproducing a
+        # non-trivial auth+fetch mock (drifting out of sync with the
+        # real one over time) or silently depend on this machine's local
+        # Supabase config -- neither is acceptable for a fixture-only
+        # presentation test. See that file for Campanha's real coverage.
 
         # ---- Taxas Subsidiadas: card count + data parity (no new calc) ----
         click_mode("subsidiadas")
