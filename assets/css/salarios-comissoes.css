@@ -20,18 +20,31 @@
    is affected by this fix. min-width:0 lets the card shrink to its grid
    track instead of overriding it.
 
-   RH-5F.1, Human decision (H1): the value must stay on ONE LINE --
-   typography shrinks before it ever wraps (replaces RH-5F's own
-   overflow-wrap:break-word, which allowed a 2-line break; the Human
-   specifically rejected that outcome). white-space:nowrap is the
-   correct default now that .modKpiValue's own font-size responds to
-   the value's length (kpiValueSizeClass(), salarios-comissoes.js) --
-   3 fixed size tiers, not per-value hardcoding, stress-tested up to
-   R$ 999.999.999,99 at every mandated width. */
+   SAL-INTEGRATION-2, Human decision (supersedes RH-5F.1/H1): RH-5F.1's
+   per-value length-based font-size tiers (modKpiValueSmall/Tiny) made
+   sibling KPI values visually inconsistent -- a longer formatted string
+   is not semantic hierarchy, and Human explicitly rejected "Produção"
+   (or "Produção (Grupo)"/"Base") rendering smaller than its siblings
+   merely because its formatted value has more characters. Removed;
+   kpiCard() (salarios-comissoes.js) no longer applies any length-based
+   class, so every card in a family now renders at the SAME canonical
+   .modKpiValue size. The single-line, no-wrap goal from RH-5F.1 is kept
+   (white-space:nowrap below), but is now satisfied by giving every KPI
+   card enough room in the first place -- the grid track itself is
+   widened (module-system.css's own auto-fit/minmax pattern, just with a
+   larger minimum, scoped to this module only) rather than shrinking
+   individual values to fit a track too narrow for them. Verified to fit
+   the real production ceiling (R$ 999.999.999,99) at every mandated
+   width without wrapping or clipping. */
 .salPage .modKpiCard { min-width: 0; }
 .salPage .modKpiValue { white-space: nowrap; }
-.salPage .modKpiValue.modKpiValueSmall { font-size: calc(var(--mod-kpi-value-size) * 0.78); }
-.salPage .modKpiValue.modKpiValueTiny { font-size: calc(var(--mod-kpi-value-size) * 0.6); }
+.salPage .modKpiGrid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+@media (max-width: 900px) {
+  .salPage .modKpiGrid { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+}
+@media (max-width: 480px) {
+  .salPage .modKpiGrid { grid-template-columns: 1fr; }
+}
 
 /* .salCardList intentionally never sets `display` itself (only inert
    layout props below) -- display is controlled EXCLUSIVELY by

@@ -898,24 +898,21 @@
       (dashboard.analystMetricsError || dashboard.managerDirectoryError ? partialFailureNoteHtml() : '')
     );
   }
-  // RH-5F.1, Human decision (H1): a monetary value must stay on ONE
-  // LINE -- typography shrinks before wrapping ever happens. Since this
-  // is a JS-rendered app (no reliable pure-CSS "shrink to fit container"
-  // without container-query support this codebase doesn't otherwise
-  // use), the value's own character length -- known at render time --
-  // picks one of 3 fixed size tiers. Deterministic, not brittle
-  // per-value hardcoding: any value up to ~14 chars (covers every real
-  // KPI up to R$ 99.999.999,99) renders at full size; longer values
-  // (up to R$ 999.999.999,99 and beyond) step down, never wrap.
-  function kpiValueSizeClass(value) {
-    var len = String(value == null ? '' : value).length;
-    if (len > 17) return 'modKpiValueTiny';
-    if (len > 13) return 'modKpiValueSmall';
-    return '';
-  }
+  // SAL-INTEGRATION-2, Human decision (supersedes RH-5F.1/H1): sibling
+  // KPI cards must share one canonical value typography -- a longer
+  // formatted string is not semantic hierarchy and must not silently
+  // shrink its own value while siblings stay full size (Human-observed
+  // defect: "Produção" visibly smaller than "Vendidas" in the same
+  // row). RH-5F.1's per-value length-based size tiers are removed; the
+  // single-line, no-wrap goal (still valid) is now met by widening the
+  // KPI grid track itself (see .salPage .modKpiGrid in salarios-
+  // comissoes.css) so every card -- not just the long ones -- has room
+  // for the canonical .modKpiValue size, stress-tested up to
+  // R$ 999.999.999,99. extraClass-driven semantic treatment (success/
+  // info/etc.) is untouched -- that is real hierarchy, not a length
+  // artifact.
   function kpiCard(label, value, extraClass) {
-    var sizeClass = kpiValueSizeClass(value);
-    return '<div class="modKpiCard' + (extraClass ? ' ' + extraClass : '') + '"><p class="modKpiLabel">' + esc(label) + '</p><p class="modKpiValue' + (sizeClass ? ' ' + sizeClass : '') + '">' + esc(value) + '</p></div>';
+    return '<div class="modKpiCard' + (extraClass ? ' ' + extraClass : '') + '"><p class="modKpiLabel">' + esc(label) + '</p><p class="modKpiValue">' + esc(value) + '</p></div>';
   }
   function partialFailureNoteHtml() {
     return '<div class="modInfoState" style="text-align:left;padding:12px 16px"><div class="modStateTitle">Alguns dados do painel não puderam ser carregados</div>' +
