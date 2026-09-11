@@ -78,43 +78,108 @@
   margin: var(--space-1) 0 0;
 }
 
-/* ---------- PORTAL-NEXT-08.2 Change 1: grouped button mode nav
-   (Simulador Novos only — Seminovos keeps .smModeBar/<select> above,
-   untouched). Deliberately restrained: subtle surface + hairline
-   border when inactive, Red Precision accent treatment when active —
-   navigation, not marketing cards. ---------- */
+/* ---------- SIM-NAV-3: Hybrid Luxury Final (Concept E) navigation —
+   Human-approved (SIM_NAV_CONCEPT_E_HUMAN_APPROVED, SIM-NAV-LAB-2
+   commit 11b9bad), transferred faithfully from labs/simuladores-
+   navigation-lab.css's Concept E into production. Shared by BOTH
+   Novos and Seminovos (both files emit identical .smModeNav/
+   .smModeGroup/.smModeGroupLabel/.smModeButtons/.smModeBtn markup and
+   data-mode attributes — same classes/attributes the pre-existing
+   simulator test suites already assert on, so only styling and
+   purely-additive markup (a label span + a decorative chevron,
+   neither changes .textContent) changed here; 0 renamed/removed
+   selector). Three semantic instruments (Financiamento / Campanhas /
+   Ferramentas for Novos; Financiamento / Ferramentas for Seminovos) —
+   auto-fit column grid so Seminovos's 2 categories stay balanced
+   without a forced empty column, exactly like the LAB. Category index
+   (01/02/03) is pure CSS (counter() on .smModeGroupLabel::before), so
+   .smModeGroupLabel's own .textContent used by the Seminovos
+   ui-binding test stays exactly 'Financiamento'/'Ferramentas'. ---------- */
 .smModeNav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-5);
-  margin-bottom: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+  counter-reset: smModeGroup;
+  margin-bottom: var(--space-4);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--color-hairline);
 }
-.smModeGroup { display: flex; flex-direction: column; gap: var(--space-2); flex: 1 1 220px; min-width: 200px; }
+.smModeGroup {
+  counter-increment: smModeGroup;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
 .smModeGroupLabel {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-hairline);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+.smModeGroupLabel::before {
+  content: counter(smModeGroup, decimal-leading-zero);
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  letter-spacing: .04em;
   color: var(--color-text-muted);
+  opacity: .7;
 }
-.smModeButtons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.smModeButtons { display: flex; flex-direction: column; }
 .smModeBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 50px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-hairline);
+  padding: 0 var(--space-4) 0 20px;
+  color: var(--color-text-secondary);
   font-family: var(--font-ui);
   font-size: 12.5px;
-  padding: 7px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-hairline-strong);
-  color: var(--color-text-secondary);
   cursor: pointer;
   text-align: left;
-  line-height: 1.3;
+  transition: background var(--duration-standard) var(--ease-precise), color var(--duration-standard) var(--ease-precise);
 }
-.smModeBtn:hover { border-color: rgba(238, 75, 87, .4); color: var(--color-text-primary); }
-.smModeBtn.active { background: rgba(238, 75, 87, .14); border-color: var(--color-accent-primary); color: #ffecec; font-weight: 500; }
-.smModeBtn:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: 2px; }
+.smModeButtons .smModeBtn:last-child { border-bottom: none; }
+.smModeBtn::before {
+  content: '';
+  position: absolute;
+  left: 8px; top: 50%;
+  width: 2px; height: 0;
+  border-radius: 1px;
+  background: var(--p-red-1);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: height var(--duration-standard) var(--ease-precise), opacity var(--duration-standard) var(--ease-precise), box-shadow var(--duration-standard) var(--ease-precise);
+}
+.smModeBtnLabel { line-height: 1.3; }
+.smChevron { flex: 0 0 auto; color: var(--color-text-muted); transition: transform var(--duration-standard) var(--ease-precise), color var(--duration-standard) var(--ease-precise); }
+.smModeBtn:hover { background: rgba(255,255,255,.025); color: var(--color-text-primary); }
+.smModeBtn:hover::before { height: 14px; opacity: .4; }
+.smModeBtn:hover .smChevron { transform: translateX(2px); color: var(--color-text-primary); }
+.smModeBtn.active { background: rgba(255,255,255,.045); color: var(--color-text-primary); font-weight: 500; }
+.smModeBtn.active::before { height: 22px; opacity: 1; box-shadow: 0 0 6px 0 rgba(238,75,87,.45); }
+.smModeBtn.active .smChevron { color: var(--p-red-1); transform: translateX(1px); }
+.smModeBtn:focus-visible { outline: var(--focus-ring); outline-offset: -2px; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .smModeBtn, .smModeBtn::before, .smChevron { transition: none; } }
+/* Production's sidebar/page chrome leaves less usable width than the
+   LAB's standalone page at the same viewport, so auto-fit alone still
+   fits 2 columns at 480px here (vs. 1 in the LAB) -- forced to match
+   the approved single-column mobile stack. */
+@media (max-width: 480px) { .smModeNav { grid-template-columns: 1fr; } }
 
 /* ---------- PORTAL-NEXT-08.2 Change 2: balanced term-select grid
    (replaces .segmented's flex-wrap for prazo, which could leave an
