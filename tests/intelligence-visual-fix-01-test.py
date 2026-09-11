@@ -62,6 +62,11 @@ def main():
 
         # ---------- Desktop 1366 ----------
         page = browser.new_page(viewport={"width": 1366, "height": 768})
+        # TEST-MAINT-1: block the machine-local runtime-config override so
+        # this fixture-only suite stays isolated regardless of local
+        # machine state (same pattern as
+        # intelligence-structured-block-test.py).
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         page.goto(BASE + ROUTE)
         page.wait_for_timeout(400)
         assert_no_panel(page, "desktop 1366 initial")
@@ -87,6 +92,8 @@ def main():
 
         # ---------- Desktop 1920 ----------
         page = browser.new_page(viewport={"width": 1920, "height": 1080})
+        # TEST-MAINT-1: see the matching comment on the 1366 page above.
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         page.goto(BASE + ROUTE)
         page.wait_for_timeout(400)
         assert_no_panel(page, "desktop 1920 initial")
@@ -95,6 +102,8 @@ def main():
 
         # ---------- Tablet 768 ----------
         page = browser.new_page(viewport={"width": 768, "height": 1024})
+        # TEST-MAINT-1: see the matching comment on the 1366 page above.
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         page.goto(BASE + ROUTE)
         page.wait_for_timeout(400)
         assert_no_panel(page, "tablet 768 initial")
@@ -103,6 +112,8 @@ def main():
 
         # ---------- Mobile 430 ----------
         page = browser.new_page(viewport={"width": 430, "height": 932})
+        # TEST-MAINT-1: see the matching comment on the 1366 page above.
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         page.goto(BASE + ROUTE)
         page.wait_for_timeout(400)
         assert_no_panel(page, "mobile 430 initial")
@@ -111,6 +122,8 @@ def main():
 
         # ---------- Mobile 390 ----------
         page = browser.new_page(viewport={"width": 390, "height": 844})
+        # TEST-MAINT-1: see the matching comment on the 1366 page above.
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         page.goto(BASE + ROUTE)
         page.wait_for_timeout(400)
         assert_no_panel(page, "mobile 390 initial")
@@ -126,6 +139,8 @@ def main():
 
         # ---------- Also confirm 1024 (Gate 9 revalidation) ----------
         page = browser.new_page(viewport={"width": 1024, "height": 768})
+        # TEST-MAINT-1: see the matching comment on the 1366 page above.
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         page.goto(BASE + ROUTE)
         page.wait_for_timeout(400)
         assert_no_panel(page, "tablet 1024 initial")

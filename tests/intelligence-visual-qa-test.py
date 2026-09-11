@@ -63,6 +63,12 @@ def main():
         # DESKTOP 1366x768 -- primary QA pass
         # =========================================================
         page = browser.new_page(viewport={"width": 1366, "height": 768})
+        # TEST-MAINT-1: block the machine-local runtime-config override so
+        # this fixture-only suite stays isolated regardless of local
+        # machine state (same pattern as
+        # intelligence-structured-block-test.py). Covers every goto() on
+        # this `page` object below (route persists for the page's life).
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         console_errors = []
         net_errors = []
         page.on("console", lambda m: console_errors.append(m.text) if m.type == "error" else None)
@@ -118,6 +124,8 @@ def main():
         ref_metrics = {}
         for route_id, label in ref_routes.items():
             rp = browser.new_page(viewport={"width": 1366, "height": 768})
+            # TEST-MAINT-1: see the matching comment on `page` above.
+            rp.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
             rp.goto(BASE + "#/" + route_id)
             rp.wait_for_timeout(400)
             if rp.locator(".modPageHeader").count() > 0:
@@ -412,6 +420,8 @@ def main():
         # fixture list.
         # =========================================================
         stress_page = browser.new_page(viewport={"width": 1366, "height": 768})
+        # TEST-MAINT-1: see the matching comment on `page` above.
+        stress_page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         stress_page.goto(BASE + ROUTE)
         stress_page.wait_for_timeout(400)
         stress_html = stress_page.evaluate("""
@@ -446,6 +456,8 @@ def main():
         ]
         for w, h, shotname in RESPONSIVE:
             rp = browser.new_page(viewport={"width": w, "height": h})
+            # TEST-MAINT-1: see the matching comment on `page` above.
+            rp.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
             rp.goto(BASE + ROUTE)
             rp.wait_for_timeout(400)
             ov = overflow_of(rp)
@@ -483,6 +495,8 @@ def main():
         # SHELL / DRAWER (Gate 24)
         # =========================================================
         drawer_page = browser.new_page(viewport={"width": 1024, "height": 768})
+        # TEST-MAINT-1: see the matching comment on `page` above.
+        drawer_page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         drawer_page.goto(BASE + "#/landing")
         drawer_page.wait_for_timeout(400)
         check("tablet 1024: nav drawer trigger visible", drawer_page.locator("#pNavTrigger").is_visible())
@@ -509,6 +523,8 @@ def main():
         # LANDING REGRESSION (Gate 26)
         # =========================================================
         landing_page = browser.new_page(viewport={"width": 1366, "height": 768})
+        # TEST-MAINT-1: see the matching comment on `page` above.
+        landing_page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         landing_page.goto(BASE + "#/landing")
         landing_page.wait_for_timeout(500)
         check("Landing renders after Intelligence work (no crash)", landing_page.locator("#nxContentOutlet").count() > 0)

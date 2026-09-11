@@ -46,6 +46,11 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page(viewport={"width": 1366, "height": 900})
+        # TEST-MAINT-1: block the machine-local runtime-config override so
+        # this fixture-only suite stays isolated regardless of local
+        # machine state (same pattern as
+        # intelligence-structured-block-test.py).
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)

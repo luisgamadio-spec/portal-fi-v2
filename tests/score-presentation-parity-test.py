@@ -103,6 +103,11 @@ def main():
 
         # desktop presentation (>=768px)
         page = browser.new_page(viewport={"width": 1600, "height": 900})
+        # TEST-MAINT-1: block the machine-local runtime-config override so
+        # this fixture-only suite stays isolated regardless of local
+        # machine state (same pattern as
+        # intelligence-structured-block-test.py).
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(URL)
@@ -131,6 +136,8 @@ def main():
 
         # mobile presentation (<768px) -- same fixtures, different renderer
         page = browser.new_page(viewport={"width": 390, "height": 900})
+        # TEST-MAINT-1: see the matching comment on the desktop page above.
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(URL)
         page.wait_for_timeout(500)

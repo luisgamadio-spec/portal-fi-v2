@@ -50,6 +50,14 @@ def main():
 
         # ---------- Desktop, 1366x768 ----------
         page = browser.new_page(viewport={"width": 1366, "height": 768})
+        # TEST-MAINT-1: a real, gitignored, machine-local
+        # intelligence-runtime-config.local.js (present on some dev
+        # machines) loads unconditionally on localhost/127.0.0.1 and
+        # overrides this fixture-only test's expected AUTH_NOT_CONFIGURED
+        # state. Block it so this suite stays isolated regardless of
+        # local machine state (same pattern as
+        # intelligence-structured-block-test.py).
+        page.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
         console_errors = []
         page.on("console", lambda m: console_errors.append(m.text) if m.type == "error" else None)
         page.on("pageerror", lambda e: console_errors.append(str(e)))
@@ -203,6 +211,9 @@ def main():
         ]
         for w, h, shotname in RESPONSIVE:
             rp = browser.new_page(viewport={"width": w, "height": h})
+            # TEST-MAINT-1: see the matching comment on the desktop `page`
+            # above -- each new_page() needs its own route block.
+            rp.route("**/intelligence-runtime-config.local.js", lambda route: route.fulfill(status=200, content_type="application/javascript", body=""))
             rp.goto(BASE + "#/brabus-intelligence")
             rp.wait_for_timeout(300)
             overflow = rp.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
