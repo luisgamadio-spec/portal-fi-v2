@@ -61,7 +61,7 @@
     c: { label: 'C — Cockpit Command List', desc: 'Lista técnica, quase sem caixas -- índice numérico, separadores finos, leitura de instrumento.' },
     d: { label: 'D — Hybrid Luxury Navigation', desc: 'Três instrumentos contínuos (um por categoria) com linhas internas, não dez botões soltos.', badge: 'Direção selecionada' },
     e: { label: 'E — Hybrid Luxury Final', desc: 'Refinamento de D: hierarquia de material mais precisa, cabeçalho de categoria integrado, marcador vermelho inset com brilho localizado e restrito.', badge: 'Refinamento do Conceito D' },
-    f: { label: 'F — Hybrid Luxury Collapsible', desc: 'Ideia do Human: categorias sempre visíveis, opções ocultas até a categoria ser aberta -- uma categoria aberta por vez, mesma linguagem visual de E.', badge: 'Ideia do Human — em avaliação' }
+    f: { label: 'F — Hybrid Luxury Collapsible', desc: 'Ideia do Human: categorias sempre visíveis, opções ocultas até a categoria ser aberta -- uma categoria aberta por vez, mesma linguagem visual de E. Auto-collapse após seleção: escolher uma opção já recolhe a categoria, sem precisar clicar na seta.', badge: 'Direção preferida — refinamento em avaliação' }
   };
 
   // ---------- state ----------
@@ -302,6 +302,18 @@
     if (again) again.focus();
   }
 
+  // SIM-NAV-LAB-4 / Concept F.1 only -- which category (group name)
+  // owns a given mode id, for the current inventory. Used to restore
+  // focus to the correct (now-collapsed) category header after an
+  // F selection auto-collapses its panel.
+  function groupForMode(mode) {
+    var owner = null;
+    INVENTORIES[state.inventory].forEach(function (g) {
+      if (g.items.some(function (it) { return it.id === mode; })) owner = g.group;
+    });
+    return owner;
+  }
+
   // ---------- interaction ----------
   function wireStage() {
     var stage = document.getElementById('labStage');
@@ -310,10 +322,33 @@
         var c = btn.getAttribute('data-concept');
         var m = btn.getAttribute('data-mode');
         state.active[state.inventory][c] = m;
+        // SIM-NAV-LAB-4 / Concept F.1 (Human feedback: "quando eu
+        // seleciono o modo que desejo fica estático, ai tenho que
+        // clicar na seta em cima para sair da caixa de seleção") --
+        // an ACTUAL option selection (this click handler; never the
+        // category-header toggle below, never hover, never roving
+        // keyboard focus) closes the panel immediately. Enter/Space on
+        // a real <button> fires this same 'click' event, so keyboard
+        // selection auto-collapses identically to mouse, with 0 extra
+        // code (brief §17).
+        var ownerGroup = null;
+        if (c === 'f') {
+          ownerGroup = groupForMode(m);
+          state.openCategory[state.inventory] = null;
+        }
         render();
-        // restore focus to the just-selected control after re-render
-        var again = stage.querySelector('[data-concept="' + c + '"][data-mode="' + m + '"]');
-        if (again) again.focus();
+        if (c === 'f') {
+          // The just-selected row is now inert (its panel collapsed) --
+          // focusing it would silently fail and strand keyboard focus.
+          // Return focus to the header that now shows this selection's
+          // hint (brief §18), never leave it stranded.
+          var header = ownerGroup ? stage.querySelector('.labFHeader[data-group="' + ownerGroup + '"]') : null;
+          if (header) header.focus();
+        } else {
+          // restore focus to the just-selected control after re-render
+          var again = stage.querySelector('[data-concept="' + c + '"][data-mode="' + m + '"]');
+          if (again) again.focus();
+        }
       });
     });
     stage.querySelectorAll('.labFHeader').forEach(function (btn) {
