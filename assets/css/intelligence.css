@@ -660,13 +660,23 @@
 /* ---------- Send control (Section 17/18) -- EMPTY: subdued/disabled;
    TEXT PRESENT: red gains authority; a compact directional glyph, no
    "Enviar" text. ---------- */
+/* IA-3I.1-002 (Section 16/17/20): root cause of "looks like a blank
+   square" -- the disabled glyph color (--color-text-muted, #808080)
+   was ADDITIONALLY dimmed by a blanket opacity:.55 on the whole
+   control, compounding to a near-invisible stroke against the dark
+   composer background. Fixed by giving the disabled state its own
+   deliberately readable neutral (--color-text-secondary, lighter than
+   text-muted) at FULL opacity, plus a slightly raised fill
+   (--color-surface-2) so the control reads as "a real button, just
+   inactive" rather than empty space -- no blanket opacity reduction
+   anywhere in this rule set anymore. */
 .baiSendBtn{
   width:36px;height:36px;padding:0;border-radius:50%;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
-  background:none;border:1px solid var(--color-hairline-strong);color:var(--color-text-muted);
+  background:var(--color-surface-2);border:1px solid var(--color-hairline-strong);color:var(--color-text-secondary);
   cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .1s ease;
 }
-.baiSendBtn:disabled{cursor:not-allowed;opacity:.55}
+.baiSendBtn:disabled{cursor:not-allowed}
 .baiSendBtnActive{background:var(--color-accent-primary);border-color:transparent;color:#fff}
 .baiSendBtnActive:hover{filter:brightness(1.08)}
 .baiSendBtn:active:not(:disabled){transform:scale(.94)}

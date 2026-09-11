@@ -284,18 +284,23 @@
       '</div>';
   }
 
+  // IA-3I.1-001 (Section 12/13): root cause of "suggestions don't do
+  // anything" -- wireSuggestions() was written but never CALLED from
+  // buildPanelDom() (see the fix at that call site below), so the real
+  // DOM buttons existed with zero listener attached. Fixed AND
+  // upgraded per the Human's explicit product decision: one click now
+  // submits immediately through submitText() -- the SAME function
+  // wireComposer()'s Send/Enter path uses -- never a second request
+  // implementation. A real <button> already gives Enter/Space
+  // activation for free (both fire a native `click` the delegated
+  // listener below catches identically to a mouse click).
   function wireSuggestions() {
     var box = document.getElementById('baiPanelSuggestions');
     if (!box) return;
     box.addEventListener('click', function (e) {
       var btn = e.target.closest('.baiSuggestionChip');
       if (!btn) return;
-      var input = document.getElementById('baiPanelInput');
-      if (!input) return;
-      input.value = btn.textContent;
-      autoGrowComposer(input);
-      updateSendButtonState();
-      input.focus();
+      submitText(btn.textContent);
     });
   }
 
@@ -599,17 +604,24 @@
     btn.classList.toggle('baiSendBtnActive', hasText && !isLocked);
   }
 
+  // IA-3I.1 (Section 13): the ONE submit pipeline -- both the Send
+  // button/Enter key AND a suggestion click funnel through this same
+  // function, which itself does nothing but clear/resize the real
+  // composer and call the existing, unmodified handleSend(). Double-
+  // submit protection is inherited for free from handleSend()'s own
+  // pre-existing SENDING/THINKING guard -- no new guard invented here.
+  function submitText(text) {
+    text = (text || '').trim();
+    if (!text) return;
+    var input = document.getElementById('baiPanelInput');
+    if (input) { input.value = ''; autoGrowComposer(input); updateSendButtonState(); }
+    handleSend(text);
+  }
+
   function wireComposer() {
     var input = document.getElementById('baiPanelInput');
     var btn = document.getElementById('baiPanelSendBtn');
-    function submit() {
-      var text = (input.value || '').trim();
-      if (!text) return;
-      input.value = '';
-      autoGrowComposer(input);
-      updateSendButtonState();
-      handleSend(text);
-    }
+    function submit() { submitText(input.value); }
     btn.addEventListener('click', submit);
     input.addEventListener('keydown', function (e) {
       // Enter submits; Shift+Enter inserts a newline (Section 36),
@@ -844,6 +856,7 @@
     root.appendChild(wrap);
 
     wireComposer();
+    wireSuggestions(); // IA-3I.1-001: was defined but never called -- see its own doc comment
     document.getElementById('baiPanelNewChatBtn').addEventListener('click', onNovaConversa);
     document.getElementById('baiPanelCloseBtn').addEventListener('click', closePanel);
     document.getElementById('baiPanelBackdrop').addEventListener('click', closePanel);
