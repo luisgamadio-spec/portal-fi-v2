@@ -364,7 +364,24 @@ button { font: inherit; }
 .labFHeaderTop { display: flex; align-items: baseline; gap: var(--space-2); }
 .labFIndex { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--color-text-muted); opacity: .7; }
 .labFTitle { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; font-weight: 500; }
-.labFHint { font-size: 11.5px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* SIM-NAV-LAB-5 / Concept F.2 -- Human: "assim que a opção for
+   selecionada o nome da opção deve ficar em vermelho negrito...
+   Demonstrar que foi selecionada". .labFHint only ever renders for
+   the category that owns the CURRENT simulator mode (see conceptF()
+   in the JS -- hintHtml is built only when `!isOpen && current`), so
+   strengthening its own base style is sufficient; no new class or
+   markup needed. Reuses --color-accent-primary -- the SAME token
+   already used for E/F's selected-row marker (functional: state/
+   selection/interactive emphasis, per design-tokens.css's own
+   comment), not a new/invented red. ~5.2:1 contrast against
+   --color-surface-1 (measured), clears WCAG AA (4.5:1) for normal
+   text. font-weight:700 matches the one other place this codebase
+   already uses 700 for a value that must stand out strongly
+   (.modKpiCardInfo .modKpiValue, module-system.css) -- not an
+   invented weight tier. Category title (.labFTitle) is untouched,
+   so it stays the dominant structural label; only the mode name
+   itself carries the strong signal. */
+.labFHint { font-size: 11.5px; color: var(--color-accent-primary); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .labFDisclosure { flex: 0 0 auto; color: var(--color-text-muted); transform: rotate(0deg); transition: transform var(--duration-standard) var(--ease-precise), color var(--duration-standard) var(--ease-precise); }
 .labFGroup.open .labFDisclosure { transform: rotate(90deg); color: var(--p-red-1); }
