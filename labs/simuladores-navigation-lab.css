@@ -313,6 +313,110 @@ button { font: inherit; }
 @media (prefers-reduced-motion: reduce) { .labERow, .labERow::before { transition: none; } }
 .labFrameE .labPlaceholder { margin-top: var(--space-4); }
 
+/* =====================================================================
+   CONCEPT F -- HYBRID LUXURY COLLAPSIBLE (SIM-NAV-LAB-3, Human idea)
+   Exploratory only, NOT approved for production. Same material
+   language as E (panel surface, --radius-md, --duration-standard/
+   --ease-precise motion, --focus-ring, inset red row marker) -- the
+   difference is information density + interaction model, not a new
+   visual system (brief §13). Category-open state is deliberately
+   weaker than selected-row state: an open category gets only a faint
+   border/tonal shift, never the full red marker -- that stays
+   reserved for the actually selected simulator option (brief §41).
+   auto-fit + align-items:start (same as .labNavE) means an expanded
+   category grows independently; the other two collapsed panels keep
+   their own compact natural height instead of being stretched by
+   CSS Grid row-height equalization (brief §21/§22).
+   ===================================================================== */
+.labNavF { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); align-items: start; }
+.labFGroup { display: flex; flex-direction: column; }
+.labFPanel {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--duration-standard) var(--ease-precise);
+}
+.labFGroup.open .labFPanel { border-color: rgba(238,75,87,.28); }
+
+.labFHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-ui);
+  color: var(--color-text-secondary);
+  transition: background var(--duration-standard) var(--ease-precise), color var(--duration-standard) var(--ease-precise);
+}
+.labFHeader:hover { background: rgba(255,255,255,.025); color: var(--color-text-primary); }
+.labFGroup.open .labFHeader { color: var(--color-text-primary); border-bottom: 1px solid var(--color-hairline); }
+.labFHeader:focus-visible { outline: var(--focus-ring); outline-offset: -2px; z-index: 1; }
+
+.labFHeaderMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.labFHeaderTop { display: flex; align-items: baseline; gap: var(--space-2); }
+.labFIndex { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--color-text-muted); opacity: .7; }
+.labFTitle { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; font-weight: 500; }
+.labFHint { font-size: 11.5px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.labFDisclosure { flex: 0 0 auto; color: var(--color-text-muted); transform: rotate(0deg); transition: transform var(--duration-standard) var(--ease-precise), color var(--duration-standard) var(--ease-precise); }
+.labFGroup.open .labFDisclosure { transform: rotate(90deg); color: var(--p-red-1); }
+.labFHeader:hover .labFDisclosure { color: var(--color-text-primary); }
+.labFGroup.open .labFHeader:hover .labFDisclosure { color: var(--p-red-1); }
+
+.labFRowsWrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--duration-standard) var(--ease-precise); }
+.labFGroup.open .labFRowsWrap { grid-template-rows: 1fr; }
+.labFRowsInner { overflow: hidden; min-height: 0; }
+.labFRows { display: flex; flex-direction: column; border-top: 1px solid var(--color-hairline); }
+.labFRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 46px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-hairline);
+  padding: 0 var(--space-4) 0 20px;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--duration-standard) var(--ease-precise), color var(--duration-standard) var(--ease-precise);
+}
+.labFRows .labFRow:last-child { border-bottom: none; }
+.labFRow::before {
+  content: '';
+  position: absolute;
+  left: 8px; top: 50%;
+  width: 2px; height: 0;
+  border-radius: 1px;
+  background: var(--p-red-1);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: height var(--duration-standard) var(--ease-precise), opacity var(--duration-standard) var(--ease-precise), box-shadow var(--duration-standard) var(--ease-precise);
+}
+.labFLabel { line-height: 1.3; }
+.labFRow:hover { background: rgba(255,255,255,.025); color: var(--color-text-primary); }
+.labFRow:hover::before { height: 14px; opacity: .4; }
+.labFRow:hover .labChevron { transform: translateX(2px); color: var(--color-text-primary); }
+.labFRow.active { background: rgba(255,255,255,.045); color: var(--color-text-primary); font-weight: 500; }
+.labFRow.active::before { height: 22px; opacity: 1; box-shadow: 0 0 6px 0 rgba(238,75,87,.45); }
+.labFRow.active .labChevron { color: var(--p-red-1); transform: translateX(1px); }
+.labFRow:focus-visible { outline: var(--focus-ring); outline-offset: -2px; z-index: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .labFPanel, .labFHeader, .labFDisclosure, .labFRowsWrap, .labFRow, .labFRow::before { transition: none; }
+}
+.labFrameF .labPlaceholder { margin-top: var(--space-4); }
+
 /* ---------- shared responsive fallback ---------- */
 @media (max-width: 480px) {
   .labFrame { padding: var(--space-4); }

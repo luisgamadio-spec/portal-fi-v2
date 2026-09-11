@@ -60,7 +60,8 @@
     b: { label: 'B — Minimal Navigation Tiles', desc: 'Blocos baixos e uniformes em grade -- geometria consistente, nunca definida pelo tamanho do texto.' },
     c: { label: 'C — Cockpit Command List', desc: 'Lista técnica, quase sem caixas -- índice numérico, separadores finos, leitura de instrumento.' },
     d: { label: 'D — Hybrid Luxury Navigation', desc: 'Três instrumentos contínuos (um por categoria) com linhas internas, não dez botões soltos.', badge: 'Direção selecionada' },
-    e: { label: 'E — Hybrid Luxury Final', desc: 'Refinamento de D: hierarquia de material mais precisa, cabeçalho de categoria integrado, marcador vermelho inset com brilho localizado e restrito.', badge: 'Refinamento do Conceito D' }
+    e: { label: 'E — Hybrid Luxury Final', desc: 'Refinamento de D: hierarquia de material mais precisa, cabeçalho de categoria integrado, marcador vermelho inset com brilho localizado e restrito.', badge: 'Refinamento do Conceito D' },
+    f: { label: 'F — Hybrid Luxury Collapsible', desc: 'Ideia do Human: categorias sempre visíveis, opções ocultas até a categoria ser aberta -- uma categoria aberta por vez, mesma linguagem visual de E.', badge: 'Ideia do Human — em avaliação' }
   };
 
   // ---------- state ----------
@@ -68,9 +69,15 @@
     inventory: 'novos',
     concept: 'a',
     active: {
-      novos: { a: 'tradicional', b: 'tradicional', c: 'tradicional', d: 'tradicional', e: 'tradicional' },
-      seminovos: { a: 'tradicional', b: 'tradicional', c: 'tradicional', d: 'tradicional', e: 'tradicional' }
-    }
+      novos: { a: 'tradicional', b: 'tradicional', c: 'tradicional', d: 'tradicional', e: 'tradicional', f: 'tradicional' },
+      seminovos: { a: 'tradicional', b: 'tradicional', c: 'tradicional', d: 'tradicional', e: 'tradicional', f: 'tradicional' }
+    },
+    // SIM-NAV-LAB-3 / Concept F only -- which category is currently
+    // expanded, per inventory. null = all collapsed (the LAB's
+    // intentional initial state, brief §10). Separate from `active`
+    // above (the SELECTED simulator mode) -- browsing a category must
+    // never change the selected mode (brief §19).
+    openCategory: { novos: null, seminovos: null }
   };
 
   function esc(s) {
@@ -87,7 +94,7 @@
   function frameHtml(conceptKey, navHtml) {
     var h = HEADER_BY_INVENTORY[state.inventory];
     var meta = CONCEPT_META[conceptKey];
-    var frameClass = conceptKey === 'e' ? 'labFrame labFrameE' : 'labFrame';
+    var frameClass = conceptKey === 'e' ? 'labFrame labFrameE' : (conceptKey === 'f' ? 'labFrame labFrameF' : 'labFrame');
     var badgeHtml = meta.badge ? '<span class="labConceptBadge">' + esc(meta.badge) + '</span>' : '';
     return (
       '<div class="' + frameClass + '">' +
@@ -201,7 +208,58 @@
       '</nav>';
   }
 
-  var RENDERERS = { a: conceptA, b: conceptB, c: conceptC, d: conceptD, e: conceptE };
+  // ---------- Concept F: Hybrid Luxury Collapsible (Human idea) ----------
+  // SIM-NAV-LAB-3 -- same three-instrument architecture and material
+  // language as E (panel/header/row geometry, tokens, red-marker
+  // language all reused, not reinvented), but individual options stay
+  // hidden until their category header is opened, and only one
+  // category may be open at a time (brief §9/§13). The category
+  // header is a real <button> with aria-expanded/aria-controls; its
+  // options live in a grid-template-rows-animated wrapper so the
+  // expand/collapse is a real CSS transition, not a display toggle --
+  // and the options container gets `inert` (+ tabindex=-1 as a
+  // belt-and-suspenders) while collapsed so they are never keyboard-
+  // reachable (brief §26). A collapsed category whose options contain
+  // the CURRENTLY SELECTED mode shows a small secondary hint line
+  // (brief §17/§18) -- computed fresh per render, never stale, since
+  // it is derived from state.active[inv].f on every call, never cached.
+  function conceptF(inv, activeMap) {
+    var openCat = state.openCategory[state.inventory];
+    return '<nav class="labNavF" aria-label="Modalidade de financiamento">' +
+      inv.map(function (g, gi) {
+        var idx = String(gi + 1).padStart(2, '0');
+        var isOpen = g.group === openCat;
+        var slug = g.group.toLowerCase().replace(/[^a-z0-9]+/g, '');
+        var panelId = 'labFPanel-' + state.inventory + '-' + slug;
+        var current = null;
+        g.items.forEach(function (m) { if (m.id === activeMap.f) current = m; });
+        var hintHtml = (!isOpen && current) ? '<span class="labFHint">' + esc(current.label) + '</span>' : '';
+        return '<div class="labFGroup' + (isOpen ? ' open' : '') + '">' +
+          '<div class="labFPanel">' +
+            '<button type="button" class="labFHeader" data-group="' + esc(g.group) + '" aria-expanded="' + isOpen + '" aria-controls="' + panelId + '">' +
+              '<span class="labFHeaderMain">' +
+                '<span class="labFHeaderTop"><span class="labFIndex">' + idx + '</span><span class="labFTitle">' + esc(g.group) + '</span></span>' +
+                hintHtml +
+              '</span>' +
+              '<svg class="labChevron labFDisclosure" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+            '</button>' +
+            '<div class="labFRowsWrap"><div class="labFRowsInner">' +
+              '<div class="labFRows" id="' + panelId + '" role="group" aria-label="' + esc(g.group) + '"' + (isOpen ? '' : ' inert') + '>' +
+              g.items.map(function (m) {
+                var active = m.id === activeMap.f;
+                return '<button type="button" class="labFRow' + (active ? ' active' : '') + '" data-concept="f" data-mode="' + m.id + '" tabindex="' + (isOpen ? '0' : '-1') + '" aria-pressed="' + active + '">' +
+                  '<span class="labFLabel">' + esc(m.label) + '</span>' + chevron() +
+                  '</button>';
+              }).join('') +
+              '</div>' +
+            '</div></div>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+      '</nav>';
+  }
+
+  var RENDERERS = { a: conceptA, b: conceptB, c: conceptC, d: conceptD, e: conceptE, f: conceptF };
 
   function renderConcept(key) {
     var inv = INVENTORIES[state.inventory];
@@ -213,16 +271,35 @@
     var stage = document.getElementById('labStage');
     if (state.concept === 'compare') {
       stage.innerHTML = '<div class="labCompareGrid">' +
-        ['a', 'b', 'c', 'd', 'e'].map(function (k) { return '<div class="labCompareCell">' + renderConcept(k) + '</div>'; }).join('') +
+        ['a', 'b', 'c', 'd', 'e', 'f'].map(function (k) { return '<div class="labCompareCell">' + renderConcept(k) + '</div>'; }).join('') +
         '</div>';
     } else if (state.concept === 'compare-de') {
       stage.innerHTML = '<div class="labCompareGrid">' +
         ['d', 'e'].map(function (k) { return '<div class="labCompareCell">' + renderConcept(k) + '</div>'; }).join('') +
         '</div>';
+    } else if (state.concept === 'compare-ef') {
+      stage.innerHTML = '<div class="labCompareGrid">' +
+        ['e', 'f'].map(function (k) { return '<div class="labCompareCell">' + renderConcept(k) + '</div>'; }).join('') +
+        '</div>';
     } else {
       stage.innerHTML = renderConcept(state.concept);
     }
     wireStage();
+  }
+
+  // SIM-NAV-LAB-3 / Concept F only -- toggles the open category for
+  // the current inventory. Clicking the already-open category
+  // collapses back to all-collapsed (brief §20); clicking a different
+  // one closes the previous and opens the new one (single-open,
+  // brief §9). Never touches state.active (selected mode) -- opening/
+  // closing a category is browsing, not selecting (brief §19).
+  function toggleCategory(groupName) {
+    var inv = state.inventory;
+    state.openCategory[inv] = (state.openCategory[inv] === groupName) ? null : groupName;
+    render();
+    var stage = document.getElementById('labStage');
+    var again = stage.querySelector('.labFHeader[data-group="' + groupName + '"]');
+    if (again) again.focus();
   }
 
   // ---------- interaction ----------
@@ -239,8 +316,13 @@
         if (again) again.focus();
       });
     });
+    stage.querySelectorAll('.labFHeader').forEach(function (btn) {
+      btn.addEventListener('click', function () { toggleCategory(btn.getAttribute('data-group')); });
+    });
     // roving keyboard navigation within each group (arrow keys), one
     // group at a time -- Home/End jump to first/last item in the group.
+    // A collapsed Concept F options group is `inert`, so its items are
+    // simply unreachable here -- no special-casing needed.
     stage.querySelectorAll('[role="group"], [role="radiogroup"]').forEach(function (group) {
       var items = Array.prototype.slice.call(group.querySelectorAll('[data-mode]'));
       items.forEach(function (item, idx) {
@@ -252,6 +334,20 @@
           else if (e.key === 'End') next = items[items.length - 1];
           if (next) { e.preventDefault(); next.focus(); }
         });
+      });
+    });
+    // SIM-NAV-LAB-3 / Concept F optional enhancement (brief §27):
+    // Left/Right (or Up/Down) roving nav between the 3 category
+    // headers. Separate, simple mechanism -- headers carry no
+    // data-mode, so the generic loop above never touches them, and
+    // this loop never touches rows. No conflicting keyboard model.
+    var headers = Array.prototype.slice.call(stage.querySelectorAll('.labFHeader'));
+    headers.forEach(function (h, idx) {
+      h.addEventListener('keydown', function (e) {
+        var next = null;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = headers[(idx + 1) % headers.length];
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = headers[(idx - 1 + headers.length) % headers.length];
+        if (next) { e.preventDefault(); next.focus(); }
       });
     });
   }

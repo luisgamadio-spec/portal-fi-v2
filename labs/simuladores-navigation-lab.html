@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- SIM-NAV-LAB-1 / SIM-NAV-LAB-2 -- Premium Simulator Navigation LAB.
+<!-- SIM-NAV-LAB-1 / SIM-NAV-LAB-2 / SIM-NAV-LAB-3 -- Premium Simulator
+     Navigation LAB.
 
      Development-only Human review artifact. NOT linked from production
      navigation, NOT registered in config/module-registry.json, NOT
@@ -7,11 +8,16 @@
      simulator. Originally built (LAB-1) to let the Human compare four
      unrelated navigation concepts for the option area above Simulador
      de Financiamento -- Novos/Seminovos. The Human selected D --
-     Hybrid Luxury Navigation as the direction (SIM_NAV_CONCEPT_D_HUMAN
-     _SELECTED). LAB-2 adds Concept E -- Hybrid Luxury Final, a
-     visual/interaction refinement of D, preserving A/B/C/D unchanged
-     for historical comparison. E is a refinement candidate, not an
-     approved final design.
+     Hybrid Luxury Navigation as the direction. LAB-2 added Concept E
+     -- Hybrid Luxury Final, a visual/interaction refinement of D. The
+     Human then approved E ("Este ficou ótimo") and SIM-NAV-3
+     integrated it into the real Novos/Seminovos simulators (commit
+     64c4564) -- E is now PRODUCTION, not a LAB-only proposal anymore.
+     During that real Human review, the Human proposed a further idea:
+     hide individual options until their category is opened. LAB-3
+     adds Concept F -- Hybrid Luxury Collapsible to explore exactly
+     that, still LAB-only and NOT yet approved for production. A/B/C/D/
+     E are preserved unchanged for historical comparison.
 
      Reuses the REAL, unmodified, already-approved Portal V2 design
      authority (fonts.css / design-tokens.css / module-system.css,
@@ -24,7 +30,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LAB — Navegação dos Simuladores (SIM-NAV-LAB-1/2)</title>
+<title>LAB — Navegação dos Simuladores (SIM-NAV-LAB-1/2/3)</title>
 <link rel="stylesheet" href="../assets/css/vendor/fonts.css">
 <link rel="stylesheet" href="../assets/css/vendor/design-tokens.css">
 <link rel="stylesheet" href="../assets/css/module-system.css">
@@ -36,7 +42,7 @@
 
   <header class="labHeader">
     <div class="labHeaderTop">
-      <span class="labTag">SIM-NAV-LAB-1/2 — LAB interno, não é Portal real</span>
+      <span class="labTag">SIM-NAV-LAB-1/2/3 — LAB interno, não é Portal real</span>
       <label class="labInventoryToggle">
         <span class="labInventoryToggleLabel">Inventário</span>
         <span class="labSeg" id="labInventorySeg" role="radiogroup" aria-label="Inventário do simulador">
@@ -45,7 +51,7 @@
         </span>
       </label>
     </div>
-    <p class="labIntro">Comparação isolada de conceitos de navegação para a área de opções dos Simuladores. Mesmo conteúdo, mesma estrutura semântica (Financiamento / Campanhas / Ferramentas) em todos os conceitos — apenas a apresentação muda. A/B/C ficam preservados para referência histórica; D é a direção selecionada; E é o refinamento de D em avaliação. Nenhum simulador aprovado foi alterado.</p>
+    <p class="labIntro">Comparação isolada de conceitos de navegação para a área de opções dos Simuladores. Mesmo conteúdo, mesma estrutura semântica (Financiamento / Campanhas / Ferramentas) em todos os conceitos — apenas a apresentação muda. A/B/C ficam preservados para referência histórica; D foi a direção selecionada; E foi aprovado e já está integrado nos simuladores reais; F é a nova ideia do Human (opções ocultas até abrir a categoria) em avaliação. Nenhum simulador aprovado foi alterado por este LAB.</p>
   </header>
 
   <nav class="labConceptSwitch" aria-label="Seleção de conceito">
@@ -54,7 +60,9 @@
     <button type="button" class="labConceptBtn" data-concept="c">C · Cockpit</button>
     <button type="button" class="labConceptBtn" data-concept="d">D · Hybrid</button>
     <button type="button" class="labConceptBtn" data-concept="e">E · Final</button>
+    <button type="button" class="labConceptBtn" data-concept="f">F · Collapsible</button>
     <span class="labConceptSwitchSep" aria-hidden="true"></span>
+    <button type="button" class="labConceptBtn labCompareBtn" data-concept="compare-ef">Comparar E × F</button>
     <button type="button" class="labConceptBtn labCompareBtn" data-concept="compare-de">Comparar D × E</button>
     <button type="button" class="labConceptBtn labCompareBtn" data-concept="compare">Comparar todos</button>
   </nav>
