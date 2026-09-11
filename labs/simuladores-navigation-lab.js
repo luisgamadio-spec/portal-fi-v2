@@ -59,7 +59,8 @@
     a: { label: 'A — Premium Segmented', desc: 'Uma superfície segmentada por categoria, sem botões flutuantes -- o vermelho marca a seleção, não preenche.' },
     b: { label: 'B — Minimal Navigation Tiles', desc: 'Blocos baixos e uniformes em grade -- geometria consistente, nunca definida pelo tamanho do texto.' },
     c: { label: 'C — Cockpit Command List', desc: 'Lista técnica, quase sem caixas -- índice numérico, separadores finos, leitura de instrumento.' },
-    d: { label: 'D — Hybrid Luxury Navigation', desc: 'Três instrumentos contínuos (um por categoria) com linhas internas, não dez botões soltos.' }
+    d: { label: 'D — Hybrid Luxury Navigation', desc: 'Três instrumentos contínuos (um por categoria) com linhas internas, não dez botões soltos.', badge: 'Direção selecionada' },
+    e: { label: 'E — Hybrid Luxury Final', desc: 'Refinamento de D: hierarquia de material mais precisa, cabeçalho de categoria integrado, marcador vermelho inset com brilho localizado e restrito.', badge: 'Refinamento do Conceito D' }
   };
 
   // ---------- state ----------
@@ -67,8 +68,8 @@
     inventory: 'novos',
     concept: 'a',
     active: {
-      novos: { a: 'tradicional', b: 'tradicional', c: 'tradicional', d: 'tradicional' },
-      seminovos: { a: 'tradicional', b: 'tradicional', c: 'tradicional', d: 'tradicional' }
+      novos: { a: 'tradicional', b: 'tradicional', c: 'tradicional', d: 'tradicional', e: 'tradicional' },
+      seminovos: { a: 'tradicional', b: 'tradicional', c: 'tradicional', d: 'tradicional', e: 'tradicional' }
     }
   };
 
@@ -86,9 +87,11 @@
   function frameHtml(conceptKey, navHtml) {
     var h = HEADER_BY_INVENTORY[state.inventory];
     var meta = CONCEPT_META[conceptKey];
+    var frameClass = conceptKey === 'e' ? 'labFrame labFrameE' : 'labFrame';
+    var badgeHtml = meta.badge ? '<span class="labConceptBadge">' + esc(meta.badge) + '</span>' : '';
     return (
-      '<div class="labFrame">' +
-        '<div class="labConceptLabel"><span class="labConceptLabelName">' + esc(meta.label) + '</span><span class="labConceptLabelDesc">' + esc(meta.desc) + '</span></div>' +
+      '<div class="' + frameClass + '">' +
+        '<div class="labConceptLabel"><span class="labConceptLabelName">' + esc(meta.label) + '</span>' + badgeHtml + '<span class="labConceptLabelDesc">' + esc(meta.desc) + '</span></div>' +
         '<div class="labSimHeader">' +
           '<span class="modEyebrow">' + esc(h.eyebrow) + '</span>' +
           '<h1 class="modTitle labSimTitle">' + esc(h.title) + '</h1>' +
@@ -173,7 +176,32 @@
       '</nav>';
   }
 
-  var RENDERERS = { a: conceptA, b: conceptB, c: conceptC, d: conceptD };
+  // ---------- Concept E: Hybrid Luxury Final (refinement of D) ----------
+  // SIM-NAV-LAB-2 -- same three-instrument architecture as D, refined:
+  // category header integrated into the panel (index + title, per
+  // §10), inset red marker with a restrained localized glow instead
+  // of D's full-height border, auto-fit column grid so Seminovos's
+  // 2 categories (vs Novos's 3) and each category's differing row
+  // count never leave a forced empty column or a stretched group.
+  function conceptE(inv, activeMap) {
+    return '<nav class="labNavE" aria-label="Modalidade de financiamento">' +
+      inv.map(function (g, gi) {
+        var idx = String(gi + 1).padStart(2, '0');
+        return '<div class="labEGroup"><div class="labEPanel">' +
+          '<div class="labEHeader"><span class="labEIndex">' + idx + '</span><span class="labETitle">' + esc(g.group) + '</span></div>' +
+          '<div class="labERows" role="group" aria-label="' + esc(g.group) + '">' +
+          g.items.map(function (m) {
+            var active = m.id === activeMap.e;
+            return '<button type="button" class="labERow' + (active ? ' active' : '') + '" data-concept="e" data-mode="' + m.id + '" aria-pressed="' + active + '">' +
+              '<span class="labELabel">' + esc(m.label) + '</span>' + chevron() +
+              '</button>';
+          }).join('') +
+          '</div></div></div>';
+      }).join('') +
+      '</nav>';
+  }
+
+  var RENDERERS = { a: conceptA, b: conceptB, c: conceptC, d: conceptD, e: conceptE };
 
   function renderConcept(key) {
     var inv = INVENTORIES[state.inventory];
@@ -185,7 +213,11 @@
     var stage = document.getElementById('labStage');
     if (state.concept === 'compare') {
       stage.innerHTML = '<div class="labCompareGrid">' +
-        ['a', 'b', 'c', 'd'].map(function (k) { return '<div class="labCompareCell">' + renderConcept(k) + '</div>'; }).join('') +
+        ['a', 'b', 'c', 'd', 'e'].map(function (k) { return '<div class="labCompareCell">' + renderConcept(k) + '</div>'; }).join('') +
+        '</div>';
+    } else if (state.concept === 'compare-de') {
+      stage.innerHTML = '<div class="labCompareGrid">' +
+        ['d', 'e'].map(function (k) { return '<div class="labCompareCell">' + renderConcept(k) + '</div>'; }).join('') +
         '</div>';
     } else {
       stage.innerHTML = renderConcept(state.concept);

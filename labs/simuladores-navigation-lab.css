@@ -34,9 +34,10 @@ button { font: inherit; }
 .labConceptSwitchSep { width: 1px; align-self: stretch; background: var(--color-hairline-strong); margin: 0 var(--space-1); }
 .labCompareBtn { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .03em; }
 
-.labConceptLabel { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--space-4); }
+.labConceptLabel { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-3); margin-bottom: var(--space-4); }
 .labConceptLabelName { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--p-red-1); }
-.labConceptLabelDesc { font-size: 12px; color: var(--color-text-muted); max-width: 640px; line-height: 1.4; }
+.labConceptBadge { font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); border: 1px solid var(--color-hairline-strong); border-radius: var(--radius-sm); padding: 2px 7px; }
+.labConceptLabelDesc { flex-basis: 100%; font-size: 12px; color: var(--color-text-muted); max-width: 640px; line-height: 1.4; }
 
 .labFrame { background: var(--color-surface-1); border: 1px solid var(--color-hairline); border-radius: var(--radius-md); padding: var(--space-5); }
 .labSimHeader { margin-bottom: var(--space-4); }
@@ -228,6 +229,89 @@ button { font: inherit; }
 @media (prefers-reduced-motion: reduce) { .labDRow { transition: none; } }
 @media (max-width: 900px) { .labNavD { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) { .labNavD { grid-template-columns: 1fr; } }
+
+/* =====================================================================
+   CONCEPT E -- HYBRID LUXURY FINAL (SIM-NAV-LAB-2)
+   Refinement of D, same three-instrument architecture. Differences
+   from D are proportion/material/interaction, not structure:
+   - category header integrated into the panel (index + title, a
+     restrained technical eyebrow, per brief §10) instead of sitting
+     outside it;
+   - panel promoted to --radius-md (the token used for
+     modal/drawer/instrument-level surfaces) instead of D's
+     --radius-sm, to read as one level more considered;
+   - active/hover cue is a short INSET red marker (fixed-width
+     gutter, only height + opacity animate -- no layout shift) with a
+     small localized glow on the active state only, instead of D's
+     full-height border-left;
+   - grid uses auto-fit instead of a fixed repeat(3, 1fr): Seminovos
+     has 2 categories, Novos has 3, and row counts differ per
+     category -- auto-fit sizes exactly as many columns as there are
+     groups, so unequal counts never leave a forced empty column or
+     stretch a short group (brief §21/§22).
+   Row-level numeric index (like Concept C's) was evaluated and
+   rejected -- see report §12 (Optional Index Decision) for the
+   comparison and rationale; only the category-level index survives.
+   ===================================================================== */
+.labNavE { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); align-items: start; }
+.labEGroup { display: flex; flex-direction: column; }
+.labEPanel {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.labEHeader {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-hairline);
+}
+.labEIndex { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--color-text-muted); opacity: .7; }
+.labETitle { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-secondary); font-weight: 500; }
+.labERows { display: flex; flex-direction: column; }
+.labERow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 50px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-hairline);
+  padding: 0 var(--space-4) 0 20px;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--duration-standard) var(--ease-precise), color var(--duration-standard) var(--ease-precise);
+}
+.labERows .labERow:last-child { border-bottom: none; }
+.labERow::before {
+  content: '';
+  position: absolute;
+  left: 8px; top: 50%;
+  width: 2px; height: 0;
+  border-radius: 1px;
+  background: var(--p-red-1);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: height var(--duration-standard) var(--ease-precise), opacity var(--duration-standard) var(--ease-precise), box-shadow var(--duration-standard) var(--ease-precise);
+}
+.labELabel { line-height: 1.3; }
+.labERow:hover { background: rgba(255,255,255,.025); color: var(--color-text-primary); }
+.labERow:hover::before { height: 14px; opacity: .4; }
+.labERow:hover .labChevron { transform: translateX(2px); color: var(--color-text-primary); }
+.labERow.active { background: rgba(255,255,255,.045); color: var(--color-text-primary); font-weight: 500; }
+.labERow.active::before { height: 22px; opacity: 1; box-shadow: 0 0 6px 0 rgba(238,75,87,.45); }
+.labERow.active .labChevron { color: var(--p-red-1); transform: translateX(1px); }
+.labERow:focus-visible { outline: var(--focus-ring); outline-offset: -2px; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .labERow, .labERow::before { transition: none; } }
+.labFrameE .labPlaceholder { margin-top: var(--space-4); }
 
 /* ---------- shared responsive fallback ---------- */
 @media (max-width: 480px) {
