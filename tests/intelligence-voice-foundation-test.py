@@ -195,8 +195,16 @@ def main():
         check("Voice control is a real <button> (native keyboard semantics)", btn.evaluate("e => e.tagName") == "BUTTON")
         check("Voice control has a non-empty aria-label", bool(btn.get_attribute("aria-label")))
         check("Voice control starts aria-pressed=false (not active)", btn.get_attribute("aria-pressed") == "false")
-        check("Voice control lives inside .baiComposerActions (no second toolbar)",
-              page.evaluate("document.querySelector('.baiComposerActions #baiPanelVoiceBtn') !== null"))
+        # IA-3I: the Voice trigger moved from inside .baiComposerActions
+        # (grouped with Send) to a direct child of .baiPanelComposer,
+        # positioned BEFORE the textarea -- the brief's own explicit
+        # "[Fluid Aperture Voice Trigger] [text input] [Send]" layout,
+        # ONE integrated command surface rather than actions grouped
+        # with Send. Still exactly one Voice control, still inside the
+        # SAME composer, never a second toolbar -- only its exact
+        # nesting relative to .baiComposerActions changed.
+        check("Voice control lives inside .baiPanelComposer (no second toolbar)",
+              page.evaluate("document.querySelector('.baiPanelComposer #baiPanelVoiceBtn') !== null"))
         check("exactly one #baiPanelSendBtn still present (Text composer untouched)", page.locator("#baiPanelSendBtn").count() == 1)
 
         # ---------- D3 (IA-3H.1A Section 17): keyboard accessibility ----------

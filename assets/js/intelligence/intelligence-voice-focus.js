@@ -352,6 +352,34 @@
     return state !== VS.VOICE_DISCONNECTED && state !== VS.VOICE_IDLE;
   }
 
+  // IA-3I (Section 24/25/26): Voice Focus is now a STATE of the SAME
+  // Intelligence Workspace shell, not a second modal stacked on top of
+  // the Text one. This is the ONLY coordination point -- it toggles a
+  // purely presentational class on the Text drawer (never its own
+  // `hidden` attribute, which intelligence-panel.js's open/closePanel
+  // already own; never TEXT_STATES, never the conversation store) so
+  // the two files never fight over the same piece of state. The
+  // invariant: at most ONE of {Text drawer, Voice Focus panel} is
+  // visible at a time, and the shared #baiPanelBackdrop scrim (already
+  // shown by openPanel, untouched here) stays up across the whole
+  // Text<->Voice transition -- exactly why Voice Focus no longer draws
+  // its own separate scrim/blur (see intelligence.css).
+  function syncTextWorkspaceVisibility(focusVisible) {
+    var textDrawer = document.getElementById('baiPanelDrawer');
+    if (!textDrawer) return; // Text surface not mounted (e.g. non-MASTER) -- nothing to coordinate
+    textDrawer.classList.toggle('baiPanelDrawerReceded', focusVisible);
+    // Only reveal Text again if the outer Workspace is still meant to
+    // be open (Human didn't close the whole Workspace while Voice was
+    // active -- closePanel() itself ends the Voice session first in
+    // that case, so this normally never races, but stays correct
+    // either way since it only ever ADDS visibility back for an
+    // already-open Workspace, never opens a closed one).
+    if (!focusVisible && document.body.classList.contains('bai-panel-open')) {
+      var input = document.getElementById('baiPanelInput');
+      if (input) input.focus();
+    }
+  }
+
   function render() {
     var root = document.getElementById('baiVoiceFocusRoot');
     if (!root || !S) return;
@@ -369,6 +397,7 @@
     if (wasInactive && state === VS.VOICE_CONNECTING) visible = true;
 
     root.hidden = !visible;
+    syncTextWorkspaceVisibility(visible);
     if (!visible) {
       teardownAudioGraph();
       stopAmbient();
@@ -422,7 +451,7 @@
     wrap.innerHTML =
       '<div class="baiVoiceFocusOverlay" id="baiVoiceFocusOverlay">' +
         '<canvas class="baiVoiceFocusAmbientCanvas" id="baiVoiceFocusAmbientCanvas" aria-hidden="true"></canvas>' +
-        '<div class="baiVoiceFocusPanel" role="dialog" aria-modal="false" aria-label="Conversa por voz com a Brabus Intelligence">' +
+        '<div class="baiVoiceFocusPanel baiWorkspaceShell" role="dialog" aria-modal="true" aria-label="Conversa por voz com a Brabus Intelligence">' +
           '<header class="baiVoiceFocusHeader">' +
             '<span class="baiVoiceFocusTitle">Brabus Intelligence</span>' +
             '<button type="button" class="baiVoiceFocusCloseBtn" id="baiVoiceFocusCloseBtn" aria-label="Encerrar conversa por voz">&times;</button>' +

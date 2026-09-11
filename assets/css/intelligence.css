@@ -184,17 +184,25 @@
 .baiLauncherBtn:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-ring-offset)}
 .baiLauncherIcon{font-size:20px;line-height:1}
 
+/* IA-3I (Section 2/7): the Intelligence Workspace's shared dark scrim
+   -- ALWAYS shown while the Workspace is open (Text or Voice mode
+   alike, every breakpoint), unlike the old side-drawer's "no backdrop
+   on desktop" behavior (see this Wave's report for the documented
+   behavior change). No backdrop-filter/blur by default (Section 7:
+   "no blur required unless existing performance proves acceptable" --
+   kept simple/cheap; a flat, sufficiently dark scrim already achieves
+   "Portal clearly secondary"). */
 .baiPanelBackdrop{
   position:fixed;inset:0;background:var(--color-overlay-scrim);
-  pointer-events:auto;display:none
+  pointer-events:auto;display:block
 }
+/* Same explicit [hidden] convention already used for .baiVoiceFocusRoot/
+   .baiVoiceDiagPanel below -- openPanel()/closePanel() already toggle
+   this element's real `hidden` attribute; nothing else needs to know
+   about open/closed state. */
+.baiPanelBackdrop[hidden]{display:none}
 
 .baiPanelDrawer{
-  position:fixed;top:0;right:0;bottom:0;
-  width:min(420px,100vw);
-  background:var(--color-elevated-surface);
-  border-left:1px solid var(--color-hairline-strong);
-  box-shadow:var(--shadow-elevated);
   display:flex;flex-direction:column;
   pointer-events:auto;
 }
@@ -234,19 +242,17 @@
   color:var(--color-critical);border-top:1px solid var(--mod-border);flex-shrink:0
 }
 
-/* Desktop/tablet: floating drawer, no backdrop — the module underneath
-   (and the nav sidebar) stays fully interactive so navigating to
-   another module while the panel is open genuinely works (Section 12/
-   57), it does not merely look open. */
-@media(min-width:769px){
-  .baiPanelBackdrop{display:none !important}
-}
+/* IA-3I (Section 2/7): the old "floating drawer, no backdrop, Portal
+   stays interactive underneath" desktop behavior is RETIRED -- this
+   was a deliberate product decision the Human made this Wave, not an
+   oversight (see this Wave's report, Section 4: the Intelligence
+   Workspace is now a large, DOMINANT surface with Portal deliberately
+   darkened/subdued behind it, on every breakpoint, not just mobile).
+   The backdrop is unconditional now; the INTELLIGENCE WORKSPACE
+   section further below defines its real (dark, no-blur-by-default)
+   appearance and the large centered shell geometry. */
 
-/* Mobile: near-full-screen takeover with a backdrop and no side gutter
-   — Section 14 ("do not squeeze module + chat side-by-side"). */
 @media(max-width:768px){
-  .baiPanelDrawer{width:100vw;border-left:none}
-  .baiPanelBackdrop{display:block}
   .baiLauncherBtn{right:var(--space-3);bottom:var(--space-3)}
 }
 
@@ -503,18 +509,177 @@
 .baiPanelComposer #baiPanelSendBtn{padding:0 16px;height:40px;border-radius:var(--bai-content-radius);font-size:13px}
 .baiPanelComposer .baiVoiceBtn{border-radius:var(--bai-content-radius);font-size:13px}
 
-/* ---------- Drawer width (Section 19): visually re-evaluated at
-   420/424/432/440 — 420px (IA-3E's original) produces the best
-   proportion once the layout no longer needs to fit a 3rd KPI column;
-   440px's extra 20px only added dead space either side of the now-
-   narrower 2-column grid. Reverted. See docs/IA-3E-V2-INTELLIGENCE-
-   PANEL.md for the 4-width comparison. ---------- */
-.baiPanelDrawer{width:min(420px,100vw)}
+/* Drawer WIDTH is now owned by .baiWorkspaceShell (IA-3I, section
+   below) -- the old fixed min(420px,100vw) right-docked sizing is
+   retired along with the side-drawer presentation itself. */
 
 @media(max-width:768px){
   .baiPanelHeader{padding:var(--space-3)}
   .baiPanelBody{padding:var(--space-3)}
   .baiPanelComposer{padding:var(--space-3)}
+}
+
+/* ============================================================
+   INTELLIGENCE WORKSPACE (IA-3I) -- replaces the lateral drawer as
+   the primary Brabus Intelligence presentation. Human's own product
+   decision after IA-3H.2.1C: the surrounding UI "sem sal" (bland),
+   should feel like "a real, distinctive experience" rather than "a
+   chatbot attached to the side of the Portal" -- Text and Voice are
+   now ONE Intelligence core with TWO interaction modes, sharing one
+   large centered shell (.baiWorkspaceShell, applied to BOTH
+   #baiPanelDrawer and .baiVoiceFocusPanel) instead of a small side
+   panel plus a separate full-viewport Voice modal stacked on top.
+
+   DELIBERATE BEHAVIOR CHANGE (documented, not an oversight): the old
+   drawer kept the rest of Portal fully interactive underneath on
+   desktop (no backdrop >=769px) specifically so a Human could
+   navigate to another module while it stayed open. The Workspace is
+   now a genuinely modal, dominant surface on every breakpoint (Portal
+   "darkened, subdued, clearly secondary" per the brief) -- that
+   underlying multitasking affordance no longer exists. See this
+   Wave's report for the explicit trade-off disclosure. ============ */
+
+.baiWorkspaceShell{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:min(1180px,88vw);height:min(860px,86vh);
+  background:var(--color-canvas);
+  border:1px solid var(--color-hairline-strong);
+  border-radius:20px;
+  box-shadow:0 24px 80px rgba(0,0,0,.55),0 2px 0 rgba(255,255,255,.02) inset;
+  overflow:hidden;
+  /* A very slight red environmental presence (Section 8) -- a single
+     soft, mostly-invisible glow low in the frame, not a border tint --
+     stacked UNDER the ambient line field/content, never competing
+     with either. */
+  background-image:radial-gradient(ellipse 900px 420px at 50% 112%,rgba(238,75,87,.10),transparent 70%);
+}
+
+@media(max-width:1024px){
+  .baiWorkspaceShell{width:min(920px,92vw);height:min(760px,88vh)}
+}
+@media(max-width:900px){
+  .baiWorkspaceShell{width:94vw;height:90vh;border-radius:16px}
+}
+@media(max-width:480px){
+  .baiWorkspaceShell{
+    width:100vw;height:100vh;height:100dvh;
+    top:0;left:0;transform:none;
+    border-radius:0;border:none;
+  }
+}
+
+/* ---------- Text-mode ambient field (Section 9/28) -- CSS-only, no
+   Canvas/rAF loop in Text mode (Section 31's own explicit performance
+   rule) -- a static, extremely subtle radial hint of the same red
+   identity Voice's own canvas-driven ambient ribbons use, never
+   animated, never competing with reading. ---------- */
+.baiPanelAmbient{
+  position:absolute;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%,rgba(238,75,87,.14) 0,transparent 60%),
+    radial-gradient(1px 1px at 78% 62%,rgba(238,75,87,.10) 0,transparent 60%),
+    radial-gradient(600px 260px at 85% 8%,rgba(238,75,87,.05),transparent 70%);
+}
+
+/* ---------- Text drawer / Voice Focus panel share the shell; each
+   keeps only ITS OWN internal layout on top. ---------- */
+.baiPanelDrawer{position:relative;z-index:1}
+.baiPanelHeader,.baiPanelBody,.baiPanelComposer,.baiPanelStatusLine,.baiPanelProvenanceBanner{position:relative;z-index:1}
+
+/* Voice Focus becomes a STATE of this shell, not a second modal
+   (Section 26) -- hidden purely presentationally while Text mode is
+   dominant, restored the instant Voice ends (intelligence-voice-
+   focus.js's own syncTextWorkspaceVisibility()). */
+.baiPanelDrawerReceded{display:none}
+
+/* ---------- Header (Section 10) ---------- */
+.baiIconBtn{
+  display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:var(--radius-sm);
+  background:none;border:1px solid transparent;color:var(--color-text-secondary);
+  cursor:pointer;
+}
+.baiIconBtn:hover{color:var(--color-text-primary);border-color:var(--color-hairline-strong)}
+.baiIconBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+
+/* ---------- Empty state (Section 11/12) ---------- */
+.baiPanelEmptyState{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;gap:var(--space-2);
+  min-height:100%;padding:var(--space-6,48px) var(--space-4);
+}
+/* Explicit, matching the .baiVoiceFocusRoot/.baiVoiceDiagPanel
+   convention already used elsewhere in this file -- an author
+   `display` rule above would otherwise silently override the UA
+   stylesheet's own [hidden]{display:none} regardless of the actual
+   hidden attribute. */
+.baiPanelEmptyState[hidden]{display:none}
+.baiEmptyMark{color:var(--color-brand-red);opacity:.9;margin-bottom:var(--space-2)}
+.baiEmptyTitle{font-family:var(--font-ui);font-weight:300;font-size:22px;margin:0;color:var(--color-text-primary)}
+.baiEmptySubtitle{font-size:13px;color:var(--color-text-secondary);margin:0;max-width:420px}
+.baiSuggestions{display:flex;flex-wrap:wrap;gap:var(--space-2);justify-content:center;margin-top:var(--space-4);max-width:560px}
+.baiSuggestionChip{
+  font-family:var(--font-ui);font-size:12.5px;color:var(--color-text-secondary);
+  background:var(--color-surface-1);border:1px solid var(--color-hairline-strong);
+  border-radius:999px;padding:7px 14px;cursor:pointer;
+}
+.baiSuggestionChip:hover{color:var(--color-text-primary);border-color:color-mix(in srgb,var(--color-accent-primary) 45%,var(--color-hairline-strong) 55%)}
+.baiSuggestionChip:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+
+/* ---------- Command surface (Section 13/14/19) -- ONE integrated
+   control system, not three separate widgets beside an input. ---------- */
+.baiPanelComposer{
+  background:var(--color-surface-1);border:1px solid var(--color-hairline-strong);
+  border-radius:16px;align-items:flex-end;
+}
+.baiPanelComposer .baiComposerInput{
+  background:none;border:none;color:var(--color-text-primary);
+  padding:9px 4px;min-height:22px;
+}
+.baiPanelComposer .baiComposerInput:focus-visible{outline:none}
+.baiPanelComposer:focus-within{border-color:color-mix(in srgb,var(--color-accent-primary) 50%,var(--color-hairline-strong) 50%)}
+.baiPanelComposer .baiComposerActions{display:contents}
+
+/* ---------- Voice trigger (Section 15/16) -- a compact circular
+   Fluid-Aperture mark, the persistent "Voz" rectangle retired. The
+   visible label text becomes screen-reader-only (never removed --
+   still announces state changes); a native `title` mirrors it as an
+   optional hover/focus tooltip. ---------- */
+.baiPanelComposer .baiVoiceBtn{
+  width:36px;height:36px;padding:0;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:1px solid var(--color-hairline-strong);color:var(--color-brand-red);
+  transition:border-color .15s ease,transform .1s ease;
+}
+.baiPanelComposer .baiVoiceBtn:hover{border-color:color-mix(in srgb,var(--color-accent-primary) 55%,var(--color-hairline-strong) 45%)}
+.baiPanelComposer .baiVoiceBtn:hover .baiVoiceBtnMark{filter:brightness(1.25)}
+.baiPanelComposer .baiVoiceBtn:active{transform:scale(.94)}
+.baiPanelComposer .baiVoiceBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+.baiVoiceBtnMark{transition:filter .15s ease}
+
+/* ---------- Send control (Section 17/18) -- EMPTY: subdued/disabled;
+   TEXT PRESENT: red gains authority; a compact directional glyph, no
+   "Enviar" text. ---------- */
+.baiSendBtn{
+  width:36px;height:36px;padding:0;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:1px solid var(--color-hairline-strong);color:var(--color-text-muted);
+  cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .1s ease;
+}
+.baiSendBtn:disabled{cursor:not-allowed;opacity:.55}
+.baiSendBtnActive{background:var(--color-accent-primary);border-color:transparent;color:#fff}
+.baiSendBtnActive:hover{filter:brightness(1.08)}
+.baiSendBtn:active:not(:disabled){transform:scale(.94)}
+.baiSendBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
+
+@media(max-width:480px){
+  /* Overrides the shared .baiComposer{flex-direction:column} rule
+     (used by the routed full-page's own simpler composer at this
+     width) -- the integrated command surface's compact circular
+     Voice/Send controls stay in ONE row even on mobile, unlike the
+     old full-width "Enviar" text button that rule was written for. */
+  .baiPanelComposer{flex-direction:row;align-items:center}
+  .baiPanelComposer .baiVoiceBtn,.baiPanelComposer .baiSendBtn{width:38px;height:38px}
 }
 
 /* ============================================================
@@ -539,8 +704,17 @@
    nav's subtree intercepted every click at 1366px). The right edge has
    no nav at any breakpoint (persistent column and off-canvas drawer
    are both left-anchored), so it is the only safe default here. */
+/* IA-3I: re-anchored from the bottom-right corner to the TOP-right
+   corner. The old bottom anchor was chosen specifically to dodge the
+   composer, which used to sit at the bottom of a right-docked,
+   viewport-edge drawer -- the Intelligence Workspace is now a large
+   CENTERED shell (up to 94vw/90vh, fullscreen at 480px), so a
+   bottom-anchored fixed toggle now routinely lands on top of the
+   Workspace's own composer/controls instead of clearing them. A
+   top anchor stays clear of the composer (always at the WORKSPACE's
+   own bottom edge) regardless of breakpoint or Workspace size. */
 .baiVoiceDiagToggle{
-  position:fixed;right:var(--space-2);bottom:72px;z-index:300;pointer-events:auto;
+  position:fixed;right:var(--space-2);top:var(--space-2);z-index:300;pointer-events:auto;
   background:none;border:none;color:var(--color-text-muted);
   font-family:var(--font-mono);font-size:9px;letter-spacing:.03em;
   text-decoration:underline;cursor:pointer;opacity:.5;padding:3px 5px;
@@ -548,7 +722,7 @@
 .baiVoiceDiagToggle:hover,.baiVoiceDiagToggle:focus-visible{opacity:1;color:var(--color-accent-primary)}
 .baiVoiceDiagToggle:focus-visible{outline:var(--focus-ring);outline-offset:2px}
 .baiVoiceDiagPanel{
-  position:fixed;right:var(--space-3);bottom:96px;z-index:300;pointer-events:auto;
+  position:fixed;right:var(--space-3);top:36px;z-index:300;pointer-events:auto;
   width:340px;max-width:calc(100vw - 2 * var(--space-3));max-height:50vh;
   overflow:auto;background:var(--color-elevated-surface);
   border:1px solid var(--color-hairline-strong);border-radius:var(--radius-md);
@@ -560,17 +734,14 @@
 .baiVoiceDiagHeader h2{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);margin:0}
 .baiVoiceDiagHeader button{background:none;border:1px solid var(--color-hairline-strong);border-radius:var(--radius-sm);color:var(--color-text-secondary);font-family:var(--font-mono);font-size:9px;cursor:pointer;padding:2px 6px}
 #baiVoiceDiagBody{white-space:pre-wrap;word-break:break-word;margin:0;max-width:100%}
-/* IA-3H.1A -- found live via screenshot review (Section 44), not caught
-   by the automated true-overflow check (which proves nothing escapes
-   the viewport, not that two elements never overlap each other): at
-   480px the drawer takes over the full viewport, so bottom:72px/96px
-   (safe at wider widths, clear of the composer there) sits INSIDE the
-   composer's own ~113px-tall box and visually covers the textarea's
-   placeholder text. Pushed above the composer entirely at this
-   breakpoint instead -- same fix class as the two Section 23 bugs. */
+/* IA-3I: the old bottom-anchored 480px override (IA-3H.1A) is retired
+   along with the bottom anchor itself above -- the top anchor already
+   stays clear of the composer at every breakpoint, including a
+   fullscreen 480px Workspace, so no per-breakpoint repositioning is
+   needed here anymore; only the panel's own width still needs to
+   adapt to the narrow viewport. */
 @media(max-width:480px){
-  .baiVoiceDiagPanel{left:var(--space-2);right:var(--space-2);width:auto;bottom:144px}
-  .baiVoiceDiagToggle{bottom:120px}
+  .baiVoiceDiagPanel{left:var(--space-2);right:var(--space-2);width:auto}
 }
 
 /* ============================================================
@@ -586,11 +757,15 @@
    ============================================================ */
 .baiVoiceFocusRoot{position:fixed;inset:0;z-index:250;pointer-events:none}
 .baiVoiceFocusRoot[hidden]{display:none}
+/* IA-3I (Section 26): no own scrim/blur here anymore -- Voice Focus is
+   a STATE of the same Intelligence Workspace now, and the ONE shared
+   #baiPanelBackdrop (already visible from when the Workspace opened)
+   is the single scrim for both Text and Voice modes. Two stacked
+   scrims/blurs was exactly the "modal inside a modal" look the Human
+   rejected. */
 .baiVoiceFocusOverlay{
   position:absolute;inset:0;pointer-events:auto;
   display:flex;align-items:center;justify-content:center;padding:var(--space-4);
-  background:var(--color-overlay-scrim);
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
 }
 /* Recovered ambient line field (IA-3H.2.1B, Section 15) -- a very
    thin, very-low-opacity Lissajous ribbon field, painted behind the
@@ -607,11 +782,12 @@
    already-established tonal step above the page/scrim behind it --
    elevation via that step + the existing border/shadow, not via a
    brighter gray (Section 12). */
+/* IA-3I: width/height/background/border/radius/shadow now come from
+   the shared .baiWorkspaceShell class (also applied to this same
+   element, INTELLIGENCE WORKSPACE section below) -- only Voice
+   Focus's own internal flex layout stays declared here. */
 .baiVoiceFocusPanel{
-  width:min(420px,100%);max-height:calc(100vh - var(--space-8,64px));
   display:flex;flex-direction:column;gap:var(--space-4);
-  background:var(--color-surface-2);border:1px solid var(--color-hairline-strong);
-  border-radius:var(--radius-lg,16px);box-shadow:var(--shadow-elevated);
   padding:var(--space-5,24px) var(--space-4);
 }
 
@@ -685,16 +861,16 @@
    State remains fully comprehensible via .baiVoiceFocusStatus text
    alone regardless. Nothing to disable here at the CSS layer. */
 
-/* ---------- Responsive / zero horizontal scroll (Section 23-26) ---------- */
-@media(max-width:1024px){
-  .baiVoiceFocusPanel{width:min(380px,100%)}
-}
+/* ---------- Responsive / zero horizontal scroll (Section 23-26) ----------
+   IA-3I: .baiVoiceFocusPanel's own width/max-height is now inherited
+   from the shared .baiWorkspaceShell sizing (INTELLIGENCE WORKSPACE
+   section below) -- only the things still genuinely SPECIFIC to Voice
+   (the orb's own responsive scale, the controls stacking on mobile)
+   stay declared here. */
 @media(max-width:900px){
   .baiVoiceFocusPresence{width:180px;height:180px}
 }
 @media(max-width:480px){
-  .baiVoiceFocusOverlay{padding:var(--space-3);padding-top:max(var(--space-3),env(safe-area-inset-top));padding-bottom:max(var(--space-3),env(safe-area-inset-bottom))}
-  .baiVoiceFocusPanel{width:100%;max-height:calc(100vh - max(var(--space-3),env(safe-area-inset-top)) - max(var(--space-3),env(safe-area-inset-bottom)));padding:var(--space-4) var(--space-3)}
   .baiVoiceFocusControls{flex-direction:column}
   /* 160px matches the recovered original's own mobile value exactly
      (facelift-prototype-01/styles.css: .vfOrbFrame @480px). */

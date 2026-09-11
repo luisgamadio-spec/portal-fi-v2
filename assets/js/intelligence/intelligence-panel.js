@@ -254,6 +254,51 @@
       '<span class="modLoadingDot" aria-hidden="true"></span>Analisando os dados do Portal…</div></div>';
   }
 
+  /* ============================================================
+     EMPTY STATE (IA-3I, Section 11/12) -- intentional composition
+     replacing the old blank drawer. Suggestions are truthful, real
+     fixture-scenario matches (brabus-intelligence.adapter.js's own
+     SCENARIOS regexes) -- clicking one only fills+focuses the input
+     (never auto-sends), so the Human always keeps the final "send"
+     decision, and a real backend answer is never implied for a
+     question this build cannot actually resolve. ============ */
+  var EMPTY_STATE_SUGGESTIONS = [
+    'Qual foi o resultado do mês passado?',
+    'Como está o score do vendedor?',
+    'Compare o resultado entre as lojas'
+  ];
+
+  function emptyStateHtml() {
+    var suggestionsHtml = EMPTY_STATE_SUGGESTIONS.map(function (s) {
+      return '<button type="button" class="baiSuggestionChip">' + esc(s) + '</button>';
+    }).join('');
+    return '<div class="baiPanelEmptyState" id="baiPanelEmptyState">' +
+      '<div class="baiEmptyMark" aria-hidden="true">' +
+      '<svg viewBox="0 0 48 48" width="40" height="40" fill="none">' +
+      '<path d="M24 6.8c3.8.4 7.8 2 10.6 5.2 3.2 3.6 4.6 8.8 3.4 13.8-1.2 5-5.2 9.4-10.2 11-5 1.6-11 .4-14.8-3.4-3.8-3.8-5.4-9.8-3.8-15 1.6-5.2 6-9.4 11.2-11 1.2-.4 2.4-.6 3.6-.6z" stroke="currentColor" stroke-width="1.4"/>' +
+      '<path d="M18.6 30c1.8 1.6 4.6 1.8 6.8.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>' +
+      '</svg></div>' +
+      '<h3 class="baiEmptyTitle">Como posso ajudar?</h3>' +
+      '<p class="baiEmptySubtitle">Pergunte sobre financiamento, resultado ou score do Portal F&amp;I.</p>' +
+      '<div class="baiSuggestions" id="baiPanelSuggestions">' + suggestionsHtml + '</div>' +
+      '</div>';
+  }
+
+  function wireSuggestions() {
+    var box = document.getElementById('baiPanelSuggestions');
+    if (!box) return;
+    box.addEventListener('click', function (e) {
+      var btn = e.target.closest('.baiSuggestionChip');
+      if (!btn) return;
+      var input = document.getElementById('baiPanelInput');
+      if (!input) return;
+      input.value = btn.textContent;
+      autoGrowComposer(input);
+      updateSendButtonState();
+      input.focus();
+    });
+  }
+
   var NEAR_BOTTOM_THRESHOLD_PX = 80;
 
   function renderConversation() {
@@ -271,7 +316,14 @@
 
     var snap = S.getSnapshot();
     var busy = snap.textState === S.TEXT_STATES.SENDING || snap.textState === S.TEXT_STATES.THINKING;
-    if (snap.conversation.length === 0 && !busy) {
+    var isEmpty = snap.conversation.length === 0 && !busy;
+    // IA-3I: the intentional empty-state composition (Section 11) --
+    // toggled here, alongside the conversation render, so it always
+    // matches the SAME real conversation-emptiness signal the
+    // conversation view itself already uses (never a second guess).
+    var emptyStateEl = document.getElementById('baiPanelEmptyState');
+    if (emptyStateEl) emptyStateEl.hidden = !isEmpty;
+    if (isEmpty) {
       el.innerHTML = '';
       return;
     }
@@ -291,13 +343,12 @@
     var desc = C.describe();
     if (desc) {
       chip.hidden = false;
-      // A small dot + "Analisando: X" reads as a subtle status line,
-      // not a technical "Contexto:" label (IA-3E.2 Section 10) --
-      // still presentation-only, still never sent anywhere (esc()
-      // used since desc can include a module-published, non-backend-
-      // trusted string via publish()).
+      // IA-3I: "Contexto · X" replaces the more technical-reading
+      // "Analisando: X" (Section 10) -- same underlying, real, module-
+      // published context string (esc()'d, never sent anywhere), only
+      // the wording changed.
       chip.innerHTML = '<span class="baiPanelContextDot" aria-hidden="true"></span>' +
-        '<span class="baiPanelContextText">Analisando: ' + esc(desc) + '</span>';
+        '<span class="baiPanelContextText">Contexto · ' + esc(desc) + '</span>';
     } else {
       chip.hidden = true;
       chip.innerHTML = '';
@@ -321,9 +372,11 @@
 
   function setComposerEnabled(enabled) {
     var input = document.getElementById('baiPanelInput');
-    var btn = document.getElementById('baiPanelSendBtn');
     if (input) input.disabled = !enabled;
-    if (btn) btn.disabled = !enabled;
+    // IA-3I: Send's own disabled state is now computed by
+    // updateSendButtonState() (locked-state OR empty-text, Section 17)
+    // -- a single authoritative place, never two writers disagreeing.
+    updateSendButtonState();
   }
 
   function applyPersistentState(state) {
@@ -526,6 +579,26 @@
     el.style.height = next + 'px';
   }
 
+  // IA-3I (Section 17) -- Send's own visual authority now tracks
+  // whether there is real text to send, layered on TOP of the
+  // existing locked/busy disabling (applyPersistentState's own
+  // setComposerEnabled) -- this only ADDS an emptiness condition, it
+  // never re-enables a genuinely locked composer. A dedicated CSS
+  // class (.baiSendBtnActive) drives the red/authoritative look;
+  // `disabled` itself remains the real, authoritative, assistive-
+  // tech-visible state (Section 18).
+  function updateSendButtonState() {
+    var input = document.getElementById('baiPanelInput');
+    var btn = document.getElementById('baiPanelSendBtn');
+    if (!input || !btn) return;
+    var hasText = !!(input.value || '').trim();
+    var st = S ? S.getTextState() : null;
+    var isLocked = st === S.TEXT_STATES.DISABLED || st === S.TEXT_STATES.SESSION_EXPIRED ||
+      st === S.TEXT_STATES.FORBIDDEN || st === S.TEXT_STATES.SENDING || st === S.TEXT_STATES.THINKING;
+    btn.disabled = isLocked || !hasText;
+    btn.classList.toggle('baiSendBtnActive', hasText && !isLocked);
+  }
+
   function wireComposer() {
     var input = document.getElementById('baiPanelInput');
     var btn = document.getElementById('baiPanelSendBtn');
@@ -534,6 +607,7 @@
       if (!text) return;
       input.value = '';
       autoGrowComposer(input);
+      updateSendButtonState();
       handleSend(text);
     }
     btn.addEventListener('click', submit);
@@ -544,12 +618,14 @@
     });
     input.addEventListener('input', function () {
       autoGrowComposer(input);
+      updateSendButtonState();
       var st = S.getTextState();
       if (st === S.TEXT_STATES.OPEN_IDLE || st === S.TEXT_STATES.COMPLETE || st === S.TEXT_STATES.ERROR) {
         S.setTextState(S.TEXT_STATES.COMPOSING);
       }
     });
     autoGrowComposer(input);
+    updateSendButtonState();
   }
 
   /* ============================================================
@@ -586,13 +662,22 @@
   // hand-authored static path (no JS deformation math needed for an
   // 18x18 icon). aria-hidden -- the button's own aria-label already
   // carries the accessible name; this never duplicates it for AT.
+  // IA-3I (Section 15): the persistent rectangular "Voz" button is
+  // retired -- the Fluid Aperture mark alone is now the trigger, a
+  // compact circular control. Markup is otherwise UNCHANGED (same
+  // #baiPanelVoiceBtn id, same mark/seam paths, same #baiPanelVoiceBtnLabel
+  // span) so every existing runtime/test contract keeps working; the
+  // label becomes screen-reader-only via CSS (never removed -- it
+  // still announces state changes to assistive tech) and its text is
+  // ALSO mirrored onto a native `title` attribute for an optional
+  // mouse-hover tooltip (Section 15's own "may reveal on hover").
   function voiceButtonHtml() {
-    return '<button type="button" class="modBtn baiVoiceBtn" id="baiPanelVoiceBtn" aria-pressed="false" aria-label="Iniciar conversa por voz com a Brabus Intelligence">' +
+    return '<button type="button" class="modBtn baiVoiceBtn" id="baiPanelVoiceBtn" aria-pressed="false" title="Voz" aria-label="Iniciar conversa por voz com a Brabus Intelligence">' +
       '<svg class="baiVoiceBtnMark" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true" focusable="false">' +
       '<path class="baiVoiceBtnMarkContour" d="M12 3.4c1.9.2 3.9 1 5.3 2.6 1.6 1.8 2.3 4.4 1.7 6.9-.6 2.5-2.6 4.7-5.1 5.5-2.5.8-5.5.2-7.4-1.7-1.9-1.9-2.7-4.9-1.9-7.5.8-2.6 3-4.7 5.6-5.5.6-.2 1.2-.3 1.8-.3z" stroke="currentColor" stroke-width="1.6"/>' +
       '<path class="baiVoiceBtnMarkSeam" d="M9.3 15c.9.8 2.3.9 3.4.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>' +
       '</svg>' +
-      '<span class="baiVoiceBtnLabel" id="baiPanelVoiceBtnLabel">Voz</span>' +
+      '<span class="baiVoiceBtnLabel baiSrOnly" id="baiPanelVoiceBtnLabel">Voz</span>' +
       '</button>';
   }
 
@@ -603,7 +688,9 @@
     var state = S.getVoiceState();
     var VS = S.VOICE_STATES;
     var isActive = state !== VS.VOICE_DISCONNECTED && state !== VS.VOICE_IDLE && state !== VS.VOICE_ERROR;
-    label.textContent = VOICE_LABEL_BY_STATE[state] || 'Voz';
+    var stateText = VOICE_LABEL_BY_STATE[state] || 'Voz';
+    label.textContent = stateText;
+    btn.setAttribute('title', stateText);
     btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     btn.setAttribute('aria-label', isActive
       ? 'Encerrar conversa por voz com a Brabus Intelligence'
@@ -636,6 +723,15 @@
     var drawer = document.getElementById('baiPanelDrawer');
     var backdrop = document.getElementById('baiPanelBackdrop');
     var launcherBtn = document.getElementById('baiLauncherBtn');
+    // IA-3I (Section 26): Voice Focus is now a STATE of this same
+    // Workspace, not a separate modal the Human closes independently
+    // -- closing the Workspace while Voice is active must cleanly end
+    // that session too (Voice's own existing end()/cleanup path,
+    // never a second/duplicate teardown), so nothing is left running
+    // in the background behind a closed Workspace.
+    if (window.NX_INTELLIGENCE_VOICE && window.NX_INTELLIGENCE_VOICE.isActive()) {
+      window.NX_INTELLIGENCE_VOICE.end();
+    }
     if (drawer) drawer.hidden = true;
     if (backdrop) backdrop.hidden = true;
     if (launcherBtn) { launcherBtn.setAttribute('aria-expanded', 'false'); launcherBtn.focus(); }
@@ -697,21 +793,39 @@
     var provenanceBannerHtml = transportMode === 'fixture'
       ? '<p class="modFixtureBanner baiPanelProvenanceBanner" id="baiPanelProvenanceBanner" style="margin:0 var(--bai-rail);border-radius:var(--radius-sm)">Modo de teste local — respostas não vêm do servidor real.</p>'
       : '';
-    return '<aside class="baiPanelDrawer" id="baiPanelDrawer" role="dialog" aria-modal="false" aria-label="Brabus Intelligence" data-nx-transport="' + transportMode + '" hidden>' +
+    // IA-3I (Section 10): "Nova conversa" becomes a compact icon
+    // action (a real accessible button, native `title` tooltip,
+    // never underlined-link styling) -- same #baiPanelNewChatBtn id,
+    // same click handler, only the visible content changed.
+    var newChatIconHtml = '<button type="button" class="baiIconBtn" id="baiPanelNewChatBtn" title="Nova conversa" aria-label="Nova conversa">' +
+      '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true" focusable="false">' +
+      '<path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
+      '</svg></button>';
+    // IA-3I (Section 17): the generic "Enviar" text is retired -- a
+    // compact directional glyph inside the same #baiPanelSendBtn
+    // element (id/aria-label/click contract unchanged). Enter/Shift+
+    // Enter submission semantics (wireComposer) are untouched.
+    var sendIconHtml = '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true" focusable="false">' +
+      '<path d="M10 15.5V5M10 5l-4.5 4.5M10 5l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>';
+    return '<aside class="baiPanelDrawer baiWorkspaceShell" id="baiPanelDrawer" role="dialog" aria-modal="true" aria-label="Brabus Intelligence" data-nx-transport="' + transportMode + '" hidden>' +
+      '<div class="baiPanelAmbient" aria-hidden="true"></div>' +
       '<div class="baiPanelHeader">' +
       '<div><h2 class="baiPanelTitle">Brabus Intelligence</h2>' +
       '<p class="baiPanelContextChip" id="baiPanelContextChip" hidden></p></div>' +
       '<div class="baiPanelHeaderActions">' +
-      '<button type="button" class="modBtn modBtnGhost" id="baiPanelNewChatBtn">Nova conversa</button>' +
+      newChatIconHtml +
       '<button type="button" class="baiPanelCloseBtn" id="baiPanelCloseBtn" aria-label="Fechar Brabus Intelligence">&times;</button>' +
       '</div></div>' +
       provenanceBannerHtml +
-      '<div class="baiPanelBody"><div class="baiConversation" id="baiPanelConversation" aria-live="polite" aria-atomic="false"></div></div>' +
+      '<div class="baiPanelBody">' +
+      emptyStateHtml() +
+      '<div class="baiConversation" id="baiPanelConversation" aria-live="polite" aria-atomic="false"></div></div>' +
       '<div class="baiComposer baiPanelComposer">' +
+      voiceButtonHtml() +
       '<textarea id="baiPanelInput" class="baiComposerInput" aria-label="Pergunta para a Brabus Intelligence" placeholder="Pergunte sobre financiamento, resultado ou score..." rows="1"></textarea>' +
       '<div class="baiComposerActions">' +
-      voiceButtonHtml() +
-      '<button type="button" class="modBtn modBtnPrimary" id="baiPanelSendBtn">Enviar</button>' +
+      '<button type="button" class="baiSendBtn" id="baiPanelSendBtn" aria-label="Enviar mensagem" disabled>' + sendIconHtml + '</button>' +
       '</div></div>' +
       '<p class="baiPanelStatusLine" id="baiPanelStatusLine" hidden></p>' +
       '</aside>';

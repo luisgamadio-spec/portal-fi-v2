@@ -654,17 +654,36 @@ def main():
         )
         check("comparison grid: scrollWidth <= clientWidth", cmp_widths["grid"] and cmp_widths["grid"]["scrollWidth"] <= cmp_widths["grid"]["clientWidth"], cmp_widths["grid"])
         check("comparison side card: scrollWidth <= clientWidth", cmp_widths["sideA"] and cmp_widths["sideA"]["scrollWidth"] <= cmp_widths["sideA"]["clientWidth"], cmp_widths["sideA"])
-        check("comparison: stacks to 1 column at the real (narrow) drawer width (outer grid)", page.evaluate("getComputedStyle(document.querySelector('.baiComparisonGrid')).gridTemplateColumns.split(' ').length") == 1)
+        # IA-3I: the outer comparison grid's own @container(max-width:520px)
+        # threshold (IA-3G.1) reacted to .baiPanelBody's real container
+        # width -- narrow (~380px) in the old 420px side-drawer, so it
+        # always stacked to 1 column "at real width". The Intelligence
+        # Workspace is now ~1180px wide by default (min(1180px,88vw) --
+        # see .baiWorkspaceShell), so .baiPanelBody's real container
+        # width is comfortably >520px and the SAME container query
+        # correctly does NOT fire anymore -- 2 columns side-by-side is
+        # the new correct real-width behavior (brief Section 20: allow
+        # the structured renderer "sufficient width"), verified live,
+        # not assumed. The container query mechanism itself is still
+        # fully proven further below via the forced-width matrix
+        # (700/480/400px), unchanged.
+        real_outer_cols = page.evaluate("getComputedStyle(document.querySelector('.baiComparisonGrid')).gridTemplateColumns.split(' ').length")
+        check("comparison: 2 columns side-by-side at the real (now wide) Workspace width (outer grid)", real_outer_cols == 2, real_outer_cols)
         # ---- IA-3G.3 density assertions ----
         inner_cols = page.evaluate("getComputedStyle(document.querySelector('.baiComparisonSide .baiMetricsGrid')).gridTemplateColumns.split(' ').length")
-        check("comparison: internal KPI grid uses 2 columns at the real drawer width (density fix, not 1)", inner_cols == 2, inner_cols)
+        # Same reasoning: auto-fit(minmax(130px,1fr)) now has a wider
+        # side (~567px vs ~380px before) to fill, so 3 columns fit
+        # naturally where 2 did before -- still never the old 1-column
+        # regression IA-3G.3 fixed, which is the actual invariant this
+        # check protects.
+        check("comparison: internal KPI grid uses 3 columns at the real (wide) Workspace width (never back to 1)", inner_cols == 3, inner_cols)
         card_heights = page.evaluate(
             """() => {
                 var sides = document.querySelectorAll('.baiComparisonSide');
                 return Array.from(sides).map(s => Math.round(s.getBoundingClientRect().height));
             }"""
         )
-        check("comparison: each period card height is compact (< 280px for 8 items in 2 columns), not ~500-700px", all(h < 280 for h in card_heights), card_heights)
+        check("comparison: each period card height is compact (< 280px for 8 items in 3 columns), not ~500-700px", all(h < 280 for h in card_heights), card_heights)
         check("comparison: both period labels present and readable (no metric dropped)", "378" in page.locator(".baiComparisonGrid").inner_text() and "341" in page.locator(".baiComparisonGrid").inner_text())
         cmp_text = page.locator(".baiComparisonGrid").inner_text()
         check("comparison: custom-range period label reformatted to dd/mm/aaaa (not raw ISO)", "01/08/2026 a 31/08/2026" in cmp_text and "01/07/2026 a 31/07/2026" in cmp_text)
