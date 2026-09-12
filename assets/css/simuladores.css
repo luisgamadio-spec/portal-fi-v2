@@ -214,21 +214,27 @@
    the approved single-column mobile stack. */
 @media (max-width: 480px) { .smModeNav { grid-template-columns: 1fr; } }
 
-/* ---------- SIM-REG-01: "Falar com um Analista" CTA (Novos +
-   Seminovos share this rule -- both files emit the identical
+/* ---------- SIM-REG-01 / SIM-REG-01B: "Falar com um Analista" CTA
+   (Novos + Seminovos share this rule -- both files emit the identical
    .smAnalystCta markup). Lives inside .modPageHeader, which is
    already display:flex; justify-content:space-between (module-
    system.css, untouched) -- so this simply becomes the header's
    second child, pushed to the right, wrapping under the title on
-   narrow widths for free. Deliberately quieter than "Calcular"
-   (bordered secondary surface, not the filled accent button) and
-   positioned in the static header, never inside #smModeNavRegion, so
-   it never competes with or gets disturbed by mode/category
-   switching. ---------- */
-.smAnalystCta { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; flex-shrink: 0; background: var(--color-surface-2); border: 1px solid var(--color-hairline-strong); border-radius: var(--radius-sm); padding: 0 18px; font-family: var(--font-ui); font-size: 12.5px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap; }
-.smAnalystCtaIcon { color: var(--p-red-1); flex-shrink: 0; }
-@media (prefers-reduced-motion: no-preference) { .smAnalystCta { transition: border-color var(--duration-fast) var(--ease-precise), color var(--duration-fast) var(--ease-precise), background var(--duration-fast) var(--ease-precise); } }
-.smAnalystCta:hover { border-color: var(--p-red-1); color: var(--color-text-primary); background: rgba(238,75,87,.06); }
+   narrow widths for free. Positioned in the static header, never
+   inside #smModeNavRegion, so it never competes with or gets
+   disturbed by mode/category switching.
+   SIM-REG-01B (Human UAT: position/layout/copy/authority all
+   approved -- "aumentar o destaque visual" only): now reuses the
+   EXACT SAME filled-accent authority already used by "Calcular"
+   itself (.btn-primary, simuladores.css) -- background/border-color/
+   foreground values copied verbatim from that already-approved,
+   already-Human-tested button family, not a new invented treatment.
+   ~5.4:1 contrast (#1a0506 on #ee4b57, computed) clears WCAG AA. ---------- */
+.smAnalystCta { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; flex-shrink: 0; background: var(--color-accent-primary); border: 1px solid var(--color-accent-primary); border-radius: var(--radius-sm); padding: 0 18px; font-family: var(--font-ui); font-size: 12.5px; font-weight: 500; color: #1a0506; cursor: pointer; white-space: nowrap; }
+.smAnalystCtaIcon { color: inherit; flex-shrink: 0; }
+@media (prefers-reduced-motion: no-preference) { .smAnalystCta { transition: background var(--duration-fast) var(--ease-precise), filter var(--duration-fast) var(--ease-precise); } }
+.smAnalystCta:hover { background: #f16571; border-color: #f16571; }
+.smAnalystCta:active { filter: brightness(.92); }
 .smAnalystCta:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
 @media (max-width: 480px) { .smAnalystCta { width: 100%; justify-content: center; } }
 
