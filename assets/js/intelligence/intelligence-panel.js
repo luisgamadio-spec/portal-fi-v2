@@ -240,6 +240,69 @@
     return !!(block && block.type === 'metrics' && block.financing_card);
   }
 
+  /* ---------- Required-down-payment "loose grid" -> proper cards (IA-UAT-05) ----------
+     portal-ai-homolog's own buildSimulationMetricsBlock NEVER attaches
+     a financing_card for mode="required_down_payment" (confirmed by
+     direct reading, Secure repo, READ-ONLY this Wave) -- only
+     "payment" mode does. IA-UAT-04's deterministic commercial selector
+     dispatches every selected LINEAR proposal through exactly this
+     required_down_payment shape, so each one arrived here as a flat
+     metrics grid (Valor do Veículo + one Entrada/Parcela pair PER
+     term), never a card -- the real cause of the Human's "alternativas
+     Linear como campos soltos / repetição de Valor do Veículo" UAT
+     finding. Backend is READ-ONLY this Wave (presentation only), so
+     this is synthesized HERE from the exact, stable label template
+     that backend function has used unchanged across every prior Wave
+     (confirmed unique to this one code path) -- never a guess, and no
+     financial NUMBER is recomputed, only regrouped + the one display-
+     only subtraction (financed = veículo - entrada) done with numbers
+     the backend already validated, the SAME arithmetic the backend's
+     own "payment"-mode cards already do server-side. */
+  var REQUIRED_DOWN_PAYMENT_ENTRADA_RE = /^Entrada necessária \((\d+)x\)$/;
+  var REQUIRED_DOWN_PAYMENT_PARCELA_RE = /^Parcela obtida \((\d+)x\)$/;
+
+  function isRequiredDownPaymentGridBlock(block) {
+    return !!(block && block.type === 'metrics' && !block.financing_card && Array.isArray(block.items) &&
+      block.items.some(function (i) { return REQUIRED_DOWN_PAYMENT_ENTRADA_RE.test(i.label); }));
+  }
+
+  function round2Display(n) {
+    return Math.round(n * 100) / 100;
+  }
+
+  // One synthetic {type:'metrics', financing_card:{...}} per term found
+  // in the grid -- a single required_down_payment block carries more
+  // than one term only via the explicit "todas as opções" bypass
+  // (Section 10 never dispatches more than one term per block through
+  // the normal <=3-proposal selection) -- still renders each as its
+  // own proper card instead of one shared grid either way.
+  function syntheticFinancingCardsFromGrid(block) {
+    var vehicleItem = block.items.filter(function (i) { return i.label === 'Valor do Veículo'; })[0];
+    var targetItem = block.items.filter(function (i) { return i.label === 'Parcela Desejada'; })[0];
+    var targetPayment = targetItem ? targetItem.value : null;
+    var vehicleValue = vehicleItem ? vehicleItem.value : null;
+    var cards = [];
+    block.items.forEach(function (item, idx) {
+      var m = REQUIRED_DOWN_PAYMENT_ENTRADA_RE.exec(item.label);
+      if (!m) return;
+      var term = Number(m[1]);
+      var next = block.items[idx + 1];
+      var pm = next && REQUIRED_DOWN_PAYMENT_PARCELA_RE.exec(next.label);
+      var monthlyPayment = (pm && Number(pm[1]) === term) ? next.value : null;
+      var downPayment = item.value;
+      var financedAmount = (vehicleValue != null && downPayment != null) ? round2Display(vehicleValue - downPayment) : null;
+      var distance = (targetPayment != null && monthlyPayment != null) ? round2Display(Math.abs(monthlyPayment - targetPayment)) : null;
+      cards.push({
+        type: 'metrics',
+        financing_card: {
+          kind: 'LINEAR', term_months: term, monthly_payment: monthlyPayment, down_payment: downPayment,
+          financed_amount: financedAmount, target_payment: targetPayment, target_distance: distance
+        }
+      });
+    });
+    return cards;
+  }
+
   function financingPlanFactHtml(label, value, format) {
     var f = A.formatValue(value, format);
     var titleAttr = f.title ? ' title="' + esc(f.title) + '"' : '';
@@ -272,12 +335,21 @@
       balloonsHtml = '<div class="baiPlanCardFacts baiPlanCardBalloons">' + balloonItems + '</div>';
     }
 
+    // IA-UAT-05, Section 6 -- PARCELA DESEJADA and PARCELA OBTIDA are
+    // never shown as two separate facts (the hero above already IS the
+    // obtained payment); when they are exactly equal (distance rounds
+    // to R$0,00) no comparison line is shown at all -- only a genuine,
+    // material difference earns one, and even then only the short
+    // "R$X acima/abaixo da meta" form, never a redundant restatement of
+    // the target value the hero already conveys.
     var targetHtml = '';
     if (fc.target_payment != null && fc.target_distance != null) {
-      var distFmt = A.formatValue(fc.target_distance, 'currency');
-      var direction = fc.monthly_payment <= fc.target_payment ? 'abaixo da meta' : 'acima da meta';
-      targetHtml = '<p class="baiPlanCardTarget">' + esc(distFmt.text) + ' ' + esc(direction) +
-        ' (meta: ' + esc(A.formatValue(fc.target_payment, 'currency').text) + ')</p>';
+      var roundedDistance = round2Display(fc.target_distance);
+      if (roundedDistance > 0) {
+        var distFmt = A.formatValue(roundedDistance, 'currency');
+        var direction = fc.monthly_payment <= fc.target_payment ? 'abaixo da meta' : 'acima da meta';
+        targetHtml = '<p class="baiPlanCardTarget">' + esc(distFmt.text) + ' ' + esc(direction) + '</p>';
+      }
     }
 
     return '<div class="' + cardClass + '">' + headerHtml + factsHtml + balloonsHtml + targetHtml + '</div>';
@@ -393,21 +465,47 @@
      never an invented ranking. Every non-financing block in the same
      message renders through the existing, unmodified renderOneBlock. */
   function renderBlocksHtml(blocks) {
-    var financing = blocks.filter(hasFinancingCard);
-    if (!financing.length) return blocks.map(renderOneBlock).join('');
+    // IA-UAT-05 -- expand any required-down-payment "loose grid" block
+    // into its own real financing card(s) BEFORE grouping, so Text and
+    // Voice render the exact SAME cards regardless of which backend
+    // shape (payment vs required_down_payment) produced the proposal.
+    // This never mutates the canonical message/blocks array
+    // (S.getConversation()'s own state) -- `expanded` is a fresh,
+    // render-local array built fresh on every call.
+    var expanded = [];
+    blocks.forEach(function (b) {
+      if (isRequiredDownPaymentGridBlock(b)) expanded.push.apply(expanded, syntheticFinancingCardsFromGrid(b));
+      else expanded.push(b);
+    });
 
+    var financing = expanded.filter(hasFinancingCard);
+    if (!financing.length) return expanded.map(renderOneBlock).join('');
+
+    // IA-UAT-05 -- array order already encodes the backend's own
+    // RECOMENDADO-first selection (IA-UAT-04's selectCommercialProposals
+    // pushes proposals in exactly that order, and portal-ai-homolog's
+    // own dispatch loop pushes their blocks in that same order) --
+    // target_distance now only overrides it when a LATER candidate is
+    // MEANINGFULLY closer (>R$1,00 margin). The new <=3-proposal flow
+    // computes every proposal's own entrada independently via a R$0,01-
+    // tolerance bisection search, so all of them sit within a few cents
+    // of the target and array order correctly wins; a real, material
+    // gap (e.g. the pre-existing financing-plan-cards fixture's own
+    // R$33,06 vs R$1.184,38) still overrides it exactly as before --
+    // the OLDER engine-first flow's already-approved behavior is
+    // unchanged.
     var primary = financing[0];
     var haveDistances = financing.every(function (b) { return b.financing_card.target_distance != null; });
     if (haveDistances) {
       primary = financing.reduce(function (best, b) {
-        return b.financing_card.target_distance < best.financing_card.target_distance ? b : best;
+        return (b.financing_card.target_distance < best.financing_card.target_distance - 1) ? b : best;
       });
     }
 
     var groupHtml = '<div class="baiPlanCardGroup">' +
       financing.map(function (b) { return financingPlanCardHtml(b, b === primary); }).join('') +
       '</div>';
-    var otherHtml = blocks.filter(function (b) { return !hasFinancingCard(b); }).map(renderOneBlock).join('');
+    var otherHtml = expanded.filter(function (b) { return !hasFinancingCard(b); }).map(renderOneBlock).join('');
     return groupHtml + otherHtml;
   }
 
