@@ -117,6 +117,28 @@
   function modeChevron() {
     return '<svg class="smChevron" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   }
+  // SIM-REG-01: "Falar com um Analista" CTA -- mirrors simulador-
+  // novos.js's own identical addition (independent copy, same as
+  // every prior change to this file). Lives in .modPageHeader (shared
+  // flex/space-between header row, 0 shared CSS change), static
+  // markup rendered once by render(), never touched by switchMode()/
+  // toggleCategory()'s nav-only re-renders. Action/destination
+  // authority lives entirely in window.NX_FI_ATENDIMENTO
+  // (fi-atendimento.js).
+  function analystCtaHtml(origin) {
+    return '<button type="button" class="smAnalystCta" id="smAnalystCtaBtn" data-analyst-origin="' + origin + '">' +
+      '<svg class="smAnalystCtaIcon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2 3.5h12v7H6.5L3 13.5V10.5H2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      'Falar com um Analista' +
+      '</button>';
+  }
+  function wireAnalystCta() {
+    var btn = document.getElementById('smAnalystCtaBtn');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        if (window.NX_FI_ATENDIMENTO) window.NX_FI_ATENDIMENTO.falarComAnalista(btn.getAttribute('data-analyst-origin'));
+      });
+    }
+  }
   // SIM-NAV-4 / F.2 -- which category (group name) owns a given mode
   // id. Used to restore focus to the correct (now-collapsed) header
   // after a selection auto-collapses its panel.
@@ -499,12 +521,13 @@
       outlet.innerHTML =
         '<div class="smPage">' +
         '<span class="smProductBadge">Simulador · Seminovos</span>' +
-        '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Simulador de Financiamento — Seminovos</h1><p class="modSubtitle">Motores extraídos e verificados (PORTAL-NEXT-08) — 0 recálculo de fórmula nesta interface.</p></div></div>' +
+        '<div class="modPageHeader"><div class="modHeaderMain"><h1 class="modTitle">Simulador de Financiamento — Seminovos</h1><p class="modSubtitle">Motores extraídos e verificados (PORTAL-NEXT-08) — 0 recálculo de fórmula nesta interface.</p></div>' + analystCtaHtml('simulador_seminovos') + '</div>' +
         '<div id="smModeNavRegion">' + modeNavHtml() + '</div>' +
         '<p class="smModeDesc" id="smModeDesc"></p>' +
         '<div class="smGrid" id="smMainGrid"><div class="modPanelForm" id="smFormRegion"></div><div class="modPanelResult" id="smResultRegion" aria-live="polite" aria-atomic="true"></div></div>' +
         '</div>';
       wireModeNav();
+      wireAnalystCta();
       renderModeArea();
       return Promise.resolve();
     },

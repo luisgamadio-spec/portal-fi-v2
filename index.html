@@ -100,6 +100,14 @@ if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
 <script src="assets/js/auth-core.js"></script>
 <script src="assets/js/login.js"></script>
 <script src="assets/js/business-adapter-boundary.js"></script>
+<!-- SIM-REG-01: "Falar com um Analista" shared attendance authority --
+     loaded before Landing/Novos/Seminovos (its 3 real consumers) so
+     window.NX_FI_ATENDIMENTO is always available when their own click
+     handlers wire up. Reuses the same window.NX_AUTH/
+     window.NX_INTELLIGENCE_CONFIG boundary business-adapter-boundary.js
+     already established -- 0 new Supabase client, 0 new backend. -->
+<script src="assets/js/adapters/fi-atendimento-real-provider.js"></script>
+<script src="assets/js/fi-atendimento.js"></script>
 <script src="assets/js/router.js"></script>
 <script src="assets/js/module-registry.js"></script>
 <script src="assets/js/design-trace.js"></script>

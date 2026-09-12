@@ -217,12 +217,33 @@
       '<div class="fNavCol">' +
         '<div class="fNavEyebrow">Categorias</div>' +
         '<nav class="fNav" id="landingNav" role="tablist" aria-label="Categorias do Portal">' + navItems + '</nav>' +
+        analystCtaHtml('portal_home') +
       '</div>' +
       '<section class="fCanvas"><div class="ambientLayer" id="landingAmbientLayer" aria-hidden="true"></div><div class="motionProtectFull"></div><div class="fCanvasInner">' +
       '<div class="fDetailEyebrow" id="landingDetailEyebrow"></div>' +
       '<div id="landingModuleDetail" role="tabpanel" aria-labelledby="fNavTab0"></div>' +
       '</div></section>' +
       '</div>';
+  }
+
+  // SIM-REG-01: "Falar com um Analista" Home CTA. NOT a module card
+  // (deliberately outside groups/moduleBlockHtml/the tab-switching
+  // #landingModuleDetail area) -- a persistent attendance shortcut,
+  // visible under the category list regardless of which category tab
+  // is active, per the brief's own "não deve ser implementado como um
+  // novo módulo funcional independente" instruction. Action/
+  // destination authority lives entirely in window.NX_FI_ATENDIMENTO
+  // (fi-atendimento.js) -- this only renders the button and a short
+  // hint; origin is carried both as a data attribute (inspectable in
+  // the DOM) and passed straight through to the shared handler.
+  function analystCtaHtml(origin) {
+    return '<div class="fAnalystCta">' +
+      '<p class="fAnalystCtaHint">Precisa de ajuda com uma simulação?</p>' +
+      '<button type="button" class="fAnalystCtaBtn" id="landingAnalystCtaBtn" data-analyst-origin="' + esc(origin) + '">' +
+        '<svg class="fAnalystCtaIcon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2 3.5h12v7H6.5L3 13.5V10.5H2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        'Falar com um Analista' +
+      '</button>' +
+    '</div>';
   }
 
   function moduleBlockHtml(m) {
@@ -354,6 +375,17 @@
     // click/keydown delegation this replaced is no longer needed
     // (deferred/unauthorized blocks are plain <div>s with no href at
     // all, so they were never reachable via this path either way).
+
+    // SIM-REG-01: wired once here (the CTA is static markup inside
+    // landingHtml(), never touched by selectGroup()'s re-render of
+    // #landingModuleDetail) -- calls the single shared attendance
+    // authority, passing this button's own data-analyst-origin.
+    var analystBtn = document.getElementById('landingAnalystCtaBtn');
+    if (analystBtn) {
+      analystBtn.addEventListener('click', function () {
+        if (window.NX_FI_ATENDIMENTO) window.NX_FI_ATENDIMENTO.falarComAnalista(analystBtn.getAttribute('data-analyst-origin'));
+      });
+    }
   }
 
   /* ---------- public entry, called by shell.js on every route change ---------- */
