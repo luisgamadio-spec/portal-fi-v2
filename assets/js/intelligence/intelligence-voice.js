@@ -42,6 +42,30 @@
 
   var VOICE_TOOL_NAME = 'consultar_portal_intelligence';
 
+  // VOICE-UAT-02 -- the mint call (portal-realtime-homolog, Secure repo,
+  // READ-ONLY this Wave) never requests input audio transcription: its
+  // own sessionConfig.audio.input only ever sets `turn_detection` (see
+  // that file's real source, read directly this Wave), never
+  // `transcription`. Per OpenAI's own Realtime API docs (client-events
+  // reference, session.update / session.audio.input.transcription),
+  // transcription of the HUMAN's own speech is opt-in -- with it never
+  // requested, `conversation.item.input_audio_transcription.completed`
+  // (the only event this file listens to for the user's final turn,
+  // see handleServerEvent below) never fires on a real session. The
+  // assistant's own spoken turn is unaffected (it comes from the
+  // model's own response.output, always present), which is exactly why
+  // only assistant-sounding text was ever rendering for the Human --
+  // not a duplication regression, not a render bug: the user turn was
+  // never being captured at all. Fixed here, in the writable V2
+  // frontend only (no Secure change, per this Wave's boundary), via a
+  // session.update sent right after the data channel opens --
+  // documented as mergeable at any time without resending voice/
+  // turn_detection/instructions/tools (OpenAI's own docs: "Only the
+  // fields that are present in the session.update are updated"). Model
+  // choice: OpenAI's own realtime-transcription guide's stated starting
+  // recommendation, never invented.
+  var VOICE_TRANSCRIPTION_MODEL = 'gpt-live-transcribe';
+
   var pc = null;
   var dc = null;
   var micStream = null;
@@ -526,7 +550,16 @@
         try { parsed = JSON.parse(ev.data); } catch (e) { return; }
         try { handleServerEvent(parsed); } catch (e) { console.error('[intelligence-voice] erro ao processar evento', parsed && parsed.type, e); }
       };
-      dc.onopen = function () { active = true; };
+      dc.onopen = function () {
+        active = true;
+        // VOICE-UAT-02 -- partial session.update: only `audio.input.
+        // transcription` is present, so voice/turn_detection/
+        // instructions/tools (all set server-side by the mint call)
+        // are left exactly as they already are, per OpenAI's own
+        // documented partial-merge contract for this event.
+        sendEvent({ type: 'session.update', session: { type: 'realtime', audio: { input: { transcription: { model: VOICE_TRANSCRIPTION_MODEL } } } } });
+        diagPush('transcription_requested', { model_len: VOICE_TRANSCRIPTION_MODEL.length });
+      };
       dc.onclose = function () { if (active) endInternally(S.VOICE_STATES.VOICE_DISCONNECTED); };
 
       pc.onconnectionstatechange = function () {

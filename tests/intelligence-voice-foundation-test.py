@@ -166,6 +166,54 @@ def open_panel(page):
     page.wait_for_timeout(150)
 
 
+def enable_text_surface(page, reply_text, request_id):
+    # VOICE-UAT-02 Tests B/C -- same D14 gate stub
+    # tests/intelligence-panel-test.py already uses: a real Text send is
+    # blocked by isTextSurfaceEnabled() unless NX_MASTER_CONFIG_PROVIDER
+    # resolves ia_texto_habilitada=true. Also records every sendRealText
+    # call (message/conversation/token/surface) for continuity
+    # assertions, same shape stub_send_real_text already captures.
+    page.evaluate(
+        """([replyText, requestId]) => {
+            window.NX_INTELLIGENCE_CONFIG.mode = 'real_text';
+            window.NX_MASTER_CONFIG_PROVIDER = {
+                readConfig: function () { return Promise.resolve([{ chave: 'ia_texto_habilitada', valor: 'true' }]); }
+            };
+            window.__sendRealTextCalls = [];
+            window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function (message, conversation, token, clientTiming, surface) {
+                window.__sendRealTextCalls.push({ message: message, conversation: conversation, token: token, surface: surface });
+                return Promise.resolve({ response: window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponse({ reply: replyText, blocks: null, request_id: requestId, scenario_reset: false }) });
+            };
+        }""",
+        [reply_text, request_id],
+    )
+
+
+def send_text(page, text):
+    page.fill("#baiPanelInput", text)
+    page.click("#baiPanelSendBtn")
+    page.wait_for_timeout(200)
+
+
+def end_voice_session(page):
+    # VOICE-UAT-02 Tests B/C -- intelligence-voice-focus.js's own real
+    # invariant (read directly this Wave): "at most ONE of {Text
+    # drawer, Voice Focus panel} visible at a time" -- while Voice is
+    # connected, #baiPanelInput is present but NOT visible (the Text
+    # drawer is .baiPanelDrawerReceded). Matches the real Human flow
+    # this Wave's own Section 18 describes ("voltar ao Text"): end the
+    # Voice session first, which is what actually un-recedes the drawer.
+    page.evaluate("window.NX_INTELLIGENCE_VOICE.end();")
+    page.wait_for_timeout(150)
+
+
+def start_voice_session(page):
+    page.evaluate("window.NX_INTELLIGENCE_VOICE.start();")
+    page.wait_for_timeout(150)
+    page.evaluate("window.__simulateRtEvent({type:'session.created'});")
+    page.wait_for_timeout(80)
+
+
 def main():
     from playwright.sync_api import sync_playwright
 
@@ -243,6 +291,13 @@ def main():
             var real = window.NX_AUTH.getAccessToken;
             window.NX_AUTH.getAccessToken = function () { window.__getAccessTokenCalls++; return real(); };
         }""")
+        # VOICE-UAT-02 -- reset BEFORE this start(): the D3 keyboard-
+        # accessibility section above already opened and closed 2 prior
+        # fake data channels (Enter/Space), each firing its own onopen
+        # session.update into this SAME shared capture array. This is
+        # the session whose own session.update shape the check right
+        # after the mint/SDP assertions below actually inspects.
+        page.evaluate("window.__dcSent = [];")
         page.evaluate("window.NX_INTELLIGENCE_VOICE.start();")
         page.wait_for_timeout(150)
         check("start() calls the canonical NX_AUTH.getAccessToken() (session reuse, no bypass)", page.evaluate("window.__getAccessTokenCalls") >= 1)
@@ -264,6 +319,36 @@ def main():
         check("no sessionStorage key was created for the Voice session", len(ss) == 0, ss)
         openai_call = page.evaluate("window.__fetchCalls.find(c => c.url.indexOf('api.openai.com') !== -1)")
         check("the SDP call to OpenAI uses the EPHEMERAL value as Bearer, never a long-lived key", openai_call and openai_call["headers"].get("Authorization") == "Bearer fake-ephemeral-NEVER-A-REAL-KEY-xyz", openai_call)
+
+        # ---------- VOICE-UAT-02: input audio transcription opt-in ----------
+        # Root cause of "Voice turns render as assistant-only text, no
+        # USER/ASSISTANT structure": portal-realtime-homolog's own mint
+        # call (Secure repo, read directly this Wave) never requests
+        # input_audio_transcription, so the real OpenAI Realtime API
+        # never fires conversation.item.input_audio_transcription.
+        # completed -- the ONLY event handleServerEvent listens to for
+        # the user's own final turn. Fixed in THIS file (never Secure)
+        # via a session.update sent right after the data channel opens.
+        # Asserted here against the real __dcSent capture -- the events
+        # simulated by every test below prove the CONSEQUENCE of having
+        # transcription enabled; this proves the REQUEST itself is
+        # actually sent, which those simulated-event tests alone cannot.
+        dc_sent_early = page.evaluate("window.__dcSent")
+        transcription_updates = [m for m in dc_sent_early if m.get("type") == "session.update"]
+        check("exactly one session.update requesting input audio transcription was sent right after the data channel opened",
+              len(transcription_updates) == 1, transcription_updates)
+        if transcription_updates:
+            su = transcription_updates[0]
+            check("session.update is a PARTIAL patch -- only audio.input.transcription is present, so voice/turn_detection/instructions/tools (all set server-side) are left untouched per OpenAI's documented merge contract",
+                  set(su.get("session", {}).keys()) <= {"type", "audio"}
+                  and set(su["session"].get("audio", {}).keys()) == {"input"}
+                  and set(su["session"]["audio"]["input"].keys()) == {"transcription"},
+                  su)
+            check("transcription model is a real, documented Realtime API value (never invented)",
+                  su["session"]["audio"]["input"]["transcription"].get("model") in
+                  ("whisper-1", "gpt-transcribe", "gpt-live-transcribe", "gpt-4o-mini-transcribe",
+                   "gpt-4o-transcribe", "gpt-4o-transcribe-diarize", "gpt-realtime-whisper"),
+                  su)
 
         # ---------- Governed tool bridge + Text/Voice parity (Section 19/20/21/22) ----------
         stub_send_real_text(page, "Promise.resolve({response: A.normalizeResponse({reply:'No mês anterior, 13 vendas.', blocks:null, request_id:'r1', scenario_reset:false})})")
@@ -470,6 +555,143 @@ def main():
         check("D2: localStorage payload stays small/bounded (not unbounded growth)", raw_ls is not None and len(raw_ls) < 8000, len(raw_ls) if raw_ls else None)
         check("D2: no secret/PII/transcript leaked into the stress-tested diagnostics payload",
               "Bearer" not in raw_ls and "token" not in raw_ls.lower() and "vendas" not in raw_ls and "pergunta" not in raw_ls.lower())
+
+        # ============================================================
+        # VOICE-UAT-02 -- CANONICAL VOICE CONVERSATION HISTORY.
+        # Drives window.NX_INTELLIGENCE_STATE.getConversation() directly
+        # -- the SAME canonical store Text's own handleSend/applyResult
+        # read/write -- never #baiPanelConversation's rendered HTML, to
+        # prove the STATE itself is correct (not just its string
+        # rendering, which the checks above already cover separately).
+        # ============================================================
+
+        # ---------- TEST A: Voice only -- one social turn, no tool ----------
+        before_a = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation().length")
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+            window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.completed', transcript:'Qual o resultado?'});
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'message', role:'assistant', content:[{transcript:'13 vendas.'}]}
+            ]}});
+        }""")
+        page.wait_for_timeout(100)
+        conv_a = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation()")
+        new_a = conv_a[before_a:]
+        check("TEST A (Voice only): exactly 2 new canonical entries for 1 voice turn -- not 1, not 3, not duplicated",
+              len(new_a) == 2, new_a)
+        if len(new_a) == 2:
+            check('TEST A: entry 1 is user("Qual o resultado?")',
+                  new_a[0]["role"] == "user" and new_a[0]["content"] == "Qual o resultado?", new_a[0])
+            check('TEST A: entry 2 is assistant("13 vendas.")',
+                  new_a[1]["role"] == "assistant" and new_a[1]["content"] == "13 vendas.", new_a[1])
+
+        # ---------- TEST D: duplicate invariant (explicit, state-level) ----------
+        check("TEST D (duplicate invariant): exactly 1 user entry and exactly 1 assistant entry for that single voice turn",
+              sum(1 for m in new_a if m["role"] == "user") == 1 and sum(1 for m in new_a if m["role"] == "assistant") == 1,
+              new_a)
+
+        # ---------- TEST E: partial transcription events never persist ----------
+        before_e = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation().length")
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+            window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.delta', delta:'Qual'});
+            window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.delta', delta:'Qual o'});
+            window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.in_progress'});
+            window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.completed', transcript:'Qual o prazo máximo?'});
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'message', role:'assistant', content:[{transcript:'Até 48 meses.'}]}
+            ]}});
+        }""")
+        page.wait_for_timeout(100)
+        conv_e = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation()")
+        new_e = conv_e[before_e:]
+        user_entries_e = [m for m in new_e if m["role"] == "user"]
+        check("TEST E: N partial transcription events + 1 final -> exactly 1 user message persisted (partials never create separate entries, never duplicate the final)",
+              len(user_entries_e) == 1 and len(new_e) == 2, new_e)
+        check("TEST E: the persisted user message is the FINAL transcript, not a partial fragment",
+              user_entries_e[0]["content"] == "Qual o prazo máximo?" if user_entries_e else False, user_entries_e)
+
+        # ---------- TEST B: Text -> Voice context continuity ----------
+        # Voice has been continuously active since well before TEST A
+        # (intelligence-voice-focus.js's own invariant hides the Text
+        # drawer while it is) -- end it first, exactly the real "voltar
+        # ao Text" step this Wave's own Human UAT checklist describes.
+        end_voice_session(page)
+        enable_text_surface(page, "Para esse Eclipse, qual prazo você quer simular?", "tb1")
+        send_text(page, "Tenho um Eclipse de R$180 mil.")
+        conv_b1 = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation()")
+        check("TEST B setup: the Text turn (user+assistant) is persisted before Voice continues the conversation",
+              len(conv_b1) >= 2 and conv_b1[-2]["content"] == "Tenho um Eclipse de R$180 mil." and conv_b1[-1]["role"] == "assistant",
+              conv_b1[-2:])
+
+        # Text is done; Human picks Voice back up to continue the SAME
+        # conversation -- a fresh session (new fake data channel).
+        start_voice_session(page)
+        page.evaluate("""() => {
+            window.__sendRealTextCalls = [];
+            window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function (message, conversation, token, clientTiming, surface) {
+                window.__sendRealTextCalls.push({ message: message, conversation: conversation, token: token, surface: surface });
+                return Promise.resolve({ response: window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponse({ reply: 'Com 180 mil de entrada e 1.800 de parcela, dá para considerar 48x no plano linear.', blocks: null, request_id: 'tb2', scenario_reset: false }) });
+            };
+        }""")
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+            window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.completed', transcript:'E se ele quiser parcela perto de R$1.800?'});
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'function_call', name:'consultar_portal_intelligence', call_id:'call-tb', arguments: JSON.stringify({message:'E se ele quiser parcela perto de R$1.800?'})}
+            ]}});
+        }""")
+        page.wait_for_timeout(150)
+        bridge_calls_b = page.evaluate("window.__sendRealTextCalls")
+        check("TEST B: the Voice tool bridge actually called sendRealText", len(bridge_calls_b) == 1, bridge_calls_b)
+        if bridge_calls_b:
+            prior_texts_b = [m.get("content", "") for m in bridge_calls_b[0]["conversation"]]
+            check("TEST B: the Voice bridge receives the prior TEXT turn (Eclipse) in its conversation history",
+                  any("Eclipse" in t for t in prior_texts_b), prior_texts_b)
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'message', role:'assistant', content:[{transcript:'Com 180 mil de entrada e 1.800 de parcela, dá para considerar 48x no plano linear.'}]}
+            ]}});
+        }""")
+        page.wait_for_timeout(100)
+        conv_b2 = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation()")
+        check("TEST B: the Voice user final turn is persisted into the SAME canonical conversation as Text",
+              conv_b2[-2]["role"] == "user" and conv_b2[-2]["content"] == "E se ele quiser parcela perto de R$1.800?", conv_b2[-2:])
+        check("TEST B: the Voice assistant final turn is persisted right after it, same canonical list",
+              conv_b2[-1]["role"] == "assistant" and "48x" in conv_b2[-1]["content"], conv_b2[-1])
+
+        # ---------- TEST C: Voice -> Text context continuity ----------
+        page.evaluate("""() => {
+            window.__sendRealTextCalls = [];
+            window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function (message, conversation, token, clientTiming, surface) {
+                window.__sendRealTextCalls.push({ message: message, conversation: conversation, token: token, surface: surface });
+                return Promise.resolve({ response: window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponse({ reply: 'Show, Triton Katana de R$330 mil anotado.', blocks: null, request_id: 'tc1', scenario_reset: false }) });
+            };
+        }""")
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+            window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.completed', transcript:'Triton Katana de R$330 mil.'});
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'function_call', name:'consultar_portal_intelligence', call_id:'call-tc', arguments: JSON.stringify({message:'Triton Katana de R$330 mil.'})}
+            ]}});
+        }""")
+        page.wait_for_timeout(150)
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'message', role:'assistant', content:[{transcript:'Show, Triton Katana de R$330 mil anotado.'}]}
+            ]}});
+        }""")
+        page.wait_for_timeout(100)
+
+        end_voice_session(page)
+        enable_text_surface(page, "Em 48 meses, a parcela fica...", "tc2")
+        send_text(page, "E em 48 meses?")
+        text_calls_c = page.evaluate("window.__sendRealTextCalls")
+        check("TEST C: the Text send actually called sendRealText after the Voice turn", len(text_calls_c) == 1, text_calls_c)
+        if text_calls_c:
+            prior_texts_c = [m.get("content", "") for m in text_calls_c[0]["conversation"]]
+            check("TEST C: Text receives the prior VOICE turns (Triton Katana) in its prior conversation/context",
+                  any("Triton Katana" in t for t in prior_texts_c), prior_texts_c)
 
         page.close()
         browser.close()
