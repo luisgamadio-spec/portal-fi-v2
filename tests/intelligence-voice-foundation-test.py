@@ -267,8 +267,21 @@ def main():
 
         # ---------- Governed tool bridge + Text/Voice parity (Section 19/20/21/22) ----------
         stub_send_real_text(page, "Promise.resolve({response: A.normalizeResponse({reply:'No mês anterior, 13 vendas.', blocks:null, request_id:'r1', scenario_reset:false})})")
+        # VOICE-UAT-01B -- the real OpenAI Realtime API always emits its
+        # own input-transcription-completed event for a user utterance,
+        # independent of whether that utterance also triggers a tool
+        # call (the same mechanism the "social turn" scenario elsewhere
+        # in this file already relies on) -- simulated here explicitly
+        # now that bridgeToPortalIntelligence no longer renders the
+        # user's turn itself (silent:true, see its own VOICE-UAT-01B
+        # comment); the SINGLE render path for every turn is now
+        # handleServerEvent's own response.done (!hadFunctionCall
+        # branch), reading pendingUserTranscript -- this was previously
+        # masked because the old code rendered the tool call's own
+        # `message` argument directly, never this event.
         page.evaluate("""() => {
             window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+            window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.completed', transcript:'Qual foi o resultado do mês passado?'});
             window.__simulateRtEvent({type:'response.done', response:{output:[
                 {type:'function_call', name:'consultar_portal_intelligence', call_id:'call-1', arguments: JSON.stringify({message:'Qual foi o resultado do mês passado?'})}
             ]}});
@@ -295,9 +308,20 @@ def main():
             out = json.loads(fco[0]["item"]["output"])
             check("spoken output carries the real business answer (stripped of Markdown)", "13 vendas" in out.get("resposta", ""), out)
         check("a response.create follow-up was sent after the tool result", any(m.get("type") == "response.create" for m in dc_sent), dc_sent)
+        # VOICE-UAT-01B -- the real Realtime session now sends a SECOND
+        # response.done (the actual spoken answer, no function_call)
+        # once the model has the tool's result -- this is the event that
+        # now renders the turn (handleServerEvent's own !hadFunctionCall
+        # branch), never bridgeToPortalIntelligence itself (silent:true).
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'message', role:'assistant', content:[{transcript:'No mês anterior, foram 13 vendas.'}]}
+            ]}});
+        }""")
+        page.wait_for_timeout(100)
         conv_html = page.locator("#baiPanelConversation").inner_html()
         check("the user's spoken question appears on the SAME #baiPanelConversation surface (no second transcript pane)", "resultado do m" in conv_html.lower(), conv_html[:300])
-        check("the assistant's real business answer appears on the SAME conversation surface", "13 vendas" in conv_html, conv_html[:300])
+        check("the assistant's real business answer appears on the SAME conversation surface -- exactly once (the actual regression this Wave fixes: it used to ALSO render here from bridgeToPortalIntelligence's own now-silenced push)", conv_html.count("13 vendas") == 1, conv_html[:400])
 
         # ---------- Duplicate tool-call protection (Section 17/32) ----------
         page.evaluate("window.__dcSent = []; window.__sendRealTextCalls = [];")

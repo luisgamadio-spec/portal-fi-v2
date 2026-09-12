@@ -215,15 +215,36 @@
   // question is a real historical fact even if superseded before an
   // answer arrives, and hiding it would misrepresent what was actually
   // said (matches V1's own transcript-everything-spoken philosophy).
-  function bridgeToPortalIntelligence(message, callId) {
+  //
+  // VOICE-UAT-01B -- `opts.silent` (default false): ported behaviorally
+  // from the same fix in V1's portal-ai-ui.js (baiSend's own `silent`
+  // option), for the exact same real duplication forensic, confirmed
+  // present here too by direct code reading: this function pushed a
+  // user AND an assistant turn via S.pushMessage unconditionally, while
+  // handleServerEvent's own response.done (!hadFunctionCall branch,
+  // below) SEPARATELY pushes the Realtime model's own spoken
+  // restatement of that same exchange via appendTurn -- same
+  // S.pushMessage sink, two independent callers, one logical voice
+  // turn. handleFunctionCall (the only caller for a tool-using turn)
+  // now passes {silent:true} -- this function becomes pure "call
+  // sendRealText, return {spoken, ok, stale}", no state-store side
+  // effect. Text's own handleSend/applyResult (intelligence-panel.js)
+  // never calls this function at all, so they are entirely unaffected.
+  function bridgeToPortalIntelligence(message, callId, opts) {
+    var silent = !!(opts && opts.silent);
     var t0 = Date.now();
     // Same ordering as intelligence-panel.js's own handleSend: push the
     // user's turn onto the SHARED conversation BEFORE sending, then
     // read prior turns excluding the one just pushed (createRequest
     // slices the last MAX_HISTORY itself -- this file never resends
     // more than Text already would for the same conversation length).
-    S.pushMessage({ role: 'user', content: message, blocks: null, isError: false });
-    var prior = S.getConversation().slice(0, -1);
+    // In silent mode, nothing is pushed here -- response.done's own
+    // !hadFunctionCall branch is the single render path for this turn,
+    // using the conversation as it already stood before this call, so
+    // `prior` must read the FULL current conversation (never slice off
+    // a turn that was never pushed).
+    if (!silent) S.pushMessage({ role: 'user', content: message, blocks: null, isError: false });
+    var prior = silent ? S.getConversation() : S.getConversation().slice(0, -1);
     // IA-3H.1C.3 -- same sanitized turn-sequence number Text's own
     // handleSendRealText computes (a plain count, never content), and
     // the SAME _devTiming hook (buildDevTiming, already proven for
@@ -264,7 +285,7 @@
       }
       var stale = callId !== latestCallId;
       if (result.error) {
-        if (!stale) S.pushMessage({ role: 'assistant', content: result.error.message, blocks: null, isError: true });
+        if (!stale && !silent) S.pushMessage({ role: 'assistant', content: result.error.message, blocks: null, isError: true });
         return { spoken: result.error.message, ok: false, stale: stale };
       }
       var normalized = result.response;
@@ -273,8 +294,11 @@
       // via the SAME renderer Text uses -- only the value spoken back
       // to the Realtime session is stripped for natural TTS delivery
       // (mechanical text transform only, never a second model call,
-      // never a changed fact).
-      if (!stale) S.pushMessage({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false });
+      // never a changed fact). VOICE-UAT-01B -- gated on !silent too:
+      // handleServerEvent's own response.done (!hadFunctionCall branch)
+      // is the single render path for a tool-using voice turn, from the
+      // real spoken transcript, once the post-tool response arrives.
+      if (!stale && !silent) S.pushMessage({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false });
       return { spoken: stripMarkdown(normalized.reply), ok: true, stale: stale };
     });
   }
@@ -304,7 +328,12 @@
     }
 
     setV(S.VOICE_STATES.VOICE_THINKING);
-    bridgeToPortalIntelligence(message, callId).then(function (outcome) {
+    // VOICE-UAT-01B -- silent:true: this bridge call's result is
+    // consumed ONLY as function_call_output data for the Realtime model
+    // to speak -- handleServerEvent's own response.done handler (below)
+    // is the single place this exchange gets pushed into the shared
+    // conversation store, from the real spoken transcript.
+    bridgeToPortalIntelligence(message, callId, { silent: true }).then(function (outcome) {
       // Interrupted/superseded by a newer turn while the bridge call
       // was in flight -- discard silently, never inject a stale answer
       // into a conversation that has already moved on (Section 32).
@@ -353,7 +382,14 @@
     }
     if (evt.type.indexOf('input_audio_transcription') >= 0 && evt.type.indexOf('completed') >= 0) {
       var userText = typeof evt.transcript === 'string' ? evt.transcript.trim() : '';
-      if (userText && !evt._consumedByToolCall) pendingUserTranscript = userText;
+      // VOICE-UAT-01B -- this used to also check `!evt._consumedByToolCall`,
+      // a guard never actually assigned anywhere in this file (a dead
+      // check, always true, ported as-is from V1's own pre-fix state).
+      // The real fix is bridgeToPortalIntelligence's own `silent` option
+      // above, which stops the tool-bridge call from pushing its own
+      // turns at all -- this single real transcript is the only user-
+      // turn render for every turn now (tool-using or social).
+      if (userText) pendingUserTranscript = userText;
       return;
     }
     if (evt.type === 'response.created') {
