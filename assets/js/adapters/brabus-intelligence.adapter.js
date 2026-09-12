@@ -499,13 +499,45 @@
     // disabled. Same tone as 401/403: plain, non-technical, no retry
     // loop, no fixture fallback -- applyResult() already renders every
     // error identically as a normal conversation bubble.
-    503: 'Brabus Intelligence está temporariamente indisponível.'
+    503: 'Brabus Intelligence está temporariamente indisponível.',
+    // IA-3E, Section 53 — additive only (a new map key, every existing
+    // key/behavior above is unchanged): a clear, non-technical
+    // transient message, no automatic retry implied or performed here
+    // (errorMessageForStatus never schedules anything — the caller
+    // decides retry policy, and IA-3E's panel never auto-retries).
+    429: 'Muitas solicitações em pouco tempo — aguarde um instante e tente novamente.'
   };
   function errorMessageForStatus(status) {
     return ERROR_MESSAGE_BY_STATUS[status] || 'Não foi possível concluir a análise agora. Tente novamente.';
   }
 
-  function sendRealText(message, conversation, accessToken) {
+  // IA-3G.5A -- pre-Edge latency forensics. `clientTiming` is an
+  // OPTIONAL object the caller may pass ({ uiSubmitAt, getTokenMs } --
+  // both plain numbers, never content) purely to enrich the diagnostic
+  // breakdown attached to the returned result as `_devTiming`; omitting
+  // it changes nothing about the function's existing 3-arg contract or
+  // its {response}/{error} return shape, which every existing caller
+  // (fixture/panel/tests) already handles unchanged. `_devTiming` is
+  // additive-only: applyResult() (panel and routed page, both
+  // unmodified) only ever reads `.error`/`.response`, so this extra key
+  // is silently ignored by every existing code path -- never rendered,
+  // never part of the approved drawer UI. A random, non-identity
+  // correlation id is sent as a custom header (`x-nx-correlation-id`,
+  // the same allow-listed, homolog-only header IA-3G.5A adds
+  // server-side) so a frontend timing log can be matched to its own
+  // Edge Function log lines without any user/session identifier.
+  // IA-3H.1C.4 -- `surface` is an OPTIONAL 5th arg, additive-only (every
+  // existing 4-arg call site -- Text's own handleSendRealText, every
+  // test -- is unaffected and omits it entirely, defaulting to the
+  // server's own "text" interpretation). Only intelligence-voice.js's
+  // internal governed-tool bridge passes the literal string 'voice'
+  // here, which becomes the `x-nx-intelligence-surface` header the
+  // server's own surface-authority check reads (see portal-ai-homolog's
+  // intelligenceEnabled derivation). Never a user-suppliable value --
+  // the ONLY two call sites in this codebase are this file's own two
+  // callers, both under source control, neither reading this string
+  // from any user input.
+  function sendRealText(message, conversation, accessToken, clientTiming, surface) {
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
     if (!cfg.textEndpoint || !cfg.supabasePublishableKey) {
       return Promise.resolve({ error: { status: 0, message: 'Configuração de Intelligence ausente — modo real_text não está configurado neste ambiente.' } });
@@ -514,24 +546,100 @@
       return Promise.resolve({ error: { status: 401, message: errorMessageForStatus(401) } });
     }
     var body = createRequest(message, conversation);
+    var correlationId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
+    var clientFetchAt = Date.now();
+    var reqHeaders = {
+      'Content-Type': 'application/json',
+      'apikey': cfg.supabasePublishableKey,
+      'Authorization': 'Bearer ' + accessToken,
+      'x-nx-correlation-id': correlationId
+    };
+    if (surface) reqHeaders['x-nx-intelligence-surface'] = surface;
     return fetch(cfg.textEndpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': cfg.supabasePublishableKey,
-        'Authorization': 'Bearer ' + accessToken
-      },
+      headers: reqHeaders,
       body: JSON.stringify(body)
     }).then(function (resp) {
       return resp.json().catch(function () { return {}; }).then(function (payload) {
+        var clientReceiveAt = Date.now();
+        var devTiming = buildDevTiming(payload, clientTiming, clientFetchAt, clientReceiveAt, correlationId);
         if (!resp.ok) {
-          return { error: { status: resp.status, message: errorMessageForStatus(resp.status) } };
+          return { error: { status: resp.status, message: errorMessageForStatus(resp.status) }, _devTiming: devTiming };
         }
-        return { response: normalizeResponse(payload) };
+        return { response: normalizeResponse(payload), _devTiming: devTiming };
       });
     }).catch(function () {
       return { error: { status: 0, message: errorMessageForStatus(0) } };
     });
+  }
+
+  // Pure -- only arithmetic on numbers already present in `payload`
+  // (the homolog-only `_homolog_edge_timing` field; absent/undefined on
+  // any response that doesn't carry it, e.g. a real production Edge
+  // Function, an error before the handler ran, or fixture mode never
+  // reaching this function at all) and the timestamps this same call
+  // already captured. Never reads/touches `payload.reply` or any
+  // business field.
+  function buildDevTiming(payload, clientTiming, clientFetchAt, clientReceiveAt, correlationId) {
+    var edge = payload && payload._homolog_edge_timing;
+    var t = {
+      correlation_id: correlationId,
+      // IA-3H.1C.3 -- sanitized conversation-turn sequence number only
+      // (an integer count, never message content), so a repeated-turn
+      // latency pattern (e.g. "does turn 3+ get slower?") can be read
+      // directly off this same existing log line instead of a second,
+      // parallel telemetry system.
+      turn_index: (clientTiming && typeof clientTiming.turnIndex === 'number') ? clientTiming.turnIndex : null,
+      ui_submit_at: (clientTiming && clientTiming.uiSubmitAt) || null,
+      get_access_token_ms: (clientTiming && typeof clientTiming.getTokenMs === 'number') ? clientTiming.getTokenMs : null,
+      client_fetch_at: clientFetchAt,
+      client_receive_at: clientReceiveAt,
+      client_round_trip_ms: clientReceiveAt - clientFetchAt
+    };
+    if (clientTiming && clientTiming.uiSubmitAt) {
+      // Full gap from the Human's action to the actual fetch() call --
+      // dominated by getAccessToken() in practice (reported separately
+      // above), plus whatever small synchronous UI work runs first.
+      t.pre_fetch_total_ms = clientFetchAt - clientTiming.uiSubmitAt;
+    }
+    if (edge && typeof edge.handler_entry_epoch_ms === 'number') {
+      // NOTE: client and Edge clocks are different machines -- this
+      // subtraction is only as trustworthy as their clock sync (no NTP
+      // calibration performed here). Treated as an approximate signal,
+      // not an exact figure -- documented explicitly wherever this is
+      // reported, never presented as precise.
+      t.fetch_to_edge_handler_ms_approx = edge.handler_entry_epoch_ms - clientFetchAt;
+      t.edge_internal_ms = edge.response_ready_epoch_ms - edge.handler_entry_epoch_ms;
+      t.edge_response_to_browser_ms_approx = clientReceiveAt - edge.response_ready_epoch_ms;
+      t.edge_latency_ms = edge.latency_ms;
+      t.edge_instance_id = edge.instance_id;
+      t.edge_instance_age_ms = edge.instance_age_ms;
+      // IA-3J.4E.1 -- `edge.stage_ms` (portal-ai-homolog v50+) is the
+      // already-safe per-stage breakdown (auth_ms/master_gate_ms/
+      // config_scope_ms/openai_pass_ms/tool_dispatch_ms) IA-3J.4E added
+      // to `_homolog_edge_timing` specifically so it would reach this
+      // dev timing log without needing Edge Function log access. This
+      // block was a hand-listed field copy, not a generic spread, so
+      // the new field was silently dropped until this line was added --
+      // proven via a real Human capture whose expanded [bai-timing]
+      // object ended at `ui_submit_at` with no `stage_ms` present.
+      if (edge.stage_ms) t.stage_ms = edge.stage_ms;
+      // IA-3J.4J.1 -- `edge.prompt_profile`/`edge.prompt_chars`
+      // (portal-ai-homolog v52+, IA-3J.4I) are the same class of
+      // already-safe metadata as `stage_ms` above -- a short enum
+      // string ("finance"|"full") and a plain character count, never
+      // prompt content -- and hit the EXACT SAME hand-listed-copy gap:
+      // this allowlist is deliberate (it is what keeps arbitrary future
+      // backend metadata from automatically becoming browser-visible),
+      // so each new safe field still needs its own explicit line here,
+      // with its own type guard, never a generic spread of `edge`.
+      if (typeof edge.prompt_profile === 'string' && edge.prompt_profile.length > 0) t.prompt_profile = edge.prompt_profile;
+      if (typeof edge.prompt_chars === 'number') t.prompt_chars = edge.prompt_chars;
+    }
+    if (clientTiming && clientTiming.uiSubmitAt) {
+      t.total_ui_ms = clientReceiveAt - clientTiming.uiSubmitAt;
+    }
+    return t;
   }
 
   window.NX_BRABUS_INTELLIGENCE_ADAPTER = {

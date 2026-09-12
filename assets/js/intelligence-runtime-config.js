@@ -65,6 +65,15 @@ window.NX_INTELLIGENCE_CONFIG = {
   // directly, cross-origin, exercising its actual unmodified CORS
   // check for real).
   textEndpoint: null,
+  // INTELLIGENCE_ONLY (IA-3H.1). Full URL to the portal-realtime-homolog
+  // ephemeral-credential mint function -- same "own field, not derived"
+  // reasoning as textEndpoint above. null here means the V2 Voice
+  // session manager (assets/js/intelligence/intelligence-voice.js)
+  // fails closed with a local, non-technical error before ever calling
+  // fetch (mirrors sendRealText's own textEndpoint guard) -- exactly
+  // like textEndpoint, never defaulted to a real URL on a host that
+  // didn't explicitly configure one.
+  voiceRealtimeEndpoint: null,
   // SHARED (GL-1C, Go-Live deployment reconciliation): the explicit
   // hostname allowlist assets/js/environment-guard.js consults to
   // decide AUTHORIZED_PRODUCTION vs UNKNOWN_HOST. Deliberately empty by

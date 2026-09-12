@@ -204,6 +204,25 @@
       '<p class="modKpiValue"' + titleAttr + '>' + esc(f.text) + '</p></div>';
   }
 
+  // IA-3G.3 — presentation-only reformat of an explicit "YYYY-MM-DD a
+  // YYYY-MM-DD" period_label (the real backend's own resolvePeriod()
+  // returns exactly this shape for a "custom" range -- e.g. a
+  // follow-up like "e comparado ao mês anterior?" that has no period
+  // enum to resolve to, per supabase/functions/portal-ai-homolog/
+  // index.ts's resolvePeriod()) into the Brazilian dd/mm/aaaa format
+  // this same codebase's own date formatter already uses elsewhere
+  // (adapter's formatValue(format:'date')) -- never invents a month
+  // name, never touches the dates themselves, and passes every other
+  // shape (semantic labels like "mês atual"/"mês anterior"/"competência
+  // X") through completely unchanged, since those aren't a raw range.
+  var CUSTOM_RANGE_LABEL_RE = /^(\d{4})-(\d{2})-(\d{2}) a (\d{4})-(\d{2})-(\d{2})$/;
+  function formatPeriodLabel(label) {
+    var s = String(label || '');
+    var m = CUSTOM_RANGE_LABEL_RE.exec(s);
+    if (!m) return s;
+    return m[3] + '/' + m[2] + '/' + m[1] + ' a ' + m[6] + '/' + m[5] + '/' + m[4];
+  }
+
   function renderMetrics(block) {
     var items = (block.items || []).map(metricItemHtml).join('');
     return blockPanelHtml(block, '<div class="baiMetricsGrid">' + items + '</div>');
@@ -214,7 +233,7 @@
       if (!s) return '';
       var items = (s.items || []).map(metricItemHtml).join('');
       return '<div class="baiComparisonSide"><p class="baiComparisonSideLabel">' + esc(s.label) +
-        (s.period_label ? ' <span class="modMuted" style="display:inline;margin:0">· ' + esc(s.period_label) + '</span>' : '') + '</p>' +
+        (s.period_label ? ' <span class="modMuted" style="display:inline;margin:0">· ' + esc(formatPeriodLabel(s.period_label)) + '</span>' : '') + '</p>' +
         '<div class="baiMetricsGrid">' + items + '</div></div>';
     }
     return blockPanelHtml(block, '<div class="baiComparisonGrid">' + side(block.a) + side(block.b) + '</div>', true);
@@ -247,6 +266,15 @@
     sim_payment: { label: 'Parcela', format: 'currency' },
     sim_financed: { label: 'Financiado', format: 'currency' },
     sim_down_payment: { label: 'Entrada', format: 'currency' },
+    // IA-3J.3A -- these two existed on the real Balão comparison item
+    // shape (buildBalaoOptimizeComparisonBlock, portal-ai-homolog) since
+    // before this fix, but had no entry here, so fieldMeta()'s own
+    // fallback rendered the raw key name itself ("sim_balloon",
+    // "sim_balloon_count") as the label -- a real Human UAT reported
+    // seeing exactly that. Presentation-label lookup only, same as every
+    // other entry in this table -- no financial formula involved.
+    sim_balloon: { label: 'Balão', format: 'currency' },
+    sim_balloon_count: { label: 'Nº de Balões', format: 'int' },
     hist_count: { label: 'Operações', format: 'int' },
     hist_avg_down_payment_percent: { label: 'Entrada Média', format: 'percent' },
     hist_avg_installment_value: { label: 'Parcela Média', format: 'currency' },
@@ -688,6 +716,12 @@
     // exposed for tests, DOM-independent
     renderStructuredBlock: renderStructuredBlock,
     isRealTextMode: isRealTextMode,
-    renderAssistantProse: renderAssistantProse
+    renderAssistantProse: renderAssistantProse,
+    // IA-3H.1C.3 -- the one authoritative field-label/format lookup for
+    // a ranking item's own keys (RANKING_FIELD_META above), exposed so
+    // the drawer's own compact ranking-card presentation (intelligence-
+    // panel.js) can label every value correctly without maintaining a
+    // second, independently-drifting copy of this table.
+    rankingFieldMeta: fieldMeta
   };
 })();

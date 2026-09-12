@@ -176,6 +176,14 @@
       return;
     }
 
+    // IA-3E, Section 33: route-level Intelligence context only — every
+    // module gets this same one line, no individual (frozen) module
+    // is edited to call it. NX_INTELLIGENCE_CONTEXT is presentation-
+    // only (see intelligence-context.js's own header) and safe to call
+    // unconditionally; guarded only because the panel's own scripts
+    // could in principle be absent from a given page.
+    if (window.NX_INTELLIGENCE_CONTEXT) window.NX_INTELLIGENCE_CONTEXT.setRoute(routeId, entry);
+
     window.NX_LANDING.renderRoute(routeId, entry).then(function () {
       if (myToken !== routeToken) return;
       if (!window.NX_LANDING.isLandingRoute(routeId)) {
@@ -261,6 +269,24 @@
   function boot() {
     setupDevBadge();
     setupNavDrawer();
+    // IA-3E: mounts the persistent Intelligence launcher into
+    // #nxOverlayRoot exactly once, before any route dispatch — its own
+    // visibility (MASTER-only) is then driven entirely by
+    // NX_AUTH_CORE's state changes, subscribed inside mount() itself,
+    // never by this boot sequence. See assets/js/intelligence/
+    // intelligence-panel.js.
+    if (window.NX_INTELLIGENCE_PANEL) window.NX_INTELLIGENCE_PANEL.mount();
+    // IA-3H.1 -- same "mount once, own lifecycle from there" convention
+    // as the panel above; the Voice session manager's own dev-only
+    // diagnostics toggle is unconditional (mirrors #nxDesignTraceToggle
+    // just above it in setupDevBadge(), not MASTER-gated), but the
+    // actual microphone button only exists at all inside the panel's
+    // own MASTER-gated drawer markup -- nothing here changes that.
+    if (window.NX_INTELLIGENCE_VOICE) window.NX_INTELLIGENCE_VOICE.mount();
+    // IA-3H.2 -- same "mount once, own lifecycle from there" convention;
+    // a second, read-only subscriber to NX_INTELLIGENCE_STATE, never a
+    // second session/conversation store.
+    if (window.NX_INTELLIGENCE_VOICE_FOCUS) window.NX_INTELLIGENCE_VOICE_FOCUS.mount();
     window.NX_AUTH_CORE.onStateChange(function (state) {
       var STATES = window.NX_AUTH_CORE.STATES;
       var bootLoading = document.getElementById('nxBootLoading');

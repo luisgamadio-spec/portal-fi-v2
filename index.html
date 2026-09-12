@@ -55,6 +55,14 @@
   <div class="nxDevBadge">
     <span class="nxDevDot" aria-hidden="true"></span>
     <span>V2 LOCAL · NEXT_LOCAL — não é produção</span>
+    <!-- IA-3H.1A Section 10/11 -- local/homolog-only Voice UAT provenance
+         marker (never rendered in production: this whole badge/element
+         lives inside the same LOCAL/HOMOLOG-only #nxDevBadge every other
+         dev-only marker here already uses). data-short-head is a stable,
+         automatable assertion point (Section 11) -- no user/project
+         ref/secret/JWT, just a short commit hash a Human can read aloud
+         if asked, and Codex can assert against before any real call. -->
+    <span id="nxVoiceUatProvenance" data-short-head="4948fa4">· VOICE UAT LOCAL · 4948fa4</span>
     <button type="button" id="nxDesignTraceToggle" aria-expanded="false" aria-controls="nxDesignTrace">trace</button>
   </div>
 
@@ -78,6 +86,13 @@
 <script>
 if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
   document.write('<script src="assets/js/intelligence-runtime-config.local.js"><\/script>');
+} else if(location.hostname==='luisgamadio-spec.github.io'){
+  // GL-1J -- exact-match only (no wildcard, no *.github.io); loads the
+  // tracked hosted config so environment-guard.js's DOMContentLoaded
+  // check (which runs after every synchronous script here has already
+  // executed) sees this hostname in authorizedHostnames instead of
+  // UNKNOWN_HOST. Any other hostname stays fail-closed, unchanged.
+  document.write('<script src="assets/js/intelligence-runtime-config.production.js"><\/script>');
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.0" integrity="sha384-De+l/Df7qym5QBDVocD3+gW1S7IjR3epf+6KbRDjB3FCCzM/LqVTwqckT6FhFar8" crossorigin="anonymous"></script>
@@ -139,6 +154,26 @@ if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
 <script src="assets/js/salarios-comissoes.js"></script>
 <script src="assets/js/adapters/brabus-intelligence.adapter.js"></script>
 <script src="assets/js/brabus-intelligence.js"></script>
+<!-- IA-3E -- shell-level persistent Intelligence panel (context
+     provider + explicit state machine + launcher/drawer). Reuses the
+     adapter and page above (never a second transport/renderer); must
+     load after both, and before shell.js, which calls
+     NX_INTELLIGENCE_PANEL.mount() once in boot(). -->
+<script src="assets/js/intelligence/intelligence-context.js"></script>
+<script src="assets/js/intelligence/intelligence-state.js"></script>
+<script src="assets/js/intelligence/intelligence-panel.js"></script>
+<!-- IA-3H.1 -- V2 Voice session manager. Loads after the panel (whose
+     composer mic button calls into it) and after the state/adapter it
+     consumes; mounted explicitly by shell.js's boot(), same convention
+     as NX_INTELLIGENCE_PANEL.mount() just above it. -->
+<script src="assets/js/intelligence/intelligence-voice.js"></script>
+<!-- IA-3H.2 -- Voice Focus Mode presentation layer. A second, read-only
+     subscriber to the same NX_INTELLIGENCE_STATE the panel above
+     already renders from -- never a second session/conversation store.
+     Loads after intelligence-voice.js (whose read-only stream
+     references it uses) and is mounted by shell.js's boot(), same
+     convention as the two mounts above it. -->
+<script src="assets/js/intelligence/intelligence-voice-focus.js"></script>
 <script src="assets/js/adapters/master-users-provider.js"></script>
 <script src="assets/js/adapters/master-users-view-model.js"></script>
 <script src="assets/js/adapters/master-acessos-provider.js"></script>
