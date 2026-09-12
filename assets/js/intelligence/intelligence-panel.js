@@ -283,6 +283,106 @@
     return '<div class="' + cardClass + '">' + headerHtml + factsHtml + balloonsHtml + targetHtml + '</div>';
   }
 
+  /* ---------- Settlement (Antecipação) and Cash Conversion cards (IA-3K.1) ----------
+     Real conversational UAT (UAT-VOICE-01A/01B) found both domains'
+     calculation/speed approved but their presentation "visualmente
+     cru e repetitivo" -- the shared compactMetricsHtml grid above,
+     same complaint the financing-plan cards (IA-3J.4C) already fixed
+     for Balão/Linear. `settlement_card`/`cash_conversion_card`
+     (portal-ai-homolog, IA-3K.1) are the SAME contract class as
+     `financing_card` -- presentation-only metadata, never consumed by
+     any calculation -- so these reuse the EXACT same .baiPlanCard*
+     classes already defined for the financing cards (zero new CSS,
+     per this Wave's own explicit "não criar uma nova linguagem
+     visual" instruction) rather than inventing a second visual
+     language. Every OTHER metrics block (Score, Comissões, Resultado,
+     Taxa Implícita, etc.) has neither field and keeps using
+     compactMetricsHtml completely unchanged. */
+
+  function hasSettlementCard(block) {
+    return !!(block && block.type === 'metrics' && block.settlement_card);
+  }
+
+  function hasCashConversionCard(block) {
+    return !!(block && block.type === 'metrics' && block.cash_conversion_card);
+  }
+
+  // Converts a decimal fraction (e.g. 0.0112) to a rounded percentage
+  // number (1.12) for A.formatValue(..., 'percent'), which -- same
+  // convention as every other percent field this file already reads
+  // from portal-ai-homolog (down_payment_percent, break_even_rate in
+  // the existing metrics item builder) -- expects percentage points,
+  // never a raw fraction, and a plain `*100` alone reintroduces
+  // binary floating-point noise (0.0112*100 === 1.1199999999999999).
+  function fracToPercent(frac) {
+    return Math.round(frac * 100 * 100) / 100;
+  }
+
+  function settlementCardHtml(block) {
+    var sc = block.settlement_card;
+    var heroValue = A.formatValue(sc.settlement_amount, 'currency');
+    var dateValue = A.formatValue(sc.settlement_date, 'date');
+    var headerHtml =
+      '<div class="baiPlanCardHeader">' +
+      '<p class="baiPlanCardKind">Quitação Antecipada</p>' +
+      '<p class="baiPlanCardHero">' + esc(heroValue.text) + '</p>' +
+      '<p class="baiPlanCardHeroUnit">Valor estimado para quitação em ' + esc(dateValue.text) + '</p>' +
+      '</div>';
+
+    var facts = [
+      financingPlanFactHtml('Valor nominal restante', sc.gross_total, 'currency'),
+      financingPlanFactHtml('Desconto estimado', sc.discount_total, 'currency'),
+      financingPlanFactHtml('Economia', sc.discount_percent_of_gross, 'percent')
+    ].join('');
+    var factsHtml = '<div class="baiPlanCardFacts">' + facts + '</div>';
+
+    var secondaryParts = [esc(String(sc.installments_considered)) + ' pagamentos restantes'];
+    if (Array.isArray(sc.balloons)) {
+      sc.balloons.forEach(function (b) {
+        secondaryParts.push('Balão de ' + esc(A.formatValue(b.value, 'currency').text) + ' na parcela ' + esc(String(b.installment_number)));
+      });
+    }
+    var secondaryHtml = '<div class="baiPlanCardBalloons"><p class="baiPlanFactValue">' + secondaryParts.join(' · ') + '</p></div>';
+
+    var noteParts = [];
+    if (sc.first_due_date_assumed) {
+      noteParts.push('Primeira parcela assumida em ' + esc(A.formatValue(sc.first_due_date, 'date').text) + ' (premissa: hoje + 30 dias).');
+    }
+    noteParts.push('Estimativa comercial. O valor oficial para quitação é definido pela instituição financeira.');
+    var noteHtml = '<p class="baiPlanCardTarget">' + noteParts.join(' ') + '</p>';
+
+    return '<div class="baiPlanCardGroup"><div class="baiPlanCard">' + headerHtml + factsHtml + secondaryHtml + noteHtml + '</div></div>';
+  }
+
+  function cashConversionCardHtml(block) {
+    var cc = block.cash_conversion_card;
+    var headerHtml = '<div class="baiPlanCardHeader"><p class="baiPlanCardKind">Cash Conversion</p></div>';
+
+    var scenarioFacts = [
+      financingPlanFactHtml('Capital preservado', cc.capital, 'currency'),
+      financingPlanFactHtml('Financiamento (' + cc.term_months + 'x)', cc.monthly_payment, 'currency'),
+      financingPlanFactHtml('Taxa considerada (a.m.)', fracToPercent(cc.application_rate), 'percent')
+    ];
+    if (cc.break_even_rate != null) {
+      scenarioFacts.push(financingPlanFactHtml('Taxa de equilíbrio (a.m.)', fracToPercent(cc.break_even_rate), 'percent'));
+    }
+    var scenarioHtml = '<div class="baiPlanCardFacts">' + scenarioFacts.join('') + '</div>';
+
+    var resultLabel = cc.classification === 'FINANCIAR' ? 'Vantagem matemática: Financiar'
+      : cc.classification === 'UTILIZAR' ? 'Vantagem matemática: À Vista'
+      : 'Resultado matemático: Equivalente';
+    var diffFmt = A.formatValue(Math.abs(cc.projected_difference), 'currency');
+    var resultHtml = '<div class="baiPlanCardBalloons">' +
+      '<p class="baiPlanCardKind">' + esc(resultLabel) + '</p>' +
+      (cc.classification !== 'EQUIVALENTE' ? '<p class="baiPlanCardHero">' + esc(diffFmt.text) + '</p>' : '') +
+      '</div>';
+
+    var capitalFmt = A.formatValue(cc.capital, 'currency');
+    var strategyHtml = '<p class="baiPlanCardTarget">Financiar mantém ' + esc(capitalFmt.text) + ' disponíveis para liquidez/investimento.</p>';
+
+    return '<div class="baiPlanCardGroup"><div class="baiPlanCard">' + headerHtml + scenarioHtml + resultHtml + strategyHtml + '</div></div>';
+  }
+
   /* Groups ALL financing-plan blocks in one message's blocks[] and
      decides which is visually primary -- purely by comparing
      target_distance (the exact "closest to the target the Human
@@ -313,6 +413,8 @@
 
   function renderOneBlock(block) {
     if (!block) return '';
+    if (hasSettlementCard(block)) return settlementCardHtml(block);
+    if (hasCashConversionCard(block)) return cashConversionCardHtml(block);
     if (block.type === 'metrics') return compactMetricsHtml(block);
     if (block.type === 'ranking') return rankingCardsHtml(block);
     return P.renderStructuredBlock(block);
