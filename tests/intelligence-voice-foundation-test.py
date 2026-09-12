@@ -693,6 +693,187 @@ def main():
             check("TEST C: Text receives the prior VOICE turns (Triton Katana) in its prior conversation/context",
                   any("Triton Katana" in t for t in prior_texts_c), prior_texts_c)
 
+        # ============================================================
+        # VOICE-UAT-03 -- STRUCTURED RESULT CORRELATION (Tests 6-10).
+        # Real field shapes reused verbatim from tests/intelligence-
+        # financing-plan-cards-test.py / intelligence-settlement-
+        # cashconversion-cards-test.py (never invented) -- proves Voice
+        # renders the SAME .baiPlanCard component Text already does.
+        # ============================================================
+        FINANCING_BLOCK = {
+            "type": "metrics",
+            "title": "Simulação — Financiamento Linear Novos",
+            "period_label": "Simulação — não é proposta nem aprovação de crédito",
+            "items": [
+                {"label": "Valor do Veículo", "value": 330000, "format": "currency"},
+                {"label": "Melhor parcela (60x)", "value": 3500, "format": "currency"},
+            ],
+            "financing_card": {
+                "kind": "LINEAR", "term_months": 60, "monthly_payment": 3500,
+                "down_payment": 224222.30, "financed_amount": 105777.70,
+                "target_payment": 3500, "target_distance": 0,
+            },
+        }
+        CASH_BLOCK = {
+            "type": "metrics",
+            "title": "Simulação — Cash Conversion",
+            "period_label": "Classificação: Utilizar o capital — estimativa dentro das premissas informadas, não é recomendação de investimento",
+            "items": [{"label": "Capital inicial", "value": 90000, "format": "currency"}],
+            "cash_conversion_card": {
+                "capital": 90000, "monthly_payment": 3563.06, "term_months": 42,
+                "application_rate": 0.0112, "break_even_rate": 0.0122,
+                "final_financing_value": 149648.52, "future_investment_value": 143680.91,
+                "projected_difference": -5967.61, "classification": "UTILIZAR",
+            },
+        }
+        SETTLEMENT_BLOCK = {
+            "type": "metrics",
+            "title": "Simulação — Antecipação / Liquidação Antecipada",
+            "period_label": "Estimativa comercial — não é proposta nem aprovação de crédito",
+            "items": [{"label": "Valor para quitação", "value": 133004.40, "format": "currency"}],
+            "settlement_card": {
+                "settlement_amount": 133004.40, "settlement_date": "2027-09-11",
+                "gross_total": 175500.00, "discount_total": 42495.60,
+                "discount_percent_of_gross": 24.21, "installments_considered": 36,
+                "scope_label": "Parcelas restantes", "first_due_date": "2026-10-11",
+                "first_due_date_assumed": True, "balloons": [],
+            },
+        }
+
+        def voice_tool_turn(page, call_id, user_text, reply_text, blocks, request_id):
+            page.evaluate(
+                """([callId, userText, replyText, blocks, requestId]) => {
+                    window.__sendRealTextCalls = [];
+                    window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function (message, conversation, token, clientTiming, surface) {
+                        window.__sendRealTextCalls.push({ message: message, conversation: conversation, token: token, surface: surface });
+                        return Promise.resolve({ response: window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponse({ reply: replyText, blocks: blocks, request_id: requestId, scenario_reset: false }) });
+                    };
+                    window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+                    window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.completed', transcript: userText});
+                    window.__simulateRtEvent({type:'response.done', response:{output:[
+                        {type:'function_call', name:'consultar_portal_intelligence', call_id: callId, arguments: JSON.stringify({message: userText})}
+                    ]}});
+                }""",
+                [call_id, user_text, reply_text, blocks, request_id],
+            )
+            page.wait_for_timeout(150)
+            page.evaluate(
+                """(replyText) => {
+                    window.__simulateRtEvent({type:'response.done', response:{output:[
+                        {type:'message', role:'assistant', content:[{transcript: replyText}]}
+                    ]}});
+                }""",
+                reply_text,
+            )
+            page.wait_for_timeout(100)
+
+        # ---------- TEST 6: Voice target-payment finance query -> financing_card ----------
+        start_voice_session(page)
+        before_6 = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation().length")
+        voice_tool_turn(page, "call-t6", "Quanto fica a parcela da Triton Katana em 60 meses?",
+                         "Em 60 meses, a parcela fica em R$3.500,00.", [FINANCING_BLOCK], "t6")
+        conv_6 = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation()")
+        new_6 = conv_6[before_6:]
+        check("TEST 6: exactly 1 user + 1 assistant canonical entry for this Voice finance turn",
+              len(new_6) == 2 and new_6[0]["role"] == "user" and new_6[1]["role"] == "assistant", new_6)
+        check("TEST 6: the assistant turn's blocks carry the financing_card structured result (same backend result Text would get)",
+              len(new_6) == 2 and bool(new_6[1].get("blocks")) and new_6[1]["blocks"][0].get("financing_card", {}).get("kind") == "LINEAR",
+              new_6[1] if len(new_6) == 2 else None)
+        check("TEST 6: the financing card renders as .baiPlanCard on the SAME surface Text uses (component reuse, not a Voice-only card)",
+              page.locator("#baiPanelConversation .baiPlanCard").count() == 1)
+
+        # ---------- TEST 7: Voice Cash Conversion -> cash_conversion_card ----------
+        voice_tool_turn(page, "call-t7", "E se eu usar 90 mil em Cash Conversion?",
+                         "Com 90 mil, a classificação é utilizar o capital.", [CASH_BLOCK], "t7")
+        conv_7 = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation()")
+        check("TEST 7: exactly 1 new assistant entry, carrying a cash_conversion_card block",
+              conv_7[-1]["role"] == "assistant" and bool(conv_7[-1].get("blocks"))
+              and conv_7[-1]["blocks"][0].get("cash_conversion_card") is not None,
+              conv_7[-1])
+        check("TEST 7: cash conversion card renders as .baiPlanCard too (2 cards total now)",
+              page.locator("#baiPanelConversation .baiPlanCard").count() == 2)
+
+        # ---------- TEST 8: Voice Antecipação -> settlement_card ----------
+        voice_tool_turn(page, "call-t8", "Quanto fica para quitar antecipado?",
+                         "Para quitar agora, o valor é de R$133.004,40.", [SETTLEMENT_BLOCK], "t8")
+        conv_8 = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation()")
+        check("TEST 8: exactly 1 new assistant entry, carrying a settlement_card block",
+              conv_8[-1]["role"] == "assistant" and bool(conv_8[-1].get("blocks"))
+              and conv_8[-1]["blocks"][0].get("settlement_card") is not None,
+              conv_8[-1])
+        check("TEST 8: after 3 Voice structured turns (6/7/8), exactly 3 .baiPlanCard renders total -- one per turn, none missing, none duplicated",
+              page.locator("#baiPanelConversation .baiPlanCard").count() == 3)
+
+        # ---------- TEST 9: stale correlation -- A's structured result must never attach to B's turn ----------
+        page.evaluate("""() => {
+            window.__sendRealTextCalls = [];
+            window.__resolvers = {};
+            window.NX_BRABUS_INTELLIGENCE_ADAPTER.sendRealText = function (message, conversation, token, clientTiming, surface) {
+                window.__sendRealTextCalls.push({ message: message, conversation: conversation, token: token, surface: surface });
+                return new Promise((resolve) => { window.__resolvers[message] = resolve; });
+            };
+        }""")
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+            window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.completed', transcript:'pergunta A'});
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'function_call', name:'consultar_portal_intelligence', call_id:'call-9A', arguments: JSON.stringify({message:'pergunta A'})}
+            ]}});
+        }""")
+        page.wait_for_timeout(80)
+        # Barge-in: query B supersedes A (latestCallId moves on) before A's own bridge call resolves.
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'input_audio_buffer.speech_stopped'});
+            window.__simulateRtEvent({type:'conversation.item.input_audio_transcription.completed', transcript:'pergunta B'});
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'function_call', name:'consultar_portal_intelligence', call_id:'call-9B', arguments: JSON.stringify({message:'pergunta B'})}
+            ]}});
+        }""")
+        page.wait_for_timeout(80)
+        # Resolve B first (the realistic barge-in order: the Human is waiting on the newer question), WITH its own block.
+        page.evaluate(
+            """(block) => { if (window.__resolvers['pergunta B']) window.__resolvers['pergunta B']({response: window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponse({reply:'resposta B', blocks:[block], request_id:'r9b', scenario_reset:false})}); }""",
+            CASH_BLOCK,
+        )
+        page.wait_for_timeout(80)
+        # THEN resolve A (now stale), with a DIFFERENT block that must never attach to anything.
+        page.evaluate(
+            """(block) => { if (window.__resolvers['pergunta A']) window.__resolvers['pergunta A']({response: window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponse({reply:'resposta A (obsoleta)', blocks:[block], request_id:'r9a', scenario_reset:false})}); }""",
+            SETTLEMENT_BLOCK,
+        )
+        page.wait_for_timeout(80)
+        cards_before_9_final = page.locator("#baiPanelConversation .baiPlanCard").count()
+        # B's own final spoken answer arrives (the real, non-stale turn).
+        page.evaluate("""() => {
+            window.__simulateRtEvent({type:'response.done', response:{output:[
+                {type:'message', role:'assistant', content:[{transcript:'resposta B'}]}
+            ]}});
+        }""")
+        page.wait_for_timeout(100)
+        conv_9 = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation()")
+        check("TEST 9: the final assistant turn is B's, never A's stale one", conv_9[-1]["content"] == "resposta B", conv_9[-1])
+        check("TEST 9: B's own block attaches to B's turn",
+              bool(conv_9[-1].get("blocks")) and conv_9[-1]["blocks"][0].get("cash_conversion_card") is not None, conv_9[-1])
+        check("TEST 9: A's (stale) settlement_card never attaches anywhere -- exactly +1 new card (B's), not +2",
+              page.locator("#baiPanelConversation .baiPlanCard").count() == cards_before_9_final + 1,
+              page.locator("#baiPanelConversation .baiPlanCard").count())
+
+        # ---------- TEST 10: Text -> Voice -> Text preserves BOTH context AND cards across the whole blended session ----------
+        full_conv = page.evaluate("window.NX_INTELLIGENCE_STATE.getConversation()")
+        texts_all = [m.get("content", "") for m in full_conv]
+        check("TEST 10: the original Text turn (Eclipse, TEST B) is still present in the full canonical history",
+              any("Eclipse" in t for t in texts_all))
+        check("TEST 10: the Voice continuation turn (TEST B) is still present",
+              any("R$1.800" in t for t in texts_all))
+        check("TEST 10: the later Text turn (TEST C, '48 meses') is still present",
+              any(t == "E em 48 meses?" for t in texts_all))
+        blocked_msgs = [m for m in full_conv if m.get("blocks")]
+        has_financing = any(b.get("financing_card") for m in blocked_msgs for b in m["blocks"])
+        has_cash = any(b.get("cash_conversion_card") for m in blocked_msgs for b in m["blocks"])
+        has_settlement = any(b.get("settlement_card") for m in blocked_msgs for b in m["blocks"])
+        check("TEST 10: all 3 card types (financing/cash_conversion/settlement) from TEST 6/7/8 remain attached to their own turns in the full canonical history",
+              has_financing and has_cash and has_settlement, [m.get("blocks") for m in blocked_msgs])
+
         page.close()
         browser.close()
 

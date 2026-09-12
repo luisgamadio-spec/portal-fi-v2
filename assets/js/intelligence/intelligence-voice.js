@@ -73,6 +73,20 @@
   var processedCallIds = Object.create(null);
   var latestCallId = null;
   var pendingUserTranscript = null;
+  // VOICE-UAT-03 -- correlates a structured result (financing_card/
+  // cash_conversion_card/settlement_card, already computed by the SAME
+  // backend Text uses) to the SPECIFIC tool call it came from, so it
+  // can be attached to that call's own eventual final assistant turn
+  // (response.done's own !hadFunctionCall branch, below) without
+  // reviving the duplicate-render bug VOICE-UAT-01B fixed: stashed only
+  // when NOT stale at bridge-resolution time (same latestCallId check
+  // handleFunctionCall's own caller already applies), and consumed only
+  // if STILL not stale at the moment a final assistant turn actually
+  // renders -- closes the gap a stash-time-only check would leave open
+  // (call A resolves and stashes, then call B supersedes it before A's
+  // own response.done fires; never "last card wins" globally).
+  var pendingAssistantBlocksCallId = null;
+  var pendingAssistantBlocks = null;
   var turnTimer = null;
   var active = false; // true only once the WebRTC data channel is open
   var startGeneration = 0; // incremented by doEnd() -- invalidates an in-flight doStart() chain (manual cancel while CONNECTING)
@@ -218,9 +232,9 @@
       .trim();
   }
 
-  function appendTurn(role, content) {
+  function appendTurn(role, content, blocks) {
     if (!content) return;
-    S.pushMessage({ role: role, content: content, blocks: null, isError: false });
+    S.pushMessage({ role: role, content: content, blocks: blocks || null, isError: false });
   }
 
   // IA-3H.1A D1 fix -- found live by this Wave's own barge-in test: a
@@ -310,7 +324,7 @@
       var stale = callId !== latestCallId;
       if (result.error) {
         if (!stale && !silent) S.pushMessage({ role: 'assistant', content: result.error.message, blocks: null, isError: true });
-        return { spoken: result.error.message, ok: false, stale: stale };
+        return { spoken: result.error.message, ok: false, stale: stale, blocks: null };
       }
       var normalized = result.response;
       if (normalized.scenario_reset) S.spliceFromLastUser();
@@ -323,7 +337,14 @@
       // is the single render path for a tool-using voice turn, from the
       // real spoken transcript, once the post-tool response arrives.
       if (!stale && !silent) S.pushMessage({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false });
-      return { spoken: stripMarkdown(normalized.reply), ok: true, stale: stale };
+      // VOICE-UAT-03 -- `blocks` (financing_card/cash_conversion_card/
+      // settlement_card, the EXACT same structured result Text's own
+      // applyResult already attaches) is returned here even in silent
+      // mode, so handleFunctionCall's own caller can correlate it to
+      // this call's eventual final assistant turn -- this function
+      // itself never pushes it in silent mode (no duplication risk
+      // reintroduced; the silent/!stale gate above is unchanged).
+      return { spoken: stripMarkdown(normalized.reply), ok: true, stale: stale, blocks: normalized.blocks || null };
     });
   }
 
@@ -362,6 +383,15 @@
       // was in flight -- discard silently, never inject a stale answer
       // into a conversation that has already moved on (Section 32).
       if (callId !== latestCallId) return;
+      // VOICE-UAT-03 -- stash this call's own structured result,
+      // correlated by callId, for response.done's own !hadFunctionCall
+      // branch to attach to THIS call's eventual final assistant turn.
+      // Re-checked again at consumption time (not just here) against
+      // whatever latestCallId is THEN -- this stash alone does not
+      // guarantee the card survives to render; it only survives if
+      // still the latest call when that later event actually arrives.
+      pendingAssistantBlocksCallId = callId;
+      pendingAssistantBlocks = outcome.blocks || null;
       var output = outcome.ok
         ? JSON.stringify({ resposta: outcome.spoken })
         : JSON.stringify({ erro: outcome.spoken || 'Não consegui consultar os dados do Portal agora.' });
@@ -443,7 +473,18 @@
         // shared conversation surface as a tool turn would.
         if (pendingUserTranscript) { appendTurn('user', pendingUserTranscript); pendingUserTranscript = null; }
         var assistantText = extractAssistantTranscript(resp);
-        if (assistantText) appendTurn('assistant', assistantText);
+        // VOICE-UAT-03 -- attach the structured result ONLY if it was
+        // stashed for the call that is STILL latestCallId right now
+        // (never merely "was latest when stashed") -- a barge-in that
+        // superseded it in between means this response.done either
+        // belongs to the NEWER call (whose own stash, if any, has a
+        // matching callId) or is a stray/social turn with nothing to
+        // attach. Cleared unconditionally either way: a card is never
+        // allowed to leak into a later, unrelated turn.
+        var blocksForThisTurn = (pendingAssistantBlocksCallId !== null && pendingAssistantBlocksCallId === latestCallId) ? pendingAssistantBlocks : null;
+        pendingAssistantBlocksCallId = null;
+        pendingAssistantBlocks = null;
+        if (assistantText) appendTurn('assistant', assistantText, blocksForThisTurn);
         setV(VS.VOICE_LISTENING);
         diagPush('turn_done', { had_tool: false });
         turnTimer = null;
@@ -611,6 +652,8 @@
     processedCallIds = Object.create(null);
     latestCallId = null;
     pendingUserTranscript = null;
+    pendingAssistantBlocksCallId = null;
+    pendingAssistantBlocks = null;
     turnTimer = null;
     setV(finalState || S.VOICE_STATES.VOICE_DISCONNECTED);
     diagPush('ended', { end_reason: finalState || S.VOICE_STATES.VOICE_DISCONNECTED });
