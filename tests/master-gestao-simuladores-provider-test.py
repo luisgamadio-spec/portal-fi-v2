@@ -35,7 +35,10 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 import openpyxl
 
-BASE = "http://127.0.0.1:8080/portal-next-v2/tests/_master-users-harness.html"
+# V2-INT-01 -- test-harness-only fix: was hardcoded to the OLD parent-
+# dir-rooted topology; this worktree is served root-at-worktree, same
+# IA3E_TEST_PORT convention the rest of this suite already uses.
+BASE = f"http://127.0.0.1:{os.environ.get('IA3E_TEST_PORT', '8711')}/tests/_master-users-harness.html"
 SEC_URL = "https://mock.invalid/rest/v1/rpc/master_admin_security_data"
 CONV_URL = "https://mock.invalid/rest/v1/rpc/master_listar_convites"
 LIST_BATCHES_URL = "https://mock.invalid/rest/v1/rpc/master_operational_list_batches"

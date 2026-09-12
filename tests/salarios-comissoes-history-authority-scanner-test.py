@@ -108,7 +108,11 @@ def main():
         # prove reference identity -- no RPC is ever called (no route
         # mocked, no navigation into either module's real UI).
         page.route("**/*", lambda route: route.continue_())
-        page.goto("http://127.0.0.1:8080/portal-next-v2/index.html")
+        # V2-INT-01 -- test-harness-only fix: was hardcoded to the OLD
+        # parent-dir-rooted topology; this worktree is served root-at-
+        # worktree, same IA3E_TEST_PORT convention the rest of this
+        # suite already uses.
+        page.goto(f"http://127.0.0.1:{os.environ.get('IA3E_TEST_PORT', '8711')}/index.html")
         page.wait_for_function("!!window.NX_MASTER_COMPETENCE_HISTORY_PROVIDER && !!window.NX_SALARIOS_COMISSOES_PAGE", timeout=8000)
         has_all_methods = page.evaluate("""() => {
           const p = window.NX_MASTER_COMPETENCE_HISTORY_PROVIDER;

@@ -31,7 +31,10 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-BASE = "http://127.0.0.1:8080/portal-next-v2/tests/_simulador-novos-harness.html"
+# V2-INT-01 -- test-harness-only fix: was hardcoded to the OLD parent-
+# dir-rooted topology; this worktree is served root-at-worktree, same
+# IA3E_TEST_PORT convention the rest of this suite already uses.
+BASE = f"http://127.0.0.1:{_os.environ.get('IA3E_TEST_PORT', '8711')}/tests/_simulador-novos-harness.html"
 GOVERNED_RPC_URL = "https://mock.invalid/rest/v1/rpc/simulador_get_coparticipado"
 
 results = []

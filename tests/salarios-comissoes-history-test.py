@@ -22,11 +22,15 @@ Requires: a static server for PORTAL-FI-DESIGN-LAB/ on port 8080.
 """
 import io
 import json as _json
+import os
 import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-BASE = "http://127.0.0.1:8080/portal-next-v2/index.html"
+# V2-INT-01 -- test-harness-only fix: was hardcoded to the OLD parent-
+# dir-rooted topology; this worktree is served root-at-worktree, same
+# IA3E_TEST_PORT convention the rest of this suite already uses.
+BASE = f"http://127.0.0.1:{os.environ.get('IA3E_TEST_PORT', '8711')}/index.html"
 CONFIG_SCRIPT = "window.NX_INTELLIGENCE_CONFIG = { mode: 'fixture', supabaseUrl: 'https://mock.invalid', supabasePublishableKey: 'mock-key', textEndpoint: null };"
 
 results = []
