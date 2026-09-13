@@ -87,14 +87,16 @@ MODULE_ID_TO_CATEGORY_TITLE = {
     "brabus-intelligence": "Brabus Intelligence",
 }
 
-ALL_CATEGORY_IDX = [0, 1, 2, 3, 4, 5]  # Gestão / Novos&Seminovos / Score&Salários / Atendimento F&I / Brabus Intelligence / Auditoria
-
-
+# V2-UAT-05: category count is no longer fixed at 6 -- a category left
+# with zero visible modules for this profile is now entirely absent
+# (assets/js/landing.js's own renderRoute() filter). Iterate however
+# many .fNavItem tabs actually rendered, never a hardcoded range.
 def all_module_blocks(page_frame):
-    """Clicks through every landing category and collects every module block's title + deferred state."""
+    """Clicks through every rendered landing category and collects every module block's title + deferred state."""
     out = {}
-    for idx in ALL_CATEGORY_IDX:
-        page_frame.evaluate(f'document.querySelector("#fNavTab{idx}").click()')
+    tab_count = page_frame.evaluate("document.querySelectorAll('.fNavItem').length")
+    for idx in range(tab_count):
+        page_frame.evaluate(f'document.querySelectorAll(".fNavItem")[{idx}].click()')
         page_frame.page.wait_for_timeout(120)
         blocks = page_frame.evaluate("""() => [...document.querySelectorAll('#landingModuleDetail .fModuleBlock')].map(b => ({
             title: b.querySelector('.fModuleTitle').textContent,
@@ -160,9 +162,16 @@ def main():
             visible_titles = {MODULE_ID_TO_CATEGORY_TITLE[m] for m in spec["visible"]}
             hidden_titles = {MODULE_ID_TO_CATEGORY_TITLE[m] for m in spec["hidden"]}
             visible_ok = all(blocks.get(t) is True for t in visible_titles)
-            hidden_ok = all(blocks.get(t) is False for t in hidden_titles)
+            # V2-UAT-05: an unauthorized module no longer renders a
+            # deferred card at all (assets/js/landing.js's own
+            # isAuthDenied() -> ''); this assertion used to explicitly
+            # encode the old AUTH-DENIED-AS-DISABLED behavior
+            # (blocks.get(t) is False, i.e. "a card exists but is
+            # deferred") -- updated to the new, correct expectation:
+            # the module has no card entry in the DOM at all.
+            hidden_ok = all(blocks.get(t) is None for t in hidden_titles)
             check(f"[{key}] modules that SHOULD be visible are visible", visible_ok, {t: blocks.get(t) for t in visible_titles})
-            check(f"[{key}] modules that SHOULD be hidden/deferred are hidden", hidden_ok, {t: blocks.get(t) for t in hidden_titles})
+            check(f"[{key}] modules that SHOULD be hidden are completely absent from the DOM (not a disabled card)", hidden_ok, {t: blocks.get(t) for t in hidden_titles})
 
             overflow = page.evaluate("() => ({scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth})")
             check(f"[{key}] zero horizontal scroll (outer harness page)", overflow["scroll"] <= overflow["client"], overflow)

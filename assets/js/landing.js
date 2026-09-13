@@ -80,6 +80,21 @@
     return String(name || '').split(' ').filter(Boolean).slice(0, 2).map(function (p) { return p[0]; }).join('').toUpperCase();
   }
 
+  // V2-UAT-05: the SINGLE authority predicate for "is this module
+  // hidden because the current user lacks permission" -- reused by
+  // moduleBlockHtml() (Landing cards), navItemHtml() (sidebar), and
+  // NX_LANDING.renderRoute()'s own category-visibility filter below,
+  // so all three never disagree. Deliberately narrow: only a real
+  // authMode + isModuleAuthorized()===false counts as AUTH DENIED.
+  // NOT_MIGRATED is a distinct, legitimate "technically deferred by
+  // design" case (Section 3 of this Wave's own brief) and is NEVER
+  // hidden by this predicate -- callers that need to render it
+  // (moduleBlockHtml/navItemHtml) keep checking migrationStatus
+  // separately, unchanged.
+  function isAuthDenied(m) {
+    return !!(m && m.authMode && window.NX_AUTH_CORE && !window.NX_AUTH_CORE.isModuleAuthorized(m));
+  }
+
   var landingGroups = null;
   var landingAmbientMount = null;
   var lastRoute = null;
@@ -117,16 +132,13 @@
         '<span class="pNavIcon">' + icon + '</span><span class="pNavLabel">' + label + '</span>' +
         '<span class="pNavSoon">Em breve</span></span>';
     }
-    // AUTH FOUNDATION Phase 2B, Gate 12: a migrated module the current
-    // user lacks permission for is disabled the same way — never a
-    // dead/broken link, and never implies access that authorization
-    // would refuse. Reuses the exact NOT_MIGRATED visual language
-    // (Gate 12's own instruction), no separate "locked" pattern
-    // invented.
-    if (m.authMode && window.NX_AUTH_CORE && !window.NX_AUTH_CORE.isModuleAuthorized(m)) {
-      return '<span class="pNavItem pNavItemDeferred" aria-disabled="true">' +
-        '<span class="pNavIcon">' + icon + '</span><span class="pNavLabel">' + label + '</span></span>';
-    }
+    // V2-UAT-05 (supersedes AUTH FOUNDATION Phase 2B, Gate 12): a
+    // migrated module the current user lacks permission for is now
+    // COMPLETELY OMITTED, not disabled -- confirmed Human business
+    // rule ("SE O USUÁRIO NÃO TEM ACESSO A UM MÓDULO, O MÓDULO NÃO
+    // DEVE APARECER"). Visibility only; the real authorization
+    // boundary remains exclusively server-side (RPCs/RLS), unchanged.
+    if (isAuthDenied(m)) return '';
     var active = activeRouteId === id;
     return '<a href="#/' + id + '" class="pNavItem' + (active ? ' active' : '') + '"' + (active ? ' aria-current="page"' : '') + '>' +
       '<span class="pNavIcon">' + icon + '</span><span class="pNavLabel">' + label + '</span></a>';
@@ -276,12 +288,12 @@
         '<p class="fModuleDesc">' + esc(m.landingDesc || m.title) + '</p>' +
         '</div>';
     }
-    if (m.authMode && window.NX_AUTH_CORE && !window.NX_AUTH_CORE.isModuleAuthorized(m)) {
-      return '<div class="fModuleBlock fModuleBlockDeferred" aria-disabled="true">' +
-        '<div class="fModuleTop"><h3 class="fModuleTitle">' + title + '</h3></div>' +
-        '<p class="fModuleDesc">' + esc(m.landingDesc || m.title) + '</p>' +
-        '</div>';
-    }
+    // V2-UAT-05 (supersedes AUTH FOUNDATION Phase 2E, Gate 10/16): a
+    // migrated module the current user lacks permission for is now
+    // COMPLETELY OMITTED (no card, no wrapper, no placeholder, no
+    // space occupied), not disabled -- confirmed Human business rule.
+    // NOT_MIGRATED above is a separate, legitimate case, unaffected.
+    if (isAuthDenied(m)) return '';
     // AUTH FOUNDATION Phase 2E, Gate 7/17: a real <a href> instead of
     // a role="button" div -- correct semantics for an element whose
     // only behavior is navigation (screen readers announce "link,"
@@ -328,6 +340,13 @@
 
     function selectGroup(idx, fireBeam) {
       var g = groups[idx];
+      // V2-UAT-05: groups is now the CALLER's already-filtered,
+      // possibly-empty array (a category with zero visible modules is
+      // omitted entirely) -- guards the edge case of genuinely zero
+      // visible categories (e.g. transiently, before a real auth
+      // session resolves) so this never throws on groups[idx] being
+      // undefined; the panel simply stays empty, no crash.
+      if (!g) return;
       // AUTH FOUNDATION Phase 2E, Gate 8: the eyebrow above the module
       // list names the active category explicitly, making the
       // left-selects/right-responds relationship legible without
@@ -463,9 +482,21 @@
           // whatever the newer route already rendered into the shared
           // outlet. Route id is the router's own source of truth.
           if (window.NX_ROUTER.currentRouteId() !== routeId) return;
-          document.getElementById('nxContentOutlet').innerHTML = landingHtml(groups);
+          // V2-UAT-05 (Section 4/7): a category left with ZERO visible
+          // modules after the same isAuthDenied() filter must not
+          // render at all (no empty tab). Filtered ONCE here, fed to
+          // BOTH landingHtml() and wireLanding() so their #fNavTab{i}/
+          // data-idx indices stay mutually consistent -- neither
+          // function needs its own copy of this logic.
+          var visibleGroups = groups.filter(function (g) {
+            return g.moduleIds.some(function (mid) {
+              var m = window.NX_REGISTRY.byId(mid);
+              return !!m && !isAuthDenied(m);
+            });
+          });
+          document.getElementById('nxContentOutlet').innerHTML = landingHtml(visibleGroups);
           mountLandingAmbient();
-          wireLanding(groups);
+          wireLanding(visibleGroups);
         });
       }
       unmountLandingAmbient();

@@ -9,20 +9,20 @@ erro... SOMENTE depois de Camile passar").
 
 Two Human-reported defects investigated:
 
-FINDING A (module visibility): confirmed to originate from REAL,
-documented, pre-existing product code -- assets/js/landing.js's
-moduleBlockHtml()/navItemHtml() ("AUTH FOUNDATION Phase 2B, Gate 12"),
-which deliberately renders an unauthorized-but-migrated module as a
-disabled/deferred card rather than omitting it, matching NOT_MIGRATED's
-own visual language. Proven NOT a harness artifact: every module
-Camile's real matrix grants IS enabled; only the two genuinely
-MASTER_ONLY modules (shell-admin/central-atendimento-fi) render
-disabled. Per this Wave's own explicit instruction ("se o produto real
-também tiver a regra 'mostrar disabled', NÃO alterar produto nesta
-wave"), landing.js is NOT modified here -- the DOM-absence checks below
-are written as real assertions and their current, honest result is
-reported, not silently skipped. See this Wave's report,
-PRODUCT_AUTH_VISIBILITY_DEFECT.
+FINDING A (module visibility) -- FIXED as of V2-UAT-05. V2-UAT-04
+confirmed this originated from REAL, pre-existing product code --
+assets/js/landing.js's moduleBlockHtml()/navItemHtml() ("AUTH
+FOUNDATION Phase 2B, Gate 12") -- and deliberately left it unmodified,
+reporting PRODUCT_AUTH_VISIBILITY_DEFECT pending a Human decision.
+That decision came: "SE O USUÁRIO NÃO TEM ACESSO A UM MÓDULO, O MÓDULO
+NÃO DEVE APARECER" is now the official product rule. V2-UAT-05 replaced
+both disabled-card branches with isAuthDenied(m) -> return '' (complete
+DOM omission), and made an empty category (zero visible modules) omit
+itself too. The two checks below that used to be informational
+PRODUCT_AUTH_VISIBILITY_DEFECT checks are now core, gating assertions
+(Section 11 of V2-UAT-05's own brief: "Atualizar assertions antigas
+somente se elas codificavam explicitamente o comportamento AUTH-
+DENIED-AS-DISABLED que agora mudou" -- this is exactly that case).
 
 FINDING B (Salários opens with MASTER authority): root-caused to
 tests/_v2-uat-03-profiles-mock.js reusing tests/_salarios-uat-
@@ -56,18 +56,11 @@ BASE = f"http://127.0.0.1:{PORT}"
 HARNESS = f"{BASE}/tests/_v2-uat-03-profiles-harness.html"
 
 results = []
-defect_results = []  # PRODUCT_AUTH_VISIBILITY_DEFECT -- informational, does NOT gate classification
 
 
 def check(label, cond, detail=None):
     results.append((label, bool(cond)))
     print(f"[{'PASS' if cond else 'FAIL'}] {label}" + (f" -- {detail}" if detail and not cond else ""))
-
-
-def check_defect(label, cond, detail=None):
-    defect_results.append((label, bool(cond)))
-    tag = "PASS" if cond else "KNOWN-DEFECT"
-    print(f"[{tag}] [PRODUCT_AUTH_VISIBILITY_DEFECT] {label}" + (f" -- {detail}" if detail and not cond else ""))
 
 
 def shot(page, name):
@@ -81,10 +74,14 @@ MASTER_ONLY_TITLES = {"Central de Atendimento F&I", "Painel Master"}
 KNOWN_CROSS_STORE_LEAK_MARKERS = ["ABC", "BANDEIRANTES CENTRO", "GASTAO"]  # the OLD MASTER-shaped fixture's own store names
 
 
+# V2-UAT-05: category count is no longer fixed at 6 -- a category left
+# with zero visible modules for this profile is now entirely absent.
+# Iterate however many .fNavItem tabs actually rendered.
 def all_module_blocks(frame):
     out = {}
-    for idx in range(6):
-        frame.evaluate(f'document.querySelector("#fNavTab{idx}").click()')
+    tab_count = frame.evaluate("document.querySelectorAll('.fNavItem').length")
+    for idx in range(tab_count):
+        frame.evaluate(f'document.querySelectorAll(".fNavItem")[{idx}].click()')
         frame.page.wait_for_timeout(150)
         blocks = frame.evaluate("""() => [...document.querySelectorAll('#landingModuleDetail .fModuleBlock')].map(b => ({
             title: b.querySelector('.fModuleTitle').textContent,
@@ -130,14 +127,13 @@ def main():
         allowed_ok = all(blocks.get(t) and blocks.get(t)["deferred"] is False and blocks.get(t)["existsAsRealAnchor"] for t in ALLOWED_TITLES)
         check("[LANDING] every module Camile's real matrix grants renders as a real, clickable link (not deferred)", allowed_ok, {t: blocks.get(t) for t in ALLOWED_TITLES})
 
-        # MASTER_ONLY DOM-absence -- real assertion, honest result.
-        # Known, documented, pre-existing landing.js Gate 12 behavior
-        # (disabled-card, not absent) is reported as a defect below, not
-        # silently passed or hidden from the suite's own output.
+        # MASTER_ONLY DOM-absence -- V2-UAT-05: now a core, gating
+        # assertion (was PRODUCT_AUTH_VISIBILITY_DEFECT/informational in
+        # V2-UAT-04, before landing.js was fixed).
         for t in MASTER_ONLY_TITLES:
             b = blocks.get(t)
-            check_defect(f"[UNAUTHORIZED MODULE DOM ABSENCE] '{t}' (MASTER_ONLY) is completely absent from the DOM, not a disabled card",
-                         b is None, b)
+            check(f"[UNAUTHORIZED MODULE DOM ABSENCE] '{t}' (MASTER_ONLY) is completely absent from the DOM, not a disabled card",
+                  b is None, b)
 
         overflow = page.evaluate("() => ({scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth})")
         check("[LANDING] zero horizontal scroll", overflow["scroll"] <= overflow["client"], overflow)
@@ -196,12 +192,8 @@ def main():
     check("[ZERO JS ERROR] zero unexplained console/page errors", len(unexplained) == 0, unexplained[:8])
 
     ok = all(r[1] for r in results)
-    defect_ok = all(r[1] for r in defect_results)
-    print(f"\n=== V2-UAT-04 CAMILE GATE (core): {sum(1 for _, p in results if p)}/{len(results)} ===")
-    print(f"=== PRODUCT_AUTH_VISIBILITY_DEFECT checks (informational, does not gate classification): {sum(1 for _, p in defect_results if p)}/{len(defect_results)} ===")
+    print(f"\n=== V2-UAT-04 CAMILE GATE: {sum(1 for _, p in results if p)}/{len(results)} ===")
     print("CAMILE GATE RESULT:", "PASS" if ok else "FAIL")
-    if not defect_ok:
-        print("NOTE: PRODUCT_AUTH_VISIBILITY_DEFECT confirmed -- see this Wave's report. Real product code (landing.js Gate 12), not modified this Wave.")
     sys.exit(0 if ok else 1)
 
 
