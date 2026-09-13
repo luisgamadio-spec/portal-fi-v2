@@ -192,11 +192,28 @@
   document.getElementById('uatWhoName').textContent = 'Visualizando como: ' + scenario.nome.toUpperCase();
   document.getElementById('uatWhoRole').textContent = scenario.roleLabel + ' — MODO DE HOMOLOGAÇÃO';
 
-  function buildMockScript() {
+  // V2-UAT-06: cacheBust MUST also cover this harness's OWN mock
+  // scripts, not just the real product's assets/ paths -- found root
+  // cause of a real Human UAT failure (Camile's harness showed her
+  // correctly in the banner, but the Portal rendered inside the iframe
+  // resolved to the Human's own real MASTER identity). Neither the
+  // strip regexes nor a seeded real Supabase session token could
+  // reproduce it under a fresh or simulated-stale browser (both
+  // re-verified structurally correct, see this Wave's report) -- but
+  // this exact "python -m http.server sends no Cache-Control, only
+  // Last-Modified, so a long-lived browser can silently reuse a stale
+  // cached response" gap is the SAME defect class already fixed once
+  // for assets/ paths here (RH-5B.2) and never extended to cover these
+  // two mock scripts, which ARE re-edited across Waves just like any
+  // assets/ file. cacheBust is computed once per loadFrame() call and
+  // reused for both the real product's assets/ paths and this
+  // harness's own mock script tags, so neither can ever be served
+  // stale independently of the other.
+  function buildMockScript(cacheBust) {
     var payload = Object.assign({ key: key }, scenario);
     return '<script>window.__V2UAT03_PAYLOAD__ = ' + JSON.stringify(payload) + ';<' + '/script>' +
-      '<script src="tests/_salarios-uat-fixtures.js"><' + '/script>' +
-      '<script src="tests/_v2-uat-03-profiles-mock.js"><' + '/script>';
+      '<script src="tests/_salarios-uat-fixtures.js?' + cacheBust + '"><' + '/script>' +
+      '<script src="tests/_v2-uat-03-profiles-mock.js?' + cacheBust + '"><' + '/script>';
   }
 
   function loadFrame() {
@@ -213,7 +230,7 @@
       html = html.replace(/(src|href)="(assets\/[^"]+)"/g, function (m, attr, path) {
         return attr + '="' + path + (path.indexOf('?') === -1 ? '?' : '&') + cacheBust + '"';
       });
-      var injected = html.replace('<head>', '<head><base href="../">' + buildMockScript());
+      var injected = html.replace('<head>', '<head><base href="../">' + buildMockScript(cacheBust));
       var frame = document.getElementById('uatFrame');
       frame.hidden = false;
       var doc = frame.contentDocument;

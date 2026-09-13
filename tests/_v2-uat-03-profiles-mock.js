@@ -234,11 +234,81 @@
     return realFetch(input, init);
   };
 
+  // V2-UAT-06: fail-LOUD runtime self-check. A real Human UAT capture
+  // once showed the harness's own outer banner correctly naming
+  // Camile while the Portal rendered inside the iframe had somehow
+  // resolved to a DIFFERENT, real MASTER identity -- a silent
+  // divergence between "what this mock intended" and "what
+  // NX_AUTH_CORE actually ended up holding" that a Human could easily
+  // miss and mistake for a real, trustworthy MASTER-scoped session.
+  // The exact original trigger (browser-cache staleness of this very
+  // file, most likely -- see this Wave's report) is separately fixed
+  // via cache-busting in the harness; this check is the durable
+  // backstop: whatever the cause, EVERY future load verifies the real,
+  // authoritative NX_AUTH_CORE.getContext() actually matches this
+  // mock's own intended identity before ever showing the Human a
+  // rendered Portal, and refuses to proceed silently if it doesn't.
+  function assertEffectiveAuthorityMatches() {
+    var ctx = window.NX_AUTH_CORE.getContext();
+    var ok = !!ctx && ctx.nome === payload.nome && ctx.perfil === payload.perfil && ctx.isMaster === false;
+    if (ok) return true;
+    document.documentElement.innerHTML =
+      '<body style="margin:0;background:#2a0505;color:#ffdede;font:14px monospace;padding:32px">' +
+      '<h1 style="color:#ff6b6b;margin-top:0">EFFECTIVE AUTHORITY MISMATCH</h1>' +
+      '<p>Este harness de homologação esperava <b>' + payload.nome + ' / ' + payload.perfil + '</b>, ' +
+      'mas o Portal real, após o bootstrap de autenticação, resolveu um contexto diferente:</p>' +
+      '<pre style="background:#1a0303;padding:12px;border:1px solid #5a1414;overflow:auto">' + JSON.stringify(ctx, null, 2) + '</pre>' +
+      '<p>Isto é uma falha de integridade do harness de UAT, não um problema visual. ' +
+      'NÃO confie em nada renderizado por esta sessão. Feche esta aba, faça um hard refresh ' +
+      '(Ctrl+Shift+R) na página do harness e tente novamente.</p></body>';
+    return false;
+  }
+
+  // V2-UAT-06 -- THE REAL ROOT CAUSE of the Human's "Camile turns into
+  // Luis/MASTER" capture. This document is written via iframe.
+  // contentDocument.write() onto an about:blank-derived document whose
+  // OWN true `location` never becomes "http://host/..." -- it stays an
+  // opaque location the browser's native anchor-navigation algorithm
+  // never considers "the same document" as the harness's own
+  // <base href="../">-resolved target for a plain `<a href="#/x">`
+  // (confirmed live: the SAME link's own resolved `.href` property is
+  // an ABSOLUTE http://host/#/x URL, not a same-document fragment).
+  // So a REAL MOUSE CLICK on any in-app module/nav link -- exactly
+  // what a Human does, and exactly what V2-UAT-04/05's own automated
+  // suites never did (they drove navigation via `location.hash = ...`
+  // executed AS A SCRIPT INSIDE the iframe's own document, which is
+  // unambiguous and never triggers this) -- makes the browser perform
+  // a GENUINE FULL NAVIGATION of the iframe to that absolute URL,
+  // i.e. the real site root's REAL, completely UNMOCKED index.html:
+  // no mock, no stripped Supabase CDN, no intercepted fetch, nothing.
+  // Whatever real (or absent) Supabase session that fresh, real load
+  // resolves is what the Human then saw rendered -- their own real
+  // MASTER identity if their browser held one, or auth-core.js's own
+  // MOCK_USER/null fallback otherwise (reproduced live during this
+  // Wave's own investigation).
+  //
+  // FIX: intercept every in-app link click at the document level
+  // (capture phase, before the browser's own native navigation
+  // algorithm ever gets to resolve/follow it) and route it the exact
+  // same way every one of this harness's own already-working tests
+  // already proved correct: a plain, same-document `location.hash =`
+  // assignment, executed by script, which the real, unmodified
+  // NX_ROUTER's own hashchange listener already handles identically
+  // to a native navigation -- no router change, no new navigation
+  // mechanism invented.
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest && e.target.closest('a[href^="#/"]');
+    if (!a) return;
+    e.preventDefault();
+    location.hash = a.getAttribute('href');
+  }, true);
+
   // Auto-navigate to Landing once authenticated -- the Human explores
   // every module's visibility from there, not just one route.
   var poll = setInterval(function () {
     if (window.NX_AUTH_CORE && window.NX_AUTH_CORE.getState() === 'AUTHORIZED') {
       clearInterval(poll);
+      if (!assertEffectiveAuthorityMatches()) return;
       location.hash = '#/landing';
     }
   }, 50);
