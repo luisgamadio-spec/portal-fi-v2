@@ -72,6 +72,11 @@
   var currentPreset = 'CUSTOM';
   var currentDateStart = '2026-01-01';
   var currentDateEnd = '2026-12-31';
+  // V2-UAT-01 -- true only after ensureDefaultPeriod() has run once for
+  // this page load (see below) -- guards against re-applying the
+  // current-month default on a same-session re-entry, which would
+  // silently overwrite a Human's own manual period selection.
+  var dateDefaultInitialized = false;
   // FC-2 (GAP-004): the last successfully computed `out` (fixture, via
   // A.compute(), or real, via NX_DASHBI_REAL_VIEW_MODEL.buildRealOut()),
   // captured by renderPanel() below -- the export reads out.aggs.shareLojaDept
@@ -1158,6 +1163,31 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
+  // V2-UAT-01 -- Human request: a FRESH real-mode session (this page
+  // load has never initialized it before) must open with the current
+  // local month (day 1) through today, not the hardcoded 2026-01-01..
+  // 2026-12-31 default above (never derived from any real/current
+  // date at all). Reuses the EXACT same 'currentMonth' math
+  // applyPresetAndRender already uses below -- never a second,
+  // divergent computation -- and the same local-calendar localIso()
+  // (never .toISOString(), which can shift the day across a UTC
+  // boundary). Runs at most once per page load (dateDefaultInitialized
+  // guard) and only when isRealTransport() -- fixture mode's own
+  // deterministic default (used by existing golden-fixture tests) is
+  // completely untouched. A same-session re-entry into this module
+  // (Human already interacted, or navigated away and back) is a no-op
+  // here: currentDateStart/currentDateEnd already hold whatever the
+  // Human last left them at, and this function never runs again for
+  // the rest of this page's lifetime.
+  function ensureDefaultPeriod() {
+    if (dateDefaultInitialized || !isRealTransport()) return;
+    dateDefaultInitialized = true;
+    var today = new Date();
+    currentDateStart = localIso(new Date(today.getFullYear(), today.getMonth(), 1));
+    currentDateEnd = localIso(today);
+    currentPreset = 'currentMonth';
+  }
+
   function applyPresetAndRender(preset) {
     currentPreset = preset;
     // FI-UX-1 (Human-reported defect, root cause): this line previously
@@ -1187,6 +1217,17 @@
     realOut = null;
     previousRealOut = null;
     render();
+  }
+
+  // V2-UAT-01 -- reflects currentPreset on the button that produced it
+  // right after mount, so a Human-facing "Mês atual" default (or any
+  // programmatic preset) shows as visually active immediately, exactly
+  // like clicking it would (applyPresetAndRender's own existing
+  // classList.toggle, same class, same selector) -- CUSTOM (fixture
+  // mode's own unchanged default, or after a manual date edit) matches
+  // no button, so none is highlighted, same as before this Wave.
+  function syncPresetActiveClass() {
+    document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.toggle('dbBtnActive', b.dataset.preset === currentPreset); });
   }
 
   function wireEvents() {
@@ -1351,15 +1392,18 @@
 
   window.NX_DASHBI_PAGE = {
     render: function (outlet) {
+      ensureDefaultPeriod();
       if (isRealTransport()) {
         outlet.innerHTML = pageShellHtml(false);
         wireEvents();
+        syncPresetActiveClass();
         render();
         return Promise.resolve();
       }
       return loadFixtures().then(function () {
         outlet.innerHTML = pageShellHtml(true);
         wireEvents();
+        syncPresetActiveClass();
         render();
       });
     }

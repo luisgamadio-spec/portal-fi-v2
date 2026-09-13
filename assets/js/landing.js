@@ -363,11 +363,53 @@
     var moveGuard = function () { pointerHasMoved = true; document.removeEventListener('mousemove', moveGuard); };
     document.addEventListener('mousemove', moveGuard);
 
+    // V2-UAT-01 -- HOVER = PREVIEW, CLICK = PERSISTENT SELECTION (Human
+    // UAT: incidental hover over another category while the pointer
+    // travels from the clicked category toward its own module list on
+    // the right was silently swapping the panel out from under them).
+    // categoryLocked starts false (nothing explicitly chosen yet) so
+    // hover/focus can still preview like before; an explicit click (or
+    // Enter/Space, its keyboard equivalent) sets it true, and from that
+    // point on hover/focus are inert for selection purposes -- only
+    // another click/Enter/Space (on a DIFFERENT category) can move the
+    // lock. This is the real fix; it is never bypassed by a large
+    // fixed delay.
+    var categoryLocked = false;
+    // Small (never large) hover-INTENT grace period -- debounces the
+    // preview-only path so a fast pointer pass over several category
+    // labels while travelling elsewhere doesn't flash each one in turn;
+    // only a label the pointer actually rests on for a moment previews.
+    // Irrelevant once categoryLocked is true (mouseenter is a no-op
+    // then regardless of timing).
+    var HOVER_INTENT_MS = 120;
+    var hoverTimer = null;
+    function clearHoverTimer() { if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; } }
+
     navEl.querySelectorAll('.fNavItem').forEach(function (btn, idx) {
-      btn.addEventListener('click', function () { if (idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); } });
-      btn.addEventListener('mouseenter', function () { if (pointerHasMoved && idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); } });
-      btn.addEventListener('focus', function () { if (idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); } });
-      btn.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); } } });
+      btn.addEventListener('click', function () {
+        clearHoverTimer();
+        categoryLocked = true;
+        if (idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); }
+      });
+      btn.addEventListener('mouseenter', function () {
+        if (categoryLocked || !pointerHasMoved || idx === activeIdx) return;
+        clearHoverTimer();
+        hoverTimer = setTimeout(function () {
+          hoverTimer = null;
+          if (categoryLocked || idx === activeIdx) return; // re-checked: state may have changed during the grace period
+          activeIdx = idx; selectGroup(idx, true);
+        }, HOVER_INTENT_MS);
+      });
+      btn.addEventListener('mouseleave', clearHoverTimer);
+      btn.addEventListener('focus', function () { if (!categoryLocked && idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); } });
+      btn.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          clearHoverTimer();
+          categoryLocked = true;
+          if (idx !== activeIdx) { activeIdx = idx; selectGroup(idx, true); }
+        }
+      });
     });
     // AUTH FOUNDATION Phase 2E: module destinations are now real
     // <a href="#/..."> elements (moduleBlockHtml) -- the browser's own

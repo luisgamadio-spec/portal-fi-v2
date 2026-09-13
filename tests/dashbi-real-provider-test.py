@@ -13,15 +13,44 @@ touched, 0 credentials anywhere in this file.
 Requires: a static server for PORTAL-FI-DESIGN-LAB/ on the project's
 canonical port 8080 (same convention as every other Portal V2 test).
 """
+import calendar
 import io
 import json as _json
+import os
 import sys
+from datetime import date
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-BASE = "http://127.0.0.1:8080/portal-next-v2/tests/_dashbi-real-provider-harness.html"
+# V2-UAT-01 -- test-harness-only fix: was hardcoded to the OLD parent-
+# dir-rooted topology; this worktree is served root-at-worktree, same
+# IA3E_TEST_PORT convention the rest of this suite already uses.
+BASE = f"http://127.0.0.1:{os.environ.get('IA3E_TEST_PORT', '8711')}/tests/_dashbi-real-provider-harness.html"
 METRICS_URL = "https://mock.invalid/rest/v1/rpc/operational_metrics"
 MODEL_METRICS_URL = "https://mock.invalid/rest/v1/rpc/operational_model_metrics"
+
+
+# V2-UAT-01 -- this module now defaults its INITIAL period to the real
+# current local month (day 1) through today (ensureDefaultPeriod(),
+# dashbi.js) instead of the old hardcoded 2026-01-01..2026-12-31 the
+# assertions below used to pin -- that hardcoded pair was itself the
+# exact defect this Wave fixes. Mirrors dashbi.adapter.js's own real
+# sameDayPreviousMonth()/getPreviousMonthComparablePeriod() (read
+# directly, never guessed) so the "previous comparable period"
+# expectation stays exact, whatever day this suite actually runs on.
+def _same_day_previous_month(d):
+    y, m = d.year, d.month - 1
+    if m < 1:
+        y, m = y - 1, 12
+    last_day = calendar.monthrange(y, m)[1]
+    return date(y, m, min(d.day, last_day))
+
+
+_today = date.today()
+_current_start = _today.replace(day=1)
+_current_end = _today
+_previous_start = _same_day_previous_month(_current_start)
+_previous_end = _same_day_previous_month(_current_end)
 
 results = []
 
@@ -204,17 +233,17 @@ def main():
             if len(captured_calls["metrics"]) >= 2:
                 break
             page.wait_for_timeout(50)
-        current_metrics_calls = [b for b in captured_calls["metrics"] if b.get("p_start") == "2026-01-01" and b.get("p_end") == "2026-12-31"]
-        previous_metrics_calls = [b for b in captured_calls["metrics"] if b.get("p_start") == "2025-12-01" and b.get("p_end") == "2026-11-30"]
+        current_metrics_calls = [b for b in captured_calls["metrics"] if b.get("p_start") == _current_start.isoformat() and b.get("p_end") == _current_end.isoformat()]
+        previous_metrics_calls = [b for b in captured_calls["metrics"] if b.get("p_start") == _previous_start.isoformat() and b.get("p_end") == _previous_end.isoformat()]
         check("3: real transport calls operational_metrics", captured.get("metrics_url", "").startswith(METRICS_URL))
         check("4: real transport calls operational_model_metrics", captured.get("model_metrics_url", "").startswith(MODEL_METRICS_URL))
         check("5: Authorization header carries the session's own token, nothing constructed", captured.get("metrics_headers", {}).get("authorization") == "Bearer mock-access-token-abc")
         check("6: apikey header present (existing publishable key, not a secret)", captured.get("metrics_headers", {}).get("apikey") == "mock-anon-key")
         check("7: Stage A frozen -- p_group_view always sent true, no scope invented client-side", all(b.get("p_group_view") is True for b in captured_calls["metrics"]) and all(b.get("p_group_view") is True for b in captured_calls["model_metrics"]))
-        check("7b: p_start/p_end mapped from the selected period (Gate B5 -- no fixture-era date disconnect)", len(current_metrics_calls) == 1)
+        check("7b: p_start/p_end mapped from the selected period (Gate B5 -- no fixture-era date disconnect; now the real current-month-to-today default, V2-UAT-01)", len(current_metrics_calls) == 1)
         check("7c: no fixture banner in real mode", "DADOS DE TESTE" not in page.inner_html("#dbOutlet"))
         check("33 (FC-1): previous comparable period fetched too, day-aligned (not naive calendar month)", len(previous_metrics_calls) == 1)
-        check("34 (FC-1): previous period fetched for BOTH real RPCs (operational_metrics and operational_model_metrics)", len([b for b in captured_calls["model_metrics"] if b.get("p_start") == "2025-12-01" and b.get("p_end") == "2026-11-30"]) == 1)
+        check("34 (FC-1): previous period fetched for BOTH real RPCs (operational_metrics and operational_model_metrics)", len([b for b in captured_calls["model_metrics"] if b.get("p_start") == _previous_start.isoformat() and b.get("p_end") == _previous_end.isoformat()]) == 1)
         page.close()
 
         # ---------- 35 (FC-1, Gate 12): previous period fails -> current still renders, comparison omitted ----------
@@ -222,7 +251,7 @@ def main():
 
         def metrics_fail_previous_only(route):
             body = _json.loads(route.request.post_data or "{}")
-            if body.get("p_start") == "2026-01-01":
+            if body.get("p_start") == _current_start.isoformat():
                 route.fulfill(status=200, content_type="application/json", body=_json.dumps(SAMPLE_METRICS))
             else:
                 route.fulfill(status=500, content_type="application/json", body=_json.dumps({"code": "57014", "message": "backend detail not for users"}))

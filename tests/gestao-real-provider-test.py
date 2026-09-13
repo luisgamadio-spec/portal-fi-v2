@@ -12,11 +12,16 @@ Requires: a static server for PORTAL-FI-DESIGN-LAB/ on the project's
 canonical port 8080 (same convention as every other Portal V2 test).
 """
 import io
+import os
 import sys
+from datetime import date
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-BASE = "http://127.0.0.1:8080/portal-next-v2/tests/fixtures/_gestao-real-provider-harness.html"
+# V2-UAT-01 -- test-harness-only fix: was hardcoded to the OLD parent-
+# dir-rooted topology; this worktree is served root-at-worktree, same
+# IA3E_TEST_PORT convention the rest of this suite already uses.
+BASE = f"http://127.0.0.1:{os.environ.get('IA3E_TEST_PORT', '8711')}/tests/fixtures/_gestao-real-provider-harness.html"
 RPC_URL = "https://mock.invalid/rest/v1/rpc/operational_fandi_dashboard"
 
 results = []
@@ -122,8 +127,18 @@ def main():
         check("3: real transport calls the exact RPC endpoint", captured.get("url", "").startswith(RPC_URL))
         check("4: Authorization header carries the session's own token, nothing constructed", captured.get("headers", {}).get("authorization") == "Bearer mock-access-token-abc")
         check("5: apikey header present (existing publishable key, not a secret)", captured.get("headers", {}).get("apikey") == "mock-anon-key")
-        check("6: argument mapping exact (p_start/p_end/p_store/p_department, no scope invented client-side)",
-              captured.get("body") == {"p_start": "2026-01-01", "p_end": "2026-06-30", "p_store": None, "p_department": None})
+        # V2-UAT-01 -- this module now defaults its INITIAL period to the
+        # real current local month (day 1) through today (ensureDefaultPeriod(),
+        # gestao.js) instead of the old hardcoded 2026-01-01..2026-06-30 this
+        # assertion used to pin -- that hardcoded pair was itself the exact
+        # defect this Wave fixes (never derived from any real date), so this
+        # test's OWN expectation is computed the same way the module now
+        # computes it (current local month start -> today), never hardcoded.
+        today = date.today()
+        expected_start = today.replace(day=1).isoformat()
+        expected_end = today.isoformat()
+        check("6: argument mapping exact (p_start/p_end/p_store/p_department, no scope invented client-side; p_start/p_end reflect the real current-month-to-today default)",
+              captured.get("body") == {"p_start": expected_start, "p_end": expected_end, "p_store": None, "p_department": None})
         check("7: real transport renders READY_WITH_DATA", "modKpiGrid" in page.inner_html("#gePanel"))
         page.close()
 

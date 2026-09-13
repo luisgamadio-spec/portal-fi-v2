@@ -37,6 +37,11 @@
   var currentPreset = 'CUSTOM';
   var currentDateStart = '2026-01-01';
   var currentDateEnd = '2026-06-30';
+  // V2-UAT-01 -- true only after ensureDefaultPeriod() has run once for
+  // this page load (see below) -- guards against re-applying the
+  // current-month default on a same-session re-entry, which would
+  // silently overwrite a Human's own manual period selection.
+  var dateDefaultInitialized = false;
   var renderSeq = 0;
 
   // Gate 4: the ONE place transport is decided. Real whenever Auth
@@ -420,6 +425,33 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
+  // V2-UAT-01 -- Human request: a FRESH real-mode session (this page
+  // load has never initialized it before) must open with the current
+  // local month (day 1) through today, not the hardcoded 2026-01-01..
+  // 2026-06-30 default above (never derived from any real/current date
+  // at all). Reuses the EXISTING shared adapter authority
+  // (NX_GESTAO_ADAPTER.computePeriodPreset, the SAME function
+  // applyPresetAndRender already calls below) -- never a second,
+  // divergent computation -- and the same local-calendar localIso()
+  // (never .toISOString(), which can shift the day across a UTC
+  // boundary). Runs at most once per page load (dateDefaultInitialized
+  // guard) and only when isRealTransport() -- fixture mode's own
+  // deterministic default is completely untouched. A same-session
+  // re-entry into this module (Human already interacted, or navigated
+  // away and back) is a no-op here: currentDateStart/currentDateEnd
+  // already hold whatever the Human last left them at, and this
+  // function never runs again for the rest of this page's lifetime.
+  function ensureDefaultPeriod() {
+    if (dateDefaultInitialized || !isRealTransport()) return;
+    dateDefaultInitialized = true;
+    var r = window.NX_GESTAO_ADAPTER.computePeriodPreset('CURRENT_MONTH', new Date());
+    if (r) {
+      currentDateStart = localIso(r.start);
+      currentDateEnd = localIso(r.end);
+      currentPreset = 'CURRENT_MONTH';
+    }
+  }
+
   function applyPresetAndRender(preset) {
     currentPreset = preset;
     if (preset !== 'CUSTOM') {
@@ -448,6 +480,16 @@
     render();
   }
 
+  // V2-UAT-01 -- reflects currentPreset on the button that produced it
+  // right after mount, so a Human-facing "Mês atual" default shows as
+  // visually active immediately, exactly like clicking it would
+  // (applyPresetAndRender's own existing classList.toggle, same class,
+  // same selector) -- CUSTOM (fixture mode's own unchanged default, or
+  // after a manual date edit) matches no button, same as before.
+  function syncPresetActiveClass() {
+    document.querySelectorAll('.gePresetBtn').forEach(function (b) { b.classList.toggle('gePresetActive', b.dataset.preset === currentPreset); });
+  }
+
   function wireEvents() {
     document.getElementById('geStoreFilter').addEventListener('change', function (e) { currentStore = e.target.value; render(); });
     document.getElementById('geDateStart').addEventListener('change', function (e) { currentDateStart = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.gePresetBtn').forEach(function (b) { b.classList.remove('gePresetActive'); }); render(); });
@@ -466,6 +508,7 @@
 
   window.NX_GESTAO_PAGE = {
     render: function (outlet) {
+      ensureDefaultPeriod();
       var D = window.NX_STORE_DISPLAY;
 
       // Gate 14 (Phase 2): presentation-only alignment with the
@@ -511,6 +554,7 @@
         '<div id="gePanel"></div>' +
         '</div>';
       wireEvents();
+      syncPresetActiveClass();
       return render();
     }
   };
