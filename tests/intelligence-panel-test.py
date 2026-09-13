@@ -176,14 +176,22 @@ def main():
         # matches every other module's own convention).
         check("launcher visible: AUTH_NOT_CONFIGURED", page.locator("#baiLauncherBtn").count() == 1)
 
+        # IA-ENTRY-02 (Human decision, final): the Living Core is no
+        # longer MASTER-exclusive -- it now consumes the SAME canonical
+        # authority as the routed brabus-intelligence module itself
+        # (auth-core.js's isModuleAuthorized(), authMode
+        # SEPARATE_AUTHORITY -- true for ANY AUTHORIZED session,
+        # regardless of profile, by design: no hardcoded per-profile
+        # list). Only a genuinely non-AUTHORIZED state (SIGNED_OUT/
+        # SESSION_EXPIRED) still removes it.
         PROFILE_MATRIX = [
             ("AUTHORIZED", True, "MASTER", True),
-            ("AUTHORIZED", False, "RH", False),
-            ("AUTHORIZED", False, "ANALISTA", False),
-            ("AUTHORIZED", False, "GERENTE", False),
-            ("AUTHORIZED", False, "VENDEDOR", False),
-            ("AUTHORIZED", False, "DIRETOR NOVOS", False),
-            ("AUTHORIZED", False, "DIRETOR SEMINOVOS", False),
+            ("AUTHORIZED", False, "RH", True),
+            ("AUTHORIZED", False, "ANALISTA", True),
+            ("AUTHORIZED", False, "GERENTE", True),
+            ("AUTHORIZED", False, "VENDEDOR", True),
+            ("AUTHORIZED", False, "DIRETOR NOVOS", True),
+            ("AUTHORIZED", False, "DIRETOR SEMINOVOS", True),
             ("SIGNED_OUT", None, None, False),
             ("SESSION_EXPIRED", None, None, False),
         ]

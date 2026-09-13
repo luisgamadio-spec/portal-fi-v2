@@ -54,8 +54,20 @@
     // wired on this host, so the pre-Auth-Foundation behavior applies.
     if (state === STATES.AUTH_NOT_CONFIGURED) authorized = true;
     else if (state === STATES.AUTHORIZED) {
-      var ctx = AC.getContext();
-      authorized = !!(ctx && ctx.isMaster === true);
+      // IA-ENTRY-02: Human decision -- the Living Core is no longer
+      // MASTER-exclusive. It now consumes the EXACT SAME canonical
+      // authority the routed brabus-intelligence module/Landing card
+      // already use (auth-core.js's own isModuleAuthorized(), never a
+      // second, duplicated permission matrix, never a hardcoded
+      // per-profile list) -- any profile authorized for the
+      // brabus-intelligence module gets the launcher; anyone not
+      // authorized gets it completely absent, matching this module's
+      // real authMode (SEPARATE_AUTHORITY today: real enforcement
+      // lives server-side, in the Edge Function itself, unchanged by
+      // this Wave -- see this Wave's own report for the read-only
+      // audit of that boundary).
+      var entry = window.NX_REGISTRY && window.NX_REGISTRY.byId('brabus-intelligence');
+      authorized = !!(entry && AC.isModuleAuthorized(entry));
     } else authorized = false;
     if (!authorized) return false;
     // Never stack the persistent launcher on top of the routed,
