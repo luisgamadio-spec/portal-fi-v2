@@ -1,0 +1,205 @@
+<!doctype html>
+<!-- V2-UAT-03 -- Portal-wide profile visibility UAT harness.
+
+     Test-only, never linked from index.html/shell.js/config/*.json --
+     same established tests/_*-harness.html convention this repo already
+     uses and the Human already approved for Salários (RH-5B:
+     tests/_salarios-uat-harness.html/_salarios-uat-mock.js). This Wave
+     generalizes that EXACT same technique from "one module, one
+     dropdown" to "the whole Portal, six fixed named-profile direct
+     links" -- real production index.html fetched as text and written
+     into an iframe with <base href="../"> plus ONE injected mock
+     <script> spliced in before the real scripts run, so every asset
+     (CSS/JS/shell/modules/navigation/Brabus Intelligence/simulators/
+     Salários/Atendimento F&I) is the exact real production file, byte-
+     identical, never a visual clone. Zero change to index.html on disk.
+
+     SECURITY (Section 5 of the brief): this ?uat=<key> query string is
+     read ONLY by this dedicated harness file, which builds its OWN
+     iframe injection -- it is never read by index.html/auth-core.js/
+     shell.js in any way. Opening the REAL Portal directly
+     (http://127.0.0.1:8080/index.html?uat=camile or any similar guess)
+     has ZERO effect: normal auth/authorization behavior is completely
+     unchanged, proven by tests/v2-uat-03-profile-uat-test.py's own
+     dedicated security check. An unknown/missing ?uat value here shows
+     a neutral "no scenario selected" screen -- fail-closed, never a
+     default MASTER/elevated profile.
+
+     SYNTHETIC FIXTURE DATA ONLY for Salários (reuses the existing,
+     already-approved tests/_salarios-uat-fixtures.js verbatim). Every
+     other module's own RPCs are intentionally NOT mocked -- this is a
+     VISIBILITY/PERFIL UAT (which modules appear/hide per profile), not
+     a full real-data integration; see tests/_v2-uat-03-profiles-mock.js
+     and this Wave's own report for exactly what is code-VERIFIED
+     (authMode-gated modules) vs. a labeled UAT assumption (the
+     PERMISSION_MATRIX modules' per-profile module list, since the real
+     permissoes_modulos DB rows for these 6 named people are not
+     readable from this repository). No credentials, no login form, no
+     real employee password, no real Supabase project contacted. -->
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V2-UAT-03 — Homologação por Perfil (local, dados sintéticos)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0b0c; color: #e6e6e6; font-family: system-ui, sans-serif; }
+  #uatBar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; background: #1a1300; border-bottom: 2px solid #caa200;
+    font-size: 12.5px;
+  }
+  #uatBar .tag { font-weight: 700; color: #ffcf33; letter-spacing: .03em; text-transform: uppercase; }
+  #uatBar .who { display: flex; flex-direction: column; line-height: 1.3; }
+  #uatBar .who b { color: #fff; font-size: 13.5px; }
+  #uatBar .who span { color: #caa96b; font-size: 11.5px; letter-spacing: .02em; }
+  #uatBar .sep { color: #6b5a1f; }
+  #uatBar select { font: inherit; font-size: 12.5px; padding: 5px 8px; border-radius: 6px; border: 1px solid #444; background: #111; color: #eee; }
+  #uatBar .hint { color: #a89660; font-size: 11px; }
+  #uatFrame { display: block; width: 100%; height: calc(100vh - 52px); border: 0; }
+  #uatFrame[hidden] { display: none; }
+  #uatEmpty { padding: 40px; font-size: 14px; color: #cfcfcf; max-width: 640px; }
+  #uatEmpty code { background: #1c1c1c; padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="uatBar">
+  <span class="tag">V2-UAT-03 · Homologação por Perfil · local · dados sintéticos</span>
+  <span class="sep">|</span>
+  <div class="who" id="uatWho" hidden>
+    <b id="uatWhoName"></b>
+    <span id="uatWhoRole"></span>
+  </div>
+  <label class="hint">Trocar cenário:
+    <select id="uatSelect">
+      <option value="">— selecionar —</option>
+      <option value="camile">Camile Beatriz — ANALISTA</option>
+      <option value="william">William Syade — VENDEDOR (Novos)</option>
+      <option value="roberto">Roberto Wagner — VENDEDOR (Seminovos)</option>
+      <option value="felipe">Felipe Vitorino — GERENTE (Seminovos)</option>
+      <option value="alex">Alex Donizetti — GERENTE (Novos)</option>
+      <option value="rodrigo">Rodrigo Carriel — DIRETOR (Novos)</option>
+    </select>
+  </label>
+</div>
+<div id="uatEmpty" hidden>
+  Nenhum cenário de homologação selecionado (<code>?uat=</code> ausente ou
+  desconhecido). Escolha um cenário acima, ou use um dos 6 links diretos
+  do relatório desta Wave.
+</div>
+<iframe id="uatFrame" title="Portal F&amp;I V2 (UAT por perfil, local)" hidden></iframe>
+<script>
+(function () {
+  'use strict';
+
+  // ============================================================
+  // SIX FIXED SCENARIOS -- names/perfil/departamento exactly as given
+  // in this Wave's own brief; nothing invented beyond that. `loja` has
+  // no confirmed real value anywhere in this repo for any of these 6
+  // people, so it is deliberately generic ('TODAS'), never guessed.
+  // `allowedModuleIds` marked VERIFIED are guaranteed by code-level
+  // authMode logic (auth-core.js) independent of any database row;
+  // entries marked ASSUMED are a reasonable UAT default for
+  // PERMISSION_MATRIX-gated modules, NOT a confirmed copy of the real
+  // permissoes_modulos table (unreadable from this repository -- see
+  // this Wave's own report, Section 5). painel-analista-fi/central-
+  // atendimento-fi/shell-admin/landing/brabus-intelligence never need
+  // to appear in this list -- their gating is authMode-driven
+  // (ANALISTA_OR_MASTER / MASTER_ONLY / MASTER_ONLY / LOGIN_REQUIRED /
+  // SEPARATE_AUTHORITY respectively), not PERMISSION_MATRIX.
+  // ============================================================
+  var PROFILES = {
+    camile: {
+      nome: 'Camile Beatriz', perfil: 'ANALISTA', status: null, loja: 'TODAS',
+      roleLabel: 'ANALISTA',
+      // ASSUMED: dashbi/gestao as typical analytical tools for an
+      // ANALISTA; painel-analista-fi is separately VERIFIED (see above).
+      allowedModuleIds: ['dashbi', 'gestao']
+    },
+    william: {
+      nome: 'William Syade', perfil: 'VENDEDOR', status: 'NOVOS', loja: 'TODAS',
+      roleLabel: 'VENDEDOR · NOVOS',
+      // ASSUMED: own-department simulator + Score (own performance).
+      allowedModuleIds: ['simuladorCompleto', 'analiseScoreVendedores']
+    },
+    roberto: {
+      nome: 'Roberto Wagner', perfil: 'VENDEDOR', status: 'SEMINOVOS', loja: 'TODAS',
+      roleLabel: 'VENDEDOR · SEMINOVOS',
+      allowedModuleIds: ['simuladorSeminovos', 'analiseScoreVendedores']
+    },
+    felipe: {
+      nome: 'Felipe Vitorino', perfil: 'GERENTE', status: 'SEMINOVOS', loja: 'TODAS',
+      roleLabel: 'GERENTE · SEMINOVOS',
+      // ASSUMED: management-scope oversight modules for the Seminovos team.
+      allowedModuleIds: ['simuladorSeminovos', 'analiseScoreVendedores', 'gestao', 'coparticipadoPortal', 'comissoes']
+    },
+    alex: {
+      nome: 'Alex Donizetti', perfil: 'GERENTE', status: 'NOVOS', loja: 'TODAS',
+      roleLabel: 'GERENTE · NOVOS',
+      allowedModuleIds: ['simuladorCompleto', 'analiseScoreVendedores', 'gestao', 'coparticipadoPortal', 'comissoes']
+    },
+    rodrigo: {
+      // VERIFIED format: the real perfil enum encodes DIRETOR + department
+      // as ONE combined value ('DIRETOR NOVOS'/'DIRETOR SEMINOVOS'), not
+      // two separate fields -- confirmed live (docs/MASTER-USERS-RPC-
+      // CONTRACT-CAPTURE.md) and by salarios-comissoes.js's own
+      // canSeeGestor() check (String(ctx.perfil).indexOf('DIRETOR')===0).
+      nome: 'Rodrigo Carriel', perfil: 'DIRETOR NOVOS', status: 'NOVOS', loja: 'TODAS',
+      roleLabel: 'DIRETOR · NOVOS',
+      // ASSUMED: broadest operational oversight, group-wide dashboard included.
+      allowedModuleIds: ['dashbi', 'simuladorCompleto', 'analiseScoreVendedores', 'gestao', 'coparticipadoPortal', 'comissoes']
+    }
+  };
+
+  var match = /[?&]uat=([a-z]+)\b/.exec(location.search);
+  var key = match ? match[1] : '';
+  var scenario = PROFILES[key];
+
+  document.getElementById('uatSelect').value = scenario ? key : '';
+  document.getElementById('uatSelect').addEventListener('change', function (e) {
+    var v = e.target.value;
+    location.search = v ? ('?uat=' + v) : '';
+  });
+
+  if (!scenario) {
+    document.getElementById('uatEmpty').hidden = false;
+    return; // fail-closed: no iframe, no mock, no profile -- nothing loads.
+  }
+
+  var whoEl = document.getElementById('uatWho');
+  whoEl.hidden = false;
+  document.getElementById('uatWhoName').textContent = 'Visualizando como: ' + scenario.nome.toUpperCase();
+  document.getElementById('uatWhoRole').textContent = scenario.roleLabel + ' — MODO DE HOMOLOGAÇÃO';
+
+  function buildMockScript() {
+    var payload = Object.assign({ key: key }, scenario);
+    return '<script>window.__V2UAT03_PAYLOAD__ = ' + JSON.stringify(payload) + ';<' + '/script>' +
+      '<script src="tests/_salarios-uat-fixtures.js"><' + '/script>' +
+      '<script src="tests/_v2-uat-03-profiles-mock.js"><' + '/script>';
+  }
+
+  function loadFrame() {
+    fetch('../index.html', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
+      // Same 3 proven fixes as tests/_salarios-uat-harness.html (RH-5B/
+      // RH-5B.2): strip the real Supabase CDN + real intelligence-
+      // runtime-config.js script tags from the fetched STRING only
+      // (never on disk) so our mock is never overwritten, and cache-bust
+      // every real asset URL so a stale earlier-visit cache can't hide a
+      // fresh change.
+      html = html.replace(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^>]*><\/script>\s*/, '');
+      html = html.replace(/<script src="assets\/js\/intelligence-runtime-config\.js"><\/script>[\s\S]*?<\/script>\s*/, '');
+      var cacheBust = 'v2uat03=' + Date.now();
+      html = html.replace(/(src|href)="(assets\/[^"]+)"/g, function (m, attr, path) {
+        return attr + '="' + path + (path.indexOf('?') === -1 ? '?' : '&') + cacheBust + '"';
+      });
+      var injected = html.replace('<head>', '<head><base href="../">' + buildMockScript());
+      var frame = document.getElementById('uatFrame');
+      frame.hidden = false;
+      var doc = frame.contentDocument;
+      doc.open();
+      doc.write(injected);
+      doc.close();
+    });
+  }
+
+  loadFrame();
+})();
+</script>
+</body></html>
