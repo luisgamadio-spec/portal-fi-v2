@@ -33,6 +33,29 @@
     return cfg.mode === 'real_text';
   }
 
+  // SEC-1C.3 -- fail-closed guard, mandatory: a recognized, authorized
+  // non-local host (assets/js/environment-guard.js's own
+  // AUTHORIZED_PRODUCTION classification -- the SAME mechanism Auth
+  // Foundation already uses to decide whether to render the app at
+  // all, reused here rather than duplicated) that is somehow NOT
+  // configured for real_text mode is a genuine misconfiguration, never
+  // a legitimate "local fixture dev" state -- fixture mode is only
+  // ever legitimate on LOCAL_DEV/UNKNOWN_HOST, where no Human is
+  // expected to be running a real security UAT against it. Silently
+  // continuing to serve the (honest, but easy-to-miss) fixture
+  // experience on an authorized homolog/production host is exactly the
+  // false-positive-security-UAT risk a real Human hit: the Living Core
+  // panel opened, looked fully functional, and quietly answered every
+  // question -- including the adversarial ones -- from local fixture
+  // data, never from portal-ai-homolog. This function names that state
+  // so both the routed page and the drawer panel can fail visibly
+  // instead, without either duplicating environment-guard.js's own
+  // hostname/allowlist logic.
+  function isHomologMisconfigured() {
+    var env = window.NX_ENVIRONMENT;
+    return !!(env && env.name === 'AUTHORIZED_PRODUCTION' && !isRealTextMode());
+  }
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -617,7 +640,15 @@
     renderConversation();
 
     var priorTurns = conversation.slice(0, -1);
-    if (isRealTextMode()) handleSendRealText(text, priorTurns);
+    // SEC-1C.3 -- checked first, before either real path: a
+    // misconfigured homolog host must never quietly answer from
+    // fixture data (see isHomologMisconfigured()'s own comment).
+    // applyResult() already renders every error as a normal
+    // conversation bubble (adapter's own established contract) -- no
+    // new rendering path introduced here.
+    if (isHomologMisconfigured()) {
+      applyResult({ error: { status: 0, message: 'Brabus Intelligence indisponível — configuração de homologação ausente.' } });
+    } else if (isRealTextMode()) handleSendRealText(text, priorTurns);
     else handleSendFixture(text, priorTurns);
   }
 
@@ -680,11 +711,23 @@
       '<select id="baiFixtureSelect"><option value="">— escolher —</option>' + options + '</select></div>';
   }
 
+  // SEC-1C.3 -- the ONLY new banner state. Reuses the exact same
+  // .modFixtureBanner visual language every module's own dev-tooling
+  // banner already uses (never a new visual treatment) -- this is a
+  // visible FAILURE, not a dev convenience, so it deliberately does NOT
+  // offer the fixture scenario dropdown fixtureBannerHtml() shows.
+  function homologMisconfiguredBannerHtml() {
+    return '<div class="modFixtureBanner"><span class="modFixtureLabel">INDISPONÍVEL</span>' +
+      '<span>Brabus Intelligence indisponível — configuração de homologação ausente.</span></div>';
+  }
+
   function pageHtml() {
     // Gate 34/35 of IA-V2-2 -- the fixture banner/selector are dev/
     // test tooling that must never appear once REAL_TEXT is active;
     // the approved IA-V2-1 clean initial state is otherwise identical
-    // either way (Gate 46 visual freeze).
+    // either way (Gate 46 visual freeze). SEC-1C.3 adds a third,
+    // fail-closed state (see isHomologMisconfigured()) -- never a
+    // redesign of the other two.
     return '<div class="baiPage">' +
       '<div class="modPageHeader"><div class="modHeaderMain">' +
       '<span class="modEyebrow">INTELLIGENCE</span>' +
@@ -693,7 +736,7 @@
       '</div><div class="modHeaderActions baiHeaderActions">' +
       '<button type="button" class="modBtn modBtnGhost" id="baiNewChatBtn">Nova conversa</button>' +
       '</div></div>' +
-      (isRealTextMode() ? '' : fixtureBannerHtml()) +
+      (isHomologMisconfigured() ? homologMisconfiguredBannerHtml() : (isRealTextMode() ? '' : fixtureBannerHtml())) +
       '<div class="baiWorkspace">' +
       '<div class="baiConversation" id="baiConversation" aria-live="polite" aria-atomic="false"></div>' +
       '<div class="baiComposer">' +
@@ -716,6 +759,7 @@
     // exposed for tests, DOM-independent
     renderStructuredBlock: renderStructuredBlock,
     isRealTextMode: isRealTextMode,
+    isHomologMisconfigured: isHomologMisconfigured,
     renderAssistantProse: renderAssistantProse,
     // IA-3H.1C.3 -- the one authoritative field-label/format lookup for
     // a ranking item's own keys (RANKING_FIELD_META above), exposed so

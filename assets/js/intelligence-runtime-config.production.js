@@ -23,14 +23,15 @@
    Cloudflare's own hostname binding on the Turnstile site key, not by
    hiding these values. */
 window.NX_INTELLIGENCE_CONFIG = {
-  // INTELLIGENCE_ONLY -- stays inert in this production file. Per GL-1
-  // Gate 17: "Intelligence Text/Voice is NOT being activated in this
-  // wave... Production config must preserve it as inert unless
-  // explicitly authorized later." Flipping this to 'real_text' is a
-  // separate, later, explicitly-authorized Go-Live gate for
-  // Intelligence specifically -- never bundled into a deployment-
-  // infrastructure change.
-  mode: 'fixture',
+  // INTELLIGENCE_ONLY -- TEXT activated this wave (SEC-1C.3), the
+  // separate, later, explicitly-authorized Go-Live gate GL-1 Gate 17's
+  // own comment anticipated. This is the controlled SEC-1C homologation
+  // activation (MASTER + ANALISTA only, enforced server-side by
+  // portal-ai-homolog's own gate -- unaffected by this file) -- NOT a
+  // general production cutover, and NOT Voice (voiceRealtimeEndpoint
+  // stays null below; portal-realtime-homolog/portal-voice-homolog are
+  // untouched and remain MASTER-only).
+  mode: 'real_text',
   // SHARED -- the real Supabase project every real-data module
   // (Auth Foundation, Score, Coparticipado, Gestão, Dashbi, Painel
   // Master, Painel do Analista) needs to function against real data.
@@ -46,15 +47,21 @@ window.NX_INTELLIGENCE_CONFIG = {
   // new site key issued. That binding is a Human/Cloudflare checkpoint,
   // not something either repo's code can prove or resolve.
   turnstileSiteKey: '0x4AAAAAAEFmBWKvC-l1_CEs',
-  // INTELLIGENCE_ONLY -- stays null; no real backend deployed yet
-  // (see the Go-Live audit's own Intelligence Text findings). Never
-  // populate this until Intelligence Text is independently authorized
-  // to go live, with its own real deployment + real Human UAT.
-  textEndpoint: null,
-  // INTELLIGENCE_ONLY (IA-3H.1) -- stays null for the same reason as
-  // textEndpoint: Voice has no real deployment/Human UAT of its own
-  // authorized yet. Never populate until Voice is independently
-  // authorized to go live.
+  // INTELLIGENCE_ONLY -- SEC-1C.3: the real, already-deployed
+  // portal-ai-homolog TEXT function, derived from the SAME supabaseUrl
+  // above (one project, never a second/duplicated project identity;
+  // matches this whole codebase's own "textEndpoint is its own field,
+  // not derived at runtime" convention purely because a local harness
+  // needs the split -- on a real host like this one, the two values
+  // are the same project by construction). Backend already hardened
+  // (SEC-1A/SEC-1B) and gated to MASTER + ANALISTA only (SEC-1C) --
+  // unaffected by this file either way.
+  textEndpoint: 'https://yacqlelpzchcotgngwbh.supabase.co/functions/v1/portal-ai-homolog',
+  // INTELLIGENCE_ONLY (IA-3H.1) -- stays null: SEC-1C.3 explicitly
+  // authorizes TEXT only for the controlled MASTER+ANALISTA
+  // homologation UAT. Voice remains withheld until its own,
+  // independently-authorized Go-Live gate -- never populate this
+  // alongside textEndpoint as though the two travel together.
   voiceRealtimeEndpoint: null,
   // GL-1J -- authorizes EXACTLY the proven GitHub Pages homologation
   // hostname (GL-1I.1's REAL_HOMOLOGATION_HOSTNAME, confirmed live via

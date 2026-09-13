@@ -912,7 +912,14 @@
     var priorTurns = S.getConversation().slice(0, -1);
     S.setTextState(S.TEXT_STATES.THINKING);
     applyPersistentState(S.TEXT_STATES.THINKING);
-    if (P.isRealTextMode()) handleSendRealText(text, priorTurns, uiSubmitAt);
+    // SEC-1C.3 -- checked first, before either real path: see
+    // isHomologMisconfigured()'s own comment (brabus-intelligence.js).
+    // applyResult() already renders every error as a normal
+    // conversation bubble (adapter's own established contract) -- no
+    // new rendering path introduced here.
+    if (P.isHomologMisconfigured && P.isHomologMisconfigured()) {
+      applyResult({ error: { status: 0, message: 'Brabus Intelligence indisponível — configuração de homologação ausente.' } });
+    } else if (P.isRealTextMode()) handleSendRealText(text, priorTurns, uiSubmitAt);
     else handleSendFixture(text, priorTurns);
   }
 
@@ -1212,7 +1219,17 @@
     //      so a Human doing local UAT sees it, not just an automated
     //      test -- completely absent from the DOM in real_text mode,
     //      so the Human-approved real-mode drawer is untouched.
-    var transportMode = (P && P.isRealTextMode()) ? 'real_text' : 'fixture';
+    // SEC-1C.3 -- a third mode, checked first: P.isHomologMisconfigured()
+    // (brabus-intelligence.js, reusing environment-guard.js's own
+    // AUTHORIZED_PRODUCTION classification, never a duplicated
+    // hostname check) is true only on a recognized, non-local host
+    // that isn't wired to real_text -- a genuine misconfiguration, not
+    // a legitimate local-fixture-dev state. Exactly the class of gap a
+    // real Human UAT hit: this drawer opened, looked fully functional,
+    // and answered every question -- including the adversarial ones --
+    // from local fixture data on a real published homolog host.
+    var transportMode = (P && P.isHomologMisconfigured && P.isHomologMisconfigured()) ? 'misconfigured'
+      : (P && P.isRealTextMode()) ? 'real_text' : 'fixture';
     // Reuses .modFixtureBanner as-is (module-system.css) -- the SAME
     // shared "dev tooling, not production UI" visual language every
     // other module's own fixture banner already uses, rather than
@@ -1220,6 +1237,8 @@
     // concept.
     var provenanceBannerHtml = transportMode === 'fixture'
       ? '<p class="modFixtureBanner baiPanelProvenanceBanner" id="baiPanelProvenanceBanner" style="margin:0 var(--bai-rail);border-radius:var(--radius-sm)">Modo de teste local — respostas não vêm do servidor real.</p>'
+      : transportMode === 'misconfigured'
+      ? '<p class="modFixtureBanner baiPanelProvenanceBanner" id="baiPanelProvenanceBanner" style="margin:0 var(--bai-rail);border-radius:var(--radius-sm)">Brabus Intelligence indisponível — configuração de homologação ausente.</p>'
       : '';
     // IA-3I (Section 10): "Nova conversa" becomes a compact icon
     // action (a real accessible button, native `title` tooltip,
