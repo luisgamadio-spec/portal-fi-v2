@@ -171,8 +171,14 @@ def main():
         check("command surface (.baiPanelComposer) present", page.locator(".baiPanelComposer").count() == 1)
         check("Voice trigger present inside the command surface", page.locator(".baiPanelComposer #baiPanelVoiceBtn").count() == 1)
         check("Send control present inside the command surface", page.locator(".baiPanelComposer #baiPanelSendBtn").count() == 1)
-        check("no persistent visible 'Voz' text button (label is screen-reader-only)",
-              page.evaluate("getComputedStyle(document.getElementById('baiPanelVoiceBtnLabel')).position") == "absolute")
+        # V2-UAT-02 (Section B3): the label is no longer permanently
+        # screen-reader-only (position:absolute/clip) -- it's still
+        # invisible AT REST (this check), but now genuinely reveals on
+        # hover/focus as a discoverable "Conversar por voz" affordance
+        # (covered by tests/v2-uat-02-quickactions-voiceorb-test.py),
+        # which a permanently-clipped sr-only technique could never do.
+        check("no persistent visible 'Voz' text at rest (collapsed via max-width/opacity, reveals on hover/focus)",
+              page.evaluate("getComputedStyle(document.getElementById('baiPanelVoiceBtnLabel')).opacity") == "0")
         check("no generic 'Enviar' text visible on the Send control",
               "Enviar" not in page.locator("#baiPanelSendBtn").inner_text())
         check("Send control has an accessible name", page.locator("#baiPanelSendBtn").get_attribute("aria-label") == "Enviar mensagem")

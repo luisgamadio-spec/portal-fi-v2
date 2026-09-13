@@ -560,16 +560,71 @@
      (never auto-sends), so the Human always keeps the final "send"
      decision, and a real backend answer is never implied for a
      question this build cannot actually resolve. ============ */
-  var EMPTY_STATE_SUGGESTIONS = [
-    'Qual foi o resultado do mês passado?',
-    'Como está o score do vendedor?',
-    'Compare o resultado entre as lojas'
+  // V2-UAT-02 (Section A): the old, permanent 3-item list was 100%
+  // managerial/gestão -- it never communicated the Intelligence's own
+  // commercial/financing/antecipação/Cash Conversion capability. Kept
+  // as a POOL grouped by real use case (never inventing a new
+  // question the adapter can't actually answer -- same fixture-
+  // scenario-truthful principle as before), 3 chips visible at a time,
+  // rotating which category is temporarily omitted so gestão never
+  // disappears from the pool, it's just not in every single set.
+  var SUGGESTION_CATEGORIES = [
+    { key: 'financiamento', items: [
+      'Simule uma parcela para este cliente',
+      'Quanto preciso de entrada para chegar nesta parcela?',
+      'Encontre uma opção Linear e Balão'
+    ] },
+    { key: 'antecipacao', items: [
+      'Calcule a antecipação deste contrato'
+    ] },
+    { key: 'cash_conversion', items: [
+      'Vale preservar o capital e financiar?',
+      'Faça um Cash Conversion deste cenário'
+    ] },
+    { key: 'gestao', items: [
+      'Qual foi o resultado do mês passado?',
+      'Como está o score do vendedor?',
+      'Compare o resultado entre as lojas'
+    ] }
   ];
 
-  function emptyStateHtml() {
-    var suggestionsHtml = EMPTY_STATE_SUGGESTIONS.map(function (s) {
+  // Deterministic (never Math.random -- reproducible in tests, no
+  // continuous timer/auto-play): each "Nova conversa" advances this by
+  // one, rotating which 3-of-4 categories show and which item inside
+  // each shows. suggestionRotation=0 (every fresh page load) always
+  // yields the brief's own reference set (financiamento/antecipação/
+  // cash), so the very first thing a Human sees already demonstrates
+  // the commercial capability, not just gestão.
+  var suggestionRotation = 0;
+
+  function pickSuggestions() {
+    var n = SUGGESTION_CATEGORIES.length;
+    var order = [];
+    for (var i = 0; i < n; i++) order.push((suggestionRotation + i) % n);
+    return order.slice(0, 3).map(function (ci) {
+      var cat = SUGGESTION_CATEGORIES[ci];
+      return cat.items[suggestionRotation % cat.items.length];
+    });
+  }
+
+  function suggestionChipsHtml(list) {
+    return list.map(function (s) {
       return '<button type="button" class="baiSuggestionChip">' + esc(s) + '</button>';
     }).join('');
+  }
+
+  // Re-renders just the suggestion chips (not the whole empty state) --
+  // #baiPanelSuggestions keeps its one delegated click listener
+  // (wireSuggestions(), untouched below), so regenerating its children
+  // needs no re-wiring.
+  function renderSuggestions() {
+    var box = document.getElementById('baiPanelSuggestions');
+    if (!box) return;
+    box.innerHTML = suggestionChipsHtml(pickSuggestions());
+  }
+
+  function emptyStateHtml() {
+    var suggestionsHtml = suggestionChipsHtml(pickSuggestions());
     return '<div class="baiPanelEmptyState" id="baiPanelEmptyState">' +
       '<div class="baiEmptyMark" aria-hidden="true">' +
       '<svg viewBox="0 0 48 48" width="40" height="40" fill="none">' +
@@ -855,6 +910,11 @@
     S.resetConversation();
     S.setTextState(S.TEXT_STATES.OPEN_IDLE);
     applyPersistentState(S.TEXT_STATES.OPEN_IDLE);
+    // V2-UAT-02 (Section A): the one discreet moment the suggestion set
+    // is allowed to change -- a deliberate Human action, never a
+    // continuous auto-rotating carousel.
+    suggestionRotation++;
+    renderSuggestions();
     renderConversation();
     var input = document.getElementById('baiPanelInput');
     if (input) { input.value = ''; autoGrowComposer(input); input.focus(); }
@@ -949,19 +1009,32 @@
      separation (transport vs. store vs. UI) this drawer already uses
      for Text. ============================================================ */
 
+  // V2-UAT-02 (Section B3): idle/disconnected now reads "Conversar por
+  // voz" (the brief's own literal hover-reveal example) instead of the
+  // terse "Voz" -- a clearer call-to-action when the Orb isn't active
+  // yet. States already IN a session keep their short, informative
+  // labels unchanged.
   var VOICE_LABEL_BY_STATE = {
-    VOICE_IDLE: 'Voz', VOICE_DISCONNECTED: 'Voz',
+    VOICE_IDLE: 'Conversar por voz', VOICE_DISCONNECTED: 'Conversar por voz',
     VOICE_CONNECTING: 'Conectando…', VOICE_LISTENING: 'Ouvindo',
     VOICE_THINKING: 'Pensando…', VOICE_SPEAKING: 'Falando',
     VOICE_INTERRUPTED: 'Ouvindo', VOICE_ERROR: 'Erro — tentar de novo'
   };
 
-  // Subtle, non-decorative state signal (Section 11 -- no waveform, no
-  // full-screen mode): a plain CSS class per state drives a small
-  // color/pulse treatment in intelligence.css; color is never the only
-  // signal, the button's own text label always changes too.
+  // Subtle, non-decorative state signal: a plain CSS class per state
+  // drives the Voice Orb's color/motion treatment in intelligence.css;
+  // color is never the only signal, the button's own text label always
+  // changes too. V2-UAT-02 (Section B4) fix: this used to strip the
+  // 'VOICE_' prefix (producing e.g. 'baiVoiceStateLISTENING'), but
+  // every CSS selector for it was written keeping the full state name
+  // (e.g. '.baiVoiceStateVOICE_LISTENING') -- the two never matched, so
+  // every per-state rule below was dead code and all 5 states rendered
+  // visually identical. No new states invented, no lifecycle touched --
+  // this only fixes the class the SAME existing VOICE_STATES values
+  // already produce, so B4's "reuse the real states, don't fork a new
+  // tree" requirement actually reaches the DOM.
   function voiceStateClass(state) {
-    return state ? 'baiVoiceState' + state.replace('VOICE_', '') : '';
+    return state ? 'baiVoiceState' + state : '';
   }
 
   // IA-3H.2.1C: the icon is a small, static Fluid-Aperture-family mark
@@ -981,13 +1054,31 @@
   // still announces state changes to assistive tech) and its text is
   // ALSO mirrored onto a native `title` attribute for an optional
   // mouse-hover tooltip (Section 15's own "may reveal on hover").
+  // V2-UAT-02 (Section B) -- "Voice Orb": same Living Core FAMILY as
+  // the floating launcher (dark core + thin red ring + orbiting arc,
+  // Object.freeze'd token reuse, no new colors) but with a genuinely
+  // unambiguous microphone glyph at its center -- the brief's own
+  // explicit complaint was that the old abstract Fluid-Aperture-style
+  // mark "parece um controle técnico," not obviously "click here to
+  // talk." No emoji, no generic Unicode glyph: a real minimalist mic
+  // (capsule + stand + base), stroke-only to match the existing icon
+  // language. Same #baiPanelVoiceBtn id/click listener/aria contract --
+  // only the inner markup and the label's visibility (now hover/focus-
+  // revealed instead of permanently sr-only, still real DOM text for
+  // assistive tech either way) changed.
   function voiceButtonHtml() {
     return '<button type="button" class="modBtn baiVoiceBtn" id="baiPanelVoiceBtn" aria-pressed="false" title="Voz" aria-label="Iniciar conversa por voz com a Brabus Intelligence">' +
-      '<svg class="baiVoiceBtnMark" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true" focusable="false">' +
-      '<path class="baiVoiceBtnMarkContour" d="M12 3.4c1.9.2 3.9 1 5.3 2.6 1.6 1.8 2.3 4.4 1.7 6.9-.6 2.5-2.6 4.7-5.1 5.5-2.5.8-5.5.2-7.4-1.7-1.9-1.9-2.7-4.9-1.9-7.5.8-2.6 3-4.7 5.6-5.5.6-.2 1.2-.3 1.8-.3z" stroke="currentColor" stroke-width="1.6"/>' +
-      '<path class="baiVoiceBtnMarkSeam" d="M9.3 15c.9.8 2.3.9 3.4.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>' +
+      '<span class="baiVoiceOrbCore" aria-hidden="true">' +
+        '<span class="baiVoiceOrbArc"></span>' +
+        '<span class="baiVoiceOrbRing"></span>' +
+      '</span>' +
+      '<svg class="baiVoiceBtnMark" viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true" focusable="false">' +
+      '<rect class="baiVoiceBtnMarkCapsule" x="9.4" y="2.6" width="5.2" height="10" rx="2.6" stroke="currentColor" stroke-width="1.6"/>' +
+      '<path class="baiVoiceBtnMarkStand" d="M5.6 11v.9a6.4 6.4 0 0 0 12.8 0V11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+      '<line class="baiVoiceBtnMarkPost" x1="12" y1="18.3" x2="12" y2="21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+      '<line class="baiVoiceBtnMarkBase" x1="8.8" y1="21" x2="15.2" y2="21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
       '</svg>' +
-      '<span class="baiVoiceBtnLabel baiSrOnly" id="baiPanelVoiceBtnLabel">Voz</span>' +
+      '<span class="baiVoiceBtnLabel" id="baiPanelVoiceBtnLabel">Conversar por voz</span>' +
       '</button>';
   }
 

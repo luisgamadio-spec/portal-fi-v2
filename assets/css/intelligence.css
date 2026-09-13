@@ -133,6 +133,58 @@
   .baiVoiceStateVOICE_CONNECTING .baiVoiceBtnMark,.baiVoiceStateVOICE_THINKING .baiVoiceBtnMark,.baiVoiceStateVOICE_SPEAKING .baiVoiceBtnMark{animation:none}
 }
 
+/* V2-UAT-02 (Section B) -- Voice Orb decorative ring/arc, same Living
+   Core family as the floating launcher (assets/js/intelligence/
+   intelligence-panel.js's baiLauncherCore/Ring/Orbit/Nucleus), reused
+   token-for-token (--p-red-1/2, same keyframe names). Distinct
+   function from the Living Core: this one wraps a real microphone
+   glyph, not an abstract nucleus, and its motion/color are driven by
+   the REAL Voice lifecycle state (voiceStateClass(), fixed above to
+   actually match these selectors) instead of being purely idle/hover. */
+/* Circular ring/arc only makes sense inside the compact circular
+   composer variant -- the routed full-page's own wider rectangular
+   button keeps its plain mic icon, no distorted oval ring. */
+.baiVoiceOrbCore{display:none}
+.baiPanelComposer .baiVoiceBtn .baiVoiceOrbCore{display:block;position:absolute;inset:0;pointer-events:none}
+.baiVoiceOrbRing{position:absolute;inset:3px;border-radius:50%;border:1px solid rgba(238,75,87,.3)}
+.baiVoiceOrbArc{
+  position:absolute;inset:0;border-radius:50%;
+  border:1.1px solid transparent;
+  border-top-color:rgba(238,75,87,.55);border-right-color:rgba(238,75,87,.16);
+}
+@media(prefers-reduced-motion:no-preference){
+  .baiVoiceOrbRing{animation:baiCoreGlow 8s ease-in-out infinite}
+  .baiVoiceOrbArc{animation:baiCoreOrbit 20s linear infinite}
+}
+/* IDLE/DISCONNECTED/ERROR -- quiet, "ready but not active." */
+.baiVoiceStateVOICE_ERROR .baiVoiceOrbRing,.baiVoiceStateVOICE_ERROR .baiVoiceOrbArc{animation:none;border-color:rgba(226,84,58,.5)}
+.baiVoiceStateVOICE_ERROR .baiVoiceBtnMark{color:#e2543a}
+/* CONNECTING/THINKING -- amber, faster pulse: a transitional/"working"
+   state, distinct from the steady red of LISTENING. */
+.baiVoiceStateVOICE_CONNECTING .baiVoiceOrbRing,.baiVoiceStateVOICE_THINKING .baiVoiceOrbRing{border-color:var(--mod-warning)}
+.baiVoiceStateVOICE_CONNECTING .baiVoiceOrbArc,.baiVoiceStateVOICE_THINKING .baiVoiceOrbArc{border-top-color:var(--mod-warning);border-right-color:rgba(219,166,72,.25)}
+@media(prefers-reduced-motion:no-preference){
+  .baiVoiceStateVOICE_CONNECTING .baiVoiceOrbArc,.baiVoiceStateVOICE_THINKING .baiVoiceOrbArc{animation-duration:2.4s}
+  .baiVoiceStateVOICE_CONNECTING .baiVoiceOrbRing,.baiVoiceStateVOICE_THINKING .baiVoiceOrbRing{animation:baiVoicePulse 1.1s ease-in-out infinite}
+}
+/* LISTENING/INTERRUPTED -- the most "alive" state: full red, fastest
+   arc rotation, brightened ring -- the Human is actively being heard. */
+.baiVoiceStateVOICE_LISTENING .baiVoiceOrbRing,.baiVoiceStateVOICE_INTERRUPTED .baiVoiceOrbRing{border-color:var(--color-accent-primary)}
+.baiVoiceStateVOICE_LISTENING .baiVoiceOrbArc,.baiVoiceStateVOICE_INTERRUPTED .baiVoiceOrbArc{border-top-color:var(--color-accent-primary);border-right-color:rgba(238,75,87,.35)}
+@media(prefers-reduced-motion:no-preference){
+  .baiVoiceStateVOICE_LISTENING .baiVoiceOrbArc,.baiVoiceStateVOICE_INTERRUPTED .baiVoiceOrbArc{animation-duration:4s}
+}
+/* SPEAKING -- red, pulsing (the AI is talking back) -- distinguishable
+   from LISTENING's steady rotation by rhythm, not just label text. */
+.baiVoiceStateVOICE_SPEAKING .baiVoiceOrbRing{border-color:var(--color-accent-primary)}
+.baiVoiceStateVOICE_SPEAKING .baiVoiceOrbArc{border-top-color:var(--color-accent-primary);border-right-color:rgba(238,75,87,.35);animation-duration:4s}
+@media(prefers-reduced-motion:no-preference){
+  .baiVoiceStateVOICE_SPEAKING .baiVoiceOrbRing{animation:baiVoicePulse 1.1s ease-in-out infinite}
+}
+@media(prefers-reduced-motion:reduce){
+  .baiVoiceOrbRing,.baiVoiceOrbArc{animation:none}
+}
+
 .baiHeaderActions{display:flex;gap:var(--mod-space-compact)}
 
 /* A <select> sizes to its widest <option> by default -- without a cap
@@ -753,22 +805,53 @@
 .baiPanelComposer:focus-within{border-color:color-mix(in srgb,var(--color-accent-primary) 50%,var(--color-hairline-strong) 50%)}
 .baiPanelComposer .baiComposerActions{display:contents}
 
-/* ---------- Voice trigger (Section 15/16) -- a compact circular
-   Fluid-Aperture mark, the persistent "Voz" rectangle retired. The
-   visible label text becomes screen-reader-only (never removed --
-   still announces state changes); a native `title` mirrors it as an
-   optional hover/focus tooltip. ---------- */
+/* ---------- Voice Orb (V2-UAT-02, Section B) -- a compact circular
+   Living-Core-family control (dark surface, thin red ring, orbiting
+   arc) wrapping a real microphone glyph. On hover/focus it expands
+   into a pill revealing its own live state label ("Conversar por
+   voz" / "Ouvindo" / "Pensando…" / etc -- the SAME text
+   updateVoiceButton() already writes into #baiPanelVoiceBtnLabel, not
+   a second hardcoded string), exactly like the floating launcher's
+   own hover-reveal, clipped via overflow:hidden + width transition so
+   the composer's flex textarea simply narrows/reflows -- never an
+   overlay, never breaks layout. Disabled below 480px (Section B5):
+   touch never depends on hover, tap still opens/closes Voice via the
+   same unmodified click listener. ---------- */
 .baiPanelComposer .baiVoiceBtn{
-  width:36px;height:36px;padding:0;border-radius:50%;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
+  width:36px;height:36px;padding:0;border-radius:18px;flex-shrink:0;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;position:relative;
   background:none;border:1px solid var(--color-hairline-strong);color:var(--color-brand-red);
-  transition:border-color .15s ease,transform .1s ease;
 }
-.baiPanelComposer .baiVoiceBtn:hover{border-color:color-mix(in srgb,var(--color-accent-primary) 55%,var(--color-hairline-strong) 45%)}
+@media(prefers-reduced-motion:no-preference){
+  .baiPanelComposer .baiVoiceBtn{transition:width var(--duration-context) var(--ease-precise),border-color .15s ease,background-color .15s ease,transform .1s ease}
+}
+.baiPanelComposer .baiVoiceBtn:hover{border-color:color-mix(in srgb,var(--color-accent-primary) 55%,var(--color-hairline-strong) 45%);background:var(--color-surface-2)}
 .baiPanelComposer .baiVoiceBtn:hover .baiVoiceBtnMark{filter:brightness(1.25)}
 .baiPanelComposer .baiVoiceBtn:active{transform:scale(.94)}
 .baiPanelComposer .baiVoiceBtn:focus-visible{outline:var(--focus-ring);outline-offset:2px}
-.baiVoiceBtnMark{transition:filter .15s ease}
+.baiVoiceBtnMark{transition:filter .15s ease;position:relative;flex-shrink:0}
+@media(min-width:481px){
+  .baiPanelComposer .baiVoiceBtn:hover,.baiPanelComposer .baiVoiceBtn:focus-visible{
+    width:196px;justify-content:flex-start;padding-left:10px;
+    background:var(--color-surface-2);
+    border-color:color-mix(in srgb,var(--color-accent-primary) 55%,var(--color-hairline-strong) 45%);
+  }
+}
+/* Scoped to the persistent-panel's compact circle only -- the routed
+   full-page's own simpler composer keeps using the pre-existing base
+   .baiVoiceBtnLabel rule above (always visible, max-width:120px),
+   untouched. */
+.baiPanelComposer .baiVoiceBtnLabel{
+  max-width:0;opacity:0;overflow:hidden;white-space:nowrap;margin-left:0;flex-shrink:0;
+}
+@media(prefers-reduced-motion:no-preference){
+  .baiPanelComposer .baiVoiceBtnLabel{transition:max-width var(--duration-context) var(--ease-precise),opacity var(--duration-fast) var(--ease-precise),margin-left var(--duration-context) var(--ease-precise)}
+}
+@media(min-width:481px){
+  .baiPanelComposer .baiVoiceBtn:hover .baiVoiceBtnLabel,.baiPanelComposer .baiVoiceBtn:focus-visible .baiVoiceBtnLabel{
+    max-width:150px;opacity:1;margin-left:8px;
+  }
+}
 
 /* ---------- Send control (Section 17/18) -- EMPTY: subdued/disabled;
    TEXT PRESENT: red gains authority; a compact directional glyph, no
