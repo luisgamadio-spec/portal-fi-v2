@@ -70,6 +70,29 @@ body.landing-active #nxContentOutlet{padding:0;max-width:none;flex:none}
 .fNavItem.active .idx{opacity:1}
 .fNavItem:focus-visible{outline:2px solid var(--color-accent-primary);outline-offset:6px}
 
+/* IA-ENTRY-01 Section 6: tiny Living Core beside the "Brabus
+   Intelligence" row only (fNavItemIntel, set in landing.js, matched by
+   label not index). Idle = quiet/discreet; .active reuses the exact
+   same class selectGroup() already toggles, so the core visibly
+   "wakes up" together with the row's existing red-accent/typography
+   state -- no new interaction logic. @keyframes baiCoreBreathe/Glow
+   are defined once in intelligence.css; both stylesheets always load
+   together (index.html), so they're available here. */
+.fNavLivingCore{position:relative;width:13px;height:13px;flex-shrink:0;align-self:center}
+.fNavCoreRing{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(238,75,87,.32)}
+.fNavCoreNucleus{
+  position:absolute;top:50%;left:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;
+  border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--p-red-1),var(--p-red-2) 75%);
+  box-shadow:0 0 3px 1px rgba(238,75,87,.4)
+}
+@media(prefers-reduced-motion:no-preference){
+  .fNavCoreNucleus{animation:baiCoreBreathe 7s ease-in-out infinite}
+  .fNavCoreRing{animation:baiCoreGlow 10s ease-in-out infinite}
+  .fNavItemIntel:hover .fNavCoreRing,.fNavItemIntel.active .fNavCoreRing{transition:border-color var(--duration-standard) var(--ease-smooth)}
+}
+.fNavItemIntel:hover .fNavCoreRing,.fNavItemIntel.active .fNavCoreRing{border-color:rgba(238,75,87,.7)}
+.fNavItemIntel.active .fNavCoreNucleus{box-shadow:0 0 6px 2px rgba(238,75,87,.75)}
+
 /* SIM-REG-01 / SIM-REG-01B: "Falar com um Analista" Home CTA -- a
    persistent attendance shortcut under the category list, visible
    regardless of which category tab is active (outside

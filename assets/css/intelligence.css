@@ -172,17 +172,83 @@
 
 .baiLauncherRoot{position:fixed;inset:0;pointer-events:none;z-index:1}
 
+/* IA-ENTRY-01: "Living Core" launcher -- re-skins the entry point
+   only (idle dark capsule, small live red core) and, on hover/focus,
+   expands into a compact pill revealing "Brabus Intelligence" (brief
+   Section 4/7). The underlying #baiLauncherBtn id, aria contract, and
+   single click listener (togglePanel, wired once in buildPanelDom())
+   are unchanged -- everything below is visual only. Motion is CSS-only
+   (no canvas/JS timers): width/border/box-shadow transitions, plus a
+   few slow @keyframes on the decorative core nodes. */
 .baiLauncherBtn{
   position:fixed;right:var(--space-4);bottom:var(--space-4);
-  width:52px;height:52px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--color-accent-primary);color:var(--p-white-1);
-  border:none;box-shadow:var(--shadow-elevated);cursor:pointer;
+  height:52px;width:52px;max-width:calc(100vw - (2 * var(--space-4)));
+  border-radius:26px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;padding:0;
+  background:var(--p-black-2);border:1px solid var(--color-hairline-strong);
+  box-shadow:var(--shadow-elevated);cursor:pointer;
   pointer-events:auto;font-family:var(--font-ui);
 }
-.baiLauncherBtn:hover{filter:brightness(1.08)}
+@media(prefers-reduced-motion:no-preference){
+  .baiLauncherBtn{transition:width var(--duration-context) var(--ease-precise),
+    justify-content var(--duration-context) var(--ease-precise),
+    border-color var(--duration-standard) var(--ease-smooth),
+    box-shadow var(--duration-standard) var(--ease-smooth),
+    transform var(--duration-fast) var(--ease-precise)}
+}
+.baiLauncherBtn:hover,.baiLauncherBtn:focus-visible{
+  width:212px;justify-content:flex-start;padding:0 18px 0 14px;
+  border-color:var(--color-accent-primary);
+  box-shadow:var(--shadow-elevated),0 0 18px rgba(238,75,87,.22);
+}
 .baiLauncherBtn:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-ring-offset)}
-.baiLauncherIcon{font-size:20px;line-height:1}
+.baiLauncherBtn:active{transform:scale(.96)}
+
+.baiLauncherCore{position:relative;width:26px;height:26px;flex-shrink:0}
+.baiLauncherRing{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(238,75,87,.4)}
+.baiLauncherOrbit{
+  position:absolute;inset:-5px;border-radius:50%;
+  border:1.2px solid transparent;
+  border-top-color:rgba(238,75,87,.68);border-right-color:rgba(238,75,87,.2);
+}
+.baiLauncherNucleus{
+  position:absolute;top:50%;left:50%;width:8px;height:8px;margin:-4px 0 0 -4px;
+  border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--p-red-1),var(--p-red-2) 75%);
+  box-shadow:0 0 5px 1px rgba(238,75,87,.5)
+}
+.baiLauncherBtn:hover .baiLauncherRing,.baiLauncherBtn:focus-visible .baiLauncherRing{border-color:rgba(238,75,87,.78)}
+.baiLauncherBtn:hover .baiLauncherNucleus,.baiLauncherBtn:focus-visible .baiLauncherNucleus{box-shadow:0 0 9px 3px rgba(238,75,87,.8)}
+@media(prefers-reduced-motion:no-preference){
+  .baiLauncherNucleus{animation:baiCoreBreathe 6s ease-in-out infinite}
+  .baiLauncherOrbit{animation:baiCoreOrbit 16s linear infinite}
+  .baiLauncherRing{animation:baiCoreGlow 9s ease-in-out infinite}
+  .baiLauncherBtn:hover .baiLauncherOrbit,.baiLauncherBtn:focus-visible .baiLauncherOrbit{animation-duration:7s}
+  .baiLauncherBtn:hover .baiLauncherNucleus,.baiLauncherBtn:focus-visible .baiLauncherNucleus{animation-duration:3.2s}
+}
+
+.baiLauncherLabel{
+  max-width:0;opacity:0;overflow:hidden;white-space:nowrap;
+  font-size:13px;letter-spacing:.01em;color:var(--color-text-primary);margin-left:0
+}
+@media(prefers-reduced-motion:no-preference){
+  .baiLauncherLabel{transition:max-width var(--duration-context) var(--ease-precise),
+    opacity var(--duration-fast) var(--ease-precise),
+    margin-left var(--duration-context) var(--ease-precise)}
+}
+.baiLauncherBtn:hover .baiLauncherLabel,.baiLauncherBtn:focus-visible .baiLauncherLabel{
+  max-width:160px;opacity:1;margin-left:10px
+}
+
+/* Shared slow keyframes for the Living Core (also reused by the small
+   landing-row core in landing.css -- both stylesheets are always
+   loaded together, see index.html). Ranges stay in the brief's
+   "4-10s, never a spinner" band. */
+@keyframes baiCoreBreathe{
+  0%,100%{transform:scale(1);box-shadow:0 0 5px 1px rgba(238,75,87,.45)}
+  50%{transform:scale(1.2);box-shadow:0 0 9px 2px rgba(238,75,87,.78)}
+}
+@keyframes baiCoreOrbit{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes baiCoreGlow{0%,100%{opacity:.65}50%{opacity:1}}
 
 /* IA-3I (Section 2/7): the Intelligence Workspace's shared dark scrim
    -- ALWAYS shown while the Workspace is open (Text or Voice mode
@@ -254,6 +320,12 @@
 
 @media(max-width:768px){
   .baiLauncherBtn{right:var(--space-3);bottom:var(--space-3)}
+  /* IA-ENTRY-01 Section 7: no hover on touch, so keep the compact
+     circle only -- never expand into the desktop label pill here
+     (prevents it from ever being reachable via a rare external-
+     keyboard focus-visible on a touch viewport too). */
+  .baiLauncherBtn:hover,.baiLauncherBtn:focus-visible{width:52px;justify-content:center;padding:0}
+  .baiLauncherLabel{display:none}
 }
 
 /* ============================================================

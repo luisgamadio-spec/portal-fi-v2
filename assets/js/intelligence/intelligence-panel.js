@@ -1062,9 +1062,24 @@
      DOM BUILD / VISIBILITY LIFECYCLE
      ============================================================ */
 
+  // IA-ENTRY-01: "Living Core" re-skin of the launcher -- purely a
+  // visual swap of what's INSIDE the button. Same #baiLauncherBtn id,
+  // same aria-expanded/aria-controls/aria-label contract, same single
+  // click listener wired once in buildPanelDom() (togglePanel) -- no
+  // new listener, no change to open/close authority. The decorative
+  // core/ring/orbit nodes are aria-hidden; the expanding label is a
+  // second aria-hidden text node (the button's own aria-label already
+  // announces "Abrir Brabus Intelligence" to assistive tech, so the
+  // visible hover label must not be announced a second time).
   function launcherHtml() {
     return '<button type="button" class="baiLauncherBtn" id="baiLauncherBtn" aria-expanded="false" aria-controls="baiPanelDrawer" aria-label="Abrir Brabus Intelligence">' +
-      '<span class="baiLauncherIcon" aria-hidden="true">&#10022;</span></button>' +
+      '<span class="baiLauncherCore" aria-hidden="true">' +
+        '<span class="baiLauncherOrbit"></span>' +
+        '<span class="baiLauncherRing"></span>' +
+        '<span class="baiLauncherNucleus"></span>' +
+      '</span>' +
+      '<span class="baiLauncherLabel" aria-hidden="true">Brabus Intelligence</span>' +
+      '</button>' +
       '<div class="baiPanelBackdrop" id="baiPanelBackdrop" hidden></div>';
   }
 
