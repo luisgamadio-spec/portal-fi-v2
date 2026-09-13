@@ -41,7 +41,12 @@
           if (name === 'usuario_logado_fi') {
             return ok([{
               usuario_id: 'uat-' + (payload.key || 'x'), auth_user_id: fakeSession.user.id,
-              nome: payload.nome, perfil: payload.perfil, loja: payload.loja || 'TODAS',
+              // V2-UAT-03B: loja is now always an explicit, real, audited
+              // value per scenario (including a genuine null for Rodrigo,
+              // who has no store-specific assignment) -- no '|| TODAS'
+              // fallback, which would have silently replaced a real null
+              // with a placeholder.
+              nome: payload.nome, perfil: payload.perfil, loja: payload.loja,
               status: payload.status || null, ativo: true
             }]);
           }

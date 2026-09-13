@@ -25,17 +25,21 @@
      a neutral "no scenario selected" screen -- fail-closed, never a
      default MASTER/elevated profile.
 
-     SYNTHETIC FIXTURE DATA ONLY for Salários (reuses the existing,
-     already-approved tests/_salarios-uat-fixtures.js verbatim). Every
-     other module's own RPCs are intentionally NOT mocked -- this is a
-     VISIBILITY/PERFIL UAT (which modules appear/hide per profile), not
-     a full real-data integration; see tests/_v2-uat-03-profiles-mock.js
-     and this Wave's own report for exactly what is code-VERIFIED
-     (authMode-gated modules) vs. a labeled UAT assumption (the
-     PERMISSION_MATRIX modules' per-profile module list, since the real
-     permissoes_modulos DB rows for these 6 named people are not
-     readable from this repository). No credentials, no login form, no
-     real employee password, no real Supabase project contacted. -->
+     V2-UAT-03B: nome/perfil/loja/status AND the per-profile
+     allowedModuleIds below are now VERIFIED live data (a READ-ONLY
+     Supabase audit of public.usuarios + public.permissoes_modulos,
+     requested and confirmed by the Human), replacing this Wave's own
+     earlier placeholder ('TODAS'/assumed module lists). Salários'
+     OWN RPC data stays SYNTHETIC FIXTURE ONLY (reuses the existing,
+     already-approved tests/_salarios-uat-fixtures.js verbatim) --
+     every other module's own RPCs are intentionally NOT mocked, since
+     this is a VISIBILITY/PERFIL UAT (which modules appear/hide per
+     profile, with the REAL name/loja/departamento), not a full real-
+     data integration. See tests/_v2-uat-03-profiles-mock.js and this
+     Wave's own report for the exact matrix and module-id mapping. No
+     credentials, no login form, no real employee password, no real
+     Supabase project contacted, no Supabase write performed by this
+     harness or the audit that informed it. -->
 <html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>V2-UAT-03 — Homologação por Perfil (local, dados sintéticos)</title>
@@ -70,12 +74,12 @@
   <label class="hint">Trocar cenário:
     <select id="uatSelect">
       <option value="">— selecionar —</option>
-      <option value="camile">Camile Beatriz — ANALISTA</option>
-      <option value="william">William Syade — VENDEDOR (Novos)</option>
-      <option value="roberto">Roberto Wagner — VENDEDOR (Seminovos)</option>
-      <option value="felipe">Felipe Vitorino — GERENTE (Seminovos)</option>
-      <option value="alex">Alex Donizetti — GERENTE (Novos)</option>
-      <option value="rodrigo">Rodrigo Carriel — DIRETOR (Novos)</option>
+      <option value="camile">Camile Beatriz Santos Sena — ANALISTA (Nações)</option>
+      <option value="william">William Syade — VENDEDOR (Novos, Europa)</option>
+      <option value="roberto">Roberto Wagner de Lima — VENDEDOR (Seminovos, Europa)</option>
+      <option value="felipe">Felipe Alexandre Vitorino — GERENTE (Seminovos, Europa)</option>
+      <option value="alex">Alex Fabian Galvao Donizeti — GERENTE (Novos, Bandeirantes)</option>
+      <option value="rodrigo">Rodrigo Carriel de Oliveira — DIRETOR NOVOS (sem loja)</option>
     </select>
   </label>
 </div>
@@ -90,50 +94,71 @@
   'use strict';
 
   // ============================================================
-  // SIX FIXED SCENARIOS -- names/perfil/departamento exactly as given
-  // in this Wave's own brief; nothing invented beyond that. `loja` has
-  // no confirmed real value anywhere in this repo for any of these 6
-  // people, so it is deliberately generic ('TODAS'), never guessed.
-  // `allowedModuleIds` marked VERIFIED are guaranteed by code-level
-  // authMode logic (auth-core.js) independent of any database row;
-  // entries marked ASSUMED are a reasonable UAT default for
-  // PERMISSION_MATRIX-gated modules, NOT a confirmed copy of the real
-  // permissoes_modulos table (unreadable from this repository -- see
-  // this Wave's own report, Section 5). painel-analista-fi/central-
-  // atendimento-fi/shell-admin/landing/brabus-intelligence never need
-  // to appear in this list -- their gating is authMode-driven
+  // V2-UAT-03B -- names/perfil/loja/status AND allowedModuleIds below
+  // are all VERIFIED live data (a read-only Supabase audit of public.
+  // usuarios + public.permissoes_modulos, requested and confirmed by
+  // the Human ahead of this correction), no longer a UAT assumption.
+  // No Supabase write occurred to produce this -- the harness only
+  // encodes what the audit already read.
+  //
+  // The 4 real per-perfil matrices (public.permissoes_modulos), each
+  // permissionId proven against config/module-registry.json (not
+  // assumed by name -- see this Wave's own report, Section 5):
+  //   analiseScoreVendedores -> score (Análise de Score Vendedores)
+  //   comissoes              -> salarios-comissoes (Salários & Comissões)
+  //   coparticipadoPortal    -> coparticipado (Gestão de Coparticipados)
+  //   dashbi                 -> dashbi (Análise Geral do Grupo)
+  //   gestao                 -> gestao (Análise F&I do Grupo)
+  //   simuladorCompleto      -> simulador-novos (Simulador de Novos)
+  //   simuladorSeminovos     -> simulador-seminovos (Simulador de Seminovos)
+  // painel-analista-fi/central-atendimento-fi/shell-admin/landing/
+  // brabus-intelligence are NOT part of this matrix and never need to
+  // appear in allowedModuleIds -- their gating is authMode-driven
   // (ANALISTA_OR_MASTER / MASTER_ONLY / MASTER_ONLY / LOGIN_REQUIRED /
-  // SEPARATE_AUTHORITY respectively), not PERMISSION_MATRIX.
-  // ============================================================
+  // SEPARATE_AUTHORITY respectively), preserved unchanged.
+  var MATRIX = {
+    ANALISTA: ['analiseScoreVendedores', 'comissoes', 'coparticipadoPortal', 'dashbi', 'gestao', 'simuladorCompleto', 'simuladorSeminovos'],
+    GERENTE: ['analiseScoreVendedores', 'comissoes', 'coparticipadoPortal', 'dashbi', 'simuladorCompleto', 'simuladorSeminovos'], // gestao=false
+    VENDEDOR: ['comissoes', 'dashbi', 'simuladorCompleto', 'simuladorSeminovos'], // analiseScoreVendedores=false, coparticipadoPortal=false, gestao=false
+    // DIRETOR_NOVOS is the real DB matrix KEY (underscore-normalized) --
+    // the actual usuario_logado_fi() perfil VALUE stays space-separated
+    // ('DIRETOR NOVOS'), confirmed live and matching how salarios-
+    // comissoes.js's own canSeeGestor() reads context.perfil
+    // (String(ctx.perfil).indexOf('DIRETOR')===0) -- no new
+    // normalization invented, this harness just encodes both forms
+    // where each is real.
+    DIRETOR_NOVOS: ['analiseScoreVendedores', 'comissoes', 'coparticipadoPortal', 'dashbi', 'simuladorCompleto', 'simuladorSeminovos'] // gestao=false
+  };
+
+  // loja/status are real, audited public.usuarios values -- Rodrigo's
+  // loja is genuinely null (no store-specific assignment for this
+  // DIRETOR row), preserved as null rather than a placeholder, per the
+  // brief's own explicit instruction.
   var PROFILES = {
     camile: {
-      nome: 'Camile Beatriz', perfil: 'ANALISTA', status: null, loja: 'TODAS',
-      roleLabel: 'ANALISTA',
-      // ASSUMED: dashbi/gestao as typical analytical tools for an
-      // ANALISTA; painel-analista-fi is separately VERIFIED (see above).
-      allowedModuleIds: ['dashbi', 'gestao']
+      nome: 'CAMILE BEATRIZ SANTOS SENA', perfil: 'ANALISTA', status: 'NOVOS/SEMINOVOS', loja: 'NACOES',
+      roleLabel: 'ANALISTA · NACOES',
+      allowedModuleIds: MATRIX.ANALISTA
     },
     william: {
-      nome: 'William Syade', perfil: 'VENDEDOR', status: 'NOVOS', loja: 'TODAS',
-      roleLabel: 'VENDEDOR · NOVOS',
-      // ASSUMED: own-department simulator + Score (own performance).
-      allowedModuleIds: ['simuladorCompleto', 'analiseScoreVendedores']
+      nome: 'WILLIAM SYADE', perfil: 'VENDEDOR', status: 'NOVOS', loja: 'EUROPA',
+      roleLabel: 'VENDEDOR · NOVOS · EUROPA',
+      allowedModuleIds: MATRIX.VENDEDOR
     },
     roberto: {
-      nome: 'Roberto Wagner', perfil: 'VENDEDOR', status: 'SEMINOVOS', loja: 'TODAS',
-      roleLabel: 'VENDEDOR · SEMINOVOS',
-      allowedModuleIds: ['simuladorSeminovos', 'analiseScoreVendedores']
+      nome: 'ROBERTO WAGNER DE LIMA', perfil: 'VENDEDOR', status: 'SEMINOVOS', loja: 'EUROPA',
+      roleLabel: 'VENDEDOR · SEMINOVOS · EUROPA',
+      allowedModuleIds: MATRIX.VENDEDOR
     },
     felipe: {
-      nome: 'Felipe Vitorino', perfil: 'GERENTE', status: 'SEMINOVOS', loja: 'TODAS',
-      roleLabel: 'GERENTE · SEMINOVOS',
-      // ASSUMED: management-scope oversight modules for the Seminovos team.
-      allowedModuleIds: ['simuladorSeminovos', 'analiseScoreVendedores', 'gestao', 'coparticipadoPortal', 'comissoes']
+      nome: 'FELIPE ALEXANDRE VITORINO', perfil: 'GERENTE', status: 'SEMINOVOS', loja: 'EUROPA',
+      roleLabel: 'GERENTE · SEMINOVOS · EUROPA',
+      allowedModuleIds: MATRIX.GERENTE
     },
     alex: {
-      nome: 'Alex Donizetti', perfil: 'GERENTE', status: 'NOVOS', loja: 'TODAS',
-      roleLabel: 'GERENTE · NOVOS',
-      allowedModuleIds: ['simuladorCompleto', 'analiseScoreVendedores', 'gestao', 'coparticipadoPortal', 'comissoes']
+      nome: 'ALEX FABIAN GALVAO DONIZETI', perfil: 'GERENTE', status: 'NOVOS', loja: 'BANDEIRANTES',
+      roleLabel: 'GERENTE · NOVOS · BANDEIRANTES',
+      allowedModuleIds: MATRIX.GERENTE
     },
     rodrigo: {
       // VERIFIED format: the real perfil enum encodes DIRETOR + department
@@ -141,10 +166,9 @@
       // two separate fields -- confirmed live (docs/MASTER-USERS-RPC-
       // CONTRACT-CAPTURE.md) and by salarios-comissoes.js's own
       // canSeeGestor() check (String(ctx.perfil).indexOf('DIRETOR')===0).
-      nome: 'Rodrigo Carriel', perfil: 'DIRETOR NOVOS', status: 'NOVOS', loja: 'TODAS',
-      roleLabel: 'DIRETOR · NOVOS',
-      // ASSUMED: broadest operational oversight, group-wide dashboard included.
-      allowedModuleIds: ['dashbi', 'simuladorCompleto', 'analiseScoreVendedores', 'gestao', 'coparticipadoPortal', 'comissoes']
+      nome: 'RODRIGO CARRIEL DE OLIVEIRA', perfil: 'DIRETOR NOVOS', status: 'NOVOS', loja: null,
+      roleLabel: 'DIRETOR NOVOS · sem loja específica',
+      allowedModuleIds: MATRIX.DIRETOR_NOVOS
     }
   };
 

@@ -47,13 +47,30 @@ def shot(page, name):
     page.screenshot(path=os.path.join(SHOT_DIR, name))
 
 
+# V2-UAT-03B: nome/perfil/loja/status AND visible/hidden below are all
+# VERIFIED live data (read-only Supabase audit of public.usuarios +
+# public.permissoes_modulos), replacing this suite's earlier "assumed"
+# module lists. The 4 real matrices (ANALISTA/GERENTE/VENDEDOR/
+# DIRETOR_NOVOS) are applied verbatim -- note VENDEDOR and DIRETOR_
+# NOVOS/GERENTE all get BOTH simulator modules regardless of their own
+# department (the real matrix does not restrict by department), a
+# genuine correction versus this suite's earlier own assumption.
+ANALISTA_VISIBLE = {"dashbi", "gestao", "coparticipado", "score", "salarios-comissoes", "simulador-novos", "simulador-seminovos", "painel-analista-fi", "brabus-intelligence"}
+ANALISTA_HIDDEN = {"central-atendimento-fi", "shell-admin"}
+GERENTE_VISIBLE = {"dashbi", "coparticipado", "score", "salarios-comissoes", "simulador-novos", "simulador-seminovos", "brabus-intelligence"}
+GERENTE_HIDDEN = {"gestao", "painel-analista-fi", "central-atendimento-fi", "shell-admin"}
+VENDEDOR_VISIBLE = {"dashbi", "salarios-comissoes", "simulador-novos", "simulador-seminovos", "brabus-intelligence"}
+VENDEDOR_HIDDEN = {"score", "coparticipado", "gestao", "painel-analista-fi", "central-atendimento-fi", "shell-admin"}
+DIRETOR_NOVOS_VISIBLE = GERENTE_VISIBLE
+DIRETOR_NOVOS_HIDDEN = GERENTE_HIDDEN
+
 SCENARIOS = {
-    "camile":  {"nome": "Camile Beatriz",  "perfil": "ANALISTA",      "status": None,        "visible": {"dashbi", "gestao", "painel-analista-fi", "brabus-intelligence"}, "hidden": {"coparticipado", "central-atendimento-fi", "shell-admin", "simulador-novos", "simulador-seminovos", "score", "salarios-comissoes"}},
-    "william": {"nome": "William Syade",   "perfil": "VENDEDOR",      "status": "NOVOS",     "visible": {"simulador-novos", "score", "brabus-intelligence"}, "hidden": {"dashbi", "gestao", "coparticipado", "salarios-comissoes", "painel-analista-fi", "central-atendimento-fi", "shell-admin", "simulador-seminovos"}},
-    "roberto": {"nome": "Roberto Wagner",  "perfil": "VENDEDOR",      "status": "SEMINOVOS", "visible": {"simulador-seminovos", "score", "brabus-intelligence"}, "hidden": {"dashbi", "gestao", "coparticipado", "salarios-comissoes", "painel-analista-fi", "central-atendimento-fi", "shell-admin", "simulador-novos"}},
-    "felipe":  {"nome": "Felipe Vitorino", "perfil": "GERENTE",       "status": "SEMINOVOS", "visible": {"simulador-seminovos", "score", "gestao", "coparticipado", "salarios-comissoes", "brabus-intelligence"}, "hidden": {"dashbi", "painel-analista-fi", "central-atendimento-fi", "shell-admin", "simulador-novos"}},
-    "alex":    {"nome": "Alex Donizetti",  "perfil": "GERENTE",       "status": "NOVOS",     "visible": {"simulador-novos", "score", "gestao", "coparticipado", "salarios-comissoes", "brabus-intelligence"}, "hidden": {"dashbi", "painel-analista-fi", "central-atendimento-fi", "shell-admin", "simulador-seminovos"}},
-    "rodrigo": {"nome": "Rodrigo Carriel", "perfil": "DIRETOR NOVOS", "status": "NOVOS",     "visible": {"dashbi", "simulador-novos", "score", "gestao", "coparticipado", "salarios-comissoes", "brabus-intelligence"}, "hidden": {"painel-analista-fi", "central-atendimento-fi", "shell-admin", "simulador-seminovos"}},
+    "camile":  {"nome": "CAMILE BEATRIZ SANTOS SENA", "perfil": "ANALISTA",      "status": "NOVOS/SEMINOVOS", "loja": "NACOES",       "visible": ANALISTA_VISIBLE,      "hidden": ANALISTA_HIDDEN},
+    "william": {"nome": "WILLIAM SYADE",              "perfil": "VENDEDOR",      "status": "NOVOS",           "loja": "EUROPA",       "visible": VENDEDOR_VISIBLE,      "hidden": VENDEDOR_HIDDEN},
+    "roberto": {"nome": "ROBERTO WAGNER DE LIMA",      "perfil": "VENDEDOR",      "status": "SEMINOVOS",       "loja": "EUROPA",       "visible": VENDEDOR_VISIBLE,      "hidden": VENDEDOR_HIDDEN},
+    "felipe":  {"nome": "FELIPE ALEXANDRE VITORINO",   "perfil": "GERENTE",       "status": "SEMINOVOS",       "loja": "EUROPA",       "visible": GERENTE_VISIBLE,       "hidden": GERENTE_HIDDEN},
+    "alex":    {"nome": "ALEX FABIAN GALVAO DONIZETI", "perfil": "GERENTE",       "status": "NOVOS",           "loja": "BANDEIRANTES", "visible": GERENTE_VISIBLE,       "hidden": GERENTE_HIDDEN},
+    "rodrigo": {"nome": "RODRIGO CARRIEL DE OLIVEIRA", "perfil": "DIRETOR NOVOS", "status": "NOVOS",           "loja": None,           "visible": DIRETOR_NOVOS_VISIBLE, "hidden": DIRETOR_NOVOS_HIDDEN},
 }
 
 MODULE_ID_TO_CATEGORY_TITLE = {
@@ -105,6 +122,7 @@ def main():
         # ============================================================
         # SIX PROFILE SCENARIOS
         # ============================================================
+        resolved_ctx = {}
         for key, spec in SCENARIOS.items():
             page = tracked_page(viewport={"width": 1366, "height": 900})
             page.goto(f"{HARNESS}?uat={key}")
@@ -124,6 +142,18 @@ def main():
             check(f"[{key}] context carries the correct perfil", ctx is not None and ctx.get("perfil") == spec["perfil"], ctx)
             if spec["status"] is not None:
                 check(f"[{key}] context carries the correct departamento/status", ctx is not None and ctx.get("status") == spec["status"], ctx)
+            if spec["loja"] is None:
+                # auth-boundary.js's own real, unmodified userFromRow()
+                # does `loja: row.loja || ''` -- a genuine null loja
+                # (Rodrigo's real row) is normalized to '' by the REAL
+                # product code itself, not by this harness. Passing a
+                # real `null` all the way into the mocked RPC (never
+                # substituting 'TODAS') is exactly what correctly
+                # represents "no specific loja" for this codebase, and
+                # this IS that real code's own genuine output.
+                check(f"[{key}] context correctly reflects the real absence of a specific loja (auth-boundary.js's own null -> '' normalization, not a placeholder)", ctx is not None and ctx.get("loja") == "", ctx)
+            else:
+                check(f"[{key}] context carries the correct loja", ctx is not None and ctx.get("loja") == spec["loja"], ctx)
             check(f"[{key}] context.isMaster is false (no real elevation)", ctx is not None and ctx.get("isMaster") is False, ctx)
 
             blocks = all_module_blocks(frame)
@@ -137,8 +167,30 @@ def main():
             overflow = page.evaluate("() => ({scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth})")
             check(f"[{key}] zero horizontal scroll (outer harness page)", overflow["scroll"] <= overflow["client"], overflow)
 
+            resolved_ctx[key] = ctx
             shot(page, f"{key}-landing.png")
             page.close()
+
+        # ============================================================
+        # SECTION 7 -- explicit cross-scenario proofs the brief itself
+        # called for (same base perfil, different real context).
+        # ============================================================
+        check("[cross] William/Roberto share the base perfil VENDEDOR",
+              resolved_ctx["william"]["perfil"] == resolved_ctx["roberto"]["perfil"] == "VENDEDOR")
+        check("[cross] William/Roberto have different status/departamento (Novos vs. Seminovos)",
+              resolved_ctx["william"]["status"] == "NOVOS" and resolved_ctx["roberto"]["status"] == "SEMINOVOS")
+        check("[cross] William/Roberto share the same real loja (Europa) despite different departamento",
+              resolved_ctx["william"]["loja"] == resolved_ctx["roberto"]["loja"] == "EUROPA")
+
+        check("[cross] Felipe/Alex share the same GERENTE module matrix (both lack gestao)",
+              SCENARIOS["felipe"]["visible"] == SCENARIOS["alex"]["visible"] and SCENARIOS["felipe"]["hidden"] == SCENARIOS["alex"]["hidden"])
+        check("[cross] Felipe/Alex have different real loja/departamento",
+              resolved_ctx["felipe"]["loja"] != resolved_ctx["alex"]["loja"] and resolved_ctx["felipe"]["status"] != resolved_ctx["alex"]["status"])
+
+        check("[cross] Rodrigo carries perfil 'DIRETOR NOVOS' (space-separated, real enum value)",
+              resolved_ctx["rodrigo"]["perfil"] == "DIRETOR NOVOS")
+        check("[cross] Rodrigo status is NOVOS", resolved_ctx["rodrigo"]["status"] == "NOVOS")
+        check("[cross] Rodrigo has no specific loja (real null through the mock, normalized to '' by auth-boundary.js's own real code)", resolved_ctx["rodrigo"]["loja"] == "")
 
         # ============================================================
         # SECURITY: the real Portal entry point is unaffected
