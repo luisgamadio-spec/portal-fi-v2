@@ -283,6 +283,10 @@
     // a turn that was never pushed).
     if (!silent) S.pushMessage({ role: 'user', content: message, blocks: null, isError: false });
     var prior = silent ? S.getConversation() : S.getConversation().slice(0, -1);
+    // SESSIONSEC1 -- identity generation captured now (distinct from
+    // this session's own startGeneration above, which only tracks
+    // Voice-session-level cancel/restart, not authenticated identity).
+    var ownerGen = S.getGeneration();
     // IA-3H.1C.3 -- same sanitized turn-sequence number Text's own
     // handleSendRealText computes (a plain count, never content), and
     // the SAME _devTiming hook (buildDevTiming, already proven for
@@ -321,13 +325,22 @@
         // eslint-disable-next-line no-console
         console.log('[bai-timing]', out);
       }
-      var stale = callId !== latestCallId;
+      // SESSIONSEC1 -- either the Voice call itself was superseded
+      // (pre-existing check) OR the authenticated identity changed
+      // while this round trip to portal-ai-homolog was in flight (new
+      // check) -- either way, this result must never be pushed into
+      // (now possibly a different owner's) conversation or spoken back.
+      var stale = callId !== latestCallId || S.getGeneration() !== ownerGen;
       if (result.error) {
         if (!stale && !silent) S.pushMessage({ role: 'assistant', content: result.error.message, blocks: null, isError: true });
         return { spoken: result.error.message, ok: false, stale: stale, blocks: null };
       }
       var normalized = result.response;
-      if (normalized.scenario_reset) S.spliceFromLastUser();
+      // SESSIONSEC1 -- a stale result (now including an identity change,
+      // not just a superseded call) must not mutate whatever conversation
+      // currently exists either -- splicing on a wrong-owner scenario_reset
+      // would corrupt the NEW owner's fresh conversation.
+      if (!stale && normalized.scenario_reset) S.spliceFromLastUser();
       // The ORIGINAL reply (with Markdown) is what renders on-screen,
       // via the SAME renderer Text uses -- only the value spoken back
       // to the Realtime session is stripped for natural TTS delivery
@@ -587,6 +600,14 @@
 
       dc = pc.createDataChannel('oai-events');
       dc.onmessage = function (ev) {
+        // SESSIONSEC1 -- Section 14 race protection. dc.close() (called
+        // by endInternally(), including the new identity-change path in
+        // mount() below) does not retroactively cancel a message event
+        // already queued at the moment of closing -- reusing this
+        // session's own existing generation guard (doEnd() already
+        // increments startGeneration) closes that window without a
+        // second invalidation mechanism.
+        if (!stillCurrent()) return;
         var parsed;
         try { parsed = JSON.parse(ev.data); } catch (e) { return; }
         try { handleServerEvent(parsed); } catch (e) { console.error('[intelligence-voice] erro ao processar evento', parsed && parsed.type, e); }
@@ -705,6 +726,21 @@
     }
     A = window.NX_BRABUS_INTELLIGENCE_ADAPTER;
     S = window.NX_INTELLIGENCE_STATE;
+    // SESSIONSEC1 -- Section 13. A live Voice session minted under one
+    // authenticated identity must never survive into another. Reuses
+    // doEnd()'s own existing, already-proven cleanup (closes
+    // RTCPeerConnection + DataChannel, stops the microphone and any
+    // remote audio, bumps startGeneration to invalidate anything still
+    // in flight) -- this is the "second, independent subscriber to
+    // NX_INTELLIGENCE_STATE" pattern intelligence-voice-focus.js's own
+    // comment already documents, here reacting to the dedicated
+    // owner-change event rather than the generic one. A fresh
+    // authenticated Realtime mint is required for the new identity --
+    // there is no other path to a live session than doStart(), which
+    // always mints again.
+    if (typeof S.onOwnerChange === 'function') {
+      S.onOwnerChange(function () { doEnd(); });
+    }
     if (diagUiRequested()) buildDiagDom();
   }
 

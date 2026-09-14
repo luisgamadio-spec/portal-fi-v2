@@ -813,9 +813,25 @@
     applyPersistentState(S.TEXT_STATES.OPEN_IDLE);
   }
 
-  function handleSendFixture(text, priorTurns) {
+  // SESSIONSEC1 -- Section 14 race protection. `gen` is the identity
+  // generation (NX_INTELLIGENCE_STATE.getGeneration()) captured at the
+  // moment a send began; if it no longer matches by the time a result
+  // comes back, the authenticated identity changed while this request
+  // was in flight (e.g. USER A sent, then logged out, then USER B
+  // logged in, all before USER A's response arrived) -- the result is
+  // silently dropped, never rendered and never allowed to influence
+  // this (now different-owner) conversation. Every async path that can
+  // outlive an identity change must go through this, not call
+  // applyResult directly.
+  function applyResultIfCurrent(gen, result) {
+    if (S.getGeneration() !== gen) return;
+    applyResult(result);
+  }
+
+  function handleSendFixture(text, priorTurns, gen) {
     A.createRequest(text, priorTurns); // models the contract shape even though nothing is sent (Gate 15/32, matching the routed page)
     setTimeout(function () {
+      if (S.getGeneration() !== gen) return;
       var scenario = A.resolveFixtureScenario(text);
       if (!scenario) {
         S.pushMessage({ role: 'assistant', isError: false, blocks: null, content: 'Não tenho um cenário de teste para essa pergunta neste protótipo local — isso não indica uma falha do contrato, apenas que este fixture não cobre esta frase.' });
@@ -824,8 +840,8 @@
         renderConversation();
         return;
       }
-      if (scenario.error) { applyResult({ error: scenario.error }); return; }
-      applyResult({ response: A.normalizeResponse(scenario.response) });
+      if (scenario.error) { applyResultIfCurrent(gen, { error: scenario.error }); return; }
+      applyResultIfCurrent(gen, { response: A.normalizeResponse(scenario.response) });
     }, FIXTURE_LATENCY_MS);
   }
 
@@ -858,9 +874,9 @@
     });
   }
 
-  function handleSendRealText(text, priorTurns, uiSubmitAt) {
+  function handleSendRealText(text, priorTurns, uiSubmitAt, gen) {
     if (!window.NX_AUTH || typeof window.NX_AUTH.getAccessToken !== 'function') {
-      applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
+      applyResultIfCurrent(gen, { error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
       return;
     }
     // IA-3H.1C.3 -- sanitized turn sequence number (a plain count of the
@@ -869,6 +885,7 @@
     // readable directly off the existing [bai-timing] log line.
     var turnIndex = priorTurns.filter(function (m) { return m.role === 'user'; }).length + 1;
     isTextSurfaceEnabled().then(function (enabled) {
+      if (S.getGeneration() !== gen) return;
       if (!enabled) {
         // Same error shape/status the server itself would return for
         // this exact condition (errorMessageForStatus(503) in the
@@ -876,7 +893,7 @@
         // (TEXT_STATES.DISABLED, composer disabled, no retry loop)
         // applies unchanged. No network request was made: sendRealText
         // is never called on this path.
-        applyResult({ error: { status: 503, message: 'Brabus Intelligence está temporariamente indisponível.' } });
+        applyResultIfCurrent(gen, { error: { status: 503, message: 'Brabus Intelligence está temporariamente indisponível.' } });
         return;
       }
       // IA-3G.5A -- getAccessToken() calls the real Supabase SDK's own
@@ -889,10 +906,13 @@
       var t_getToken = Date.now();
       window.NX_AUTH.getAccessToken().then(function (token) {
         var getTokenMs = Date.now() - t_getToken;
-        if (!token) { applyResult({ error: { status: 401, message: 'Sessão expirada — entre novamente.' } }); return; }
-        return A.sendRealText(text, priorTurns, token, { uiSubmitAt: uiSubmitAt, getTokenMs: getTokenMs, turnIndex: turnIndex }).then(applyResult);
+        if (S.getGeneration() !== gen) return;
+        if (!token) { applyResultIfCurrent(gen, { error: { status: 401, message: 'Sessão expirada — entre novamente.' } }); return; }
+        return A.sendRealText(text, priorTurns, token, { uiSubmitAt: uiSubmitAt, getTokenMs: getTokenMs, turnIndex: turnIndex }).then(function (result) {
+          applyResultIfCurrent(gen, result);
+        });
       }).catch(function () {
-        applyResult({ error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
+        applyResultIfCurrent(gen, { error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
       });
     });
   }
@@ -905,6 +925,12 @@
     var uiSubmitAt = Date.now();
     var st = S.getTextState();
     if (st === S.TEXT_STATES.SENDING || st === S.TEXT_STATES.THINKING) return;
+    // SESSIONSEC1 -- captured BEFORE any async work starts, per this
+    // send's own identity. Threaded through to every deferred callback
+    // below (handleSendRealText/handleSendFixture and everything they
+    // call) so a result that comes back after the authenticated
+    // identity has since changed is recognized and dropped.
+    var gen = S.getGeneration();
     S.pushMessage({ role: 'user', content: text, blocks: null, isError: false });
     S.setTextState(S.TEXT_STATES.SENDING);
     applyPersistentState(S.TEXT_STATES.SENDING);
@@ -919,8 +945,8 @@
     // new rendering path introduced here.
     if (P.isHomologMisconfigured && P.isHomologMisconfigured()) {
       applyResult({ error: { status: 0, message: 'Brabus Intelligence indisponível — configuração de homologação ausente.' } });
-    } else if (P.isRealTextMode()) handleSendRealText(text, priorTurns, uiSubmitAt);
-    else handleSendFixture(text, priorTurns);
+    } else if (P.isRealTextMode()) handleSendRealText(text, priorTurns, uiSubmitAt, gen);
+    else handleSendFixture(text, priorTurns, gen);
   }
 
   function onNovaConversa() {
