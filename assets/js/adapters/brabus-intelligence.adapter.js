@@ -560,9 +560,20 @@
       headers: reqHeaders,
       body: JSON.stringify(body)
     }).then(function (resp) {
+      // LATENCY-1 -- captured the instant fetch()'s own promise resolves
+      // (response headers available, body not yet read/parsed) --
+      // previously this exact moment was never timestamped, so
+      // "network + Edge total" and "JSON parse" were inseparable inside
+      // the single clientFetchAt -> clientReceiveAt span below. This is
+      // a real boundary this transport DOES expose (unlike a true
+      // byte-level TTFB, which fetch() never exposes without the
+      // Server-Timing/Resource-Timing APIs this Wave did not add) --
+      // stated honestly as what it is: "response object resolved,"
+      // not "first byte."
+      var responseResolvedAt = Date.now();
       return resp.json().catch(function () { return {}; }).then(function (payload) {
         var clientReceiveAt = Date.now();
-        var devTiming = buildDevTiming(payload, clientTiming, clientFetchAt, clientReceiveAt, correlationId);
+        var devTiming = buildDevTiming(payload, clientTiming, clientFetchAt, clientReceiveAt, correlationId, responseResolvedAt);
         if (!resp.ok) {
           return { error: { status: resp.status, message: errorMessageForStatus(resp.status) }, _devTiming: devTiming };
         }
@@ -580,7 +591,7 @@
   // reaching this function at all) and the timestamps this same call
   // already captured. Never reads/touches `payload.reply` or any
   // business field.
-  function buildDevTiming(payload, clientTiming, clientFetchAt, clientReceiveAt, correlationId) {
+  function buildDevTiming(payload, clientTiming, clientFetchAt, clientReceiveAt, correlationId, responseResolvedAt) {
     var edge = payload && payload._homolog_edge_timing;
     var t = {
       correlation_id: correlationId,
@@ -601,6 +612,17 @@
       // dominated by getAccessToken() in practice (reported separately
       // above), plus whatever small synchronous UI work runs first.
       t.pre_fetch_total_ms = clientFetchAt - clientTiming.uiSubmitAt;
+    }
+    // LATENCY-1 -- splits the single client_round_trip_ms span above
+    // into "network + Edge total" (fetch() resolving, headers already
+    // available) vs. "JSON body parse" -- previously conflated because
+    // clientReceiveAt was only ever captured after resp.json() already
+    // resolved. Honest naming: this is NOT a byte-level TTFB (fetch()
+    // does not expose one) -- it is the moment this Promise chain's own
+    // .then(function(resp){...}) callback fired.
+    if (typeof responseResolvedAt === 'number') {
+      t.network_plus_server_ms = responseResolvedAt - clientFetchAt;
+      t.client_parse_adapter_ms = clientReceiveAt - responseResolvedAt;
     }
     if (edge && typeof edge.handler_entry_epoch_ms === 'number') {
       // NOTE: client and Edge clocks are different machines -- this
@@ -635,6 +657,26 @@
       // with its own type guard, never a generic spread of `edge`.
       if (typeof edge.prompt_profile === 'string' && edge.prompt_profile.length > 0) t.prompt_profile = edge.prompt_profile;
       if (typeof edge.prompt_chars === 'number') t.prompt_chars = edge.prompt_chars;
+      // LATENCY-1 -- same hand-copy discipline, same safety class
+      // (numbers/short enum/booleans only) as the two lines above, for
+      // the 5 new siblings portal-ai-homolog's own _homolog_edge_timing
+      // now sends (server-side change, same Wave).
+      if (typeof edge.rpc_total_ms === 'number') t.rpc_total_ms = edge.rpc_total_ms;
+      if (typeof edge.rpc_count === 'number') t.rpc_count = edge.rpc_count;
+      if (typeof edge.tool_used === 'boolean') t.tool_used = edge.tool_used;
+      if (typeof edge.openai_model === 'string' && edge.openai_model.length > 0) t.openai_model = edge.openai_model;
+      if (typeof edge.first_token_observable === 'boolean') t.first_token_observable = edge.first_token_observable;
+      // LATENCY-1 -- approximate only (client/Edge clocks differ, same
+      // caveat as fetch_to_edge_handler_ms_approx above): network-only
+      // portion of network_plus_server_ms once the Edge's own reported
+      // internal processing time (edge_internal_ms, computed above from
+      // edge.handler_entry_epoch_ms/response_ready_epoch_ms) is
+      // subtracted out. Never negative-clamped -- a negative value here
+      // is itself a signal that the two clocks disagree by more than
+      // this request's own margin, not hidden.
+      if (typeof t.network_plus_server_ms === 'number' && typeof t.edge_internal_ms === 'number') {
+        t.network_only_ms_approx = t.network_plus_server_ms - t.edge_internal_ms;
+      }
     }
     if (clientTiming && clientTiming.uiSubmitAt) {
       t.total_ui_ms = clientReceiveAt - clientTiming.uiSubmitAt;

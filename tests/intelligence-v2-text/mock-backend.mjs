@@ -222,6 +222,37 @@ async function handleRest(req, res, url) {
     if (name in RPC_FIXTURES) return json(res, 200, RPC_FIXTURES[name]);
     if (name === "operational_metrics") return json(res, 200, operationalMetricsFixture());
 
+    // LATENCY-1 -- these two were previously uncovered (falling through
+    // to the generic {ok:true, linhas:[]} fallback below, shaped
+    // nothing like what the real source reads -- `.rows`/profile
+    // fields), which made portal-ai-homolog's own kill switch and
+    // authority resolution silently fail closed on every request (a
+    // 503 before ever reaching OpenAI/tool logic). Needed for the
+    // LATENCY-1 measurement harness to exercise anything past that
+    // gate; caller identity read the same way /auth/v1/user already
+    // does (Authorization header), never trusted from the RPC body.
+    if (name === "operational_portal_config") {
+      return json(res, 200, { rows: [{ chave: "ia_texto_habilitada", valor: "true" }, { chave: "ia_voz_habilitada", valor: "true" }] });
+    }
+    if (name === "operational_current_scope") {
+      const authHeader = req.headers["authorization"] || "";
+      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+      const isMaster = token === MASTER_ACCESS_TOKEN;
+      return json(res, 200, isMaster
+        ? { profile: "MASTER", store: null, departments: [], is_master: true, is_director: false, is_seller: false }
+        : { profile: "VENDEDOR", store: "MATRIZ", departments: ["NOVOS"], is_master: false, is_director: false, is_seller: true });
+    }
+    if (name === "portal_modulos_permitidos") {
+      const authHeader = req.headers["authorization"] || "";
+      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+      // MASTER's own real request path never actually consults this
+      // (structural full access, see portal-ai-homolog's own
+      // toAuthorityEnvelope/tool-policy comments) -- returned anyway,
+      // harmlessly, for completeness. NON_MASTER gets an empty
+      // allowlist -- the deliberately-denied category F scenario.
+      return json(res, 200, token === MASTER_ACCESS_TOKEN ? ["dashbi", "analiseScoreVendedores", "coparticipadoPortal", "simuladorCompleto"] : []);
+    }
+
     // Generic, disclosed fallback for every RPC not explicitly
     // fixtured this phase -- shaped to avoid crashing defensive
     // frontend/tool code, never a fabricated specific business claim.
@@ -328,8 +359,24 @@ function narrateToolResult(name, outputJson) {
   return `[V2 mock narration for ${name}] ${JSON.stringify(parsed)}`;
 }
 
+// LATENCY-1 -- opt-in only (both env vars default to "0", so every
+// existing test using this mock unmodified keeps its exact deterministic,
+// zero-delay behavior). When set by a harness, adds a random delay
+// before responding, to give a local statistics harness something
+// non-degenerate to compute -- explicitly a SIMULATED provider-latency
+// stand-in, never a claim about real OpenAI latency.
+const MOCK_OPENAI_DELAY_MIN_MS = Number(process.env.V2_MOCK_OPENAI_DELAY_MIN_MS || 0);
+const MOCK_OPENAI_DELAY_MAX_MS = Number(process.env.V2_MOCK_OPENAI_DELAY_MAX_MS || 0);
+function simulatedOpenAiDelay() {
+  if (MOCK_OPENAI_DELAY_MAX_MS <= 0) return Promise.resolve();
+  const span = Math.max(0, MOCK_OPENAI_DELAY_MAX_MS - MOCK_OPENAI_DELAY_MIN_MS);
+  const ms = MOCK_OPENAI_DELAY_MIN_MS + Math.random() * span;
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function handleOpenAI(req, res, url) {
   if (url.pathname === "/openai/v1/responses" && req.method === "POST") {
+    await simulatedOpenAiDelay();
     const bodyRaw = await readBody(req);
     const body = JSON.parse(bodyRaw.toString("utf8"));
     const input = body.input || [];
