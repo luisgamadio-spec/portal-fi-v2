@@ -270,12 +270,38 @@
     // fandiRequestSequence stale-response guard) -- a slow earlier
     // request must never overwrite a faster later one.
     var mySeq = ++renderSeq;
+    // NAVFIX1: same "capture now, compare on resolution" technique
+    // landing.js's own renderRoute() already uses (NX_ROUTER.
+    // currentRouteId() !== routeId), applied here for the same reason:
+    // mySeq/renderSeq only guards against a NEWER Gestão-internal
+    // request (a filter change) superseding an older one -- it says
+    // nothing about the user having navigated to a DIFFERENT module
+    // entirely while this request was in flight. Without this, a slow
+    // RPC that finally settles after the user already left Gestão can
+    // still run this closure's DOM write AND (in the .catch branch,
+    // below) call window.NX_AUTH_CORE.reportSessionExpired() -- a
+    // shell-level side effect from a module that no longer owns the
+    // outlet, silently hiding the whole app (shell.js's own
+    // onStateChange listener reacts to SESSION_EXPIRED by hiding
+    // #nxRoot) and freezing whatever module the user had already
+    // navigated to next (its dispatchModule() call is never reached --
+    // shell.js's onRouteChange() early-returns to Login whenever auth
+    // state isn't AUTHORIZED/AUTH_NOT_CONFIGURED -- confirmed root
+    // cause of the Dashbi/Gestão SPA remount lifecycle defect).
+    // window.NX_ROUTER may not exist at all in this module's own
+    // isolated test harnesses (tests/fixtures/_gestao-real-provider-
+    // harness.html loads gestao.js directly, never shell.js/router.js)
+    // -- myRoute stays null there and the guard below is skipped
+    // entirely, preserving every existing harness-level test unchanged.
+    var myRoute = (window.NX_ROUTER && typeof window.NX_ROUTER.currentRouteId === 'function')
+      ? window.NX_ROUTER.currentRouteId() : null;
     if (panel) panel.innerHTML = loadingHtml();
 
     return loadGestaoData({
       start: currentDateStart, end: currentDateEnd, store: store, department: department
     }).then(function (raw) {
       if (mySeq !== renderSeq) return; // stale, a newer request already won
+      if (myRoute !== null && window.NX_ROUTER.currentRouteId() !== myRoute) return; // stale: navigated away from Gestão entirely
       var out = A.normalizeResponse(raw);
       if (out.summary.operational_quantity === 0 && out.stores.length === 0) {
         if (panel) panel.innerHTML = emptyStateHtml();
@@ -403,6 +429,11 @@
       if (panel) panel.innerHTML = html;
     }).catch(function (err) {
       if (mySeq !== renderSeq) return; // stale error, ignore
+      // NAVFIX1: see the matching guard in the .then() branch above --
+      // a late failure must not call reportSessionExpired() (below) on
+      // the shell's behalf once the user has already navigated away
+      // from Gestão to a different module.
+      if (myRoute !== null && window.NX_ROUTER.currentRouteId() !== myRoute) return;
       // Gate 9: session-expired delegates to Auth Foundation's own
       // established handling rather than inventing a second one here.
       if (err && err.state === 'SESSION_EXPIRED' && window.NX_AUTH_CORE && typeof window.NX_AUTH_CORE.reportSessionExpired === 'function') {
