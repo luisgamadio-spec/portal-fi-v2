@@ -206,17 +206,27 @@ def main():
         set_profile(page, "AUTHORIZED", True, "MASTER")
         check("launcher rebuilt as a fresh DOM node for MASTER (not a stale CSS-hidden node reused)", page.locator("#baiLauncherBtn").count() == 1)
 
-        # ---------- No duplicate Intelligence surface on the routed page ----------
-        # Regression case found live during this Wave's own regression
-        # pass: the launcher must not stack a second Intelligence
-        # surface on top of the dedicated #/brabus-intelligence route.
+        # ---------- UXCHAT1: one canonical Intelligence experience ----------
+        # Superseded invariant (pre-UXCHAT1): the launcher suppressed
+        # itself on the routed #/brabus-intelligence page to avoid
+        # stacking a second surface on top of that page's own composer.
+        # Human decision (UXCHAT1): Brabus Intelligence is now ONE
+        # experience everywhere -- shell.js's onRouteChange() redirects
+        # this exact route to #/landing and opens the SAME canonical
+        # panel instead of ever rendering the legacy routed page, so
+        # there is no second surface to avoid colliding with any more.
+        # See tests/uxchat1-unified-intelligence-entry-test.py for the
+        # full dedicated regression (legacy render() spy, conversation
+        # continuity across entry points, etc.) -- this is only the
+        # narrow re-check of what THIS file's own suite already exercises.
         page.evaluate("window.location.hash = '#/brabus-intelligence'")
         page.wait_for_timeout(400)
-        check("launcher suppressed on the routed #/brabus-intelligence page itself", page.locator("#baiLauncherRoot").count() == 0)
-        check("exactly one .baiComposer on the routed Intelligence page (no collision)", page.locator(".baiComposer").count() == 1)
-        page.evaluate("window.location.hash = '#/landing'")
-        page.wait_for_timeout(400)
-        check("launcher reappears after navigating away from the routed page", page.locator("#baiLauncherRoot").count() == 1)
+        check("UXCHAT1: navigating to #/brabus-intelligence redirects to #/landing", page.evaluate("location.hash") == "#/landing")
+        check("UXCHAT1: canonical launcher is present (not suppressed) after the redirect", page.locator("#baiLauncherRoot").count() == 1)
+        check("UXCHAT1: canonical panel auto-opens -- exactly one .baiComposer, never a second/colliding implementation", page.locator(".baiComposer").count() == 1)
+        # Restore the closed starting state every section below already
+        # assumes (the redirect above left the panel open, by design).
+        close_panel(page)
 
         # ---------- Text local E2E (fixture mode) ----------
         open_panel(page)

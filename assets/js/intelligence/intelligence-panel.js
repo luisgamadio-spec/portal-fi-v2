@@ -71,13 +71,17 @@
     } else authorized = false;
     if (!authorized) return false;
     // Never stack the persistent launcher on top of the routed,
-    // dedicated Intelligence page itself (#/brabus-intelligence,
-    // unchanged this Wave) — a second, redundant Intelligence surface
-    // on its own page would be confusing UX, not a feature, and the
-    // two composers sharing the same .baiComposer content class (by
-    // design, for visual consistency) would otherwise sit stacked in
-    // the same document. Suppressed by ROUTE, not by page identity, so
-    // it also covers direct hash navigation, not only launcher clicks.
+    // dedicated Intelligence page itself (#/brabus-intelligence) — a
+    // second, redundant Intelligence surface on its own page would be
+    // confusing UX, not a feature. UXCHAT1 (Human decision: ONE
+    // Intelligence experience) made shell.js's own onRouteChange()
+    // redirect away from this route before NX_INTELLIGENCE_CONTEXT's
+    // route ever becomes 'brabus-intelligence' at all, so this specific
+    // check is no longer reachable in normal navigation — kept anyway
+    // as defense in depth (covers any future/direct call that still
+    // sets this exact route value) rather than deleted, since removing
+    // it would buy nothing and the legacy page itself was deliberately
+    // left on disk, not deleted, this same Wave.
     if (C) {
       var ctxSnap = C.getSnapshot();
       if (ctxSnap && ctxSnap.route === 'brabus-intelligence') return false;

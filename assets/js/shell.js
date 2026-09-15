@@ -106,6 +106,12 @@
      follow one predictable naming rule), but adding a module is now a
      one-line registration instead of a new branch, and every module
      gets the same loading/error handling for free. */
+  // UXCHAT1 -- 'brabus-intelligence' below is no longer reachable via
+  // normal navigation: onRouteChange() now intercepts that routeId
+  // earlier and redirects to the canonical Living Core/Orb panel
+  // instead (see its own UXCHAT1 comment). The entry/page file are
+  // left exactly as-is (no destructive deletion), intentionally dead
+  // for this dispatch path.
   var MODULE_PAGES = {
     score: 'NX_SCORE_PAGE',
     coparticipado: 'NX_COPARTICIPADO_PAGE',
@@ -173,6 +179,33 @@
       // discipline, matching V1: an unauthorized module simply isn't
       // navigable) -- return to the authenticated Landing.
       window.NX_ROUTER.navigate('landing');
+      return;
+    }
+
+    // UXCHAT1 -- Human decision: Brabus Intelligence is ONE experience.
+    // This route's own legacy full-page implementation
+    // (NX_BRABUS_INTELLIGENCE_PAGE, MODULE_PAGES below -- left on disk
+    // untouched, no destructive deletion) used to be the ONLY thing a
+    // sidebar/Landing click on "Brabus Intelligence" could reach, and
+    // intelligence-panel.js's own canonical Living Core/Orb launcher
+    // deliberately hid itself specifically on this route to avoid a
+    // visibly duplicated surface -- reasonable under the OLDER product
+    // decision (the routed page was the main experience, the panel the
+    // new addition), backwards now that the panel IS the approved
+    // canonical experience. Runs AFTER the exact same auth-state/
+    // authorization checks above (reused untouched, never duplicated or
+    // weakened -- an unauthorized profile still never reaches this
+    // line) -- only the LAST step, "which surface renders," changes.
+    // Redirecting to 'landing' (same re-entrant navigate()+return
+    // pattern the denial branch above already uses) keeps the URL/hash
+    // sane instead of resolving to a route whose own module-content
+    // outlet is intentionally never populated; opening the SAME
+    // persistent panel/NX_INTELLIGENCE_STATE singleton (never a second
+    // instance, never a second conversation store) is what actually
+    // satisfies "one experience, one conversation."
+    if (routeId === 'brabus-intelligence') {
+      window.NX_ROUTER.navigate('landing');
+      if (window.NX_INTELLIGENCE_PANEL) window.NX_INTELLIGENCE_PANEL.openPanel();
       return;
     }
 
