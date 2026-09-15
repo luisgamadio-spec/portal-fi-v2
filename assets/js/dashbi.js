@@ -70,8 +70,19 @@
   var currentDeptView = 'Grupo';
   var currentFamily = 'OUTLANDER';
   var currentPreset = 'CUSTOM';
-  var currentDateStart = '2026-01-01';
-  var currentDateEnd = '2026-12-31';
+  // DASHBI1 -- named so clearPeriod() (Phase 5) can restore this file's own
+  // pre-existing fixture-mode default exactly, rather than inventing a new
+  // one -- these were previously inlined directly into currentDateStart/
+  // currentDateEnd below, same literal values, now just named.
+  var DEFAULT_DATE_START = '2026-01-01';
+  var DEFAULT_DATE_END = '2026-12-31';
+  var currentDateStart = DEFAULT_DATE_START;
+  var currentDateEnd = DEFAULT_DATE_END;
+  // DASHBI1 -- dashboard-wide Store filter, byte-identical mechanism to V1's
+  // own currentStoreFilter (origin/main:modules/analise-geral-grupo-secure-
+  // original-layout.html line 2199): '' means no store scoping (Todas as
+  // lojas/Grupo), matching V1's <option value="">Todas as lojas</option>.
+  var currentStoreFilter = '';
   // V2-UAT-01 -- true only after ensureDefaultPeriod() has run once for
   // this page load (see below) -- guards against re-applying the
   // current-month default on a same-session re-entry, which would
@@ -936,6 +947,92 @@
       '</div>';
   }
 
+  // DASHBI1 (PARITY-CHECK-1, gap 1/2) -- dashboard-wide Store filter.
+  // Mirrors V1's own proven mechanism EXACTLY (origin/main:modules/analise-
+  // geral-grupo-secure-original-layout.html): applyCurrentPeriodFilter()
+  // (lines 4303-4313) filters the row-level sales/fins arrays by
+  // x.loja===currentStoreFilter, THEN re-runs the SAME aggregate() the rest
+  // of the pipeline already depends on -- zero new backend authority, zero
+  // change to metric semantics, store selection just re-runs the existing
+  // aggregation over a row subset. V2's own row-level records already carry
+  // a `loja` field for both fixture transport (dashbi.adapter.js compute(),
+  // p1.valid/p2.valid -- confirmed via direct read, resolveLoja()) and real
+  // transport (dashbi-real-view-model.js buildSalesAndFins(): `loja:
+  // row.store` on every synthetic sales/fins record, confirmed via direct
+  // read) -- so this same filter-then-reaggregate works unchanged for
+  // either transport, never touching any RPC/grant/permission.
+  //
+  // Model Analysis (real transport only) is NOT derived from sales/fins --
+  // dashbi-real-view-model.js's modelRowsForFamily() reads out.modelMetricsRows
+  // directly (operational_model_metrics's own per-(store,department,model)
+  // rows, bypassing aggregate() entirely -- Gate B7/22, dashbi-real-view-
+  // model.js header comment). V1's own equivalent second application site
+  // (origin/main lines 4305-4312, applyCurrentPeriodFilter's own store-
+  // filter branch, reproduced again for the model-analysis code path per
+  // that file's line ~4305) has no real-transport analogue to miss here --
+  // fixture transport's modelRowsUnified()/planRowsByModel() (dashbi.
+  // adapter.js) read results.aggs/results.fins directly, already covered by
+  // the sales/fins filtering above -- but modelMetricsRows must be filtered
+  // by row.store separately, or real-transport Model Analysis would silently
+  // stay Group-wide under a store filter (verified: dashbi-real-provider.js
+  // sets row.store from the RPC's own `store` column, the SAME raw value
+  // buildSalesAndFins() copies onto `loja` -- same value space, safe to
+  // compare directly).
+  function applyStoreFilter(out) {
+    if (!out || out.blocked || !currentStoreFilter) return out;
+    var A = window.NX_DASHBI_ADAPTER;
+    var sales = (out.sales || []).filter(function (x) { return x.loja === currentStoreFilter; });
+    var fins = (out.fins || []).filter(function (x) { return x.loja === currentStoreFilter; });
+    var filtered = {};
+    Object.keys(out).forEach(function (k) { filtered[k] = out[k]; });
+    filtered.sales = sales;
+    filtered.fins = fins;
+    filtered.aggs = A.aggregate({ sales: sales, fins: fins });
+    if (out.modelMetricsRows) {
+      filtered.modelMetricsRows = out.modelMetricsRows.filter(function (r) { return r.store === currentStoreFilter; });
+    }
+    return filtered;
+  }
+
+  // DASHBI1 -- mirrors V1's populateStoreFilter() (origin/main lines 4401-
+  // 4419): the selectable store list is derived DYNAMICALLY from the
+  // currently-loaded, period-scoped (but NOT store-filtered) data itself,
+  // never a hardcoded alias list. This is deliberate, not a shortcut: a
+  // prior verification of the Secure backend's actual SQL (operational_
+  // metrics/operational_model_metrics via resolve_store_temporal) found
+  // these RPCs perform NO store-code canonicalization at all (unlike
+  // Gestão's operational_fandi_dashboard, which does) -- they can return
+  // raw/unmapped store strings or the literal fallback 'SEM LOJA'. Gestão's
+  // own store-display.js CANONICAL_STORES 8-code list is therefore NOT a
+  // safe source of truth for Dashbi's own store filter; deriving from the
+  // real, already-authorized data actually loaded (exactly what V1 itself
+  // does) is the only approach that can never drift from backend reality.
+  function storeOptionsFromOut(out) {
+    if (!out) return [];
+    var set = {};
+    (out.sales || []).forEach(function (x) { if (x.loja && x.loja !== 'NÃO LOCALIZADO') set[x.loja] = true; });
+    (out.fins || []).forEach(function (x) { if (x.loja && x.loja !== 'NÃO LOCALIZADO') set[x.loja] = true; });
+    return Object.keys(set).sort(function (a, b) { return a.localeCompare(b); });
+  }
+
+  function populateStoreFilterSelect(out) {
+    var sel = document.getElementById('dbStoreFilter');
+    if (!sel) return;
+    var stores = storeOptionsFromOut(out);
+    var current = currentStoreFilter;
+    sel.innerHTML = '<option value="">Todas as lojas</option>' + stores.map(function (l) {
+      return '<option value="' + esc(l) + '"' + (l === current ? ' selected' : '') + '>' + esc(l) + '</option>';
+    }).join('');
+    // V1 parity (populateStoreFilter): a previously-selected store that no
+    // longer appears in this period's own data (e.g. after a period change)
+    // silently resets to "Todas as lojas" rather than leaving a selection
+    // pointing at data that no longer exists.
+    if (current && stores.indexOf(current) === -1) {
+      currentStoreFilter = '';
+      sel.value = '';
+    }
+  }
+
   // Dashbi Phase 2 -- renderPanel draws a given, already-computed `out`
   // (fixture, via A.compute(), or real, via NX_DASHBI_REAL_VIEW_MODEL.
   // buildRealOut()) into #dbPanel. Kept transport-agnostic: every branch
@@ -1121,10 +1218,21 @@
       // FC-1 (GAP-001): SAME_PIPELINE_DIFFERENT_PERIOD -- A.compute() called
       // again, unchanged, against the comparison fixture's own raw rows.
       var previousOut = currentComparisonFixtureId ? A.compute(buildFixtureInput(currentComparisonFixtureId)) : null;
-      renderPanel(out, false, previousOut);
+      // DASHBI1 -- store options derive from the CURRENT (not comparison)
+      // period's own full, not-yet-store-filtered data, same source V1's
+      // own populateStoreFilter(lastResults) uses; the store filter itself
+      // is then applied (and re-aggregated) to both periods, same as V1's
+      // applyCurrentPeriodFilter/filterResultsByDateRange apply it to
+      // whichever results object they're given.
+      populateStoreFilterSelect(out);
+      renderPanel(applyStoreFilter(out), false, applyStoreFilter(previousOut));
       return;
     }
-    if (realOut) { renderPanel(realOut, true, previousRealOut); return; }
+    if (realOut) {
+      populateStoreFilterSelect(realOut);
+      renderPanel(applyStoreFilter(realOut), true, applyStoreFilter(previousRealOut));
+      return;
+    }
     loadReal();
   }
 
@@ -1142,7 +1250,8 @@
         if (mySeq !== renderSeq) return;
         realOut = window.NX_DASHBI_REAL_VIEW_MODEL.buildRealOut(payload.current.metrics, payload.current.modelMetrics);
         previousRealOut = payload.previous ? window.NX_DASHBI_REAL_VIEW_MODEL.buildRealOut(payload.previous.metrics, payload.previous.modelMetrics) : null;
-        renderPanel(realOut, true, previousRealOut);
+        populateStoreFilterSelect(realOut);
+        renderPanel(applyStoreFilter(realOut), true, applyStoreFilter(previousRealOut));
       },
       function (err) {
         if (mySeq !== renderSeq) return;
@@ -1219,6 +1328,49 @@
     render();
   }
 
+  // DASHBI1 (PARITY-CHECK-1, gap 2/2) -- "Limpar período" (Clear period),
+  // mirrors V1's clearPeriodFilter() (origin/main lines 4320-4325): blanks
+  // the period back to "no constraint", re-renders, and — same as V1 —
+  // never touches Store/Visão(dept)/Família(model) selection (V1's own
+  // function body only assigns currentPeriodFilter and the two date input
+  // values; currentStoreFilter/currentDeptView/currentFamily are untouched
+  // by it, confirmed by direct source read).
+  //
+  // V1's "no constraint" (currentPeriodFilter={start:null,end:null,
+  // mode:"all"}, blank date inputs) has no literal equivalent in V2's real
+  // transport: operational_metrics/operational_model_metrics always require
+  // p_start/p_end (Gate B5, dashbi-real-provider.js loadDashbiReal() rejects
+  // INVALID_FILTER without both) — an unbounded fetch was never part of
+  // this integration's contract. Reusing the EXISTING period-state
+  // architecture (this Wave's brief) means restoring THIS FILE's own
+  // already-established default for whichever transport is active, not
+  // inventing a third date range:
+  //   - real transport: the exact same currentMonth default
+  //     ensureDefaultPeriod() applies on a fresh session (and
+  //     applyPresetAndRender already exposes for its own "Mês atual"
+  //     button) — same call, not a second computation.
+  //   - fixture transport: this file's own pre-existing module-load default
+  //     (DEFAULT_DATE_START/DEFAULT_DATE_END, CUSTOM preset) — ensureDefaultPeriod()
+  //     never touches fixture mode, so these constants ARE its one and only
+  //     default, unchanged since PORTAL-NEXT-07's original migration.
+  function clearPeriod() {
+    if (isRealTransport()) {
+      applyPresetAndRender('currentMonth');
+      return;
+    }
+    currentDateStart = DEFAULT_DATE_START;
+    currentDateEnd = DEFAULT_DATE_END;
+    currentPreset = 'CUSTOM';
+    var dateStart = document.getElementById('dbDateStart');
+    var dateEnd = document.getElementById('dbDateEnd');
+    if (dateStart) dateStart.value = currentDateStart;
+    if (dateEnd) dateEnd.value = currentDateEnd;
+    document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); });
+    realOut = null;
+    previousRealOut = null;
+    render();
+  }
+
   // V2-UAT-01 -- reflects currentPreset on the button that produced it
   // right after mount, so a Human-facing "Mês atual" default (or any
   // programmatic preset) shows as visually active immediately, exactly
@@ -1238,6 +1390,14 @@
     document.getElementById('dbDateStart').addEventListener('change', function (e) { currentDateStart = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); }); realOut = null; previousRealOut = null; render(); });
     document.getElementById('dbDateEnd').addEventListener('change', function (e) { currentDateEnd = e.target.value; currentPreset = 'CUSTOM'; document.querySelectorAll('.dbPresetBtn').forEach(function (b) { b.classList.remove('dbBtnActive'); }); realOut = null; previousRealOut = null; render(); });
     document.querySelectorAll('.dbPresetBtn').forEach(function (btn) { btn.addEventListener('click', function () { applyPresetAndRender(btn.dataset.preset); }); });
+    // DASHBI1 (Phase 5)
+    var clearPeriodBtn = document.getElementById('dbClearPeriodBtn');
+    if (clearPeriodBtn) clearPeriodBtn.addEventListener('click', clearPeriod);
+    // DASHBI1 (Phase 3) -- mirrors V1's setStoreFilter(): just updates
+    // currentStoreFilter and re-renders, same as every other filter control
+    // here (date inputs/presets/view buttons).
+    var storeSelect = document.getElementById('dbStoreFilter');
+    if (storeSelect) storeSelect.addEventListener('change', function (e) { currentStoreFilter = e.target.value || ''; render(); });
     document.querySelectorAll('.dbViewBtn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         currentDeptView = btn.dataset.view;
@@ -1382,9 +1542,23 @@
       '<button type="button" class="dbBtn dbPresetBtn" data-preset="lastMonth">Mês anterior</button>' +
       '<button type="button" class="dbBtn dbPresetBtn" data-preset="last6">Últimos 6 meses</button>' +
       '<button type="button" class="dbBtn dbPresetBtn" data-preset="lastYear">Último ano</button>' +
+      // DASHBI1 (Phase 5, PARITY-CHECK-1 gap 2/2) -- "Limpar período"
+      // (Clear period), same .dbBtn segmented-control look as the preset
+      // buttons it sits beside (V1 places it in the exact same button row,
+      // origin/main line 2144), not its own .dbPresetBtn (it has no
+      // "active" state to toggle -- see clearPeriod()).
+      '<button type="button" class="dbBtn" id="dbClearPeriodBtn">Limpar período</button>' +
       '</div></div>' +
       '<div class="modField"><label for="dbDateStart">Data inicial</label><input id="dbDateStart" type="date" value="' + currentDateStart + '"></div>' +
       '<div class="modField"><label for="dbDateEnd">Data final</label><input id="dbDateEnd" type="date" value="' + currentDateEnd + '"></div>' +
+      // DASHBI1 (Phase 3, PARITY-CHECK-1 gap 1/2) -- dashboard-wide Store
+      // filter, same .modField wrapper as every other filter control here
+      // (Visão/Período rápido/Data inicial/Data final). Options are filled
+      // in by populateStoreFilterSelect() on every render() (mirrors V1's
+      // own populateStoreFilter(), which also rebuilds the <select> from
+      // the currently-loaded data on every render() call, origin/main line
+      // 4401) -- starts with only "Todas as lojas" until the first render.
+      '<div class="modField"><label for="dbStoreFilter">Loja</label><select id="dbStoreFilter"><option value="">Todas as lojas</option></select></div>' +
       '</div>' +
       '<div id="dbPanel"></div>' +
       '</div>';
