@@ -666,6 +666,12 @@
       if (typeof edge.tool_used === 'boolean') t.tool_used = edge.tool_used;
       if (typeof edge.openai_model === 'string' && edge.openai_model.length > 0) t.openai_model = edge.openai_model;
       if (typeof edge.first_token_observable === 'boolean') t.first_token_observable = edge.first_token_observable;
+      // LATENCY-2C -- same hand-copy discipline, same safety class
+      // (number + boolean only), for the 2 new siblings
+      // portal-ai-homolog's own _homolog_edge_timing now sends
+      // (server-side change, same Wave).
+      if (typeof edge.openai_retry_count === 'number') t.openai_retry_count = edge.openai_retry_count;
+      if (typeof edge.openai_retry_occurred === 'boolean') t.openai_retry_occurred = edge.openai_retry_occurred;
       // LATENCY-1 -- approximate only (client/Edge clocks differ, same
       // caveat as fetch_to_edge_handler_ms_approx above): network-only
       // portion of network_plus_server_ms once the Edge's own reported

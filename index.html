@@ -169,6 +169,11 @@ if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
      NX_INTELLIGENCE_PANEL.mount() once in boot(). -->
 <script src="assets/js/intelligence/intelligence-context.js"></script>
 <script src="assets/js/intelligence/intelligence-state.js"></script>
+<!-- LATENCY-2C -- homolog/dev-only latency diagnostic collector. Loads
+     after NX_INTELLIGENCE_STATE (consumes its onOwnerChange event) and
+     before the panel/voice files below, both of which hand it their
+     own already-built [bai-timing] object. -->
+<script src="assets/js/intelligence/intelligence-latency-diag.js"></script>
 <script src="assets/js/intelligence/intelligence-panel.js"></script>
 <!-- IA-3H.1 -- V2 Voice session manager. Loads after the panel (whose
      composer mic button calls into it) and after the state/adapter it

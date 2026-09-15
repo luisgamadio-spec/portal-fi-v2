@@ -160,6 +160,33 @@
 
   var diagPanelBuilt = false;
 
+  // LATENCY-2C -- reuses this EXACT existing dev-only panel/toggle
+  // (Human already rejected a permanently-visible Voice Diag affordance
+  // in normal product UI -- IA-3H.2.1C; this Wave's own latency export
+  // control inherits that same discipline rather than introducing a
+  // second visible surface) for a second, independent sub-section
+  // covering BOTH Text and Voice latency samples. Only rendered at all
+  // when NX_INTELLIGENCE_LATENCY_DIAG.isEnabled() -- i.e. never on an
+  // UNKNOWN_HOST, including the separate real production domain this
+  // repo never serves -- so no export control exists in the DOM there,
+  // not merely an inert one.
+  function latencyDiagSectionHtml() {
+    var diag = window.NX_INTELLIGENCE_LATENCY_DIAG;
+    if (!diag || !diag.isEnabled()) return '';
+    return '<div class="baiVoiceDiagHeader"><h2>Latência (Texto + Voz) — dev/homolog only</h2>' +
+      '<button type="button" id="baiLatencyDiagExport">Exportar diagnóstico</button>' +
+      '<button type="button" id="baiLatencyDiagClear">Limpar diagnóstico</button></div>' +
+      '<pre id="baiLatencyDiagBody"></pre>';
+  }
+
+  function renderLatencyDiagPanel() {
+    var body = document.getElementById('baiLatencyDiagBody');
+    var diag = window.NX_INTELLIGENCE_LATENCY_DIAG;
+    if (!body || !diag) return;
+    var list = diag.getEntries();
+    body.textContent = list.length ? JSON.stringify(list, null, 2) : '(sem amostras ainda)';
+  }
+
   function buildDiagDom() {
     if (diagPanelBuilt) return;
     var root = document.getElementById('nxOverlayRoot');
@@ -172,15 +199,29 @@
         '<div class="baiVoiceDiagHeader"><h2>Voice Diagnostics (dev only)</h2>' +
         '<button type="button" id="baiVoiceDiagClear">Limpar</button></div>' +
         '<pre id="baiVoiceDiagBody"></pre>' +
+        latencyDiagSectionHtml() +
       '</aside>';
     root.appendChild(wrap);
     document.getElementById('baiVoiceDiagToggle').addEventListener('click', function () {
       var panel = document.getElementById('baiVoiceDiagPanel');
       var wasHidden = panel.hasAttribute('hidden');
-      if (wasHidden) { panel.removeAttribute('hidden'); renderDiagPanel(); } else panel.setAttribute('hidden', '');
+      if (wasHidden) { panel.removeAttribute('hidden'); renderDiagPanel(); renderLatencyDiagPanel(); } else panel.setAttribute('hidden', '');
       document.getElementById('baiVoiceDiagToggle').setAttribute('aria-expanded', wasHidden ? 'true' : 'false');
     });
     document.getElementById('baiVoiceDiagClear').addEventListener('click', function () { clearDiag(); });
+    var exportBtn = document.getElementById('baiLatencyDiagExport');
+    if (exportBtn) exportBtn.addEventListener('click', function () {
+      if (window.NX_INTELLIGENCE_LATENCY_DIAG) window.NX_INTELLIGENCE_LATENCY_DIAG.downloadExport();
+    });
+    var clearBtn = document.getElementById('baiLatencyDiagClear');
+    if (clearBtn) clearBtn.addEventListener('click', function () {
+      // Section 8 -- clears ONLY latency diagnostics. Never touches
+      // conversation/IA/Voice state -- NX_INTELLIGENCE_LATENCY_DIAG.clear()
+      // is the one place that array lives, entirely separate from
+      // NX_INTELLIGENCE_STATE.
+      if (window.NX_INTELLIGENCE_LATENCY_DIAG) window.NX_INTELLIGENCE_LATENCY_DIAG.clear();
+      renderLatencyDiagPanel();
+    });
     diagPanelBuilt = true;
   }
 
@@ -331,8 +372,18 @@
         var now = Date.now();
         if (result._devTiming.client_receive_at) out.render_ms = now - result._devTiming.client_receive_at;
         out.total_ui_ms = now - t0;
+        // LATENCY-2C -- same span diagPush('tool_call', {ms,...}) above
+        // already records separately; carried onto this object too so
+        // the diagnostic collector's entry (captured right below) has
+        // it without a second measurement.
+        out.voice_tool_bridge_ms = now - t0;
         // eslint-disable-next-line no-console
         console.log('[bai-timing]', out);
+        // LATENCY-2C -- the SAME already-safe object handed to the
+        // homolog/dev-only in-memory diagnostic collector (Text's own
+        // logDevTiming() does the exact same hand-off) -- one timing
+        // truth, captured from both surfaces the same way.
+        if (window.NX_INTELLIGENCE_LATENCY_DIAG) window.NX_INTELLIGENCE_LATENCY_DIAG.capture(out, 'voice');
       }
       // SESSIONSEC1 -- either the Voice call itself was superseded
       // (pre-existing check) OR the authenticated identity changed

@@ -790,6 +790,10 @@
     if (devTiming.ui_submit_at) out.total_ui_ms = renderCompleteAt - devTiming.ui_submit_at;
     // eslint-disable-next-line no-console
     console.log('[bai-timing]', out);
+    // LATENCY-2C -- the SAME already-safe object handed to the
+    // homolog/dev-only in-memory diagnostic collector, so a Human
+    // sample survives this console line without needing DevTools.
+    if (window.NX_INTELLIGENCE_LATENCY_DIAG) window.NX_INTELLIGENCE_LATENCY_DIAG.capture(out, 'text');
   }
 
   function applyResult(result) {
