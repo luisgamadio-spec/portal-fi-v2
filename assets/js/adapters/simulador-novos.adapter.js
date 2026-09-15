@@ -15,10 +15,28 @@
    order, verified for parity against the real, unmodified, DOM-
    coupled originals (driven in a real browser against the saved
    origin/main HTML, zero network) by
-   tests/simulador-novos-parity-test.py. ACTIVE-base loading (Supabase
-   RPC via SB_LOADER) is NOT reproduced — every table below is the
-   FALLBACK table exactly as it appears in source (Gate 9); this Wave
-   does not implement live coefficient loading (0 backend, Gate 21). */
+   tests/simulador-novos-parity-test.py.
+
+   SIMLIVE1 (migrate simulator live rate authorities): every table
+   below marked _FALLBACK is now ONLY the default used when the caller
+   omits the corresponding live-table param — it is no longer the sole
+   data source. simulador-novos.js (the page) fetches the real,
+   authenticated ACTIVE base via assets/js/adapters/
+   simulador-rates-provider.js and passes the live table in explicitly
+   (tabelaTradicional/tabelaPeriodica/tabelaLinear/tabelaRebates/
+   tabelaAntecipacao/modelosTriton) once loaded — fail-closed, no
+   Calcular button exists before that (see simulador-novos.js's
+   makeAuthority()/wireAuthorityGate(), the same pattern already
+   established by ensureCampAuthority() for Plano Coparticipado). The
+   _FALLBACK constants themselves are UNCHANGED byte-for-byte (Gate 9)
+   and remain the default for every direct/unparented call to these
+   pure functions — this is exactly what keeps
+   tests/simulador-novos-parity-test.py (which calls these functions
+   with no live-table param at all) passing unmodified, and is also
+   why they remain valid parity/golden fixtures for
+   tests/simulador-novos-live-rate-authority-test.py (SIMLIVE1 Phase
+   11). Parcela Única and Descobridor de Taxa are UNCHANGED (V1 has no
+   RPC for either — V1_STATIC_AUTHORITY_CONFIRMED / pure formula). */
 (function () {
   'use strict';
 
@@ -27,8 +45,8 @@
   // ==== Tradicional (Balão) ====
   const tabelaTradicional_FALLBACK = [{"entrada":0.1,"prazo":12,"max":1,"taxa":0.023540000000000002},{"entrada":0.1,"prazo":24,"max":1,"taxa":0.019995},{"entrada":0.1,"prazo":30,"max":1,"taxa":0.019714999999999996},{"entrada":0.1,"prazo":36,"max":1,"taxa":0.019144999999999995},{"entrada":0.1,"prazo":40,"max":1,"taxa":0.018760000000000002},{"entrada":0.1,"prazo":42,"max":1,"taxa":0.01875},{"entrada":0.1,"prazo":48,"max":1,"taxa":0.018865000000000003},{"entrada":0.2,"prazo":12,"max":1,"taxa":0.0225},{"entrada":0.2,"prazo":24,"max":1,"taxa":0.0191},{"entrada":0.2,"prazo":30,"max":1,"taxa":0.0186},{"entrada":0.2,"prazo":36,"max":1,"taxa":0.018},{"entrada":0.2,"prazo":40,"max":1,"taxa":0.0176},{"entrada":0.2,"prazo":42,"max":1,"taxa":0.0177},{"entrada":0.2,"prazo":48,"max":1,"taxa":0.0177}];
 
-  function planoTrad(prazo, pe) {
-    return tabelaTradicional_FALLBACK.filter(r => r.prazo === prazo && pe >= r.entrada).sort((a, b) => b.entrada - a.entrada)[0] || null;
+  function planoTrad(prazo, pe, tabela) {
+    return (tabela || tabelaTradicional_FALLBACK).filter(r => r.prazo === prazo && pe >= r.entrada).sort((a, b) => b.entrada - a.entrada)[0] || null;
   }
 
   function calcularTradicional(params) {
@@ -37,7 +55,7 @@
     if (!bem) return {error: null, empty: true};
     if (pe < 0.1) return {error: 'ENTRADA_MINIMA_10PCT'};
     if (fin <= 0) return {error: 'ENTRADA_MAIOR_QUE_BEM'};
-    const plano = planoTrad(prazo, pe);
+    const plano = planoTrad(prazo, pe, params.tabelaTradicional);
     if (!plano) return {error: 'SEM_REGRA_CADASTRADA'};
     let total = 0;
     const meses = new Set();
@@ -66,7 +84,7 @@
     const fin = Math.max(0, bem - entrada), pe = bem ? entrada / bem : 0;
     if (!bem) return {error: null, empty: true};
     if (fin <= 0) return {error: 'ENTRADA_MAIOR_QUE_BEM'};
-    const candidatos = tabelaPeriodica_FALLBACK.filter(r => r.prazo === prazo);
+    const candidatos = (params.tabelaPeriodica || tabelaPeriodica_FALLBACK).filter(r => r.prazo === prazo);
     if (!candidatos.length) return {error: 'SEM_REGRA_CADASTRADA'};
     const minEntrada = Math.min(...candidatos.map(r => r.entrada));
     if (pe < minEntrada) return {error: 'ENTRADA_ABAIXO_DO_MINIMO', minEntrada};
@@ -122,8 +140,9 @@
     if (!(bem > 0)) return {error: 'BEM_INVALIDO'};
     if (entrada >= bem) return {error: 'ENTRADA_MAIOR_QUE_BEM'};
     const faixa = S.faixaLinear(pctEntrada);
+    const tabelaLinear = params.tabelaLinear || tabelaLinear_FALLBACK;
     const itens = prazosLinear.map(p => {
-      const row = tabelaLinear_FALLBACK.find(r => r.prazo === p && Math.abs(r.entrada - faixa) < 0.00001);
+      const row = tabelaLinear.find(r => r.prazo === p && Math.abs(r.entrada - faixa) < 0.00001);
       const baseCalculo = S.baseCalculoLinear(financiado, p);
       const coef = row ? S.coefLinear(row.taxa, p) : null;
       const parcela = (baseCalculo > 0 && coef > 0) ? baseCalculo * coef : null;
@@ -162,7 +181,7 @@
     if (pctEntrada < 0.50) return {error: 'ENTRADA_MINIMA_50PCT'};
     if (!(financiado > 0)) return {error: 'FINANCIADO_INVALIDO'};
     if (minVenda && minVenda >= bem) return {error: 'MIN_VENDA_MAIOR_QUE_BEM'};
-    let rows = tabelaRebates_FALLBACK
+    let rows = (params.tabelaRebates || tabelaRebates_FALLBACK)
       .filter(r => taxasSubsidiadasPermitidas.some(t => Math.abs(t - r.taxa) < 0.00001))
       .map(r => {
         const baseParcela = r.prazo <= 24 ? financiado : financiado + 2500;
@@ -210,13 +229,14 @@
       inicio = fim = params.parcelaUnica;
       if (!(inicio >= 1 && inicio <= prazo)) return {error: 'PARCELA_INVALIDA_INTERVALO'};
     }
+    const tabelaAntecipacao = params.tabelaAntecipacao || tabelaAntecipacao_FALLBACK;
     const rows = [];
     let brutoTotal = 0, baloesTotal = 0, descTotal = 0, finalTotal = 0, missing = false;
     for (let num = inicio; num <= fim; num++) {
       const venc = S.addMonths(primeira, num - 1);
       if (venc <= data) continue;
       const mesesAhead = S.diffMonthsAhead(data, venc);
-      let desconto = tabelaAntecipacao_FALLBACK[mesesAhead];
+      let desconto = tabelaAntecipacao[mesesAhead];
       if (desconto === undefined) { desconto = 0; missing = true; }
       const valorBalao = balaoPorMes[num] || 0;
       const valorOriginal = valorBalao > 0 ? valorBalao : parcela;
@@ -245,7 +265,8 @@
 
   function calcularSemestralTriton(params) {
     const bem = params.bem, modeloNome = params.modelo || 'TRITON HPE';
-    const modelo = MODELOS_TRITON_FALLBACK[modeloNome] || MODELOS_TRITON_FALLBACK['TRITON HPE'];
+    const modelos = params.modelosTriton || MODELOS_TRITON_FALLBACK;
+    const modelo = modelos[modeloNome] || modelos['TRITON HPE'] || MODELOS_TRITON_FALLBACK['TRITON HPE'];
     const entradaPct = (modelo && typeof modelo.entradaMinima === 'number') ? modelo.entradaMinima : 0.60;
     const entrada = bem > 0 ? bem * entradaPct : 0;
     const financiado = Math.max(0, bem - entrada);

@@ -20,7 +20,24 @@
    simulador-shared.adapter.js, to avoid touching the already-verified
    Novos adapter under this Wave's time constraints — see the
    discovery doc's Gate 49 "PARTIALLY shareable" list for the full,
-   honest accounting of what could additionally be shared. */
+   honest accounting of what could additionally be shared.
+
+   SIMLIVE1 (migrate simulator live rate authorities): calcularTradicional
+   (simulador_get_balao_seminovos), calcularLinearRateTable
+   (simulador_get_financiamento_seminovo) and calcularAntecipacao
+   (simulador_get_antecipacao, shared with Novos) now accept an optional
+   live-table override param (tabelaTradicional/rateTable/
+   tabelaAntecipacao); omitted, they default to the unchanged _FALLBACK
+   constant, exactly like Novos' adapter (see that file's own SIMLIVE1
+   note) — tests/simulador-seminovos-parity-test.py keeps calling these
+   with no override and keeps passing unmodified. calcularLinear (dead
+   top-level Linear tab), calcularSubsidiadas and the Triton campaign
+   below are UNCHANGED: none of them is reachable from
+   simulador-seminovos.js's own MODES list (confirmed — only
+   tradicional/ratetable/descobridor/antecipacao/cashconversion exist),
+   matching V1 itself never exposing Taxas Subsidiadas/Semestral
+   Triton-Outlander to Seminovos users (V1_STATIC_AUTHORITY_CONFIRMED /
+   NOT_APPLICABLE — nothing to migrate). */
 (function () {
   'use strict';
 
@@ -35,10 +52,10 @@
     if (ano >= 2017 && ano <= 2024) return '2017_2024';
     return null;
   }
-  function planoTrad(prazo, pe, ano) {
+  function planoTrad(prazo, pe, ano, tabela) {
     const faixa = faixaAnoTrad(ano);
     if (!faixa) return null;
-    return tabelaTradicional_FALLBACK.filter(r => r.faixa === faixa && r.prazo === prazo && pe >= r.entrada).sort((a, b) => b.entrada - a.entrada)[0] || null;
+    return (tabela || tabelaTradicional_FALLBACK).filter(r => r.faixa === faixa && r.prazo === prazo && pe >= r.entrada).sort((a, b) => b.entrada - a.entrada)[0] || null;
   }
 
   function calcularTradicional(params) {
@@ -49,7 +66,7 @@
     if (fin <= 0) return {error: 'ENTRADA_MAIOR_QUE_BEM'};
     const anoStr = String(ano || '').replace(/\D/g, '');
     if (!anoStr || anoStr.length < 4) return {error: 'ANO_AUSENTE'};
-    const plano = planoTrad(prazo, pe, anoStr);
+    const plano = planoTrad(prazo, pe, anoStr, params.tabelaTradicional);
     if (!plano) return {error: 'SEM_REGRA_CADASTRADA'};
     let total = 0;
     const meses = new Set();
@@ -177,13 +194,14 @@
 
   function calcularLinearRateTable(params) {
     const ano = params.ano, valor = params.valor, entrada = params.entrada;
+    const rateTable = params.rateTable || RATE_TABLE;
     const pct = valor > 0 ? (entrada / valor) * 100 : 0;
     const financiado = Math.max(0, valor - entrada);
     const band = yearBand(ano);
     const eBand = entryBand(pct);
     const invalid = !valor || !band || entrada > valor || pct > 100;
     const terms = TERMS.map(t => {
-      const rate = band && RATE_TABLE[band] && RATE_TABLE[band][eBand] ? RATE_TABLE[band][eBand][String(t)] : null;
+      const rate = band && rateTable[band] && rateTable[band][eBand] ? rateTable[band][eBand][String(t)] : null;
       if (invalid || rate == null) return {prazo: t, payment: null, rate: null, invalid: true};
       const valorComSeguro = financiado * (1 + SEGURO_PROTECAO);
       const baseSemIOF = valorComSeguro + tarifasTotal();
@@ -280,13 +298,14 @@
       inicio = fim = params.parcelaUnica;
       if (!(inicio >= 1 && inicio <= prazo)) return {error: 'PARCELA_INVALIDA_INTERVALO'};
     }
+    const tabelaAntecipacao = params.tabelaAntecipacao || tabelaAntecipacao_FALLBACK;
     const rows = [];
     let brutoTotal = 0, baloesTotal = 0, descTotal = 0, finalTotal = 0, missing = false;
     for (let num = inicio; num <= fim; num++) {
       const venc = S.addMonths(primeira, num - 1);
       if (venc <= data) continue;
       const mesesAhead = S.diffMonthsAhead(data, venc);
-      let desconto = tabelaAntecipacao_FALLBACK[mesesAhead];
+      let desconto = tabelaAntecipacao[mesesAhead];
       if (desconto === undefined) { desconto = 0; missing = true; }
       const valorBalao = balaoPorMes[num] || 0;
       const valorOriginal = valorBalao > 0 ? valorBalao : parcela;

@@ -22,8 +22,14 @@ import sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 PROD_URL = "http://localhost:8700/PORTAL-NEXT-08/.source/simulador-novos-origin-main.html"
-ADAPTER_SHARED = "C:/Projetos/PORTAL-FI-DESIGN-LAB/portal-next-v2/assets/js/adapters/simulador-shared.adapter.js"
-ADAPTER_NOVOS = "C:/Projetos/PORTAL-FI-DESIGN-LAB/portal-next-v2/assets/js/adapters/simulador-novos.adapter.js"
+# SIMLIVE1: test-harness-only path fix (same class of fix as V2-INT-01
+# in simulador-novos-governed-authority-test.py) -- these were hardcoded
+# to the OLD sibling "portal-next-v2" checkout (a separate, unrelated
+# git repo/branch), which meant this suite was silently testing THAT
+# repo's frozen adapter files instead of this worktree's own. Pointed
+# at this worktree's real path; 0 assertion changed.
+ADAPTER_SHARED = "C:/Projetos/PORTAL-FI-DESIGN-LAB/portal-next-v2-final-uat/assets/js/adapters/simulador-shared.adapter.js"
+ADAPTER_NOVOS = "C:/Projetos/PORTAL-FI-DESIGN-LAB/portal-next-v2-final-uat/assets/js/adapters/simulador-novos.adapter.js"
 
 CENT = 0.005
 

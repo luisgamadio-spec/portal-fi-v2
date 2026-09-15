@@ -361,10 +361,27 @@ def main():
         page.close()
 
         # ---------- 12: non-campaign engine regression (Linear, untouched formula) ----------
+        # SIMLIVE1 update: Linear itself is now ALSO a live-gated mode
+        # (simulador_get_linear_zerokm, see simulador-novos.js's own
+        # linearAuthority) -- this case's own intent ("does Plano
+        # Coparticipado's governed-authority migration leave Linear's
+        # formula/rendering alone") is unchanged, but Linear can no
+        # longer reach its Calcular/result state without its own RPC
+        # responding, so that RPC is now mocked here too (route only --
+        # the original assertion below is verbatim unmodified).
         page = new_page(browser)
         page.route(GOVERNED_RPC_URL + "*", json_route(200, GOVERNED_CONTRACT))
+        linear_fixture = {"ok": True, "batch_id": "x", "arquivo_nome": "x", "linhas": [
+            {"prazo": 12, "entrada_pct": 0, "taxa": 0.0281}, {"prazo": 18, "entrada_pct": 0, "taxa": 0.0245},
+            {"prazo": 24, "entrada_pct": 0, "taxa": 0.023}, {"prazo": 30, "entrada_pct": 0, "taxa": 0.0221},
+            {"prazo": 36, "entrada_pct": 0, "taxa": 0.0215}, {"prazo": 42, "entrada_pct": 0, "taxa": 0.0216},
+            {"prazo": 48, "entrada_pct": 0, "taxa": 0.0212}, {"prazo": 60, "entrada_pct": 0, "taxa": 0.0211},
+            {"prazo": 12, "entrada_pct": 0.2, "taxa": 0.0268}, {"prazo": 18, "entrada_pct": 0.2, "taxa": 0.0231},
+        ]}
+        page.route("https://mock.invalid/rest/v1/rpc/simulador_get_linear_zerokm*", json_route(200, linear_fixture))
         mount(page)
         select_mode(page, "linear")
+        page.wait_for_function("!!document.getElementById('nBem')", timeout=5000)
         page.fill("#nBem", "100000")
         page.fill("#nEntrada", "20000")
         page.wait_for_timeout(120)

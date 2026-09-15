@@ -28,7 +28,10 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-BASE = "http://127.0.0.1:8080/portal-next-v2/tests/_coparticipado-real-provider-harness.html"
+# SIMLIVE1: test-harness-only path fix -- see simulador-novos-parity-
+# test.py's identical note (same class of fix as V2-INT-01); was
+# hardcoded to the OLD sibling "portal-next-v2" checkout.
+BASE = "http://127.0.0.1:8080/portal-next-v2-final-uat/tests/_coparticipado-real-provider-harness.html"
 RPC_URL = "https://mock.invalid/rest/v1/rpc/operational_score_coparticipated_data"
 GOVERNED_RPC_URL = "https://mock.invalid/rest/v1/rpc/simulador_get_coparticipado"
 

@@ -18,7 +18,9 @@ import sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 ORIGIN_JS = "C:/Projetos/PORTAL-FI-DESIGN-LAB/PORTAL-NEXT-08/.source/cash-conversion-origin-main.js"
-ADAPTER_JS = "C:/Projetos/PORTAL-FI-DESIGN-LAB/portal-next-v2/assets/js/adapters/cash-conversion.adapter.js"
+# SIMLIVE1: test-harness-only path fix -- see simulador-novos-parity-
+# test.py's identical note (same class of fix as V2-INT-01).
+ADAPTER_JS = "C:/Projetos/PORTAL-FI-DESIGN-LAB/portal-next-v2-final-uat/assets/js/adapters/cash-conversion.adapter.js"
 
 CASES = [
     {"id": "minimo_capital", "capital": 1000, "parcela": 100, "prazoMeses": 12, "taxaAplicacao": 0.005},

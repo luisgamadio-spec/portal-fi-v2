@@ -38,6 +38,112 @@
   var S = window.NX_SIMULADOR_SHARED;
   var SN = window.NX_SIMULADOR_SEMINOVOS_ADAPTER;
   var CC = window.NX_CASH_CONVERSION_ADAPTER;
+  var RATES = window.NX_SIMULADOR_RATES_PROVIDER;
+
+  /* ---------- SIMLIVE1 (migrate simulator live rate authorities) ----------
+     Independent copy of simulador-novos.js's own makeAuthority()/
+     wireAuthorityGate() helpers -- same reasoning this file already
+     gives for every other "independent copy, mirroring Novos' pattern"
+     change (e.g. the balloon-story/mode-nav helpers above): this file's
+     own established convention is to duplicate small, page-scoped
+     helpers rather than share a cross-file module for them, so a
+     Seminovos-only change never risks Novos' already-verified behavior
+     and vice versa. See simulador-novos.js for the full reasoning
+     comment (AUTH_NOT_CONFIGURED fallback, fail-closed on a genuine
+     configured-backend failure, etc.) -- not re-derived here. */
+  function makeAuthority(rpcName, camposNumericos, camposTexto, transform, fallbackAuthority) {
+    var state = 'IDLE'; // IDLE | LOADING | READY | ERROR
+    var authority = null;
+    var loadPromise = null;
+    function ensure() {
+      if (state === 'READY' && authority) return Promise.resolve(authority);
+      if (loadPromise) return loadPromise;
+      if (fallbackAuthority && (!window.NX_AUTH || !window.NX_AUTH.isAuthConfigured)) {
+        authority = fallbackAuthority;
+        state = 'READY';
+        return Promise.resolve(authority);
+      }
+      state = 'LOADING';
+      loadPromise = RATES.loadRateAuthority(rpcName, function (linhas) {
+        return RATES.linhasValidas(linhas, camposNumericos, camposTexto);
+      }, {}).then(function (body) {
+        var built = transform(body.linhas);
+        if (!built) return Promise.reject({ state: 'BACKEND_ERROR', message: 'Base de taxas retornou sem dados utilizáveis.' });
+        authority = built;
+        state = 'READY';
+        return authority;
+      }).catch(function (err) {
+        authority = null;
+        state = 'ERROR';
+        return Promise.reject(err);
+      }).finally(function () {
+        loadPromise = null;
+      });
+      return loadPromise;
+    }
+    return {
+      ensure: ensure,
+      getState: function () { return state; },
+      getAuthority: function () { return authority; }
+    };
+  }
+  var RATE_FAIL_MSG = 'Não foi possível carregar as condições vigentes do simulador. Tente novamente.';
+
+  // BALAO_SEMINOVOS (Tradicional).
+  var tradAuthority = makeAuthority('simulador_get_balao_seminovos', ['entrada_minima', 'prazo', 'max_balao', 'taxa'], ['bloco'], function (linhas) {
+    var t = linhas.map(function (x) { return { faixa: x.bloco, entrada: x.entrada_minima, prazo: x.prazo, max: x.max_balao, taxa: x.taxa }; });
+    return t.length ? t : null;
+  }, SN._internal.tabelaTradicional_FALLBACK);
+  // FINANCIAMENTO_SEMINOVO ("Linear" / RATE_TABLE) -- reshapes rows
+  // {faixa_ano, entrada_pct, prazo, taxa} into the SAME
+  // {faixa_ano:{entryBandPct:{prazo:taxa}}} nesting V1's own
+  // carregarBaseFinanciamentoSeminovo() builds before injecting into
+  // the nested srcdoc iframe's RATE_TABLE (modules/simulador-
+  // seminovos.html) -- calcularLinearRateTable() consumes the exact
+  // same shape via params.rateTable.
+  var linearRTAuthority = makeAuthority('simulador_get_financiamento_seminovo', ['entrada_pct', 'prazo', 'taxa'], ['faixa_ano'], function (linhas) {
+    var tabela = {};
+    linhas.forEach(function (x) {
+      var eBand = String(Math.round(x.entrada_pct * 100));
+      if (!tabela[x.faixa_ano]) tabela[x.faixa_ano] = {};
+      if (!tabela[x.faixa_ano][eBand]) tabela[x.faixa_ano][eBand] = {};
+      tabela[x.faixa_ano][eBand][String(x.prazo)] = x.taxa;
+    });
+    return Object.keys(tabela).length ? tabela : null;
+  }, SN._internal.RATE_TABLE);
+  // ANTECIPACAO -- same RPC as Novos ("Base COMPARTILHADA com o
+  // Simulador ZeroKM"), reused via the same shared provider, but with
+  // an INDEPENDENT authority/cache instance in this file (each page
+  // fetches its own copy of the same real data once per session --
+  // see this file's own header note on why cross-file state is never
+  // shared here). No correctness impact: both instances call the same
+  // real, authenticated RPC and fail closed identically.
+  var antecipacaoAuthority = makeAuthority('simulador_get_antecipacao', ['meses_antecipacao', 'desconto'], [], function (linhas) {
+    var mapa = {};
+    linhas.forEach(function (x) { mapa[String(x.meses_antecipacao)] = x.desconto; });
+    return Object.keys(mapa).length ? mapa : null;
+  }, SN._internal.tabelaAntecipacao_FALLBACK);
+
+  function authorityGateHtml(authority) {
+    if (authority.getState() === 'ERROR') {
+      return UI.errorBlock(RATE_FAIL_MSG) +
+        '<button type="button" class="btn btn-secondary" id="sRateRetry" style="width:100%;margin-top:6px">Tentar novamente</button>';
+    }
+    return UI.emptyBlock('Carregando condições vigentes do simulador...');
+  }
+  function wireAuthorityGate(authority, mode) {
+    function refresh() { if (currentMode === mode) renderModeArea(); }
+    if (authority.getState() === 'ERROR') {
+      var retryBtn = document.getElementById('sRateRetry');
+      if (retryBtn) retryBtn.addEventListener('click', function () { authority.ensure().then(refresh, refresh); });
+      return false;
+    }
+    if (authority.getState() !== 'READY') {
+      authority.ensure().then(refresh, refresh);
+      return false;
+    }
+    return true;
+  }
 
   var MODES = [
     { id: 'tradicional', group: 'Financiamento', label: 'Tradicional (Balão)' },
@@ -332,6 +438,8 @@
   function formHtml(mode) {
     switch (mode) {
       case 'tradicional':
+        // SIMLIVE1: gated on tradAuthority (simulador_get_balao_seminovos).
+        if (tradAuthority.getState() !== 'READY') return authorityGateHtml(tradAuthority);
         return UI.moneyField('sBem', 'Valor do bem', 'R$ 80.000,00') +
           UI.moneyField('sEntrada', 'Entrada', 'R$ 16.000,00') +
           UI.numberField('sAno', 'Ano do veículo', 2022, { min: 1900, max: 2099, hint: 'Tabelas cadastradas para 2017–2024 e 2025–2099.' }) +
@@ -340,6 +448,8 @@
           '<button type="button" class="btn btn-secondary btn-sm" id="sAddBalao">+ Adicionar balão</button></div>' +
           '<button type="button" class="btn btn-primary" id="sCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'ratetable':
+        // SIMLIVE1: gated on linearRTAuthority (simulador_get_financiamento_seminovo).
+        if (linearRTAuthority.getState() !== 'READY') return authorityGateHtml(linearRTAuthority);
         return UI.numberField('sAnoRT', 'Ano do veículo', 2020, { min: 2007, max: 2099, hint: 'Tabela cadastrada para 2007–2099.' }) +
           UI.moneyField('sValorRT', 'Valor do veículo', 'R$ 80.000,00') +
           UI.moneyField('sEntradaRT', 'Entrada', 'R$ 0,00', 'Entrada permitida a partir de 0%.') +
@@ -350,6 +460,8 @@
           UI.moneyField('sParcela', 'Parcela', 'R$ 2.400,00') +
           '<button type="button" class="btn btn-primary" id="sCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'antecipacao':
+        // SIMLIVE1: gated on antecipacaoAuthority (simulador_get_antecipacao).
+        if (antecipacaoAuthority.getState() !== 'READY') return authorityGateHtml(antecipacaoAuthority);
         return UI.numberField('sPrazoNum', 'Prazo (meses)', 36, { min: 1, max: 60 }) +
           UI.moneyField('sParcela', 'Valor da parcela mensal', 'R$ 1.800,00') +
           UI.dateField('sPrimeira', 'Data da primeira parcela', '') +
@@ -400,15 +512,18 @@
 
   function wireForm(mode) {
     if (mode === 'tradicional') {
+      if (!wireAuthorityGate(tradAuthority, mode)) return;
       renderBaloesList();
       document.getElementById('sAddBalao').addEventListener('click', function () { balloons.push({ mes: null, valor: 0, valorText: '' }); renderBaloesList(); });
       wireTermGrid('sPrazo', TRAD_TERMS.length);
       document.getElementById('sCalc').addEventListener('click', calcTradicional);
     } else if (mode === 'ratetable') {
+      if (!wireAuthorityGate(linearRTAuthority, mode)) return;
       document.getElementById('sCalc').addEventListener('click', calcRateTable);
     } else if (mode === 'descobridor') {
       document.getElementById('sCalc').addEventListener('click', calcDescobridor);
     } else if (mode === 'antecipacao') {
+      if (!wireAuthorityGate(antecipacaoAuthority, mode)) return;
       document.getElementById('sAntExtra').innerHTML = antExtraHtml('todo');
       UI.wireSegmented('sTipoAnt', function (v) { document.getElementById('sAntExtra').innerHTML = antExtraHtml(v); });
       document.getElementById('sCalc').addEventListener('click', calcAntecipacao);
@@ -453,7 +568,8 @@
     var r = SN.calcularTradicional({
       bem: UI.moneyVal('sBem'), entrada: UI.moneyVal('sEntrada'), prazo: prazo,
       ano: UI.numVal('sAno'),
-      baloes: validBaloes
+      baloes: validBaloes,
+      tabelaTradicional: tradAuthority.getAuthority()
     });
     if (r.empty) { setResult(UI.emptyBlock('Preencha os campos e clique em Calcular.')); return; }
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error))); return; }
@@ -467,7 +583,7 @@
     setResult(html);
   }
   function calcRateTable() {
-    var r = SN.calcularLinearRateTable({ ano: UI.numVal('sAnoRT'), valor: UI.moneyVal('sValorRT'), entrada: UI.moneyVal('sEntradaRT') });
+    var r = SN.calcularLinearRateTable({ ano: UI.numVal('sAnoRT'), valor: UI.moneyVal('sValorRT'), entrada: UI.moneyVal('sEntradaRT'), rateTable: linearRTAuthority.getAuthority() });
     if (r.invalid) { setResult(UI.errorBlock('Verifique o ano do veículo e a entrada informada (entrada não pode ser maior que o valor do veículo, nem o percentual maior que 100%).')); return; }
     var html = UI.termGrid(r.terms.map(function (t) { return { prazo: t.prazo, payment: t.payment, rate: t.rate, best: false }; }));
     setResult('<p class="kpiLabel" style="margin-bottom:12px">Parcela por prazo — faixa ' + (r.band || '—') + ' · entrada ' + r.eBand + '%</p>' + html +
@@ -487,7 +603,8 @@
       prazo: UI.numVal('sPrazoNum'), parcela: UI.moneyVal('sParcela'),
       primeiraParcela: UI.textVal('sPrimeira') ? new Date(UI.textVal('sPrimeira') + 'T00:00:00') : null,
       dataAntecipacao: UI.textVal('sData') ? new Date(UI.textVal('sData') + 'T00:00:00') : null,
-      tipo: tipo, de: UI.numVal('sDe'), ate: UI.numVal('sAte'), parcelaUnica: UI.numVal('sParcelaUnicaNum'), baloes: []
+      tipo: tipo, de: UI.numVal('sDe'), ate: UI.numVal('sAte'), parcelaUnica: UI.numVal('sParcelaUnicaNum'), baloes: [],
+      tabelaAntecipacao: antecipacaoAuthority.getAuthority()
     });
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error))); return; }
     var rows = r.rows.map(function (row) {

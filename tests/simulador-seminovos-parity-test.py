@@ -31,8 +31,11 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 PROD_URL = "http://localhost:8700/PORTAL-NEXT-08/.source/simulador-seminovos-origin-main.html"
 LINEAR_RATE_TABLE_URL = "http://localhost:8700/PORTAL-NEXT-08/.source/linear-seminovos-iframe-decoded.html"
-ADAPTER_SHARED = "C:/Projetos/PORTAL-FI-DESIGN-LAB/portal-next-v2/assets/js/adapters/simulador-shared.adapter.js"
-ADAPTER_SEMINOVOS = "C:/Projetos/PORTAL-FI-DESIGN-LAB/portal-next-v2/assets/js/adapters/simulador-seminovos.adapter.js"
+# SIMLIVE1: test-harness-only path fix (same class of fix as V2-INT-01
+# in simulador-novos-governed-authority-test.py) -- see
+# simulador-novos-parity-test.py's identical note.
+ADAPTER_SHARED = "C:/Projetos/PORTAL-FI-DESIGN-LAB/portal-next-v2-final-uat/assets/js/adapters/simulador-shared.adapter.js"
+ADAPTER_SEMINOVOS = "C:/Projetos/PORTAL-FI-DESIGN-LAB/portal-next-v2-final-uat/assets/js/adapters/simulador-seminovos.adapter.js"
 
 CENT = 0.005
 

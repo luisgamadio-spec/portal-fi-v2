@@ -13,6 +13,7 @@
   var CAMP = window.NX_CAMPANHA_ADAPTER;
   var CC = window.NX_CASH_CONVERSION_ADAPTER;
   var GOVERNED = window.NX_COPARTICIPADO_GOVERNED_RATES_PROVIDER;
+  var RATES = window.NX_SIMULADOR_RATES_PROVIDER;
 
   /* ---------- V2_SIMULADOR_NOVOS_GOVERNED_AUTHORITY_MIGRATION ----------
      "Plano Coparticipado" (mode 'campanha') financial authority (model
@@ -97,6 +98,235 @@
       campLoadPromise = null;
     });
     return campLoadPromise;
+  }
+
+  /* ---------- SIMLIVE1 (migrate simulator live rate authorities) ----------
+     Generic version of the exact same IDLE/LOADING/READY/ERROR +
+     lazy-fetch-once-cache-for-session pattern ensureCampAuthority()
+     above already established for Plano Coparticipado, reused here for
+     every other mode that gets a real live rate/coefficient authority
+     (V1 evidence: modules/simulador-novos.html's 7 SB_LOADER.carregar()
+     call sites — portal-financiamento-brabus-secure). One instance per
+     RPC; `transform(linhas)` reshapes the raw rows into whatever shape
+     that mode's pure calcularXxx() expects (mirrors each V1
+     carregarBaseX()'s own row->table mapping) and must return a falsy
+     value to signal "unusable payload" (counted as failure, same as a
+     network/auth error — fail closed, never an empty/partial table
+     silently reaching a calculation). No RPC-caller params (V1's own
+     RPCs take none — scope is server-derived from auth.uid()). */
+  // `fallbackAuthority` (optional, 5th arg): see the AUTH_NOT_CONFIGURED
+  // branch inside ensure() below for what this is and is NOT used for.
+  function makeAuthority(rpcName, camposNumericos, camposTexto, transform, fallbackAuthority) {
+    var state = 'IDLE'; // IDLE | LOADING | READY | ERROR
+    var authority = null;
+    var loadPromise = null;
+    function ensure() {
+      if (state === 'READY' && authority) return Promise.resolve(authority);
+      if (loadPromise) return loadPromise;
+      // AUTH_NOT_CONFIGURED (auth-core.js STATES.AUTH_NOT_CONFIGURED):
+      // no real Supabase credentials exist anywhere for THIS
+      // environment at all -- not a real user hitting a real backend
+      // failure. This is a pre-existing, pervasive V2 distinction
+      // (auth-boundary.js's own comment: "an unconfigured-vs-configured
+      // distinction, not a bypass of a real system"; intelligence-
+      // panel.js already treats this state as pass-through:
+      // `if (state === STATES.AUTH_NOT_CONFIGURED) authorized = true`).
+      // ONLY in this specific state do we fall through to the frozen
+      // _FALLBACK table (byte-identical pre-migration behavior)
+      // WITHOUT ever attempting the network call -- this is the one,
+      // narrow, explicitly-justified deviation from "never use
+      // _FALLBACK as a silent runtime fallback" (SIMLIVE1 Phase 4).
+      // Once real credentials ARE configured (isAuthConfigured===true,
+      // every real host including production), this branch never runs
+      // again and a genuine backend failure always fails closed below
+      // -- no Calcular, explicit error + retry, exactly like Plano
+      // Coparticipado's own ensureCampAuthority().
+      if (fallbackAuthority && (!window.NX_AUTH || !window.NX_AUTH.isAuthConfigured)) {
+        authority = fallbackAuthority;
+        state = 'READY';
+        return Promise.resolve(authority);
+      }
+      state = 'LOADING';
+      loadPromise = RATES.loadRateAuthority(rpcName, function (linhas) {
+        return RATES.linhasValidas(linhas, camposNumericos, camposTexto);
+      }, {}).then(function (body) {
+        var built = transform(body.linhas);
+        if (!built) return Promise.reject({ state: 'BACKEND_ERROR', message: 'Base de taxas retornou sem dados utilizáveis.' });
+        authority = built;
+        state = 'READY';
+        return authority;
+      }).catch(function (err) {
+        authority = null;
+        state = 'ERROR';
+        return Promise.reject(err);
+      }).finally(function () {
+        loadPromise = null;
+      });
+      return loadPromise;
+    }
+    return {
+      ensure: ensure,
+      getState: function () { return state; },
+      getAuthority: function () { return authority; }
+    };
+  }
+
+  var RATE_FAIL_MSG = 'Não foi possível carregar as condições vigentes do simulador. Tente novamente.';
+
+  // BALAO_ZEROKM: shared by 'tradicional' and 'periodico' (V1's own
+  // carregarBaseBalaoZeroKm() feeds both tabelaTradicional/tabelaPeriodica
+  // from ONE fetch) — one authority instance, two consuming modes.
+  var tradPeriodAuthority = makeAuthority('simulador_get_balao_zerokm', ['entrada_minima', 'prazo', 'max_balao', 'taxa'], ['bloco'], function (linhas) {
+    var mapear = function (x) { return { entrada: x.entrada_minima, prazo: x.prazo, max: x.max_balao, taxa: x.taxa }; };
+    var tradicional = linhas.filter(function (x) { return x.bloco === 'TRADICIONAL'; }).map(mapear);
+    var periodica = linhas.filter(function (x) { return x.bloco === 'SEMESTRAL_ANUAL'; }).map(mapear);
+    return (tradicional.length || periodica.length) ? { tradicional: tradicional, periodica: periodica } : null;
+  }, { tradicional: N._internal.tabelaTradicional_FALLBACK, periodica: N._internal.tabelaPeriodica_FALLBACK });
+  var linearAuthority = makeAuthority('simulador_get_linear_zerokm', ['prazo', 'entrada_pct', 'taxa'], [], function (linhas) {
+    var t = linhas.map(function (x) { return { prazo: x.prazo, entrada: x.entrada_pct, taxa: x.taxa }; });
+    return t.length ? t : null;
+  }, N._internal.tabelaLinear_FALLBACK);
+  var subsidiadasAuthority = makeAuthority('simulador_get_taxas_subsidiadas', ['prazo', 'taxa', 'coeficiente', 'rebate'], [], function (linhas) {
+    var t = linhas.map(function (x) { return { prazo: x.prazo, taxa: x.taxa, coef: x.coeficiente, rebate: x.rebate }; });
+    return t.length ? t : null;
+  }, N._internal.tabelaRebates_FALLBACK);
+  var tritonAuthority = makeAuthority('simulador_get_semestral_triton_outlander', ['rebate_total', 'rebate_hpe', 'rebate_brabus', 'entrada_minima'], ['modelo'], function (linhas) {
+    var mapa = {};
+    linhas.forEach(function (x) { mapa[x.modelo] = { rebateTotal: x.rebate_total, hpeShare: x.rebate_hpe, brabusShare: x.rebate_brabus, entradaMinima: x.entrada_minima }; });
+    var modelNames = Object.keys(mapa).sort();
+    return modelNames.length ? { modelos: mapa, modelNames: modelNames } : null;
+  }, { modelos: N._internal.MODELOS_TRITON_FALLBACK, modelNames: Object.keys(N._internal.MODELOS_TRITON_FALLBACK).sort() });
+  var antecipacaoAuthority = makeAuthority('simulador_get_antecipacao', ['meses_antecipacao', 'desconto'], [], function (linhas) {
+    var mapa = {};
+    linhas.forEach(function (x) { mapa[String(x.meses_antecipacao)] = x.desconto; });
+    return Object.keys(mapa).length ? mapa : null;
+  }, N._internal.tabelaAntecipacao_FALLBACK);
+  // TAXA_BOTAO ("Copiar Taxa Banco", SIMLIVE1 Phase 7) — independent of
+  // subsidiadasAuthority (V1 comment: "Base independente de
+  // tabelaRebates — migrar só isto, não tocar tabelaRebates"), loaded
+  // lazily the same way, but gates only its own small widget inside the
+  // 'subsidiadas' screen, never the screen's own Calcular button. No
+  // adapter-level _FALLBACK existed for this (V2 never had this
+  // widget before SIMLIVE1) -- taxasBancoCopiar_FALLBACK below is
+  // V1's own exact hardcoded map (modules/simulador-novos.html,
+  // portal-financiamento-brabus-secure), used only as the
+  // AUTH_NOT_CONFIGURED fallback and as this file's own parity fixture.
+  var taxasBancoCopiar_FALLBACK = {
+    12: 0.01783, 15: 0.01785, 18: 0.01785, 24: 0.01633,
+    30: 0.01662, 36: 0.01661, 48: 0.01559, 60: 0.01558
+  };
+  var taxaBotaoAuthority = makeAuthority('simulador_get_taxa_botao', ['prazo', 'taxa_copiar'], [], function (linhas) {
+    var mapa = {};
+    linhas.forEach(function (x) { mapa[x.prazo] = x.taxa_copiar; });
+    return Object.keys(mapa).length ? mapa : null;
+  }, taxasBancoCopiar_FALLBACK);
+
+  // Shared gate used by formHtml()/wireForm() for every live-authority
+  // mode below — same visual language as Plano Coparticipado's own
+  // loading/error block (UI.emptyBlock while loading, UI.errorBlock +
+  // "Tentar novamente" on failure), reused rather than reinvented.
+  function authorityGateHtml(authority) {
+    if (authority.getState() === 'ERROR') {
+      return UI.errorBlock(RATE_FAIL_MSG) +
+        '<button type="button" class="btn btn-secondary" id="nRateRetry" style="width:100%;margin-top:6px">Tentar novamente</button>';
+    }
+    return UI.emptyBlock('Carregando condições vigentes do simulador...');
+  }
+  // Returns true when the mode's own form should wire normally
+  // (authority READY); otherwise kicks off the fetch (IDLE) or wires
+  // the retry button (ERROR) and returns false. `mode` is captured so
+  // a late-arriving response never re-renders a screen the user has
+  // since navigated away from (same guard as refreshCampArea()).
+  function wireAuthorityGate(authority, mode) {
+    function refresh() { if (currentMode === mode) renderModeArea(); }
+    if (authority.getState() === 'ERROR') {
+      var retryBtn = document.getElementById('nRateRetry');
+      if (retryBtn) retryBtn.addEventListener('click', function () { authority.ensure().then(refresh, refresh); });
+      return false;
+    }
+    if (authority.getState() !== 'READY') {
+      authority.ensure().then(refresh, refresh);
+      return false;
+    }
+    return true;
+  }
+
+  /* ---------- SIMLIVE1 Phase 7: "Copiar Taxa Banco" widget ----------
+     V1 evidence: modules/simulador-novos.html's TAXA_BOTAO block
+     (portal-financiamento-brabus-secure) — a prazo-select + "Copiar
+     Taxa" button on the SAME Taxas Subsidiadas screen, backed by
+     simulador_get_taxa_botao (confirmed live, granted to
+     `authenticated`), distinct from tabelaRebates/subsidiadasAuthority.
+     Independent widget region (#nBankRateWidgetRegion, rendered inside
+     the 'subsidiadas' form) with its OWN loading/error/ready state —
+     never blocks Taxas Subsidiadas' own Calcular. Only the formatted
+     rate is ever shown/copied — no raw RPC payload exposed. */
+  function bankRateWidgetHtml() {
+    var st = taxaBotaoAuthority.getState();
+    if (st === 'ERROR') {
+      return '<div class="smBankRateWidget"><p class="kpiLabel">Copiar Taxa Banco</p>' +
+        UI.errorBlock(RATE_FAIL_MSG) +
+        '<button type="button" class="btn btn-secondary btn-sm" id="nBankRateRetry">Tentar novamente</button></div>';
+    }
+    if (st !== 'READY') {
+      return '<div class="smBankRateWidget"><p class="kpiLabel">Copiar Taxa Banco</p>' + UI.emptyBlock('Carregando taxas...') + '</div>';
+    }
+    var mapa = taxaBotaoAuthority.getAuthority() || {};
+    var prazos = Object.keys(mapa).map(Number).sort(function (a, b) { return a - b; });
+    return '<div class="smBankRateWidget"><p class="kpiLabel">Copiar Taxa Banco</p>' +
+      UI.selectField('nBankRatePrazo', 'Prazo', prazos.map(function (p) { return { value: p, label: p + 'x' }; }), prazos[0]) +
+      '<button type="button" class="btn btn-secondary" id="nBankRateCopyBtn" style="width:100%;margin-top:6px">Copiar Taxa</button>' +
+      '<span class="hint" id="nBankRateMsg" role="status" aria-live="polite"></span></div>';
+  }
+  function refreshBankRateWidget() {
+    if (currentMode !== 'subsidiadas') return;
+    var el = document.getElementById('nBankRateWidgetRegion');
+    if (!el) return;
+    el.innerHTML = bankRateWidgetHtml();
+    wireBankRateWidget();
+  }
+  function formatTaxaBancoCopy(v) {
+    return (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + '%';
+  }
+  function copiarTaxaBanco() {
+    var select = document.getElementById('nBankRatePrazo');
+    var msg = document.getElementById('nBankRateMsg');
+    if (!select) return;
+    var mapa = taxaBotaoAuthority.getAuthority() || {};
+    var taxa = mapa[Number(select.value)];
+    if (taxa == null) { if (msg) msg.textContent = 'Selecione um prazo válido.'; return; }
+    var texto = formatTaxaBancoCopy(taxa);
+    var done = function () { if (msg) msg.textContent = 'Taxa ' + texto + ' copiada com sucesso!'; };
+    var fail = function () { if (msg) msg.textContent = 'Não foi possível copiar automaticamente. Taxa: ' + texto; };
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(texto).then(done, fail);
+      } else {
+        var temp = document.createElement('textarea');
+        temp.value = texto;
+        temp.setAttribute('readonly', '');
+        temp.style.position = 'fixed';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        temp.select();
+        try { document.execCommand('copy'); done(); } catch (e) { fail(); }
+        document.body.removeChild(temp);
+      }
+    } catch (e) { fail(); }
+  }
+  function wireBankRateWidget() {
+    var st = taxaBotaoAuthority.getState();
+    if (st === 'IDLE') { taxaBotaoAuthority.ensure().then(refreshBankRateWidget, refreshBankRateWidget); return; }
+    if (st === 'ERROR') {
+      var retryBtn = document.getElementById('nBankRateRetry');
+      if (retryBtn) retryBtn.addEventListener('click', function () { taxaBotaoAuthority.ensure().then(refreshBankRateWidget, refreshBankRateWidget); });
+      return;
+    }
+    if (st !== 'READY') return;
+    var copyBtn = document.getElementById('nBankRateCopyBtn');
+    if (copyBtn) copyBtn.addEventListener('click', copiarTaxaBanco);
+    var prazoSel = document.getElementById('nBankRatePrazo');
+    if (prazoSel) prazoSel.addEventListener('change', function () { var msg = document.getElementById('nBankRateMsg'); if (msg) msg.textContent = ''; });
   }
 
   var MODES = [
@@ -421,6 +651,9 @@
   function formHtml(mode) {
     switch (mode) {
       case 'tradicional':
+        // SIMLIVE1: gated on tradPeriodAuthority (simulador_get_balao_zerokm)
+        // -- fail-closed, same pattern as 'campanha' below.
+        if (tradPeriodAuthority.getState() !== 'READY') return authorityGateHtml(tradPeriodAuthority);
         return UI.moneyField('nBem', 'Valor do bem', 'R$ 100.000,00') +
           UI.moneyField('nEntrada', 'Entrada', 'R$ 20.000,00') +
           termGridFieldHtml('nPrazo', 'Prazo', TRAD_TERMS, 48) +
@@ -429,16 +662,24 @@
           '<button type="button" class="btn btn-secondary btn-sm" id="nAddBalao">+ Adicionar balão</button></div>' +
           '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'periodico':
+        // SIMLIVE1: SAME authority as 'tradicional' (one shared fetch,
+        // mirroring V1's own carregarBaseBalaoZeroKm()).
+        if (tradPeriodAuthority.getState() !== 'READY') return authorityGateHtml(tradPeriodAuthority);
         return UI.moneyField('nBem', 'Valor do bem', 'R$ 100.000,00') +
           UI.moneyField('nEntrada', 'Entrada', 'R$ 20.000,00') +
           termGridFieldHtml('nPrazo', 'Prazo', PERIOD_TERMS, 48) +
           UI.segmentedField('nTipo', 'Periodicidade', [{ value: 'semestral', label: 'Semestral' }, { value: 'anual', label: 'Anual' }], 'semestral') +
           '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'parcelaunica':
+        // V1_STATIC_AUTHORITY_CONFIRMED -- V1 has no RPC for this block
+        // ("ACTIVE base has no coefficient column for that block"),
+        // permanently hardcoded even in V1. Untouched.
         return UI.moneyField('nBem', 'Valor do bem', 'R$ 100.000,00') +
           UI.moneyField('nEntrada', 'Entrada', 'R$ 50.000,00') +
           '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'linear':
+        // SIMLIVE1: gated on linearAuthority (simulador_get_linear_zerokm).
+        if (linearAuthority.getState() !== 'READY') return authorityGateHtml(linearAuthority);
         return UI.moneyField('nBem', 'Valor do bem', 'R$ 100.000,00') +
           UI.moneyField('nEntrada', 'Entrada', 'R$ 20.000,00', 'Recalcula automaticamente, sem botão Calcular (comportamento original).');
       case 'campanha':
@@ -458,13 +699,28 @@
           UI.moneyField('nEntry', 'Entrada', 'R$ 120.000,00') +
           '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'subsidiadas':
+        // SIMLIVE1: gated on subsidiadasAuthority (simulador_get_taxas_subsidiadas).
+        // The "Copiar Taxa Banco" widget (Phase 7) below is a SEPARATE,
+        // independent authority (taxaBotaoAuthority) -- it never blocks
+        // this screen's own Calcular; see bankRateWidgetHtml().
+        if (subsidiadasAuthority.getState() !== 'READY') return authorityGateHtml(subsidiadasAuthority);
         return UI.moneyField('nBem', 'Valor do bem', 'R$ 100.000,00') +
           UI.moneyField('nEntrada', 'Entrada', 'R$ 50.000,00') +
           UI.moneyField('nMinVenda', 'Valor mínimo de venda (opcional)', '') +
-          '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>';
+          '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>' +
+          '<div id="nBankRateWidgetRegion">' + bankRateWidgetHtml() + '</div>';
       case 'triton':
-        return UI.selectField('nModelo', 'Modelo', TRITON_MODELS.map(function (m) { return { value: m, label: m }; }), 'TRITON HPE') +
-          UI.moneyField('nBem', 'Valor de venda', 'R$ 200.000,00', 'Entrada fixa de 60% — não editável.') +
+        // SIMLIVE1: gated on tritonAuthority (simulador_get_semestral_
+        // triton_outlander). Model <select> options come EXCLUSIVELY from
+        // the live authority.modelNames (never the hardcoded TRITON_MODELS
+        // list) -- same "governed authority is the only source of model
+        // options" rule 'campanha' already established, and the only way
+        // Outlander HPE-S/SIGNATURE (ACTIVE-only, not in any _FALLBACK) can
+        // ever appear.
+        if (tritonAuthority.getState() !== 'READY') return authorityGateHtml(tritonAuthority);
+        var tritonNames = tritonAuthority.getAuthority().modelNames;
+        return UI.selectField('nModelo', 'Modelo', tritonNames.map(function (m) { return { value: m, label: m }; }), tritonNames[0]) +
+          UI.moneyField('nBem', 'Valor de venda', 'R$ 200.000,00', 'Entrada mínima definida pela base vigente — não editável.') +
           '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'descobridor':
         return UI.moneyField('nFinanciado', 'Valor financiado', 'R$ 80.000,00') +
@@ -472,6 +728,8 @@
           UI.moneyField('nParcela', 'Parcela', 'R$ 2.200,00') +
           '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'antecipacao':
+        // SIMLIVE1: gated on antecipacaoAuthority (simulador_get_antecipacao).
+        if (antecipacaoAuthority.getState() !== 'READY') return authorityGateHtml(antecipacaoAuthority);
         return UI.numberField('nPrazoNum', 'Prazo (meses)', 48, { min: 1, max: 60 }) +
           UI.moneyField('nParcela', 'Valor da parcela mensal', 'R$ 2.000,00') +
           UI.dateField('nPrimeira', 'Data da primeira parcela', '') +
@@ -524,17 +782,20 @@
 
   function wireForm(mode) {
     if (mode === 'tradicional') {
+      if (!wireAuthorityGate(tradPeriodAuthority, mode)) return;
       renderBaloesList();
       document.getElementById('nAddBalao').addEventListener('click', function () { balloons.push({ mes: null, valor: 0, valorText: '' }); renderBaloesList(); });
       wireTermGrid('nPrazo', TRAD_TERMS.length);
       document.getElementById('nCalc').addEventListener('click', function () { calcTradicional(); });
     } else if (mode === 'periodico') {
+      if (!wireAuthorityGate(tradPeriodAuthority, mode)) return;
       wireTermGrid('nPrazo', PERIOD_TERMS.length);
       UI.wireSegmented('nTipo', function () {});
       document.getElementById('nCalc').addEventListener('click', calcPeriodico);
     } else if (mode === 'parcelaunica') {
       document.getElementById('nCalc').addEventListener('click', runParcelaUnica);
     } else if (mode === 'linear') {
+      if (!wireAuthorityGate(linearAuthority, mode)) return;
       UI.wireMoneyMask('nBem', calcLinear);
       UI.wireMoneyMask('nEntrada', calcLinear);
       calcLinear();
@@ -548,12 +809,16 @@
         document.getElementById('nCalc').addEventListener('click', calcCampanha);
       }
     } else if (mode === 'subsidiadas') {
+      if (!wireAuthorityGate(subsidiadasAuthority, mode)) return;
       document.getElementById('nCalc').addEventListener('click', calcSubsidiadas);
+      wireBankRateWidget();
     } else if (mode === 'triton') {
+      if (!wireAuthorityGate(tritonAuthority, mode)) return;
       document.getElementById('nCalc').addEventListener('click', calcTriton);
     } else if (mode === 'descobridor') {
       document.getElementById('nCalc').addEventListener('click', calcDescobridor);
     } else if (mode === 'antecipacao') {
+      if (!wireAuthorityGate(antecipacaoAuthority, mode)) return;
       document.getElementById('nAntExtra').innerHTML = antExtraHtml('todo');
       UI.wireSegmented('nTipoAnt', function (v) { document.getElementById('nAntExtra').innerHTML = antExtraHtml(v); });
       document.getElementById('nCalc').addEventListener('click', calcAntecipacao);
@@ -621,10 +886,12 @@
   /* ---------- calculations (adapter calls only) ---------- */
   function calcTradicional() {
     var validBaloes = balloons.filter(function (b) { return b.mes && b.valor; }).map(function (b) { return { mes: b.mes, valor: b.valor }; });
+    var tradAuth = tradPeriodAuthority.getAuthority();
     var r = N.calcularTradicional({
       bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'),
       prazo: Number(UI.getSegmentedValue('nPrazo')),
-      baloes: validBaloes
+      baloes: validBaloes,
+      tabelaTradicional: tradAuth ? tradAuth.tradicional : undefined
     });
     if (r.empty) { setResult(UI.emptyBlock('Preencha os campos e clique em Calcular.')); return; }
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error))); return; }
@@ -638,7 +905,8 @@
     setResult(html);
   }
   function calcPeriodico() {
-    var r = N.calcularPeriodico({ bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'), prazo: Number(UI.getSegmentedValue('nPrazo')), tipo: UI.getSegmentedValue('nTipo') });
+    var periodAuth = tradPeriodAuthority.getAuthority();
+    var r = N.calcularPeriodico({ bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'), prazo: Number(UI.getSegmentedValue('nPrazo')), tipo: UI.getSegmentedValue('nTipo'), tabelaPeriodica: periodAuth ? periodAuth.periodica : undefined });
     if (r.empty) { setResult(UI.emptyBlock('Preencha os campos e clique em Calcular.')); return; }
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error) + (r.minEntrada != null ? ' Mínimo: ' + UI.pct1(r.minEntrada) + '.' : ''))); return; }
     var tipo = UI.getSegmentedValue('nTipo');
@@ -673,7 +941,7 @@
     setResult(html);
   }
   function calcLinear() {
-    var r = N.calcularLinear({ bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada') });
+    var r = N.calcularLinear({ bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'), tabelaLinear: linearAuthority.getAuthority() });
     if (r.empty) { setResult(UI.emptyBlock('Preencha o valor do bem e a entrada para visualizar todos os prazos.')); return; }
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error))); return; }
     var valid = r.itens.filter(function (x) { return x.parcela > 0; });
@@ -715,7 +983,7 @@
     wireResultTermGrid(r.terms.length);
   }
   function calcSubsidiadas() {
-    var r = N.calcularSubsidiadas({ bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'), minVenda: UI.moneyVal('nMinVenda') });
+    var r = N.calcularSubsidiadas({ bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'), minVenda: UI.moneyVal('nMinVenda'), tabelaRebates: subsidiadasAuthority.getAuthority() });
     if (r.empty) { setResult(UI.emptyBlock('Preencha os campos e clique em Calcular.')); return; }
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error))); return; }
     // PORTAL-NEXT-08.3 Change 5 (Gates 16-22): replaced the large
@@ -758,7 +1026,8 @@
       '<p class="smFootnote">Rebate é o custo comercial da taxa subsidiada — nunca um desconto concedido ao cliente. Valor final de venda já considera o valor líquido para a loja.</p>');
   }
   function calcTriton() {
-    var r = N.calcularSemestralTriton({ bem: UI.moneyVal('nBem'), modelo: UI.textVal('nModelo') });
+    var tritonAuth = tritonAuthority.getAuthority();
+    var r = N.calcularSemestralTriton({ bem: UI.moneyVal('nBem'), modelo: UI.textVal('nModelo'), modelosTriton: tritonAuth ? tritonAuth.modelos : undefined });
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error) || 'Informe o valor de venda para calcular a campanha.')); return; }
     var html = UI.resultHero('Parcela (4x semestrais)', r.parcela);
     html += UI.secondaryGrid([
@@ -791,7 +1060,8 @@
       prazo: UI.numVal('nPrazoNum'), parcela: UI.moneyVal('nParcela'),
       primeiraParcela: UI.textVal('nPrimeira') ? new Date(UI.textVal('nPrimeira') + 'T00:00:00') : null,
       dataAntecipacao: UI.textVal('nData') ? new Date(UI.textVal('nData') + 'T00:00:00') : null,
-      tipo: tipo, de: UI.numVal('nDe'), ate: UI.numVal('nAte'), parcelaUnica: UI.numVal('nParcelaUnicaNum'), baloes: []
+      tipo: tipo, de: UI.numVal('nDe'), ate: UI.numVal('nAte'), parcelaUnica: UI.numVal('nParcelaUnicaNum'), baloes: [],
+      tabelaAntecipacao: antecipacaoAuthority.getAuthority()
     });
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error))); return; }
     var rows = r.rows.map(function (row) {

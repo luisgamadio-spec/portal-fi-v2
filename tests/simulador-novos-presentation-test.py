@@ -21,7 +21,11 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-URL = "http://localhost:8700/portal-next-v2/index.html#/simulador-novos"
+# SIMLIVE1: test-harness-only path fix (same class of fix as V2-INT-01
+# in simulador-novos-governed-authority-test.py) -- was hardcoded to
+# the OLD sibling "portal-next-v2" checkout (unrelated repo/branch);
+# pointed at this worktree's own folder name, 0 assertion changed.
+URL = "http://localhost:8700/portal-next-v2-final-uat/index.html#/simulador-novos"
 
 
 def brl_to_float(s):

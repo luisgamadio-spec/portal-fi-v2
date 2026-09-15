@@ -20,7 +20,9 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-URL = "http://localhost:8700/portal-next-v2/index.html#/simulador-seminovos"
+# SIMLIVE1: test-harness-only path fix -- see simulador-novos-
+# presentation-test.py's identical note (same class of fix as V2-INT-01).
+URL = "http://localhost:8700/portal-next-v2-final-uat/index.html#/simulador-seminovos"
 
 
 def brl_to_float(s):
