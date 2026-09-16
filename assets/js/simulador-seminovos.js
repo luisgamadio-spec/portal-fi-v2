@@ -192,6 +192,19 @@
   // from Novos' 4, not a guess; Human-confirmed BALAO-LIMIT-1 Wave).
   var MAX_BALOES = 2;
   var balloons = [];
+  // ANTECIPACAO-BALAO-1: restores Secure parity for the Antecipação
+  // simulator's OWN, separate balloon feature (modules/simulador-
+  // seminovos.html #aTemBalao/#aQtdBaloes, "Limite máximo: 8 balões.")
+  // -- NOT the same rule/state as the Tradicional plan's MAX_BALOES
+  // above (proven, not assumed: Secure's own antecipação screen caps
+  // at 8, shared identically with Novos, unrelated to the regular
+  // financing max of 4/2). The extracted calcularAntecipacao() engine
+  // (assets/js/adapters/simulador-seminovos.adapter.js) already fully
+  // implements balloon handling byte-for-byte matching Secure's own
+  // calcAntecipacao() -- this Wave restores only the missing UI/state
+  // bridge, never touches the engine.
+  var ANT_BALAO_MAX = 8;
+  var antBaloes = []; // {mes, valor} for Antecipação
   // SIM-NAV-4 / Concept F.2 (Human-approved final authority,
   // SIM_NAV_F2_HUMAN_APPROVED) -- which category group is currently
   // expanded; null = all collapsed (the default on every page load).
@@ -368,6 +381,7 @@
   function switchMode(id) {
     currentMode = id;
     balloons = [];
+    antBaloes = [];
     document.getElementById('smModeNavRegion').innerHTML = modeNavHtml();
     wireModeNav();
     renderModeArea();
@@ -475,7 +489,10 @@
           UI.dateField('sData', 'Data desejada para antecipação', '') +
           UI.segmentedField('sTipoAnt', 'O que antecipar', [{ value: 'todo', label: 'Contrato todo' }, { value: 'algumas', label: 'Algumas parcelas' }, { value: 'uma', label: 'Uma parcela' }], 'todo') +
           '<div id="sAntExtra"></div>' +
-          '<span class="hint">Balões não são suportados nesta versão da interface (o motor extraído suporta; ver limitações conhecidas).</span>' +
+          UI.segmentedField('sAntTemBalao', 'Existem balões neste financiamento?', [{ value: 'nao', label: 'Não' }, { value: 'sim', label: 'Sim' }], 'nao') +
+          '<div class="field" id="sAntQtdBox" hidden>' + UI.selectField('sAntQtdBaloes', 'Quantidade de balões', antBaloesQtdOptions(), '0') +
+          '<span class="hint">Limite máximo: ' + ANT_BALAO_MAX + ' balões.</span></div>' +
+          '<div class="smBalloonList" id="sAntBaloesList"></div>' +
           '<button type="button" class="btn btn-primary" id="sCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'cashconversion':
         return UI.moneyField('sCapital', 'Capital', 'R$ 100.000,00') +
@@ -527,6 +544,49 @@
     }
   }
 
+  function antBaloesQtdOptions() {
+    var opts = [{ value: '0', label: '0' }];
+    for (var i = 1; i <= ANT_BALAO_MAX; i++) opts.push({ value: String(i), label: i === 1 ? '1 balão' : i + ' balões' });
+    return opts;
+  }
+
+  // ANTECIPACAO-BALAO-1: mirrors Secure's own renderAntecipacaoBaloes()
+  // exactly -- a fixed-quantity, regenerate-on-change pattern (NOT the
+  // Tradicional plan's incremental add/remove above): switching "Existem
+  // balões?" or the quantity always rebuilds blank rows, discarding any
+  // previously entered values (byte-proven against modules/simulador-
+  // seminovos.html's own `const qtd=...; for(let i=1;i<=qtd;i++) ...`
+  // loop -- no previous value carried over there either). antBaloes is
+  // the one canonical state authority for this feature -- input
+  // listeners below keep it in sync; calcAntecipacao() reads only from it.
+  function renderAntBaloesList() {
+    var list = document.getElementById('sAntBaloesList');
+    if (!list) return;
+    var sim = UI.getSegmentedValue('sAntTemBalao') === 'sim';
+    var box = document.getElementById('sAntQtdBox');
+    if (box) box.hidden = !sim;
+    var qtdSel = document.getElementById('sAntQtdBaloes');
+    var qtd = sim ? Number((qtdSel && qtdSel.value) || 0) : 0;
+    antBaloes = [];
+    for (var i = 0; i < qtd; i++) antBaloes.push({ mes: null, valor: 0, valorText: '' });
+    list.innerHTML = antBaloes.map(function (b, idx) {
+      return '<div class="smBalloonRow">' +
+        '<div class="field"><label>Mês/parcela do balão ' + (idx + 1) + '</label><input class="input mono" type="number" min="1" max="60" data-abidx="' + idx + '" data-abfield="mes" value=""></div>' +
+        '<div class="field"><label>Valor do balão ' + (idx + 1) + '</label><div class="inputAffix"><span class="prefix">R$</span><input class="input mono" data-abidx="' + idx + '" data-abfield="valor" value=""></div></div>' +
+        '</div>';
+    }).join('');
+    list.querySelectorAll('[data-abidx]').forEach(function (el) {
+      el.addEventListener('input', function () {
+        var idx = Number(el.getAttribute('data-abidx')), field = el.getAttribute('data-abfield');
+        if (field === 'mes') antBaloes[idx].mes = Number(el.value) || 0;
+        else { antBaloes[idx].valorText = el.value; antBaloes[idx].valor = S.parseBRL(el.value); }
+      });
+      el.addEventListener('blur', function () {
+        if (el.getAttribute('data-abfield') === 'valor') el.value = UI.brlDigits(S.parseBRL(el.value));
+      });
+    });
+  }
+
   function wireForm(mode) {
     if (mode === 'tradicional') {
       if (!wireAuthorityGate(tradAuthority, mode)) return;
@@ -549,6 +609,14 @@
       if (!wireAuthorityGate(antecipacaoAuthority, mode)) return;
       document.getElementById('sAntExtra').innerHTML = antExtraHtml('todo');
       UI.wireSegmented('sTipoAnt', function (v) { document.getElementById('sAntExtra').innerHTML = antExtraHtml(v); });
+      // ANTECIPACAO-BALAO-1: mirrors Secure's own change-wiring
+      // (aTemBalao/aQtdBaloes both call renderAntecipacaoBaloes() then
+      // recalculate) -- initial render always starts at "Não"/0, same
+      // as Secure's own default.
+      renderAntBaloesList();
+      UI.wireSegmented('sAntTemBalao', function () { renderAntBaloesList(); });
+      var antQtdSel = document.getElementById('sAntQtdBaloes');
+      if (antQtdSel) antQtdSel.addEventListener('change', function () { renderAntBaloesList(); });
       document.getElementById('sCalc').addEventListener('click', calcAntecipacao);
     } else if (mode === 'cashconversion') {
       document.getElementById('sCalc').addEventListener('click', calcCashConversion);
@@ -626,19 +694,34 @@
   }
   function calcAntecipacao() {
     var tipo = UI.getSegmentedValue('sTipoAnt');
+    // ANTECIPACAO-BALAO-1: real balloon data now reaches the engine
+    // (was hardcoded `baloes: []` -- the root cause of the missing
+    // feature; calcularAntecipacao() itself already validates range/
+    // duplicate/value via BALAO_FORA_DO_PRAZO/BALAO_DUPLICADO/
+    // BALAO_VALOR_INVALIDO, unchanged). Same filter + defensive cap
+    // pattern already established for the Tradicional plan (BALAO-
+    // LIMIT-1): only rows with both a month and a value participate.
+    var validAntBaloes = antBaloes.filter(function (b) { return b.mes && b.valor; }).slice(0, ANT_BALAO_MAX).map(function (b) { return { mes: b.mes, valor: b.valor }; });
     var r = SN.calcularAntecipacao({
       prazo: UI.numVal('sPrazoNum'), parcela: UI.moneyVal('sParcela'),
       primeiraParcela: UI.textVal('sPrimeira') ? new Date(UI.textVal('sPrimeira') + 'T00:00:00') : null,
       dataAntecipacao: UI.textVal('sData') ? new Date(UI.textVal('sData') + 'T00:00:00') : null,
-      tipo: tipo, de: UI.numVal('sDe'), ate: UI.numVal('sAte'), parcelaUnica: UI.numVal('sParcelaUnicaNum'), baloes: [],
+      tipo: tipo, de: UI.numVal('sDe'), ate: UI.numVal('sAte'), parcelaUnica: UI.numVal('sParcelaUnicaNum'), baloes: validAntBaloes,
       tabelaAntecipacao: antecipacaoAuthority.getAuthority()
     });
     if (r.error) { setResult(UI.errorBlock(errMsg(r.error))); return; }
     var rows = r.rows.map(function (row) {
-      return '<tr><td>Parcela ' + row.num + '</td><td>' + row.venc.toLocaleDateString('pt-BR') + '</td><td class="num">' + UI.brl(row.bruto) + '</td><td class="num">' + UI.pct2(row.desconto) + '</td><td class="num">' + UI.brl(row.final) + '</td></tr>';
+      // ANTECIPACAO-BALAO-1: identifies balloon rows explicitly (row.tipo,
+      // already computed by the unmodified engine) -- Secure's own result
+      // table does the same. Plain-text parenthetical suffix, matching
+      // the existing convention already used elsewhere in this file, no
+      // new CSS component invented.
+      return '<tr><td>Parcela ' + row.num + (row.valorBalao > 0 ? ' (balão)' : '') + '</td><td>' + row.venc.toLocaleDateString('pt-BR') + '</td><td class="num">' + UI.brl(row.bruto) + '</td><td class="num">' + UI.pct2(row.desconto) + '</td><td class="num">' + UI.brl(row.final) + '</td></tr>';
     }).join('');
     var html = UI.resultHero('Valor final com desconto', r.finalTotal);
-    html += UI.secondaryGrid([{ label: 'Valor bruto', value: UI.brl(r.brutoTotal) }, { label: 'Desconto total', value: UI.brl(r.descTotal) }, { label: 'Parcelas antecipadas', value: String(r.rows.length) }]);
+    var secondaryItems = [{ label: 'Valor bruto', value: UI.brl(r.brutoTotal) }, { label: 'Desconto total', value: UI.brl(r.descTotal) }, { label: 'Parcelas antecipadas', value: String(r.rows.length) }];
+    if (r.baloesTotal > 0) secondaryItems.push({ label: 'Total em balões', value: UI.brl(r.baloesTotal) });
+    html += UI.secondaryGrid(secondaryItems);
     if (r.missing) html = UI.warningBlock('Algumas parcelas não tinham percentual cadastrado na tabela e foram calculadas sem desconto.') + html;
     html += '<div class="smTableWrap"><table class="smTable"><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor bruto</th><th>Desconto</th><th>Valor final</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
     setResult(html);
@@ -661,6 +744,7 @@
     render: function (outlet) {
       currentMode = MODES[0].id;
       balloons = [];
+      antBaloes = [];
       openCategory = null; // SIM-NAV-4 / F.2: all categories collapsed on entry
       outlet.innerHTML =
         '<div class="smPage">' +
