@@ -93,6 +93,16 @@
   }
 
   var outletRef = null;
+  // SALFIX1: captured once per page mount (NX_SALARIOS_COMISSOES_PAGE.
+  // render(), below) using the same "capture now, compare on resolution"
+  // technique gestao.js's NAVFIX1 fix already established for the
+  // identical class of bug -- a late-resolving RPC from one of this
+  // module's 12 independent load* functions must never repaint the
+  // outlet after the user has navigated to a different module entirely.
+  // window.NX_ROUTER may not exist in this module's own isolated test
+  // harnesses -- mountRoute stays null there and every guard below
+  // becomes a no-op, preserving all existing harness-level tests.
+  var mountRoute = null;
   // RH-5B.1 (Human UX rejection of the RH-5B tabbed layout, "achei meio
   // confuso... mantem o modelo de apresentação que já tinhamos no
   // modelo secure"): the real V1/Secure module (showComissoesModule()/
@@ -252,6 +262,7 @@
     periodsState = 'LOADING';
     render(outletRef);
     return PROVIDER.loadCommissionPeriods().then(function (rows) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       periods = rows;
       periodsState = 'READY';
       // Gate 12 rule (documented): prefer the row flagged periodo_atual;
@@ -264,6 +275,7 @@
       render(outletRef);
       if (selectedPeriodId) return loadDashboard();
     }).catch(function () {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       periodsState = 'ERROR';
       render(outletRef);
     });
@@ -281,10 +293,12 @@
     commissionConfigState = 'LOADING';
     render(outletRef);
     return PROVIDER.loadPortalConfig().then(function (cfg) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       commissionConfig = cfg;
       commissionConfigState = 'READY';
       render(outletRef);
     }).catch(function () {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       commissionConfig = null;
       commissionConfigState = 'ERROR';
       render(outletRef);
@@ -301,10 +315,12 @@
     loadOwnCommission(period);
     loadScopeCommission(period);
     return PROVIDER.loadCommissionDashboardData(period.data_inicio, period.data_fim).then(function (result) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       dashboard = result;
       dashboardState = 'READY';
       render(outletRef);
     }).catch(function () {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       dashboard = null;
       dashboardState = 'ERROR';
       render(outletRef);
@@ -322,10 +338,12 @@
     gestorFiState = 'LOADING';
     render(outletRef);
     PROVIDER.loadGestorFiCommission(period.data_inicio, period.data_fim).then(function (result) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       gestorFi = result;
       gestorFiState = 'READY';
       render(outletRef);
     }).catch(function (err) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       gestorFi = null;
       gestorFiState = 'ERROR';
       gestorFiError = err;
@@ -341,10 +359,12 @@
     faixaRowsState = 'LOADING';
     render(outletRef);
     PROVIDER.loadCommissionFaixaRows(period.data_inicio, period.data_fim).then(function (result) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       faixaRows = result;
       faixaRowsState = 'READY';
       render(outletRef);
     }).catch(function (err) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       faixaRows = null;
       faixaRowsState = 'ERROR';
       faixaRowsError = err;
@@ -361,10 +381,12 @@
     ownCommissionState = 'LOADING';
     render(outletRef);
     PROVIDER.loadOwnCommissionSummary(period.data_inicio, period.data_fim).then(function (result) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       ownCommission = result;
       ownCommissionState = 'READY';
       render(outletRef);
     }).catch(function (err) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       ownCommission = null;
       ownCommissionState = 'ERROR';
       ownCommissionError = err;
@@ -378,10 +400,12 @@
     scopeCommissionState = 'LOADING';
     render(outletRef);
     PROVIDER.loadScopeCommissionRows(period.data_inicio, period.data_fim).then(function (result) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       scopeCommission = result;
       scopeCommissionState = 'READY';
       render(outletRef);
     }).catch(function (err) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       scopeCommission = null;
       scopeCommissionState = 'ERROR';
       scopeCommissionError = err;
@@ -475,11 +499,13 @@
     detailsModal = { sellerId: sellerId, sellerName: sellerName, state: 'LOADING', data: null, error: null };
     render(outletRef);
     PROVIDER.loadSalaryDetails(period.data_inicio, period.data_fim, sellerId).then(function (data) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       if (!detailsModal || detailsModal.sellerId !== sellerId) return;
       detailsModal.state = 'READY';
       detailsModal.data = data;
       render(outletRef);
     }).catch(function (err) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       if (!detailsModal || detailsModal.sellerId !== sellerId) return;
       detailsModal.state = 'ERROR';
       detailsModal.error = err;
@@ -516,6 +542,7 @@
     analystDetailsModal = { row: row, state: 'LOADING', data: null, error: null, operations: null };
     render(outletRef);
     PROVIDER.loadSalaryDetails(period.data_inicio, period.data_fim, null).then(function (data) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       if (!analystDetailsModal || analystDetailsModal.row !== row) return;
       var allRows = (data && data.rows) || [];
       var inWindow = function (dateStr, start, end) { return dateStr >= start && dateStr <= end; };
@@ -534,6 +561,7 @@
       analystDetailsModal.operations = filtered;
       render(outletRef);
     }).catch(function (err) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       if (!analystDetailsModal || analystDetailsModal.row !== row) return;
       analystDetailsModal.state = 'ERROR';
       analystDetailsModal.error = err;
@@ -563,12 +591,14 @@
     historyClosingsState = 'LOADING';
     render(outletRef);
     provider.listClosings({}).then(function (rows) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       historyClosings = rows.map(function (c) {
         return Object.assign({}, c, { preliminaryClassification: c.historical_detail_status === 'COMPLETE' ? 'COMPLETE' : 'LEGACY_PARTIAL' });
       });
       historyClosingsState = 'READY';
       render(outletRef);
     }).catch(function (err) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       historyClosingsState = 'ERROR';
       historyClosingsError = { state: mapHistoryError(err) };
       render(outletRef);
@@ -586,11 +616,13 @@
     render(outletRef);
     var provider = historyProvider();
     provider.getSnapshot(closingId, {}).then(function (rows) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       if (selectedClosingId !== closingId) return;
       var meta = (historyClosings || []).filter(function (c) { return c.id === closingId; })[0] || null;
       historyDetail = { state: 'READY', data: { closing: meta || {}, rows: rows, classification: classifyClosing(meta, rows) }, error: null };
       render(outletRef);
     }).catch(function (err) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       if (selectedClosingId !== closingId) return;
       historyDetail = { state: 'ERROR', data: null, error: { state: mapHistoryError(err) } };
       render(outletRef);
@@ -602,9 +634,11 @@
     historyOpDetail = { state: 'LOADING', data: null, error: null };
     render(outletRef);
     historyProvider().loadOperationalSnapshot(selectedClosingId, {}).then(function (data) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       historyOpDetail = { state: 'READY', data: data, error: null };
       render(outletRef);
     }).catch(function (err) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       historyOpDetail = { state: 'ERROR', data: null, error: { state: mapHistoryError(err) } };
       render(outletRef);
     });
@@ -643,6 +677,7 @@
     // Painel Master's own historyExportXlsx follows (shell-admin.js),
     // now literally the same function call.
     historyProvider().exportSnapshot(selectedClosingId, {}).then(function (rows) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       historyExportState = 'IDLE';
       render(outletRef);
       var csv = buildExportCsv(rows);
@@ -656,6 +691,7 @@
       document.body.removeChild(a);
       setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     }).catch(function (err) {
+      if (mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute) return; // SALFIX1: stale, navigated away
       historyExportState = 'ERROR';
       historyExportError = { state: mapHistoryError(err) };
       render(outletRef);
@@ -1816,6 +1852,10 @@
     getScopeCommissionState: function () { return scopeCommissionState; },
     render: function (outlet) {
       outletRef = outlet;
+      // SALFIX1: captured once per mount, compared inside every load*
+      // function's async callback (see mountRoute declaration above).
+      mountRoute = (window.NX_ROUTER && typeof window.NX_ROUTER.currentRouteId === 'function')
+        ? window.NX_ROUTER.currentRouteId() : null;
       viewMode = 'atual';
       periods = null; periodsState = 'LOADING'; selectedPeriodId = null;
       dashboard = null; dashboardState = 'LOADING';
