@@ -1083,17 +1083,22 @@
   // viewer who can see analysts but not the manager identity -- never
   // both, never neither's data hidden, matching V1's own precedence
   // exactly (portal-app.js:1533-1544).
-  function trailingGroupRow(ctx, group, directory) {
+  function trailingGroupRow(ctx, group, directory, analystByStore) {
     var manager = directory.filter(function (m) { return m.store === group.store && m.department === group.department; })[0];
     if (canSeeGestor(ctx) && manager) {
       // RH-5C.1: Faixa lookup only for a REAL identified manager row --
       // the anonymous "TOTAL DA EQUIPE" row below deliberately never
       // gets one (it represents summed team totals, not a specific
-      // person's commission tier).
-      return { label: esc(manager.manager_name || 'Gerente não identificado'), cls: 'salManagerRow', totals: sumGroupTotals(group.rows), faixaMatch: managerFaixaMatch(group.store, group.department) };
+      // person's commission tier). SALSHARE1: same restriction applies
+      // to shareValue -- TOTAL DA EQUIPE keeps '—', unchanged.
+      return {
+        label: esc(manager.manager_name || 'Gerente não identificado'), cls: 'salManagerRow', totals: sumGroupTotals(group.rows),
+        faixaMatch: managerFaixaMatch(group.store, group.department),
+        shareValue: officialAnalystShareForStore(analystByStore, group.store)
+      };
     }
     if (canSeeAnalistas(ctx)) {
-      return { label: 'TOTAL DA EQUIPE', cls: 'salTeamTotalRow', totals: sumGroupTotals(group.rows), faixaMatch: null };
+      return { label: 'TOTAL DA EQUIPE', cls: 'salTeamTotalRow', totals: sumGroupTotals(group.rows), faixaMatch: null, shareValue: null };
     }
     return null;
   }
@@ -1171,7 +1176,7 @@
     return '<tr class="' + trailing.cls + '"><td>' + trailing.label + '</td>' +
       '<td class="modNumCol">' + fmtInt(t.sold_count) + '</td>' +
       '<td class="modNumCol">' + fmtInt(t.financed_count) + '</td>' +
-      '<td class="modNumCol">—</td>' +
+      '<td class="modNumCol">' + conversionCellHtml(trailing.shareValue) + '</td>' +
       '<td class="modNumCol modCurrencyCol">' + fmtMoney(t.production_value) + '</td>' +
       '<td class="modNumCol modCurrencyCol">' + fmtMoney(t.return_value) + '</td>' +
       '<td class="modNumCol modCurrencyCol">' + fmtMoney(t.spf_net_value) + '</td>' +
@@ -1198,7 +1203,8 @@
   function trailingCardHtml(trailing) {
     if (!trailing) return '';
     var t = trailing.totals;
-    return '<div class="salCard ' + trailing.cls + '"><div class="salCardTop"><span class="salCardName">' + trailing.label + '</span></div>' +
+    return '<div class="salCard ' + trailing.cls + '"><div class="salCardTop"><span class="salCardName">' + trailing.label + '</span>' +
+      conversionCellHtml(trailing.shareValue) + '</div>' +
       '<dl class="salCardFields">' +
       '<dt>Vendidas / Financiadas</dt><dd>' + fmtInt(t.sold_count) + ' / ' + fmtInt(t.financed_count) + '</dd>' +
       '<dt>Produção</dt><dd>' + fmtMoney(t.production_value) + '</dd>' +
@@ -1286,6 +1292,21 @@
     if (!isFiniteNumber(sold) || !isFiniteNumber(financed) || sold <= 0) return 0;
     return (financed / sold) * 100;
   }
+  // SALSHARE1: the manager consolidated row's displayed Share is the
+  // SAME official Analyst Share already shown on that Analyst's own row
+  // above -- not an independent calculation. "Official" here means the
+  // exact same !r.transfer idiom ownAnalystFaixaMatch already uses in
+  // this file to distinguish an Analyst's own store row from a
+  // temporary absence-coverage substitute (Gate 20: Analyst commission
+  // is STORE-WIDE, never department-specific, so this matches by store
+  // only -- there is no department dimension to match against). Returns
+  // null (never a fabricated 0,0%) when no official row exists for that
+  // store this period -- conversionCellHtml already renders null as '—'.
+  function officialAnalystShareForStore(analystByStore, store) {
+    var rows = (analystByStore && analystByStore[store || '']) || [];
+    var official = rows.filter(function (r) { return !r.transfer; })[0];
+    return official ? analystConversionPercent(official) : null;
+  }
   function analystRowDesktopHtml(r) {
     var faixaMatch = faixaFor('ANALISTA', r.store, null, null) || ownAnalystFaixaMatch(r);
     return '<tr>' +
@@ -1370,7 +1391,7 @@
         // exact "linha cortada, sem continuidade" defect class).
         var header = '<tr class="salGroupHeaderRow"><th colspan="11">' + esc(g.store || '—') + ' · ' + esc(g.department || '—') + '</th></tr>';
         var rowsHtml = g.rows.map(sellerRowDesktopHtml).join('');
-        var trailing = trailingRowDesktopHtml(trailingGroupRow(ctx, g, directory));
+        var trailing = trailingRowDesktopHtml(trailingGroupRow(ctx, g, directory, analystByStore));
         return header + rowsHtml + trailing;
       }).join('');
       var table = '<div class="modTableWrap salDesktopOnly salEquipeTableWrap"><table class="modTable"><thead><tr>' +
@@ -1388,7 +1409,7 @@
     var mobile = '<div class="salMobileOnly salCardList">' + storeGroups.map(function (sg) {
       var cards = sg.deptGroups.map(function (g) {
         var heading = '<div class="salGroupHeading">' + esc(g.store || '—') + ' · ' + esc(g.department || '—') + '</div>';
-        var body = g.rows.map(sellerCardHtml).join('') + trailingCardHtml(trailingGroupRow(ctx, g, directory));
+        var body = g.rows.map(sellerCardHtml).join('') + trailingCardHtml(trailingGroupRow(ctx, g, directory, analystByStore));
         return heading + body;
       }).join('');
       return cards + (showAnalysts ? analystRowsMobileCardsHtml(analystByStore[sg.store || '']) : '');
