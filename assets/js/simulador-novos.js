@@ -385,6 +385,11 @@
   function errMsg(code) { return ERROR_MSG[code] || 'Dados inválidos para este cálculo.'; }
 
   var currentMode = MODES[0].id;
+  // BALAO-LIMIT-1: canonical max balloon count for Novos, recovered from
+  // the live Secure source (modules/simulador-novos.html #tQtd select,
+  // "Escolha até 4 balões" -- Seminovos' own equivalent panel caps at 2,
+  // a proven, documented divergence, not a guess).
+  var MAX_BALOES = 4;
   var balloons = []; // {mes, valor} for Tradicional
   // SIM-NAV-4 / Concept F.2 (Human-approved final authority,
   // SIM_NAV_F2_HUMAN_APPROVED) -- which category group is currently
@@ -659,7 +664,8 @@
           termGridFieldHtml('nPrazo', 'Prazo', TRAD_TERMS, 48) +
           '<div class="field"><label>Balões</label>' +
           '<div class="smBalloonList" id="nBaloesList"></div>' +
-          '<button type="button" class="btn btn-secondary btn-sm" id="nAddBalao">+ Adicionar balão</button></div>' +
+          '<button type="button" class="btn btn-secondary btn-sm" id="nAddBalao">+ Adicionar balão</button>' +
+          '<span class="hint" id="nAddBalaoHint" hidden>Máximo de ' + MAX_BALOES + ' balões atingido.</span></div>' +
           '<button type="button" class="btn btn-primary" id="nCalc" style="width:100%;margin-top:6px">Calcular</button>';
       case 'periodico':
         // SIMLIVE1: SAME authority as 'tradicional' (one shared fetch,
@@ -778,13 +784,30 @@
     list.querySelectorAll('[data-bremove]').forEach(function (el) {
       el.addEventListener('click', function () { balloons.splice(Number(el.getAttribute('data-bremove')), 1); renderBaloesList(); });
     });
+    // BALAO-LIMIT-1: re-evaluated on every render (add and remove both
+    // call renderBaloesList()), so removing below MAX_BALOES immediately
+    // re-enables "+ Adicionar balão" again (4 -> remove -> 3 -> add -> 4).
+    var addBtn = document.getElementById('nAddBalao');
+    var addHint = document.getElementById('nAddBalaoHint');
+    if (addBtn) {
+      var atMax = balloons.length >= MAX_BALOES;
+      addBtn.disabled = atMax;
+      if (addHint) addHint.hidden = !atMax;
+    }
   }
 
   function wireForm(mode) {
     if (mode === 'tradicional') {
       if (!wireAuthorityGate(tradPeriodAuthority, mode)) return;
       renderBaloesList();
-      document.getElementById('nAddBalao').addEventListener('click', function () { balloons.push({ mes: null, valor: 0, valorText: '' }); renderBaloesList(); });
+      document.getElementById('nAddBalao').addEventListener('click', function () {
+        // BALAO-LIMIT-1: the real invariant -- guards the state/action
+        // boundary itself, not just the (also disabled) button, so a
+        // rapid/repeated/programmatic click can never create a 5th entry.
+        if (balloons.length >= MAX_BALOES) return;
+        balloons.push({ mes: null, valor: 0, valorText: '' });
+        renderBaloesList();
+      });
       wireTermGrid('nPrazo', TRAD_TERMS.length);
       document.getElementById('nCalc').addEventListener('click', function () { calcTradicional(); });
     } else if (mode === 'periodico') {
@@ -885,7 +908,11 @@
 
   /* ---------- calculations (adapter calls only) ---------- */
   function calcTradicional() {
-    var validBaloes = balloons.filter(function (b) { return b.mes && b.valor; }).map(function (b) { return { mes: b.mes, valor: b.valor }; });
+    // BALAO-LIMIT-1 Phase 6: defensive sanitization at the calculation
+    // consumer boundary -- even if `balloons` were ever malformed beyond
+    // MAX_BALOES by a future/legacy code path, calculation never sees
+    // more than the canonical maximum.
+    var validBaloes = balloons.filter(function (b) { return b.mes && b.valor; }).slice(0, MAX_BALOES).map(function (b) { return { mes: b.mes, valor: b.valor }; });
     var tradAuth = tradPeriodAuthority.getAuthority();
     var r = N.calcularTradicional({
       bem: UI.moneyVal('nBem'), entrada: UI.moneyVal('nEntrada'),
