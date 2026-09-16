@@ -1050,8 +1050,53 @@
   // changes, which is what makes exact scroll preservation and
   // exact-trigger focus-return possible.
   var nxModalTriggerEl = null;
+  // MASTERFIX1: captured once per page mount (NX_SHELL_ADMIN_PAGE.
+  // render(), below), the same "capture now, compare on resolution"
+  // route-ownership technique gestao.js's NAVFIX1 fix and salarios-
+  // comissoes.js's SALFIX1 fix already established for the identical
+  // class of bug -- a Painel Master mutation whose promise settles
+  // after the user has navigated to a different module must never
+  // write into the shared, page-level #nxModalRoot (a sibling of the
+  // router-controlled outlet, never cleared on route change) or lock
+  // background scroll on whatever module the user is now using.
+  // renderNxModal()/clearNxModal() are the single chokepoint every one
+  // of this file's ~12 modal call sites already funnels through, so
+  // guarding here (rather than at each individual mutation callback)
+  // closes every instance at once.
+  //
+  // A second, complementary gap: #nxModalRoot living outside the
+  // router-controlled outlet also means a modal the user had ALREADY
+  // opened (synchronously, legitimately, while shell-admin still owned
+  // the route) is never torn down by navigating away -- nothing else
+  // in this app clears it on route change. A one-time NX_ROUTER.
+  // onChange() subscription (registered once, not once per mount, to
+  // avoid accumulating listeners across repeated visits) proactively
+  // clears any currently-open modal the instant the route actually
+  // changes away from shell-admin, via the unconditional inner
+  // function below (clearNxModal() itself intentionally stays guarded,
+  // so a stale mutation's own .catch()/.then() close call remains a
+  // no-op once the router's own listener has already handled it).
+  //
+  // window.NX_ROUTER may not exist in this module's own isolated test
+  // harnesses -- mountRoute stays null there and every guard is a
+  // no-op, preserving every existing harness-level test unchanged.
+  var mountRoute = null;
+  var routeChangeSubscribed = false;
+  function isStaleRoute() {
+    return !!(window.NX_ROUTER && typeof window.NX_ROUTER.currentRouteId === 'function' &&
+      mountRoute !== null && window.NX_ROUTER.currentRouteId() !== mountRoute);
+  }
+
+  function clearNxModalUnconditional() {
+    var root = document.getElementById('nxModalRoot');
+    if (!root) return;
+    root.innerHTML = '';
+    root.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('maudModalOpen');
+  }
 
   function renderNxModal(titleText, bodyHtml, onClose) {
+    if (isStaleRoute()) return; // MASTERFIX1: navigated away, this module no longer owns the outlet
     var root = document.getElementById('nxModalRoot');
     if (!root) return;
     root.setAttribute('aria-hidden', 'false');
@@ -1073,11 +1118,8 @@
   }
 
   function clearNxModal() {
-    var root = document.getElementById('nxModalRoot');
-    if (!root) return;
-    root.innerHTML = '';
-    root.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('maudModalOpen');
+    if (isStaleRoute()) return; // MASTERFIX1: navigated away, nothing of ours to clear
+    clearNxModalUnconditional();
   }
 
   // Focus-return target (Gate 17/22): normally the exact element that
@@ -5640,6 +5682,22 @@
 
   window.NX_SHELL_ADMIN_PAGE = {
     render: function (outlet) {
+      // MASTERFIX1: captured once per mount, compared inside every
+      // renderNxModal()/clearNxModal() call (see mountRoute declaration
+      // above). The onChange subscription is registered only once ever
+      // (routeChangeSubscribed), not once per mount, so repeated visits
+      // to Painel Master never accumulate listeners on the router's
+      // own un-unsubscribable list; its closure always reads the
+      // CURRENT mountRoute (a shared module-level variable), so it
+      // stays correct across every future mount.
+      mountRoute = (window.NX_ROUTER && typeof window.NX_ROUTER.currentRouteId === 'function')
+        ? window.NX_ROUTER.currentRouteId() : null;
+      if (window.NX_ROUTER && typeof window.NX_ROUTER.onChange === 'function' && !routeChangeSubscribed) {
+        routeChangeSubscribed = true;
+        window.NX_ROUTER.onChange(function (routeId) {
+          if (mountRoute !== null && routeId !== mountRoute) clearNxModalUnconditional();
+        });
+      }
       currentSection = 'usuarios';
       currentView = 'list';
       currentDetailId = null;
