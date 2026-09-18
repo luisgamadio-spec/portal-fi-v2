@@ -330,7 +330,23 @@
     var fc = block.financing_card;
     var kindLabel = fc.kind === 'BALAO' ? 'Balão' : 'Linear';
     var cardClass = 'baiPlanCard' + (isPrimary ? ' baiPlanCardPrimary' : ' baiPlanCardSecondary');
-    var badgeHtml = isPrimary ? '<p class="baiPlanCardBadge">Recomendado</p>' : '';
+    // IA-COMMERCIAL-UX2 -- portal-ai-homolog (IA-COMMERCIAL-UX1) now
+    // attaches an OPTIONAL, presentation-only fc.card_label (e.g.
+    // "MENOR ENTRADA") to a non-recommended alternative that has a
+    // characteristic worth calling out -- this renderer never consumed
+    // it before, so the badge silently never appeared. Reuses the EXACT
+    // same .baiPlanCardBadge visual language already used for
+    // "Recomendado" (never a new class/color token), applied to
+    // whatever string the backend sends verbatim -- never inferred
+    // from term_months/down_payment/balloon count/array position. The
+    // "Recomendado" branch is untouched and stays exclusive to
+    // isPrimary; card_label is only ever considered when isPrimary is
+    // false, so a card can never show both. A card without card_label
+    // (every historical response, and every OTHER proposal) renders
+    // this exactly as before -- an empty string, zero visual change.
+    var badgeHtml = isPrimary
+      ? '<p class="baiPlanCardBadge">Recomendado</p>'
+      : (typeof fc.card_label === 'string' && fc.card_label.trim() ? '<p class="baiPlanCardBadge">' + esc(fc.card_label.trim()) + '</p>' : '');
     var heroValue = A.formatValue(fc.monthly_payment, 'currency');
     var headerHtml =
       '<div class="baiPlanCardHeader">' + badgeHtml +
