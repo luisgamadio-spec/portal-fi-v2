@@ -538,8 +538,24 @@
       if (b && b.type === 'metrics' && Array.isArray(b.plan_ranking) && b.plan_ranking.length) { histBlock = b; break; }
     }
     if (!histBlock) return null;
-    var topPlan = normalizePlanName(histBlock.plan_ranking[0].plan);
-    var matches = financing.filter(function (b) { return normalizePlanName(b.financing_card.kind) === topPlan; });
+    // IA-COMMERCIAL-UX3 -- Human UAT (Execution 4) proved that reading
+    // only plan_ranking[0] here let this card silently disagree with
+    // the model's own narrative whenever the #1 historical plan had no
+    // financing_card this turn (e.g. no valid current term): the model
+    // could still recommend a DIFFERENT plan in prose while this
+    // fallback badged whatever ended up first in `financing` by array
+    // order. portal-ai-homolog now also computes ONE deterministic
+    // final recommendation (same rule: walk plan_ranking in order,
+    // first entry with a real financing_card this turn) and exposes it
+    // as `recommended_plan` on this SAME block -- the SAME authority
+    // also fed to the model's own narrative instructions
+    // (IA-COMMERCIAL-UX3, PROMPT_HISTORICAL), so text/badge/order can
+    // never disagree again. Falls back to the old plan_ranking[0]-only
+    // read only for a cached/older response that predates this field.
+    var targetPlan = typeof histBlock.recommended_plan === 'string' && histBlock.recommended_plan
+      ? normalizePlanName(histBlock.recommended_plan)
+      : normalizePlanName(histBlock.plan_ranking[0].plan);
+    var matches = financing.filter(function (b) { return normalizePlanName(b.financing_card.kind) === targetPlan; });
     return matches.length === 1 ? matches[0] : null;
   }
 
