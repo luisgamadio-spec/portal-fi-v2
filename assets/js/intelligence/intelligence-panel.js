@@ -326,9 +326,22 @@
       '<p class="baiPlanFactValue"' + titleAttr + '>' + esc(f.text) + '</p></div>';
   }
 
+  // IA-COMMERCIAL-UX2-HOTFIX -- Human-readable label per financing_card
+  // kind (SimFinancingType, portal-ai-homolog) -- generic map instead
+  // of a 2-way ternary, so any kind this file's own financing_card
+  // producers already emit (BALAO/LINEAR/COPARTICIPADO today) displays
+  // its real name, never silently falling back to "Linear".
+  var PLAN_CARD_KIND_LABEL = { BALAO: 'Balão', LINEAR: 'Linear', COPARTICIPADO: 'Coparticipado' };
+
   function financingPlanCardHtml(block, isPrimary) {
     var fc = block.financing_card;
-    var kindLabel = fc.kind === 'BALAO' ? 'Balão' : 'Linear';
+    // IA-COMMERCIAL-UX2-HOTFIX -- this 2-way ternary silently labeled
+    // any non-BALAO kind "Linear" -- harmless before this hotfix (no
+    // OTHER kind ever reached here, Coparticipado never carried
+    // financing_card at all), but a real, direct consequence of this
+    // Wave's own additive Coparticipado support: a Coparticipado card
+    // now genuinely reaches this line, and must say so.
+    var kindLabel = PLAN_CARD_KIND_LABEL[fc.kind] || fc.kind;
     var cardClass = 'baiPlanCard' + (isPrimary ? ' baiPlanCardPrimary' : ' baiPlanCardSecondary');
     // IA-COMMERCIAL-UX2 -- portal-ai-homolog (IA-COMMERCIAL-UX1) now
     // attaches an OPTIONAL, presentation-only fc.card_label (e.g.
@@ -496,6 +509,53 @@
      distance (e.g. no target_payment was ever given) -- reading order,
      never an invented ranking. Every non-financing block in the same
      message renders through the existing, unmodified renderOneBlock. */
+  // IA-COMMERCIAL-UX2-HOTFIX -- real Human UAT defect (2/2 reproductions,
+  // new/independent conversations): the history-recommendation route
+  // (Brabus Intelligence's own historical-summary + per-plan
+  // simular_financiamento flow) has NO deterministic dispatch authority
+  // ordering the resulting financing_card blocks -- unlike the
+  // parcela-alvo route's own selectCommercialProposals (backend,
+  // portal-ai-homolog), the model itself decides how many/which
+  // simular_financiamento calls to make and in what order, per
+  // free-text prompt instructions. That order is NEVER guaranteed to
+  // match the model's own prose recommendation, so the pre-existing
+  // `primary = financing[0]` array-position fallback silently badged
+  // whichever plan the model happened to simulate first -- not
+  // necessarily the one it actually recommended in text.
+  //
+  // Root cause confirmed by trace (portal-ai-homolog, READ-ONLY
+  // Secure repo): analisar_historico_financiamento's own mode="summary"
+  // result already computes a fully deterministic plan ranking
+  // (top_plans, by count DESC, computePlanBreakdown -- zero LLM
+  // involvement) but the structured block sent to this frontend never
+  // exposed it. portal-ai-homolog's buildHistSummaryBlock now exposes
+  // that SAME, already-computed ranking as `plan_ranking` on its own
+  // block (hotfix, backend not deployed this Wave) -- this reuses that
+  // EXISTING authority instead of creating a second one, never parses
+  // the model's own narrative text, and never hardcodes a plan name,
+  // vehicle model, or card position.
+  var PLAN_NAME_DIACRITIC_RE = /[̀-ͯ]/g;
+  function normalizePlanName(s) {
+    return String(s == null ? '' : s).normalize('NFD').replace(PLAN_NAME_DIACRITIC_RE, '').toUpperCase();
+  }
+  // Returns the ONE financing card whose own kind matches the
+  // historically top-ranked plan, or null when no hist-summary block
+  // with plan_ranking is present, or when the match isn't exactly one
+  // card (ambiguous or that plan has no financing_card representation
+  // at all, e.g. Subsidiado/Reversão today -- never guess in either
+  // case, the caller's own pre-existing fallback logic applies).
+  function findHistoryRecommendedCard(expanded, financing) {
+    var histBlock = null;
+    for (var i = 0; i < expanded.length; i++) {
+      var b = expanded[i];
+      if (b && b.type === 'metrics' && Array.isArray(b.plan_ranking) && b.plan_ranking.length) { histBlock = b; break; }
+    }
+    if (!histBlock) return null;
+    var topPlan = normalizePlanName(histBlock.plan_ranking[0].plan);
+    var matches = financing.filter(function (b) { return normalizePlanName(b.financing_card.kind) === topPlan; });
+    return matches.length === 1 ? matches[0] : null;
+  }
+
   function renderBlocksHtml(blocks) {
     // IA-UAT-05 -- expand any required-down-payment "loose grid" block
     // into its own real financing card(s) BEFORE grouping, so Text and
@@ -527,15 +587,39 @@
     // the OLDER engine-first flow's already-approved behavior is
     // unchanged.
     var primary = financing[0];
-    var haveDistances = financing.every(function (b) { return b.financing_card.target_distance != null; });
-    if (haveDistances) {
-      primary = financing.reduce(function (best, b) {
-        return (b.financing_card.target_distance < best.financing_card.target_distance - 1) ? b : best;
-      });
+    // IA-COMMERCIAL-UX2-HOTFIX -- checked FIRST: when a deterministic
+    // historical ranking identifies exactly one matching card, it is
+    // the authoritative signal (the parcela-alvo route below NEVER
+    // co-occurs with a hist-summary plan_ranking block in the same
+    // message, so this never overrides that route's own, frozen
+    // target_distance behavior -- the two conditions are mutually
+    // exclusive in every real payload).
+    var historyPrimary = findHistoryRecommendedCard(expanded, financing);
+    if (historyPrimary) {
+      primary = historyPrimary;
+    } else {
+      var haveDistances = financing.every(function (b) { return b.financing_card.target_distance != null; });
+      if (haveDistances) {
+        primary = financing.reduce(function (best, b) {
+          return (b.financing_card.target_distance < best.financing_card.target_distance - 1) ? b : best;
+        });
+      }
     }
 
+    // IA-COMMERCIAL-UX2-HOTFIX -- Fase 3: when the historical ranking
+    // drove the decision, the recommended card also renders FIRST
+    // (narrative/card coherence -- "eu começaria pelo Balão" should
+    // read alongside a Balão card that appears first), by reordering
+    // the render-local `financing` array only -- never the canonical
+    // message/blocks state, and never applied to any other route
+    // (historyPrimary is null everywhere else, so `financing`'s own
+    // pre-existing order is preserved byte-for-byte).
+    var orderedFinancing = historyPrimary
+      ? [historyPrimary].concat(financing.filter(function (b) { return b !== historyPrimary; }))
+      : financing;
+
     var groupHtml = '<div class="baiPlanCardGroup">' +
-      financing.map(function (b) { return financingPlanCardHtml(b, b === primary); }).join('') +
+      orderedFinancing.map(function (b) { return financingPlanCardHtml(b, b === primary); }).join('') +
       '</div>';
     var otherHtml = expanded.filter(function (b) { return !hasFinancingCard(b); }).map(renderOneBlock).join('');
     return groupHtml + otherHtml;
