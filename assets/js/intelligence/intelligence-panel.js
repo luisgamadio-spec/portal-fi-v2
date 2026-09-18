@@ -326,22 +326,9 @@
       '<p class="baiPlanFactValue"' + titleAttr + '>' + esc(f.text) + '</p></div>';
   }
 
-  // IA-COMMERCIAL-UX2-HOTFIX -- Human-readable label per financing_card
-  // kind (SimFinancingType, portal-ai-homolog) -- generic map instead
-  // of a 2-way ternary, so any kind this file's own financing_card
-  // producers already emit (BALAO/LINEAR/COPARTICIPADO today) displays
-  // its real name, never silently falling back to "Linear".
-  var PLAN_CARD_KIND_LABEL = { BALAO: 'Balão', LINEAR: 'Linear', COPARTICIPADO: 'Coparticipado' };
-
   function financingPlanCardHtml(block, isPrimary) {
     var fc = block.financing_card;
-    // IA-COMMERCIAL-UX2-HOTFIX -- this 2-way ternary silently labeled
-    // any non-BALAO kind "Linear" -- harmless before this hotfix (no
-    // OTHER kind ever reached here, Coparticipado never carried
-    // financing_card at all), but a real, direct consequence of this
-    // Wave's own additive Coparticipado support: a Coparticipado card
-    // now genuinely reaches this line, and must say so.
-    var kindLabel = PLAN_CARD_KIND_LABEL[fc.kind] || fc.kind;
+    var kindLabel = fc.kind === 'BALAO' ? 'Balão' : 'Linear';
     var cardClass = 'baiPlanCard' + (isPrimary ? ' baiPlanCardPrimary' : ' baiPlanCardSecondary');
     // IA-COMMERCIAL-UX2 -- portal-ai-homolog (IA-COMMERCIAL-UX1) now
     // attaches an OPTIONAL, presentation-only fc.card_label (e.g.

@@ -30,6 +30,24 @@ model's prose, never hardcoding a plan name/vehicle/position. Absent
 that block (every OTHER route, including parcela-alvo), behavior is
 byte-identical to before this hotfix.
 
+IA-COMMERCIAL-UX2-HOTFIX-SCOPE-CLEANUP -- the READ-ONLY audit that
+followed the original hotfix found the Coparticipado financing_card
+support (and the kindLabel generic-map fix it required) to be
+SAFE_BUT_OUT_OF_SCOPE: not strictly required to fix the Balão/Linear
+badge mismatch the Human actually reported, and carrying a real
+cross-route UI blast radius (any Coparticipado "payment" simulation,
+in ANY route, would start rendering as a rich plan card instead of the
+old generic grid) plus a genuine deploy-ordering hazard (backend-new +
+frontend-old would mislabel Coparticipado as "Linear"). Both deltas
+were surgically removed from production (separate commits); this test
+file is updated to match -- it no longer asserts a COPARTICIPADO-
+recommended scenario (production never sends Coparticipado a
+financing_card again), and position/order tests that used to fill a
+3rd array slot with a Coparticipado card now use a second, distinct
+LINEAR simulation instead (a real, production-realistic shape -- the
+history route can and does simulate the same kind at more than one
+term when the historical reference suggests it).
+
 Requires: `python -m http.server <port>` running from the target
 worktree's own root (index.html at the base URL) -- see main() for
 the port override via IA_UX2HOTFIX_TEST_PORT.
@@ -89,6 +107,9 @@ def push_message(page, blocks, prose="resposta"):
 
 
 # ---------- reusable fixture builders (real-shaped, generic across plan/model/value -- never the test's own logic) ----------
+# Only LINEAR/BALAO are used -- the two kinds production actually
+# attaches financing_card to after the scope cleanup (Coparticipado no
+# longer does, see module docstring).
 def hist_block(plan_ranking, model="Eclipse Cross HPE"):
     return {
         "type": "metrics",
@@ -113,6 +134,21 @@ def linear_card():
     }
 
 
+def linear_card_variant():
+    """A second, distinct LINEAR simulation (different term/numbers) --
+    used purely as an inert 3rd-slot filler in position/order tests, a
+    production-realistic stand-in for the old Coparticipado filler now
+    that Coparticipado no longer carries financing_card. Never a match
+    target in the tests that use it (plan_ranking[0] is always BALÃO
+    or LINEAR-the-first-card in those tests, resolved unambiguously)."""
+    return {
+        "type": "metrics", "title": "Simulação — Financiamento Linear Novos",
+        "period_label": "Simulação — não é proposta nem aprovação de crédito",
+        "items": [{"label": "Parcela (48x)", "value": 2611.90, "format": "currency"}],
+        "financing_card": {"kind": "LINEAR", "term_months": 48, "monthly_payment": 2611.90, "down_payment": 90000, "financed_amount": 90000},
+    }
+
+
 def balao_card():
     return {
         "type": "metrics", "title": "Simulação — Financiamento Balão Novos (48x)",
@@ -125,12 +161,18 @@ def balao_card():
     }
 
 
-def coparticipado_card():
+def balao_card_variant():
+    """A second, distinct BALÃO simulation (different term/numbers) --
+    used ONLY by the ambiguity test (Fase 4) to construct a genuine
+    2-matches-for-the-same-historically-top-plan scenario."""
     return {
-        "type": "metrics", "title": "Simulação — Plano Coparticipado (Eclipse Cross HPE, 36x)",
+        "type": "metrics", "title": "Simulação — Financiamento Balão Novos (42x)",
         "period_label": "Simulação — não é proposta nem aprovação de crédito",
-        "items": [{"label": "Parcela (36x)", "value": 2950.10, "format": "currency"}],
-        "financing_card": {"kind": "COPARTICIPADO", "term_months": 36, "monthly_payment": 2950.10, "down_payment": 80000, "financed_amount": 100000},
+        "items": [{"label": "Parcela Mensal", "value": 3150.00, "format": "currency"}],
+        "financing_card": {
+            "kind": "BALAO", "term_months": 42, "monthly_payment": 3150.00, "down_payment": 72000, "financed_amount": 108000,
+            "balloons": [{"month": 42, "value": 55000}],
+        },
     }
 
 
@@ -162,11 +204,11 @@ def main():
 
         # ================= 1/2/3 + TESTE DE POSIÇÃO: BALÃO recommended, at every array position =================
         for pos_name, blocks in [
-            ("position 0 (first)", [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}, {"plan": "COPARTICIPADO", "count": 3}]), balao_card(), linear_card(), coparticipado_card()]),
-            ("position 1 (second)", [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}, {"plan": "COPARTICIPADO", "count": 3}]), linear_card(), balao_card(), coparticipado_card()]),
-            ("position 2 (third)", [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}, {"plan": "COPARTICIPADO", "count": 3}]), linear_card(), coparticipado_card(), balao_card()]),
+            ("position 0 (first)", [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}]), balao_card(), linear_card(), linear_card_variant()]),
+            ("position 1 (second)", [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}]), linear_card(), balao_card(), linear_card_variant()]),
+            ("position 2 (third)", [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}]), linear_card(), linear_card_variant(), balao_card()]),
         ]:
-            push_message(page, blocks, "Eu começaria pelo Balão, seguido de Linear e Coparticipado, nesta ordem de aderência ao histórico.")
+            push_message(page, blocks, "Eu começaria pelo Balão, seguido de Linear, nesta ordem de aderência ao histórico.")
             check(f"[1/2/3] history recommends BALÃO, array has it at {pos_name} -> BALÃO card is RECOMENDADO", "BALÃO" in (recommended_kind(page) or ""), recommended_kind(page))
             check(f"[1/2/3] {pos_name}: exactly one .baiPlanCardPrimary", page.locator(".baiPlanCardPrimary").count() == 1)
         shot(page, "01-balao-recommended-position-variants.png")
@@ -175,11 +217,6 @@ def main():
         push_message(page, [hist_block([{"plan": "LINEAR", "count": 15}, {"plan": "BALÃO", "count": 4}]), balao_card(), linear_card()], "Eu começaria pelo Linear.")
         check("[4] history recommends LINEAR -> LINEAR card is RECOMENDADO", "LINEAR" in (recommended_kind(page) or ""), recommended_kind(page))
         check("[4] exactly one .baiPlanCardPrimary", page.locator(".baiPlanCardPrimary").count() == 1)
-
-        # ================= 5: history recommends COPARTICIPADO =================
-        push_message(page, [hist_block([{"plan": "COPARTICIPADO", "count": 9}, {"plan": "BALÃO", "count": 6}, {"plan": "LINEAR", "count": 2}]), linear_card(), balao_card(), coparticipado_card()], "Eu começaria pelo Coparticipado.")
-        check("[5] history recommends COPARTICIPADO -> COPARTICIPADO card is RECOMENDADO", "COPARTICIPADO" in (recommended_kind(page) or ""), recommended_kind(page))
-        check("[5] exactly one .baiPlanCardPrimary", page.locator(".baiPlanCardPrimary").count() == 1)
 
         # ================= TESTE INVERSO: array [LINEAR, BALÃO], recommendation LINEAR (matches array order -- must still work) =================
         push_message(page, [hist_block([{"plan": "LINEAR", "count": 10}, {"plan": "BALÃO", "count": 5}]), linear_card(), balao_card()], "Eu começaria pelo Linear.")
@@ -191,7 +228,7 @@ def main():
         check("[INVERSO-B] LINEAR (still at index 0) does NOT get RECOMENDADO", "LINEAR" not in (recommended_kind(page) or ""))
 
         # ================= 6 / SINGLE_RECOMMENDED_INVARIANT: exactly one RECOMENDADO when a recommendation exists =================
-        push_message(page, [hist_block([{"plan": "BALÃO", "count": 8}, {"plan": "LINEAR", "count": 6}, {"plan": "COPARTICIPADO", "count": 2}]), balao_card(), linear_card(), coparticipado_card()], "Balão primeiro.")
+        push_message(page, [hist_block([{"plan": "BALÃO", "count": 8}, {"plan": "LINEAR", "count": 6}]), balao_card(), linear_card(), linear_card_variant()], "Balão primeiro.")
         check("[6/SINGLE] exactly one RECOMENDADO badge across all 3 cards (never zero, never two)", page.locator(".baiPlanCardBadge:has-text('Recomendado')").count() == 1)
         group_text_upper = page.locator(".baiPlanCardGroup").inner_text().upper()
         check("[6/SINGLE] 'RECOMENDADO' literal text appears exactly once", group_text_upper.count("RECOMENDADO") == 1, group_text_upper)
@@ -200,6 +237,23 @@ def main():
         push_message(page, [linear_card(), balao_card()], "Aqui estão as opções.")
         check("[7] no hist-summary/plan_ranking block present -> the PRE-EXISTING array-position fallback still applies (byte-identical to before this hotfix -- this is the ALREADY-homologated canonical rule the brief itself exempts, never a fabricated new default)", page.locator(".baiPlanCardPrimary").count() == 1)
         check("[7] with no plan_ranking, the first array card (LINEAR here) is still primary -- pre-existing behavior, not invented by this hotfix", "LINEAR" in (recommended_kind(page) or ""), recommended_kind(page))
+
+        # ================= FASE 4 / AMBIGUITY GUARD: 2+ cards matching the SAME historically top-ranked plan -> NO ARBITRARY HISTORY MATCH =================
+        # plan_ranking[0]=BALÃO, but TWO distinct BALÃO cards exist --
+        # findHistoryRecommendedCard must find 2 matches, resolve NOTHING
+        # (return null), and the pre-existing fallback (financing[0],
+        # since no target_distance exists in this route) must decide --
+        # proving the historical signal never arbitrarily picks between
+        # ambiguous candidates. LINEAR is placed FIRST in the array
+        # specifically so the assertion is unambiguous: if the fix
+        # picked either Balão card "because it's historically favored",
+        # this would fail; only the fallback default (array position)
+        # explains LINEAR winning here.
+        push_message(page, [hist_block([{"plan": "BALÃO", "count": 20}, {"plan": "LINEAR", "count": 5}]), linear_card(), balao_card(), balao_card_variant()], "Balão é o mais recorrente.")
+        check("[AMBIGUITY] two BALÃO cards match the historically top-ranked plan -> NO arbitrary history-driven pick; the pre-existing array-position fallback decides instead (LINEAR, first in the array, wins -- proving the ambiguous match was correctly discarded)", "LINEAR" in (recommended_kind(page) or ""), recommended_kind(page))
+        check("[AMBIGUITY] exactly one RECOMENDADO still exists despite the ambiguity (never zero, never two)", page.locator(".baiPlanCardBadge:has-text('Recomendado')").count() == 1)
+        ambiguity_group_text = page.locator(".baiPlanCardGroup").inner_text()
+        check("[AMBIGUITY] neither BALÃO card was silently promoted -- both BALÃO numbers present but NEITHER is on the primary card", "3.039,20" in ambiguity_group_text or "3.150,00" in ambiguity_group_text)
 
         # ================= 8: parcela-alvo route -- balão único still RECOMENDADO (REGRESSION LOCK, frozen route) =================
         RDP_SINGLE_BALLOON = {
@@ -233,14 +287,14 @@ def main():
         primary_card_text = page.locator(".baiPlanCardPrimary").inner_text().upper()
         check("[10] the RECOMENDADO card does NOT also say MENOR ENTRADA", "MENOR ENTRADA" not in primary_card_text, primary_card_text)
 
-        # ================= 11: no financial number changed by this hotfix (reusing the exact real Human UAT scenario 1/2/3/4 numbers) =================
+        # ================= 11: no financial number changed by this hotfix (reusing the exact real Human UAT scenario numbers) =================
         push_message(page, [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}]), linear_card(), balao_card()], "Balão primeiro.")
         group_text2 = page.locator(".baiPlanCardGroup").inner_text()
         check("[11] LINEAR numbers unchanged: R$3.283,40 / R$104.000,00 / R$76.000,00 all present", "3.283,40" in group_text2 and "104.000,00" in group_text2 and "76.000,00" in group_text2, group_text2)
         check("[11] BALÃO numbers unchanged: R$3.039,20 / R$69.000,00 / R$60.000,00 (balão, mês 48) all present", "3.039,20" in group_text2 and "69.000,00" in group_text2 and "60.000" in group_text2, group_text2)
 
         # ================= 12: card order follows historical ranking when contractually applicable (Fase 3) =================
-        push_message(page, [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}, {"plan": "COPARTICIPADO", "count": 3}]), linear_card(), balao_card(), coparticipado_card()], "Balão primeiro, depois Linear, depois Coparticipado.")
+        push_message(page, [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}]), linear_card(), balao_card(), linear_card_variant()], "Balão primeiro, depois Linear.")
         card_kinds_in_order = page.evaluate(
             """() => Array.from(document.querySelectorAll('.baiPlanCardKind')).map(function (el) { return el.textContent.toUpperCase(); })"""
         )
@@ -251,10 +305,20 @@ def main():
         for raw in ["PLAN_RANKING", "FINANCING_CARD", "\"KIND\""]:
             check(f"no raw internal field name visible: {raw}", raw not in group_text2.upper())
 
+        # ================= Coparticipado is NOT re-introduced as a plan card (scope cleanup regression lock) =================
+        COPARTICIPADO_NO_CARD = {
+            "type": "metrics", "title": "Simulação — Plano Coparticipado (Eclipse Cross HPE, 36x)",
+            "period_label": "Simulação — não é proposta nem aprovação de crédito",
+            "items": [{"label": "Parcela (36x)", "value": 2950.10, "format": "currency"}],
+        }
+        push_message(page, [linear_card(), balao_card(), COPARTICIPADO_NO_CARD], "Aqui estão Linear, Balão e Coparticipado.")
+        check("[SCOPE-CLEANUP] a Coparticipado block with NO financing_card (production-realistic post-cleanup shape) renders OUTSIDE .baiPlanCardGroup, exactly as before the original hotfix", page.locator(".baiPlanCardGroup").locator("text=Coparticipado").count() == 0)
+        check("[SCOPE-CLEANUP] exactly 2 plan cards render (Linear + Balão only) -- Coparticipado never silently joins the group without a financing_card", page.locator(".baiPlanCard").count() == 2)
+
         # ================= zero horizontal scroll (no layout change expected, verified anyway) =================
         for width in [1366, 1024, 900, 480]:
             page.set_viewport_size({"width": width, "height": 900})
-            push_message(page, [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}, {"plan": "COPARTICIPADO", "count": 3}]), linear_card(), balao_card(), coparticipado_card()], "Balão primeiro.")
+            push_message(page, [hist_block([{"plan": "BALÃO", "count": 12}, {"plan": "LINEAR", "count": 7}]), linear_card(), balao_card(), linear_card_variant()], "Balão primeiro.")
             doc_ov = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
             check(f"{width}px: document itself has zero horizontal scroll", doc_ov <= 0, doc_ov)
 
