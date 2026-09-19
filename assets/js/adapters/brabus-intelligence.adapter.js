@@ -42,14 +42,65 @@
      RESPONSE CONTRACT
      ============================================================ */
 
-  // Exactly the 6 block "type" discriminators proven to exist across
-  // all 12 real Intelligence tools (IA-V2-PLAN-01 §Structured Results)
-  // -- no per-tool renderer, the tool's own semantics already live
-  // inside the block's fields.
-  var BLOCK_TYPES = ['metrics', 'comparison', 'ranking', 'operations', 'score_breakdown', 'score_ranking'];
+  // IA-COMMERCIAL4-E -- originally "exactly the 6 block type
+  // discriminators proven to exist" (IA-V2-1, predates COMMERCIAL4).
+  // portal-ai-homolog's own commercial_alternative (COMMERCIAL4-B) and
+  // commercial_alternative_group (COMMERCIAL4-D) block types were never
+  // added here when those Waves shipped -- every one of their own V2
+  // test suites drove the renderer directly via
+  // NX_INTELLIGENCE_STATE.pushMessage(), bypassing this adapter's own
+  // normalizeResponse() entirely, so the gap stayed invisible until a
+  // real homolog conversation went through the real fetch path (Human
+  // UAT #1, COMMERCIAL4-E root-cause trace): the backend sent a
+  // correct, fully-populated commercial_alternative_group block, but
+  // validateBlock() rejected its unrecognized `type` and
+  // normalizeResponse()'s own .filter(validateBlock) silently zeroed
+  // it out -- reply text intact, blocks emptied, zero console output.
+  var BLOCK_TYPES = ['metrics', 'comparison', 'ranking', 'operations', 'score_breakdown', 'score_ranking', 'commercial_alternative', 'commercial_alternative_group'];
 
+  // Shared item-shape check for both commercial-alternative variants --
+  // portal-ai-homolog's own buildCommercialAlternativeBlock/
+  // buildCommercialAlternativeGroupBlock always emit {label, value,
+  // format} triples (never a bare string), same discipline as every
+  // other block's own `items`/`options[].items` arrays.
+  function isCommercialAlternativeItems(items) {
+    return Array.isArray(items) && items.length > 0 && items.every(function (it) {
+      return !!it && typeof it === 'object' && typeof it.label === 'string' && 'value' in it && typeof it.format === 'string';
+    });
+  }
+
+  // Per-type shape check, additive to the plain type-discriminator
+  // check below -- the original 6 types keep their existing shallow
+  // (type-only) validation unchanged; only the two new commercial-
+  // alternative types get a real shape check, since their own
+  // `options`/`items` arrays are exactly the fields COMMERCIAL4-E's
+  // root-cause trace found silently vanishing.
+  function hasValidBlockShape(block) {
+    if (block.type === 'commercial_alternative') {
+      return typeof block.kind === 'string' && isCommercialAlternativeItems(block.items);
+    }
+    if (block.type === 'commercial_alternative_group') {
+      return typeof block.kind === 'string' && Array.isArray(block.options) && block.options.length > 0 &&
+        block.options.every(function (o) {
+          return !!o && typeof o === 'object' && typeof o.label === 'string' && isCommercialAlternativeItems(o.items);
+        });
+    }
+    return true;
+  }
+
+  // IA-COMMERCIAL4-E -- a discarded block used to vanish with zero
+  // trace anywhere (console, network panel, UI): the exact silence
+  // that let a fully-correct backend payload look like a rendering bug
+  // for 3 straight Human UAT rounds. Any discard now logs the rejected
+  // `type` so the NEXT unrecognized/malformed block surfaces on the
+  // first attempt instead.
   function validateBlock(block) {
-    return !!block && typeof block === 'object' && BLOCK_TYPES.indexOf(block.type) !== -1;
+    var ok = !!block && typeof block === 'object' && BLOCK_TYPES.indexOf(block.type) !== -1 && hasValidBlockShape(block);
+    if (!ok) {
+      // eslint-disable-next-line no-console
+      console.warn('[brabus-intelligence.adapter] structured block discarded (unrecognized or malformed type):', block && typeof block === 'object' ? block.type : block);
+    }
+    return ok;
   }
 
   // Strips internal/debug metadata (the real backend's homolog-only
@@ -57,7 +108,8 @@
   // may use. `blocks` may legitimately contain entries this Wave's
   // renderer doesn't recognize (defense in depth, matching the real
   // backend's own "malformed block -> silently omitted" discipline) --
-  // those are filtered out here, never thrown.
+  // those are filtered out here (now logged, see validateBlock above),
+  // never thrown.
   function normalizeResponse(payload) {
     payload = payload || {};
     var blocks = Array.isArray(payload.blocks) ? payload.blocks.filter(validateBlock) : null;

@@ -73,12 +73,31 @@ def main():
         empty_blocks = page.evaluate("() => window.NX_BRABUS_INTELLIGENCE_ADAPTER.normalizeResponse({reply: 'oi', blocks: []})")
         results.append(("normalizeResponse turns an empty blocks array into null", empty_blocks["blocks"] is None))
 
-        # ---------- Block type validation (all 6) ----------
+        # ---------- Block type validation ----------
+        # IA-COMMERCIAL4-E2 -- extended from 6 to 8: commercial_alternative
+        # (COMMERCIAL4-B) and commercial_alternative_group (COMMERCIAL4-D)
+        # were real, already-approved, already-produced backend block
+        # types that this adapter's own whitelist never learned about --
+        # the proven root cause of Human UAT #1's 3x reproducible failure
+        # (see tests/intelligence-commercial4e2-adapter-realpayload-test.py
+        # for the full real-payload regression). The original 6 still
+        # validate on `.type` alone (unchanged, shallow); the 2 new types
+        # additionally require a real, non-empty items/options shape, so
+        # they are exercised with a minimal-but-valid fixture instead of
+        # the bare `{type: t}` every other type still uses below.
         block_types = page.evaluate("window.NX_BRABUS_INTELLIGENCE_ADAPTER.BLOCK_TYPES")
-        results.append(("exactly 6 block types declared", sorted(block_types) == sorted(["metrics", "comparison", "ranking", "operations", "score_breakdown", "score_ranking"])))
-        for t in block_types:
+        results.append(("exactly 8 block types declared", sorted(block_types) == sorted([
+            "metrics", "comparison", "ranking", "operations", "score_breakdown", "score_ranking",
+            "commercial_alternative", "commercial_alternative_group",
+        ])))
+        shallow_types = [t for t in block_types if t not in ("commercial_alternative", "commercial_alternative_group")]
+        for t in shallow_types:
             ok = page.evaluate(f"window.NX_BRABUS_INTELLIGENCE_ADAPTER.validateBlock({{type: '{t}'}})")
             results.append((f"validateBlock accepts type={t}", ok is True))
+        minimal_single = {"type": "commercial_alternative", "kind": "SUBSIDIADO", "items": [{"label": "Entrada", "value": 90000, "format": "currency"}]}
+        minimal_group = {"type": "commercial_alternative_group", "kind": "SUBSIDIADO", "options": [{"label": "0% a.m.", "items": [{"label": "Entrada", "value": 90000, "format": "currency"}]}]}
+        results.append(("validateBlock accepts a minimal well-formed commercial_alternative", page.evaluate("(b) => window.NX_BRABUS_INTELLIGENCE_ADAPTER.validateBlock(b)", minimal_single) is True))
+        results.append(("validateBlock accepts a minimal well-formed commercial_alternative_group", page.evaluate("(b) => window.NX_BRABUS_INTELLIGENCE_ADAPTER.validateBlock(b)", minimal_group) is True))
         results.append(("validateBlock rejects an unknown type", page.evaluate("window.NX_BRABUS_INTELLIGENCE_ADAPTER.validateBlock({type:'unknown_type'})") is False))
         results.append(("validateBlock rejects null", page.evaluate("window.NX_BRABUS_INTELLIGENCE_ADAPTER.validateBlock(null)") is False))
 
