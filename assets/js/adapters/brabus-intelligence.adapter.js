@@ -559,7 +559,24 @@
     // decides retry policy, and IA-3E's panel never auto-retries).
     429: 'Muitas solicitações em pouco tempo — aguarde um instante e tente novamente.'
   };
-  function errorMessageForStatus(status) {
+  // IA-SEMINOVOS-BALLOON-B -- Human UAT proved a real, useful,
+  // authored backend message (e.g. "Para Seminovos, informe o ano do
+  // veículo...") was unconditionally discarded here for any status
+  // code not in ERROR_MESSAGE_BY_STATUS (502 included), replaced by
+  // the generic fallback below -- even though the backend's own outer
+  // handler already preserves that exact text. `payload` is now
+  // OPTIONAL (every pre-existing 1-arg call site -- the 401
+  // pre-fetch short-circuit below, every test -- is unaffected and
+  // keeps behaving exactly as before). The backend's own explicit
+  // `safe: true` marker (added the same Wave, portal-ai-homolog's
+  // outer catch) is the ONLY thing that lets `payload.error` survive
+  // to the user -- an unmarked/unsafe error (an unexpected internal
+  // exception) still falls through to the exact same generic text as
+  // before this Wave. Never trust `payload.error` on its own.
+  function errorMessageForStatus(status, payload) {
+    if (payload && payload.safe === true && typeof payload.error === 'string' && payload.error) {
+      return payload.error;
+    }
     return ERROR_MESSAGE_BY_STATUS[status] || 'Não foi possível concluir a análise agora. Tente novamente.';
   }
 
@@ -627,7 +644,7 @@
         var clientReceiveAt = Date.now();
         var devTiming = buildDevTiming(payload, clientTiming, clientFetchAt, clientReceiveAt, correlationId, responseResolvedAt);
         if (!resp.ok) {
-          return { error: { status: resp.status, message: errorMessageForStatus(resp.status) }, _devTiming: devTiming };
+          return { error: { status: resp.status, message: errorMessageForStatus(resp.status, payload) }, _devTiming: devTiming };
         }
         return { response: normalizeResponse(payload), _devTiming: devTiming };
       });
