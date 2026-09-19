@@ -487,6 +487,64 @@
     return '<div class="baiPlanCardGroup"><div class="baiPlanCard">' + headerHtml + scenarioHtml + resultHtml + strategyHtml + '</div></div>';
   }
 
+  /* ---------- Commercial alternative (Subsidiado / Coparticipado) cards (IA-COMMERCIAL4) ----------
+     Human-approved policy: Subsidiado/Coparticipado are ADDITIONAL
+     commercial offers, never the primary financing recommendation --
+     this is why they arrive as their OWN block type
+     ("commercial_alternative", portal-ai-homolog IA-COMMERCIAL4) rather
+     than a `financing_card` (hasFinancingCard/the orderedFinancing
+     group above structurally can never see this block type at all, by
+     construction -- never a filter this file has to remember to apply).
+     Reuses the SAME generic .baiPlanCard/.baiPlanCardFacts/.baiPlanFact*
+     shell and financingPlanFactHtml helper already used for financing
+     cards (consistent with the existing Portal design system, per
+     Human Policy 9) -- but its OWN, neutral, non-red badge class
+     (.baiCommercialAltBadge) carrying the fixed "OPÇÃO COMERCIAL" text
+     the backend sends, NEVER the "Recomendado" badge/class, so it can
+     never be visually confused with the primary RECOMENDADO card even
+     by accident. */
+  function hasCommercialAlternative(block) {
+    return !!(block && block.type === 'commercial_alternative');
+  }
+
+  function commercialAlternativeCardHtml(block) {
+    var kindLabel = block.kind === 'COPARTICIPADO' ? 'Coparticipado' : 'Subsidiado';
+    var eligibility = block.eligibility || {};
+    var badgeHtml = '<p class="baiCommercialAltBadge">' + esc(block.label || 'Opção Comercial') + '</p>';
+    var headerHtml =
+      '<div class="baiPlanCardHeader">' + badgeHtml +
+      '<p class="baiPlanCardKind">' + esc(kindLabel) + '</p>' +
+      (block.title ? '<p class="baiCommercialAltTitle">' + esc(block.title) + '</p>' : '') +
+      '</div>';
+
+    var facts = (Array.isArray(block.items) ? block.items : []).map(function (item) {
+      return financingPlanFactHtml(item.label, item.value, item.format);
+    }).join('');
+    var factsHtml = facts ? '<div class="baiPlanCardFacts">' + facts + '</div>' : '';
+
+    // Eligibility status is ALWAYS the backend's own structured verdict
+    // (IA-COMMERCIAL4's evaluateSubsidiadoEligibility/evaluateCoparticipadoEligibility)
+    // -- rendered verbatim, never re-derived/re-labeled here.
+    var ineligibleHtml = eligibility.status === 'INELIGIBLE'
+      ? '<p class="baiCommercialAltIneligible">Não elegível' + (eligibility.reason ? ' — ' + esc(eligibility.reason) : '') + '</p>'
+      : '';
+
+    // IA-COMMERCIAL4 -- Trade-In × Coparticipado absolute incompatibility
+    // (Human Policy 5/7/8): PRESENT and UNKNOWN both render an explicit
+    // warning requiring seller confirmation (UNKNOWN != ABSENT, never
+    // silently treated as a green light) -- ABSENT renders nothing.
+    // Never states a monetary value (no such authority exists, Policy 6).
+    var tradeInHtml = '';
+    if (block.kind === 'COPARTICIPADO' && block.trade_in_status && block.trade_in_status !== 'ABSENT') {
+      var tradeInMsg = block.trade_in_status === 'PRESENT'
+        ? 'Coparticipado não acumula com Trade-In. Continuar com esta condição significa que o benefício de Trade-In não pode ser mantido nesta negociação — confirme com o vendedor antes de prosseguir.'
+        : 'Ainda não sabemos se há veículo na troca nesta negociação. Coparticipado não acumula com Trade-In — confirme isso antes de tratar esta condição como escolhida.';
+      tradeInHtml = '<p class="baiCommercialAltTradeInWarning">' + esc(tradeInMsg) + '</p>';
+    }
+
+    return '<div class="baiPlanCardGroup"><div class="baiPlanCard baiCommercialAltCard">' + headerHtml + factsHtml + ineligibleHtml + tradeInHtml + '</div></div>';
+  }
+
   /* Groups ALL financing-plan blocks in one message's blocks[] and
      decides which is visually primary -- purely by comparing
      target_distance (the exact "closest to the target the Human
@@ -632,6 +690,7 @@
     if (!block) return '';
     if (hasSettlementCard(block)) return settlementCardHtml(block);
     if (hasCashConversionCard(block)) return cashConversionCardHtml(block);
+    if (hasCommercialAlternative(block)) return commercialAlternativeCardHtml(block);
     if (block.type === 'metrics') return compactMetricsHtml(block);
     if (block.type === 'ranking') return rankingCardsHtml(block);
     return P.renderStructuredBlock(block);

@@ -631,6 +631,33 @@
   .baiPlanCardFacts{grid-template-columns:1fr}
 }
 
+/* ---------- Commercial alternative cards (IA-COMMERCIAL4) — Subsidiado/
+   Coparticipado, always an ADDITIONAL offer, never the primary
+   financing recommendation. Reuses .baiPlanCard's own shell (no new
+   radius/border/background token), but its OWN badge using the design
+   system's existing --color-info token (design-tokens.css) — a genuine
+   non-red semantic color, deliberately NOT --color-accent-primary
+   (which this theme maps to the SAME red hue family as
+   --color-brand-red/"Recomendado", confirmed by direct visual check —
+   reusing it here would have defeated the whole point of a distinct
+   identity) — so this badge can never be visually mistaken for the
+   primary card even at a glance. The Trade-In warning uses the design
+   system's own --color-warning/--color-warning-soft semantic pair
+   (amber — "needs the seller's attention/confirmation", never
+   --color-critical/error, since nothing is broken here) instead of
+   inventing a new color. ---------- */
+.baiCommercialAltCard{border-style:dashed}
+.baiCommercialAltBadge{
+  margin:0 0 2px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--color-info)
+}
+.baiCommercialAltTitle{margin:2px 0 0;font-size:11.5px;color:var(--color-text-secondary)}
+.baiCommercialAltIneligible{margin:10px 0 0;padding-top:8px;border-top:1px solid var(--mod-border);font-size:11.5px;color:var(--mod-muted)}
+.baiCommercialAltTradeInWarning{
+  margin:10px 0 0;padding:8px 10px;border-radius:8px;font-size:11.5px;line-height:1.4;
+  background:var(--color-warning-soft);border:1px solid color-mix(in srgb,var(--color-warning) 45%,transparent);color:var(--color-warning)
+}
+
 /* ---------- Compact ranking cards (IA-3H.1C.3) — the `ranking` block
    type's OWN drawer presentation, built by intelligence-panel.js's
    rankingCardsHtml(), not by the shared table renderer (still used
