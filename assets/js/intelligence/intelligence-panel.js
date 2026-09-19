@@ -545,6 +545,48 @@
     return '<div class="baiPlanCardGroup"><div class="baiPlanCard baiCommercialAltCard">' + headerHtml + factsHtml + ineligibleHtml + tradeInHtml + '</div></div>';
   }
 
+  /* ---------- Commercial alternative GROUP cards (IA-COMMERCIAL4-D) ----------
+     Human UAT #1 defect fix: a SELLER COMMERCIAL request that resolves
+     to one term with MULTIPLE valid rates (e.g. "quero uma opção de 36
+     meses" without naming a rate) previously fell back to the legacy
+     generic ranking table, which never exposed rebate/final sale value
+     as structured fields (narrative-only) -- failing the Human-approved
+     COMMERCIAL4 presentation contract. portal-ai-homolog's new
+     "commercial_alternative_group" block type (IA-COMMERCIAL4-D)
+     carries the SAME real, unmodified engine numbers as one entry per
+     valid rate -- rendered here as ONE card with a labeled sub-section
+     per rate (never a RECOMENDADO badge, never a declared "winner"
+     between rates -- Human policy: seller/manager decides). Reuses the
+     SAME .baiCommercialAlt* classes/shell as the single-condition card
+     above for visual consistency; genuinely broad/analytical
+     comparisons (all terms, full table) are UNCHANGED and still render
+     through the existing rankingCardsHtml, never through here. */
+  function hasCommercialAlternativeGroup(block) {
+    return !!(block && block.type === 'commercial_alternative_group');
+  }
+
+  function commercialAlternativeGroupCardHtml(block) {
+    var kindLabel = block.kind === 'COPARTICIPADO' ? 'Coparticipado' : 'Subsidiado';
+    var badgeHtml = '<p class="baiCommercialAltBadge">' + esc(block.label || 'Opções Comerciais') + '</p>';
+    var headerHtml =
+      '<div class="baiPlanCardHeader">' + badgeHtml +
+      '<p class="baiPlanCardKind">' + esc(kindLabel) + '</p>' +
+      (block.title ? '<p class="baiCommercialAltTitle">' + esc(block.title) + '</p>' : '') +
+      '</div>';
+
+    var optionsHtml = (Array.isArray(block.options) ? block.options : []).map(function (opt) {
+      var facts = (Array.isArray(opt.items) ? opt.items : []).map(function (item) {
+        return financingPlanFactHtml(item.label, item.value, item.format);
+      }).join('');
+      return '<div class="baiCommercialAltOption">' +
+        '<p class="baiCommercialAltOptionLabel">' + esc(opt.label || '') + '</p>' +
+        '<div class="baiPlanCardFacts">' + facts + '</div>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="baiPlanCardGroup"><div class="baiPlanCard baiCommercialAltCard">' + headerHtml + optionsHtml + '</div></div>';
+  }
+
   /* Groups ALL financing-plan blocks in one message's blocks[] and
      decides which is visually primary -- purely by comparing
      target_distance (the exact "closest to the target the Human
@@ -691,6 +733,7 @@
     if (hasSettlementCard(block)) return settlementCardHtml(block);
     if (hasCashConversionCard(block)) return cashConversionCardHtml(block);
     if (hasCommercialAlternative(block)) return commercialAlternativeCardHtml(block);
+    if (hasCommercialAlternativeGroup(block)) return commercialAlternativeGroupCardHtml(block);
     if (block.type === 'metrics') return compactMetricsHtml(block);
     if (block.type === 'ranking') return rankingCardsHtml(block);
     return P.renderStructuredBlock(block);

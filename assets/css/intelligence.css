@@ -658,6 +658,18 @@
   background:var(--color-warning-soft);border:1px solid color-mix(in srgb,var(--color-warning) 45%,transparent);color:var(--color-warning)
 }
 
+/* ---------- Commercial alternative GROUP cards (IA-COMMERCIAL4-D) —
+   one term, multiple valid Subsidiado rates (Human UAT #1: the seller
+   asked for "36 meses" with no rate named, and the real engine
+   returned 4 valid rate conditions for that term). Each rate is its
+   own labeled sub-section inside ONE .baiCommercialAltCard shell —
+   deliberately no ranking/position number and no highlighted "best"
+   option, since the Human-approved policy is that the seller/manager
+   picks the rate, never the Intelligence. ---------- */
+.baiCommercialAltOption{padding-top:10px;margin-top:10px;border-top:1px dashed var(--mod-border)}
+.baiCommercialAltOption:first-child{padding-top:0;margin-top:0;border-top:none}
+.baiCommercialAltOptionLabel{margin:0 0 4px;font-family:var(--font-ui);font-weight:600;font-size:12.5px;color:var(--color-text-primary)}
+
 /* ---------- Compact ranking cards (IA-3H.1C.3) — the `ranking` block
    type's OWN drawer presentation, built by intelligence-panel.js's
    rankingCardsHtml(), not by the shared table renderer (still used
