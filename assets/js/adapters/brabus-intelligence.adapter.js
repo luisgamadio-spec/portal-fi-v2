@@ -31,18 +31,25 @@
   // (they don't help the model and just inflate the payload).
   var MAX_HISTORY = 8;
 
-  // IA-MEGAUAT-WAVEB-RC1 -- provenance is resent alongside {role,
-  // content} ONLY for assistant turns that carry one (the backend
-  // itself only ever trusts it there too, see sanitizeIncomingProvenance
-  // in portal-ai-homolog). Never sent for a user turn, never a raw
-  // tool-result payload -- just the same compact {source, tool} shape
-  // the backend handed back for that turn.
+  // IA-MEGAUAT-WAVEB-RC1/WAVEB2 -- provenance is resent alongside
+  // {role, content} ONLY for assistant turns that carry one (the
+  // backend itself only ever trusts it there too, see
+  // sanitizeIncomingProvenance in portal-ai-homolog). Never sent for a
+  // user turn, never a raw tool-result payload -- just the same
+  // compact {source, tool, dims} shape the backend handed back for
+  // that turn. TRUSTED_RECALL (Wave B2) and `dims` (the closed
+  // fact-dimension set) are passed through the exact same way
+  // TOOL_DERIVED/tool already were -- this adapter never invents or
+  // validates the SEMANTICS of either, only forwards the already
+  // system-issued shape (the backend re-validates everything on the
+  // next request regardless).
   function createRequest(message, conversation) {
     var prior = (conversation || []).slice(-MAX_HISTORY).map(function (m) {
       var entry = { role: m.role, content: m.content };
       if (m.role === 'assistant' && m.provenance && typeof m.provenance === 'object' &&
-          (m.provenance.source === 'TOOL_DERIVED' || m.provenance.source === 'NON_TOOL_DERIVED')) {
+          (m.provenance.source === 'TOOL_DERIVED' || m.provenance.source === 'TRUSTED_RECALL' || m.provenance.source === 'NON_TOOL_DERIVED')) {
         entry.provenance = { source: m.provenance.source, tool: typeof m.provenance.tool === 'string' ? m.provenance.tool : null };
+        if (Array.isArray(m.provenance.dims)) entry.provenance.dims = m.provenance.dims;
       }
       return entry;
     });
@@ -121,18 +128,23 @@
   // backend's own "malformed block -> silently omitted" discipline) --
   // those are filtered out here (now logged, see validateBlock above),
   // never thrown.
-  // IA-MEGAUAT-WAVEB-RC1 -- passthrough only: validates the shape (a
-  // known enum + optional short tool string), never trusts a
-  // differently-shaped value. `provenance` is null both when the
-  // backend omitted it and when it was malformed -- callers must treat
-  // both the same way (unknown/unverifiable), never assume tool-derived.
+  // IA-MEGAUAT-WAVEB-RC1/WAVEB2 -- passthrough only: validates the
+  // shape (a known enum + optional short tool string + optional dims
+  // array), never trusts a differently-shaped value. `provenance` is
+  // null both when the backend omitted it and when it was malformed --
+  // callers must treat both the same way (unknown/unverifiable), never
+  // assume tool-derived. TRUSTED_RECALL (Wave B2) is accepted here the
+  // same way TOOL_DERIVED always was -- this adapter never decides
+  // WHETHER a turn is trustworthy, only whether the shape the backend
+  // sent is well-formed enough to store and resend later.
   function normalizeResponse(payload) {
     payload = payload || {};
     var blocks = Array.isArray(payload.blocks) ? payload.blocks.filter(validateBlock) : null;
     var provenance = null;
     if (payload.provenance && typeof payload.provenance === 'object' &&
-        (payload.provenance.source === 'TOOL_DERIVED' || payload.provenance.source === 'NON_TOOL_DERIVED')) {
+        (payload.provenance.source === 'TOOL_DERIVED' || payload.provenance.source === 'TRUSTED_RECALL' || payload.provenance.source === 'NON_TOOL_DERIVED')) {
       provenance = { source: payload.provenance.source, tool: typeof payload.provenance.tool === 'string' ? payload.provenance.tool : null };
+      if (Array.isArray(payload.provenance.dims)) provenance.dims = payload.provenance.dims;
     }
     return {
       reply: typeof payload.reply === 'string' ? payload.reply : '',
