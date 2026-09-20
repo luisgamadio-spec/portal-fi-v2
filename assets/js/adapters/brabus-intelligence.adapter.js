@@ -31,9 +31,20 @@
   // (they don't help the model and just inflate the payload).
   var MAX_HISTORY = 8;
 
+  // IA-MEGAUAT-WAVEB-RC1 -- provenance is resent alongside {role,
+  // content} ONLY for assistant turns that carry one (the backend
+  // itself only ever trusts it there too, see sanitizeIncomingProvenance
+  // in portal-ai-homolog). Never sent for a user turn, never a raw
+  // tool-result payload -- just the same compact {source, tool} shape
+  // the backend handed back for that turn.
   function createRequest(message, conversation) {
     var prior = (conversation || []).slice(-MAX_HISTORY).map(function (m) {
-      return { role: m.role, content: m.content };
+      var entry = { role: m.role, content: m.content };
+      if (m.role === 'assistant' && m.provenance && typeof m.provenance === 'object' &&
+          (m.provenance.source === 'TOOL_DERIVED' || m.provenance.source === 'NON_TOOL_DERIVED')) {
+        entry.provenance = { source: m.provenance.source, tool: typeof m.provenance.tool === 'string' ? m.provenance.tool : null };
+      }
+      return entry;
     });
     return { message: String(message || ''), conversation: prior };
   }
@@ -110,14 +121,25 @@
   // backend's own "malformed block -> silently omitted" discipline) --
   // those are filtered out here (now logged, see validateBlock above),
   // never thrown.
+  // IA-MEGAUAT-WAVEB-RC1 -- passthrough only: validates the shape (a
+  // known enum + optional short tool string), never trusts a
+  // differently-shaped value. `provenance` is null both when the
+  // backend omitted it and when it was malformed -- callers must treat
+  // both the same way (unknown/unverifiable), never assume tool-derived.
   function normalizeResponse(payload) {
     payload = payload || {};
     var blocks = Array.isArray(payload.blocks) ? payload.blocks.filter(validateBlock) : null;
+    var provenance = null;
+    if (payload.provenance && typeof payload.provenance === 'object' &&
+        (payload.provenance.source === 'TOOL_DERIVED' || payload.provenance.source === 'NON_TOOL_DERIVED')) {
+      provenance = { source: payload.provenance.source, tool: typeof payload.provenance.tool === 'string' ? payload.provenance.tool : null };
+    }
     return {
       reply: typeof payload.reply === 'string' ? payload.reply : '',
       blocks: blocks && blocks.length ? blocks : null,
       request_id: typeof payload.request_id === 'string' ? payload.request_id : null,
-      scenario_reset: payload.scenario_reset === true
+      scenario_reset: payload.scenario_reset === true,
+      provenance: provenance
     };
   }
 

@@ -409,7 +409,7 @@
       // handleServerEvent's own response.done (!hadFunctionCall branch)
       // is the single render path for a tool-using voice turn, from the
       // real spoken transcript, once the post-tool response arrives.
-      if (!stale && !silent) S.pushMessage({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false });
+      if (!stale && !silent) S.pushMessage({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false, provenance: normalized.provenance });
       // VOICE-UAT-03 -- `blocks` (financing_card/cash_conversion_card/
       // settlement_card, the EXACT same structured result Text's own
       // applyResult already attaches) is returned here even in silent

@@ -586,7 +586,7 @@
       }
       if (lastUserIdx > 0) conversation = conversation.slice(lastUserIdx);
     }
-    conversation.push({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false });
+    conversation.push({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false, provenance: normalized.provenance });
     renderConversation();
   }
 

@@ -1016,7 +1016,7 @@
     }
     var normalized = result.response;
     if (normalized.scenario_reset) S.spliceFromLastUser();
-    S.pushMessage({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false });
+    S.pushMessage({ role: 'assistant', content: normalized.reply, blocks: normalized.blocks, isError: false, provenance: normalized.provenance });
     // COMPLETE is a momentary signal (Section 13), not a resting
     // composer-disabled state -- settle to OPEN_IDLE right after.
     S.setTextState(S.TEXT_STATES.COMPLETE);

@@ -64,7 +64,7 @@
 
   var textState = TEXT_STATES.CLOSED;
   var voiceState = VOICE_STATES.VOICE_DISCONNECTED; // never transitions this Wave
-  var conversation = []; // [{role, content, blocks, isError}]
+  var conversation = []; // [{role, content, blocks, isError, provenance}]
   var listeners = [];
 
   // SESSIONSEC1 -- conversation OWNERSHIP. Every message above is only
@@ -88,7 +88,13 @@
       role: m.role,
       content: m.content,
       blocks: m.blocks || null,
-      isError: !!m.isError
+      isError: !!m.isError,
+      // IA-MEGAUAT-WAVEB-RC1 -- system-issued provenance for an
+      // assistant message ({source, tool} or null), carried alongside
+      // content/blocks so a scenario_reset splice (spliceFromLastUser)
+      // removes it together with the rest of that turn, same as every
+      // other field here -- no separate array to keep in sync.
+      provenance: m.provenance || null
     });
   }
 
