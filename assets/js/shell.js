@@ -166,8 +166,21 @@
     var myToken = ++routeToken;
     var entry = window.NX_REGISTRY.byId(routeId);
 
-    if (window.NX_AUTH_CORE.getState() !== window.NX_AUTH_CORE.STATES.AUTH_NOT_CONFIGURED &&
-        window.NX_AUTH_CORE.getState() !== window.NX_AUTH_CORE.STATES.AUTHORIZED) {
+    var routeAuthState = window.NX_AUTH_CORE.getState();
+    var routeAuthStates = window.NX_AUTH_CORE.STATES;
+    if (routeAuthState === routeAuthStates.AUTH_NOT_CONFIGURED) {
+      // GL-ENV-AUTH-WRITE-BOUNDARY: AUTH_NOT_CONFIGURED never dispatches
+      // a route and never renders Login -- boot()'s own onStateChange
+      // handler already owns rendering for this state (a deterministic
+      // configuration-unavailable message, #nxRoot kept hidden). Falling
+      // through here would either populate the hidden outlet for
+      // nothing or show a Login form with no real backend to
+      // authenticate against -- both misleading. This also guarantees
+      // no route-change bounce loop can occur in this state: every call
+      // returns immediately, unconditionally.
+      return;
+    }
+    if (routeAuthState !== routeAuthStates.AUTHORIZED) {
       // AUTH FOUNDATION Phase 2B, Gate 11: any authenticated-app route
       // requested while not AUTHORIZED renders Login, never the
       // requested module -- a direct hash/URL cannot bypass this.
@@ -297,8 +310,14 @@
      wired at all -- no shell/module content can flash before
      authorization is known, per Gate 17's explicit requirement. The
      outlet's static "Carregando…" placeholder (index.html) covers
-     this whole window; nxRoot itself stays hidden until AUTHORIZED
-     (or AUTH_NOT_CONFIGURED, which behaves as pre-Auth-Foundation). */
+     this whole window; nxRoot itself stays hidden until AUTHORIZED.
+
+     GL-ENV-AUTH-WRITE-BOUNDARY: AUTH_NOT_CONFIGURED no longer behaves
+     as pre-Auth-Foundation (that prior behavior -- shell visible, every
+     module reachable -- was the fail-open bug this wave's Human
+     Environment Authority requires closed). nxRoot and Login both stay
+     hidden in this state; #nxBootLoading is reused as the deterministic,
+     non-authorizing configuration-unavailable surface instead. */
   function boot() {
     setupDevBadge();
     setupNavDrawer();
@@ -323,8 +342,36 @@
     window.NX_AUTH_CORE.onStateChange(function (state) {
       var STATES = window.NX_AUTH_CORE.STATES;
       var bootLoading = document.getElementById('nxBootLoading');
+      if (state === STATES.AUTH_NOT_CONFIGURED) {
+        // GL-ENV-AUTH-WRITE-BOUNDARY: a THIRD, terminal render branch --
+        // distinct from both AUTHORIZED (real shell/module content) and
+        // the Login-requiring states below. No real Supabase credentials
+        // exist for this host, so there is no backend for Login to
+        // authenticate against; showing it would be misleading. Reuses
+        // the existing #nxBootLoading placeholder (never hidden in this
+        // state) rather than adding a new DOM surface -- #nxRoot and
+        // #nxLoginRoot both stay hidden, and onRouteChange's own
+        // AUTH_NOT_CONFIGURED branch (above) guarantees no route change
+        // ever re-enters this state's rendering, so no bounce loop is
+        // possible. LOCAL gets a developer-oriented hint (how to enable
+        // real auth locally); homolog/production get the same generic,
+        // credential-free message -- never a raw technical error, never
+        // an environment name disclosed beyond what environment-guard.js's
+        // own UNKNOWN_HOST screen already would.
+        var envName = window.NX_ENVIRONMENT && window.NX_ENVIRONMENT.name;
+        var configMsg = (envName === 'LOCAL_DEV')
+          ? 'Configuração local de autenticação ausente. Crie assets/js/intelligence-runtime-config.local.js a partir de intelligence-runtime-config.example.js para autenticar neste ambiente.'
+          : 'Autenticação indisponível neste ambiente no momento.';
+        if (bootLoading) {
+          bootLoading.hidden = false;
+          bootLoading.innerHTML = '<p>' + configMsg + '</p>';
+        }
+        document.getElementById('nxRoot').hidden = true;
+        window.NX_LOGIN.hide();
+        return;
+      }
       if (bootLoading && state !== STATES.INITIALIZING_SESSION) bootLoading.hidden = true;
-      if (state === STATES.AUTHORIZED || state === STATES.AUTH_NOT_CONFIGURED) {
+      if (state === STATES.AUTHORIZED) {
         document.getElementById('nxRoot').hidden = false;
         window.NX_LOGIN.hide();
         // Re-evaluate the current route under the now-current auth

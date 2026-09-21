@@ -84,14 +84,32 @@
      creates it on their own machine from the .example.js file. -->
 <script src="assets/js/intelligence-runtime-config.js"></script>
 <script>
+// GL-ENV-AUTH-WRITE-BOUNDARY -- exact-match only (no wildcard, no
+// *.github.io), three mutually-exclusive real-credentialed overrides.
+// Each loads the tracked config so environment-guard.js's
+// DOMContentLoaded check (which runs after every synchronous script
+// here has already executed) sees the right hostname in the right
+// allowlist -- authorizedHostnames (production) or
+// authorizedHomologationHostnames (homolog), never both from the same
+// file. Any other hostname loads no override and stays fail-closed on
+// the committed inert default (empty arrays), unchanged.
 if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
   document.write('<script src="assets/js/intelligence-runtime-config.local.js"><\/script>');
 } else if(location.hostname==='luisgamadio-spec.github.io'){
-  // GL-1J -- exact-match only (no wildcard, no *.github.io); loads the
-  // tracked hosted config so environment-guard.js's DOMContentLoaded
-  // check (which runs after every synchronous script here has already
-  // executed) sees this hostname in authorizedHostnames instead of
-  // UNKNOWN_HOST. Any other hostname stays fail-closed, unchanged.
+  // Proven GitHub Pages HOMOLOGATION hostname -- MUST NEVER be treated
+  // as production (Human Environment Authority, GL-ENV-AUTH-WRITE-
+  // BOUNDARY). Loads only the homolog config (portal-ai-homolog).
+  document.write('<script src="assets/js/intelligence-runtime-config.homolog.js"><\/script>');
+} else if(location.hostname==='brabus.blistiq.com.br'){
+  // Human-designated FUTURE V2 production hostname. Currently serves
+  // the existing V1/Secure portal's own separate deployment -- this
+  // branch only has any effect once V2 is actually deployed there by a
+  // separate, later, explicitly-authorized cutover wave; until then no
+  // browser ever reaches this file from that hostname via V2's own
+  // code (V2 has no deployment there yet). Loads the production config
+  // (portal-ai, not portal-ai-homolog) so that, once V2 IS deployed
+  // there, auth and write-safety already resolve correctly without a
+  // further code change.
   document.write('<script src="assets/js/intelligence-runtime-config.production.js"><\/script>');
 }
 </script>

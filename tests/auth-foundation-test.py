@@ -22,7 +22,15 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 V2_ROOT = os.path.dirname(HERE)
-BASE = "http://127.0.0.1:8080/portal-next-v2/index.html"
+# V2-INT-01 -- pre-existing staleness fix (same class of bug already
+# fixed in the sibling master-gestao-simuladores-provider-test.py, and
+# in master-gestao-bases-provider-test.py this same wave): BASE was
+# still hardcoded to the OLD parent-dir-rooted topology (confirmed via
+# direct curl: the old path 404s, this one 200s); this worktree is
+# served root-at-worktree. Discovered only because this wave's own
+# rewritten tests 26/27 (below) needed to actually run to be verified --
+# unrelated to and pre-dating GL-ENV-AUTH-WRITE-BOUNDARY itself.
+BASE = "http://127.0.0.1:8080/index.html"
 
 results = []
 
@@ -325,7 +333,7 @@ def main():
         check("25: NX_AUTH.getAccessToken() still returns a real token post-Auth-Foundation (Intelligence compatibility)", token == "mock-token")
         page.close()
 
-        # ---------- 26: no real credentials configured -- AUTH_NOT_CONFIGURED, no regression to pre-existing behavior ----------
+        # ---------- 26/27: no real credentials configured -- AUTH_NOT_CONFIGURED fails closed (GL-ENV-AUTH-WRITE-BOUNDARY) ----------
         # Forced explicitly, not by omission: this dev machine may
         # already have its own gitignored intelligence-runtime-
         # config.local.js (from earlier, unrelated Intelligence work)
@@ -336,16 +344,31 @@ def main():
         # specific file request instead, forcing the real committed
         # default (assets/js/intelligence-runtime-config.js) to be
         # what's actually in effect.
+        #
+        # GL-ENV-AUTH-WRITE-BOUNDARY (was: "guard inert, shell visible
+        # unchanged" / "preserves pre-Auth-Foundation reachability") --
+        # that prior expectation was the exact fail-open behavior the
+        # Human Environment Authority for this wave required closed.
+        # AUTH_NOT_CONFIGURED must now authorize nothing: neither the
+        # app shell nor the Login form (there is no real backend for
+        # Login to authenticate against in this state) may become
+        # visible, and a route-change attempt must be a complete no-op,
+        # not a bounce into a module.
         page = browser.new_page(viewport={"width": 1366, "height": 800})
         _install_tripwire(page)
         page.route("**/supabase-js@*", lambda route: route.abort())
         page.route("**/intelligence-runtime-config.local.js", lambda route: route.abort())
         page.goto(BASE)
         page.wait_for_function("window.NX_AUTH_CORE && window.NX_AUTH_CORE.getState() === 'AUTH_NOT_CONFIGURED'", timeout=3000)
-        check("26: default committed config (no local override) -> AUTH_NOT_CONFIGURED, guard inert, shell visible unchanged", not page.is_hidden("#nxRoot") and page.is_hidden("#nxLoginRoot"))
+        check("26a: AUTH_NOT_CONFIGURED -- app shell (#nxRoot) is NOT exposed", page.is_hidden("#nxRoot"))
+        check("26b: AUTH_NOT_CONFIGURED -- Login form (#nxLoginRoot) is NOT misleadingly presented", page.is_hidden("#nxLoginRoot"))
+        check("26c: AUTH_NOT_CONFIGURED -- deterministic configuration-unavailable state is rendered (#nxBootLoading visible with a message)", not page.is_hidden("#nxBootLoading") and len(page.inner_text("#nxBootLoading").strip()) > 0)
+        check("26d: isModuleAuthorized denies a protected module under AUTH_NOT_CONFIGURED", page.evaluate("window.NX_AUTH_CORE.isModuleAuthorized({authMode: 'MASTER_ONLY'})") == False)
         page.evaluate("window.NX_ROUTER.navigate('shell-admin')")
         page.wait_for_timeout(300)
-        check("27: AUTH_NOT_CONFIGURED preserves pre-Auth-Foundation reachability (shell-admin still just shows its existing NOT_MIGRATED placeholder, not blocked by auth)", page.evaluate("window.NX_ROUTER.currentRouteId()") == "shell-admin")
+        check("27a: route-change attempt under AUTH_NOT_CONFIGURED never exposes the app shell (no bounce into a module)", page.is_hidden("#nxRoot"))
+        check("27b: route-change attempt under AUTH_NOT_CONFIGURED never renders Login either (no redirect loop)", page.is_hidden("#nxLoginRoot"))
+        check("27c: the configuration-unavailable state remains rendered after the route-change attempt (no flicker/loop)", not page.is_hidden("#nxBootLoading"))
         page.close()
 
         browser.close()

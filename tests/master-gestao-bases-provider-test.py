@@ -33,7 +33,14 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 import openpyxl
 
-BASE = "http://127.0.0.1:8080/portal-next-v2/tests/_master-users-harness.html"
+# V2-INT-01 -- pre-existing staleness fix (same class of bug already
+# fixed in the sibling master-gestao-simuladores-provider-test.py): this
+# file's BASE was still hardcoded to the OLD parent-dir-rooted topology
+# (confirmed via direct curl: the old path 404s, this one 200s); this
+# worktree is served root-at-worktree. Discovered only because this
+# wave's own new tests (below) needed to actually run to be verified --
+# unrelated to and pre-dating GL-ENV-AUTH-WRITE-BOUNDARY itself.
+BASE = "http://127.0.0.1:8080/tests/_master-users-harness.html"
 SEC_URL = "https://mock.invalid/rest/v1/rpc/master_admin_security_data"
 CONV_URL = "https://mock.invalid/rest/v1/rpc/master_listar_convites"
 LIST_BATCHES_URL = "https://mock.invalid/rest/v1/rpc/master_operational_list_batches"
@@ -406,9 +413,56 @@ def main():
               page.query_selector(".modErrorState") is not None)
         page.close()
 
+        # ---------- 21-24: GL-ENV-AUTH-WRITE-BOUNDARY -- environment-authority write safety ----------
+        # Same proof as the GS provider suite's own equivalent block: a
+        # real write RPC (master_operational_begin_import, one of the 5
+        # GB_WRITE_RPC_NAMES, always blocked regardless of p_dry_run)
+        # bypasses frontend simulation ONLY when
+        # window.NX_ENVIRONMENT.name === 'AUTHORIZED_PRODUCTION'. Sets
+        # window.NX_ENVIRONMENT directly (this harness never navigates to
+        # a real hostname) -- environment-guard.js's own hostname
+        # classification is proven separately in
+        # tests/environment-guard-hostname-test.py.
+        page = new_page(browser)
+        install_tripwire(page)
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        page.route(LIST_BATCHES_URL + "*", json_route(200, []))
+        page.route(LIST_SELLERS_URL + "*", json_route(200, []))
+        env_import_calls = []
+        page.route(BEGIN_IMPORT_URL + "*", counting_route(env_import_calls, 200, lambda post: "should-only-be-reached-in-production-fake-batch-id"))
+        mount(page)
+
+        env_cases = [
+            ("LOCAL_DEV", False),
+            ("AUTHORIZED_HOMOLOGATION", False),
+            ("UNKNOWN_HOST", False),
+            ("AUTHORIZED_PRODUCTION", True),
+        ]
+        for idx, (env_name, expect_real_network) in enumerate(env_cases):
+            env_import_calls.clear()
+            page.evaluate("window.NX_ENVIRONMENT = { name: %r, hostname: 'gl-env-audit-test', allowed: true }" % env_name)
+            outcome = page.evaluate("""
+              () => window.NX_MASTER_GESTAO_BASES_PROVIDER
+                .beginImport('BASE01', 'test.xlsx', 'abc123', 5, {})
+                .then(r => ({ ok: true, result: r }))
+                .catch(e => ({ ok: false, error: String(e && e.message || e) }))
+            """)
+            n = 21 + idx
+            if expect_real_network:
+                check(f"{n}: {env_name} -> real begin_import RPC reaches the network (NOT frontend-simulated)", len(env_import_calls) == 1)
+                check(f"{n}b: {env_name} -> response is the real (non-simulated) server response, not a fake UUID pattern", isinstance(outcome, dict) and outcome.get("ok") and outcome["result"] == "should-only-be-reached-in-production-fake-batch-id")
+            else:
+                check(f"{n}: {env_name} -> real begin_import RPC never reaches the network (frontend-simulated)", len(env_import_calls) == 0)
+                check(f"{n}b: {env_name} -> beginImport() resolves with a simulated fake UUID, not the real network response", isinstance(outcome, dict) and outcome.get("ok") and isinstance(outcome.get("result"), str) and outcome["result"].startswith("00000000-0000-4000-8000-"))
+            check(f"{n}c: {env_name} -> isHomologationMode() reports {not expect_real_network} (single source of truth, same expression callRpc reads)",
+                  page.evaluate("window.NX_MASTER_GESTAO_BASES_PROVIDER.isHomologationMode()") == (not expect_real_network))
+        page.evaluate("window.NX_ENVIRONMENT = undefined")
+        page.close()
+
         browser.close()
 
-    check("21: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
+    check("25: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
     if real_network_hits:
         print("[TRIPWIRE] real network hit(s) detected:", real_network_hits)
 

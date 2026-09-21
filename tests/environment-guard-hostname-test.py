@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""GL-1J -- exact-hostname authorization contract for the GitHub Pages
-homologation host.
+"""GL-1J, extended GL-ENV-AUTH-WRITE-BOUNDARY -- exact-hostname
+authorization contract for the GitHub Pages homologation host AND the
+Human-designated future production hostname.
 
 Behavioral proof, not implementation-text matching: for each candidate
 hostname, actually navigates the browser to that hostname (Playwright's
@@ -12,14 +13,25 @@ environment-guard.js itself publishes -- rather than asserting anything
 about index.html's own source text.
 
 Proves, against the real built artifact:
-  A. the exact proven hostname (luisgamadio-spec.github.io) is authorized;
-  B. a different *.github.io hostname is NOT authorized (no wildcard);
-  C. an unrelated hostname is NOT authorized;
-  D/localhost/127.0.0.1: local dev remains allowed, unaffected;
-  E. the hosted config is visible to the guard's authoritative check,
-     i.e. loaded before DOMContentLoaded fires (host config before guard);
-  F/G. the hosted config that loads never activates Intelligence
-     (mode stays 'fixture') and carries no OPENAI_API_KEY-shaped field.
+  A. the exact proven GitHub Pages hostname (luisgamadio-spec.github.io)
+     classifies as AUTHORIZED_HOMOLOGATION, never AUTHORIZED_PRODUCTION
+     (GL-ENV-AUTH-WRITE-BOUNDARY's own R1/R2 fix);
+  B. the Human-designated future production hostname
+     (brabus.blistiq.com.br) classifies as AUTHORIZED_PRODUCTION when its
+     prepared config is present in the artifact -- PREPARED, not
+     ACTIVATED: this proves the classification logic only, never implies
+     V2 is actually deployed there;
+  C. a different *.github.io hostname is NOT authorized (no wildcard);
+  D. an unrelated hostname is NOT authorized;
+  E/localhost/127.0.0.1: local dev remains allowed, unaffected;
+  F. the homolog config is visible to the guard's authoritative check,
+     i.e. loaded before DOMContentLoaded fires (host config before guard),
+     carries no OPENAI_API_KEY-shaped field, uses
+     authorizedHomologationHostnames (never authorizedHostnames), and
+     points textEndpoint at portal-ai-homolog;
+  G. the production config uses authorizedHostnames (never
+     authorizedHomologationHostnames) and points textEndpoint at
+     portal-ai (never portal-ai-homolog).
 
 0 real network calls beyond the intercepted local artifact. 0 credentials.
 """
@@ -43,7 +55,8 @@ def check(label, cond):
 
 
 CASES = [
-    ("luisgamadio-spec.github.io", True, "AUTHORIZED_PRODUCTION"),
+    ("luisgamadio-spec.github.io", True, "AUTHORIZED_HOMOLOGATION"),
+    ("brabus.blistiq.com.br", True, "AUTHORIZED_PRODUCTION"),
     ("someoneelse.github.io", False, "UNKNOWN_HOST"),
     ("random-imposter-host.com", False, "UNKNOWN_HOST"),
     ("localhost", True, "LOCAL_DEV"),
@@ -96,9 +109,30 @@ def main():
 
             if hostname == "luisgamadio-spec.github.io":
                 cfg = page.evaluate("window.NX_INTELLIGENCE_CONFIG")
-                check("hosted config: mode stays 'fixture' (Intelligence inert)", cfg and cfg.get("mode") == "fixture")
-                check("hosted config: no OPENAI_API_KEY-shaped field present", cfg and "OPENAI_API_KEY" not in str(cfg) and "openaiApiKey" not in cfg)
-                check("hosted config: authorizedHostnames contains exact hostname only", cfg and cfg.get("authorizedHostnames") == ["luisgamadio-spec.github.io"])
+                # GL-ENV-AUTH-WRITE-BOUNDARY -- corrected alongside this
+                # wave's own hostname-classification changes: the prior
+                # "mode stays 'fixture'" assertion was already stale
+                # before this wave (the real committed homolog-flavored
+                # config has shipped mode:'real_text' since GL-1J/SEC-1C.3
+                # activated Intelligence TEXT for this host; this test
+                # simply never ran in an environment with
+                # GL1J_ARTIFACT_ROOT set, so the drift went unnoticed).
+                # Corrected here to match the real, current, live-verified
+                # content rather than left further out of date while this
+                # exact block was already being touched for the
+                # authorizedHomologationHostnames rename below.
+                check("homolog config: mode is 'real_text' (Intelligence TEXT active, homolog)", cfg and cfg.get("mode") == "real_text")
+                check("homolog config: no OPENAI_API_KEY-shaped field present", cfg and "OPENAI_API_KEY" not in str(cfg) and "openaiApiKey" not in cfg)
+                check("homolog config: authorizedHomologationHostnames contains exact hostname only", cfg and cfg.get("authorizedHomologationHostnames") == ["luisgamadio-spec.github.io"])
+                check("homolog config: authorizedHostnames (production) is NOT set here", cfg and not cfg.get("authorizedHostnames"))
+                check("homolog config: textEndpoint uses portal-ai-homolog", cfg and "/portal-ai-homolog" in (cfg.get("textEndpoint") or ""))
+
+            if hostname == "brabus.blistiq.com.br":
+                cfg = page.evaluate("window.NX_INTELLIGENCE_CONFIG")
+                check("production config: authorizedHostnames contains exact hostname only", cfg and cfg.get("authorizedHostnames") == ["brabus.blistiq.com.br"])
+                check("production config: authorizedHomologationHostnames (homolog) is NOT set here", cfg and not cfg.get("authorizedHomologationHostnames"))
+                check("production config: textEndpoint uses portal-ai (never portal-ai-homolog)", cfg and (cfg.get("textEndpoint") or "").endswith("/portal-ai"))
+                check("production config: voiceRealtimeEndpoint is null (no production portal-realtime function could be proven to exist -- not invented)", cfg and cfg.get("voiceRealtimeEndpoint") is None)
 
             page.close()
         browser.close()

@@ -211,7 +211,17 @@
     // backend-returned string (Gate 9's explicit boundary).
     isModuleAuthorized: function (entry) {
       if (!entry) return false;
-      if (state === STATES.AUTH_NOT_CONFIGURED) return true;
+      // GL-ENV-AUTH-WRITE-BOUNDARY: previously returned true here
+      // (AUTH_NOT_CONFIGURED treated as "no guard exists yet",
+      // preserving pre-Auth-Foundation behavior) -- the Human
+      // Environment Authority for this wave requires AUTH_NOT_CONFIGURED
+      // to NEVER authorize a protected module, on any host. This alone
+      // is not sufficient by construction (shell.js's own boot()
+      // onStateChange handler and onRouteChange guard were changed in
+      // the same wave/commit to stop treating this state as equivalent
+      // to AUTHORIZED -- without those, this line alone would produce a
+      // silent route-bounce dead-end, not a safe fail-closed screen).
+      if (state === STATES.AUTH_NOT_CONFIGURED) return false;
       if (!context) return false;
       switch (entry.authMode) {
         case 'LOGIN_REQUIRED': return true;

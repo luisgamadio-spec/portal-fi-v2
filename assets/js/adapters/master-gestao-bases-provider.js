@@ -38,32 +38,42 @@
    already-human-language backend text (Portuguese), passed through
    verbatim, never re-worded or replaced with a raw stack trace.
 
-   HOMOLOGATION MODE (Gate 36/38/65 -- ported verbatim from V1's own
-   already-proven safety mechanism, master-gestao-bases.js's gbRpc/
-   GB_HOMOLOGATION_MODE): this whole RPC family writes real operational
-   data (sales/finance/SPF/sellers), and V1 already solved "how do you
-   let someone safely click through the entire import flow, including
-   Confirmar, without ever risking a real write" with a deny-by-default
-   gate keyed on the exact production hostname -- not a client-guessed
-   "am I in a test" flag. Any hostname other than the real production
-   ones (the SAME Supabase project backs both V1 and V2, so V1's own
-   proven allowlist is reused unchanged, not re-invented) auto-simulates
-   every write RPC and returns a plausible same-shaped fake response,
-   logging a console.warn -- never reaching the network. This makes the
-   Human's own local V2 UAT (localhost, the established dev-server
-   convention) automatically non-destructive by construction, even if a
-   real production file is selected, and makes every automated test in
-   this codebase's harness (never running on those hostnames) safe by
-   the same construction, not merely by convention/care. */
+   HOMOLOGATION MODE (Gate 36/38/65; GL-ENV-AUTH-WRITE-BOUNDARY, was:
+   ported verbatim from V1's own gbRpc/GB_HOMOLOGATION_MODE with its own
+   private GB_PRODUCTION_HOSTS hostname allowlist): this whole RPC
+   family writes real operational data (sales/finance/SPF/sellers), and
+   V1 already solved "how do you let someone safely click through the
+   entire import flow, including Confirmar, without ever risking a real
+   write" with a deny-by-default gate. That private allowlist was the
+   exact mechanism the preceding read-only audit identified as R2 -- it
+   independently classified luisgamadio-spec.github.io (GitHub Pages
+   HOMOLOGATION, per the Human Environment Authority) as a "production
+   host," so a real write RPC there was never blocked. Now reads the
+   SAME single source of truth environment-guard.js publishes
+   (window.NX_ENVIRONMENT.name) instead of maintaining an independent
+   hostname list that could drift out of sync with it -- every REAL
+   write auto-simulates and returns a plausible same-shaped fake
+   response, logging a console.warn -- never reaching the network --
+   UNLESS that name is exactly 'AUTHORIZED_PRODUCTION' (LOCAL_DEV,
+   AUTHORIZED_HOMOLOGATION and UNKNOWN_HOST all simulate). This makes
+   the Human's own local V2 UAT (localhost) automatically non-
+   destructive by construction, and makes every automated test in this
+   codebase's harness (never running on an authorized-production
+   hostname) safe by the same construction, not merely by convention/
+   care. Evaluated fresh on every call (never cached at module-load
+   time) for the same DOMContentLoaded-timing reason documented in
+   master-gestao-simuladores-provider.js. RPC names, import
+   transformations, Base 01/02/03 rules, dry-run semantics and server
+   SQL are all unchanged by this wave. */
 (function () {
   'use strict';
 
-  var GB_PRODUCTION_HOSTS = ['luisgamadio-spec.github.io', 'brabus.blistiq.com.br'];
-  function gbIsProductionHost() {
-    var h = ((typeof location !== 'undefined' && location.hostname) || '').toLowerCase();
-    return GB_PRODUCTION_HOSTS.indexOf(h) !== -1;
+  // GL-ENV-AUTH-WRITE-BOUNDARY -- the write-safety authority is now
+  // exactly the environment classification environment-guard.js
+  // publishes; this file no longer maintains its own hostname list.
+  function gbIsProductionEnvironment() {
+    return !!(window.NX_ENVIRONMENT && window.NX_ENVIRONMENT.name === 'AUTHORIZED_PRODUCTION');
   }
-  var GB_HOMOLOGATION_MODE = !gbIsProductionHost();
   var GB_WRITE_RPC_NAMES = {
     master_operational_begin_import: true,
     master_operational_import_sales: true,
@@ -112,7 +122,7 @@
   var DEFAULT_TIMEOUT_MS = 20000;
 
   function callRpc(fnName, params, signal) {
-    if (GB_HOMOLOGATION_MODE && gbIsBlockedWrite(fnName, params)) {
+    if (!gbIsProductionEnvironment() && gbIsBlockedWrite(fnName, params)) {
       return Promise.resolve(gbSimulateWrite(fnName, params));
     }
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
@@ -251,6 +261,6 @@
     listBatches: listBatches,
     listSellers: listSellers,
     listSpfExtraBase02: listSpfExtraBase02,
-    isHomologationMode: function () { return GB_HOMOLOGATION_MODE; }
+    isHomologationMode: function () { return !gbIsProductionEnvironment(); }
   };
 })();

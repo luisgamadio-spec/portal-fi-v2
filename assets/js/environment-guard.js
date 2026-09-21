@@ -1,4 +1,5 @@
-/* PORTAL-NEXT V2 -- Environment Guard (Gate 18, redesigned GL-1C).
+/* PORTAL-NEXT V2 -- Environment Guard (Gate 18, redesigned GL-1C,
+   extended GL-ENV-AUTH-WRITE-BOUNDARY).
 
    REDESIGNED (Go-Live deployment reconciliation, GL-1C): the original
    contract was "block every hostname that merely LOOKS like a
@@ -8,45 +9,60 @@
    before any real deployment was planned; it does not once Strategy B
    (V2's own standalone GitHub Pages deployment) is the intended target.
 
-   NEW CONTRACT -- exactly three states, always exactly one applies:
+   EXTENDED (GL-ENV-AUTH-WRITE-BOUNDARY): the preceding read-only audit
+   found that a two-state "allowed vs unknown" model, with every
+   allowed host uniformly labeled AUTHORIZED_PRODUCTION, was itself the
+   root cause of R1/R2 -- it gave GitHub Pages homologation
+   (luisgamadio-spec.github.io) the exact same classification as real
+   production, which write-safety providers elsewhere then read as
+   license to allow real writes there. "Host is allowed to load V2" and
+   "host is production" are now two separate concepts, read from two
+   separately-named config fields (never both true for the same host in
+   real use, since index.html's own host-conditional loader only ever
+   loads ONE real-credentialed config file per host).
 
-     LOCAL_DEV            -- hostname is localhost/127.0.0.1. Always
-                             allowed, unconditionally.
-     AUTHORIZED_PRODUCTION -- hostname is NOT local dev, AND the
-                             hostname appears in the production runtime
-                             config's own `authorizedHostnames` array
-                             (assets/js/intelligence-runtime-config.js,
-                             overridden by .production.js on a real
-                             host). This authorization can ONLY come
-                             from that server-shipped, hand-maintained
-                             config file -- never from a client-editable
-                             query parameter, localStorage value, or any
-                             other client-controlled signal, since the
-                             whole point of this guard is that a client
-                             cannot self-authorize its own host.
-     UNKNOWN_HOST          -- neither of the above. FAIL CLOSED --
-                             refuses to render, exactly like the
-                             original guard's behavior, just reached via
-                             an explicit allowlist miss rather than a
-                             blocklist hit. This is deliberately the
-                             DEFAULT today: intelligence-runtime-
-                             config.js's own committed authorizedHostnames
-                             is an empty array, and no production file is
-                             loaded by index.html yet -- so every real
-                             host, including a future real V2 GitHub
-                             Pages hostname, remains UNKNOWN_HOST (and
-                             therefore blocked) until a Human explicitly
-                             records that hostname in a real production
-                             config file. This is intentional, not a
-                             bug: GL-1C's own brief is explicit that
-                             "the final hostname has not yet been chosen"
-                             and must never be invented here.
+   CONTRACT -- exactly four states, always exactly one applies:
+
+     LOCAL_DEV              -- hostname is localhost/127.0.0.1. Always
+                               allowed, unconditionally.
+     AUTHORIZED_HOMOLOGATION -- hostname is NOT local dev, AND the
+                               hostname appears in
+                               `authorizedHomologationHostnames`
+                               (intelligence-runtime-config.homolog.js,
+                               loaded only on the proven GitHub Pages
+                               homologation hostname). MUST NEVER be
+                               treated as production by any consumer --
+                               this is the whole point of the split.
+     AUTHORIZED_PRODUCTION   -- hostname is NOT local dev, AND the
+                               hostname appears in the production
+                               runtime config's own `authorizedHostnames`
+                               array (intelligence-runtime-config.js,
+                               overridden by .production.js on a real
+                               host). This authorization can ONLY come
+                               from that server-shipped, hand-maintained
+                               config file -- never from a client-
+                               editable query parameter, localStorage
+                               value, or any other client-controlled
+                               signal, since the whole point of this
+                               guard is that a client cannot self-
+                               authorize its own host. Checked BEFORE
+                               homologation so a host mistakenly listed
+                               in both would resolve as production, the
+                               safer of the two failure directions for
+                               that specific conflict.
+     UNKNOWN_HOST            -- none of the above. FAIL CLOSED --
+                               refuses to render. This remains the
+                               DEFAULT for every host not explicitly
+                               recorded in a real config file by a
+                               Human -- intelligence-runtime-config.js's
+                               own committed defaults for both hostname
+                               fields are empty arrays.
 
    TIMING NOTE: the actual authorization decision is deliberately made
    inside the DOMContentLoaded handler below, not at top-level script
-   execution. This file may load before intelligence-runtime-
-   config(.production).js in index.html's current script order; by the
-   time DOMContentLoaded fires, every earlier synchronous <script> tag
+   execution. This file may load before the environment-specific config
+   file in index.html's current script order; by the time
+   DOMContentLoaded fires, every earlier synchronous <script> tag
    (including the config file, wherever it sits in the document) has
    already executed, so window.NX_INTELLIGENCE_CONFIG is guaranteed to
    be populated by then. This avoids requiring a script-order change in
@@ -61,10 +77,15 @@
     var isLocalDev = LOCAL_DEV_HOSTNAMES.indexOf(host) !== -1;
 
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
-    var authorizedHostnames = Array.isArray(cfg.authorizedHostnames) ? cfg.authorizedHostnames : [];
-    var isAuthorizedProduction = !isLocalDev && authorizedHostnames.indexOf(host) !== -1;
+    var authorizedProductionHostnames = Array.isArray(cfg.authorizedHostnames) ? cfg.authorizedHostnames : [];
+    var authorizedHomologationHostnames = Array.isArray(cfg.authorizedHomologationHostnames) ? cfg.authorizedHomologationHostnames : [];
+    var isAuthorizedProduction = !isLocalDev && authorizedProductionHostnames.indexOf(host) !== -1;
+    var isAuthorizedHomologation = !isLocalDev && !isAuthorizedProduction && authorizedHomologationHostnames.indexOf(host) !== -1;
 
-    var name = isLocalDev ? 'LOCAL_DEV' : (isAuthorizedProduction ? 'AUTHORIZED_PRODUCTION' : 'UNKNOWN_HOST');
+    var name = isLocalDev ? 'LOCAL_DEV'
+      : (isAuthorizedProduction ? 'AUTHORIZED_PRODUCTION'
+      : (isAuthorizedHomologation ? 'AUTHORIZED_HOMOLOGATION'
+      : 'UNKNOWN_HOST'));
     return { name: name, hostname: host, allowed: name !== 'UNKNOWN_HOST' };
   }
 
@@ -91,10 +112,13 @@
         'ENVIRONMENT GUARD STOP\n\n' +
         'This is PORTAL-NEXT V2 and it is running on a hostname (' + result.hostname + ') ' +
         'that is not recognized as LOCAL_DEV and does not appear in this build\'s ' +
-        'authorizedHostnames allowlist. Refusing to render.\n\n' +
-        'If this IS the intended production host, a Human must record it in ' +
-        'assets/js/intelligence-runtime-config.production.js\'s authorizedHostnames ' +
-        'array -- this cannot be self-authorized from the browser.' +
+        'authorizedHostnames (production) or authorizedHomologationHostnames (homolog) ' +
+        'allowlists. Refusing to render.\n\n' +
+        'If this IS an intended host, a Human must record it in ' +
+        'assets/js/intelligence-runtime-config.production.js\'s authorizedHostnames array ' +
+        '(for production) or intelligence-runtime-config.homolog.js\'s ' +
+        'authorizedHomologationHostnames array (for homologation) -- this cannot be ' +
+        'self-authorized from the browser.' +
         '</pre>';
       console.error('[environment-guard] STOP: unauthorized/unknown host:', result.hostname);
     }

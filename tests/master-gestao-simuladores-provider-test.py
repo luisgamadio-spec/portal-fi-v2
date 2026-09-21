@@ -457,9 +457,60 @@ def main():
               page.query_selector(".modErrorState") is not None)
         page.close()
 
+        # ---------- 30-33: GL-ENV-AUTH-WRITE-BOUNDARY -- environment-authority write safety ----------
+        # Proves the exact invariant this wave's design required: a real
+        # (non-dry-run) commit RPC bypasses frontend simulation ONLY when
+        # window.NX_ENVIRONMENT.name === 'AUTHORIZED_PRODUCTION'. Drives
+        # the real provider's exposed commit() directly (same call path
+        # goto_simuladores's own UI flow ultimately reaches) against each
+        # of the 4 real environment classifications, set directly via
+        # window.NX_ENVIRONMENT the same way environment-guard.js's own
+        # DOMContentLoaded handler would -- this harness never actually
+        # navigates to a real hostname, so this is the faithful way to
+        # exercise all 4 states without duplicating environment-guard.js's
+        # own hostname-classification test coverage (already proven
+        # separately in tests/environment-guard-hostname-test.py).
+        page = new_page(browser)
+        install_tripwire(page)
+        page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+        page.route(CONV_URL + "*", json_route(200, []))
+        page.route(LISTAR_BASES_URL + "*", json_route(200, []))
+        env_commit_calls = []
+        page.route(COMMIT_LINEAR_URL + "*", counting_route(env_commit_calls, lambda post: {"ok": True, "batch_id": "should-only-be-reached-in-production"}))
+        mount(page)
+
+        env_cases = [
+            ("LOCAL_DEV", False),
+            ("AUTHORIZED_HOMOLOGATION", False),
+            ("UNKNOWN_HOST", False),
+            ("AUTHORIZED_PRODUCTION", True),
+        ]
+        for idx, (env_name, expect_real_network) in enumerate(env_cases):
+            env_commit_calls.clear()
+            page.evaluate("window.NX_ENVIRONMENT = { name: %r, hostname: 'gl-env-audit-test', allowed: true }" % env_name)
+            outcome = page.evaluate("""
+              () => window.NX_MASTER_GESTAO_SIMULADORES_PROVIDER
+                .commit('master_simulador_commit_linear', {}, {})
+                .then(r => ({ ok: true, result: r }))
+                .catch(e => ({ ok: false, error: String(e && e.message || e) }))
+            """)
+            n = 30 + idx
+            if expect_real_network:
+                check(f"{n}: {env_name} -> real commit RPC reaches the network (NOT frontend-simulated)", len(env_commit_calls) == 1)
+                check(f"{n}b: {env_name} -> response is the real (non-simulated) server response shape", isinstance(outcome, dict) and outcome.get("ok") and outcome["result"].get("simulated") is not True)
+            else:
+                check(f"{n}: {env_name} -> real commit RPC never reaches the network (frontend-simulated)", len(env_commit_calls) == 0)
+                check(f"{n}b: {env_name} -> commit() resolves with a simulated response, not an error", isinstance(outcome, dict) and outcome.get("ok") and outcome["result"].get("simulated") is True)
+            check(f"{n}c: {env_name} -> isHomologationMode() reports {not expect_real_network} (single source of truth, same expression callRpc reads)",
+                  page.evaluate("window.NX_MASTER_GESTAO_SIMULADORES_PROVIDER.isHomologationMode()") == (not expect_real_network))
+        # Restore a neutral/no-environment state so it can never leak into
+        # a later test block in this same process.
+        page.evaluate("window.NX_ENVIRONMENT = undefined")
+        page.close()
+
         browser.close()
 
-    check("30: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
+    check("34: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
     if real_network_hits:
         print("[TRIPWIRE] real network hit(s) detected:", real_network_hits)
 

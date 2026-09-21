@@ -21,24 +21,36 @@
    RLS enabled with ZERO policies -- direct table access denied for
    every role, same proven pattern as Gestão de Bases.
 
-   HOMOLOGATION MODE: ported verbatim from V1's own already-proven
-   mechanism (master-gestao-simuladores.js's gsRpc/GS_HOMOLOGATION_MODE)
-   -- identical hostname allowlist, identical rule (every REAL write is
-   blocked off the two real production hosts; a dry-run, p_dry_run:true,
-   is a pure read and is NEVER blocked, matching the real RPC bodies
+   HOMOLOGATION MODE (GL-ENV-AUTH-WRITE-BOUNDARY, was: ported verbatim
+   from V1's own gsRpc/GS_HOMOLOGATION_MODE with its own private
+   GS_PRODUCTION_HOSTS hostname allowlist): that private allowlist was
+   the exact mechanism the preceding read-only audit identified as R2 --
+   it independently classified luisgamadio-spec.github.io (GitHub Pages
+   HOMOLOGATION, per the Human Environment Authority) as a "production
+   host," so a real commit RPC there was never blocked. Now reads the
+   SAME single source of truth environment-guard.js publishes
+   (window.NX_ENVIRONMENT.name) instead of maintaining an independent
+   hostname list that could drift out of sync with it -- every REAL
+   write is blocked/simulated UNLESS that name is exactly
+   'AUTHORIZED_PRODUCTION' (LOCAL_DEV, AUTHORIZED_HOMOLOGATION and
+   UNKNOWN_HOST all simulate). A dry-run, p_dry_run:true, is a pure read
+   and is NEVER blocked in any environment, matching the real RPC bodies
    confirmed live: the dry-run branch never reaches an INSERT/UPDATE
-   statement in any of them). This makes local/test environments
-   non-destructive by construction, exactly as it does for Gestão de
-   Bases -- confirmed independently for this capability, not assumed. */
+   statement in any of them. Evaluated fresh on every call (never cached
+   at module-load time) because window.NX_ENVIRONMENT's authoritative
+   value is only set inside environment-guard.js's own DOMContentLoaded
+   handler -- a cached read here could observe only the preliminary,
+   pre-DOMContentLoaded value. Write RPC names, business transformations
+   and server RPCs are all unchanged by this wave. */
 (function () {
   'use strict';
 
-  var GS_PRODUCTION_HOSTS = ['luisgamadio-spec.github.io', 'brabus.blistiq.com.br'];
-  function gsIsProductionHost() {
-    var h = ((typeof location !== 'undefined' && location.hostname) || '').toLowerCase();
-    return GS_PRODUCTION_HOSTS.indexOf(h) !== -1;
+  // GL-ENV-AUTH-WRITE-BOUNDARY -- the write-safety authority is now
+  // exactly the environment classification environment-guard.js
+  // publishes; this file no longer maintains its own hostname list.
+  function gsIsProductionEnvironment() {
+    return !!(window.NX_ENVIRONMENT && window.NX_ENVIRONMENT.name === 'AUTHORIZED_PRODUCTION');
   }
-  var GS_HOMOLOGATION_MODE = !gsIsProductionHost();
   var GS_COMMIT_RPC_NAMES = {
     master_simulador_commit_linear: true,
     master_simulador_commit_taxas_subsidiadas: true,
@@ -73,7 +85,7 @@
   var DEFAULT_TIMEOUT_MS = 20000;
 
   function callRpc(fnName, params, signal) {
-    if (GS_HOMOLOGATION_MODE && gsIsBlockedWrite(fnName, params)) {
+    if (!gsIsProductionEnvironment() && gsIsBlockedWrite(fnName, params)) {
       return Promise.resolve(gsSimulateWrite(fnName, params));
     }
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
@@ -181,6 +193,6 @@
   window.NX_MASTER_GESTAO_SIMULADORES_PROVIDER = {
     listarBases: listarBases,
     commit: commit,
-    isHomologationMode: function () { return GS_HOMOLOGATION_MODE; }
+    isHomologationMode: function () { return !gsIsProductionEnvironment(); }
   };
 })();
