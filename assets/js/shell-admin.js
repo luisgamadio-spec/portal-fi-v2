@@ -2595,8 +2595,19 @@
   }
 
   function renderConfiguracoesSection() {
+    // PM-WRITE-SAFETY-2 -- the section intro previously claimed "não há
+    // ambiente de homologação para esta tela", which became false once
+    // this wave added the write-safety gate; the stale clause is
+    // removed here (not replaced by a conditional sentence) and the
+    // homolog banner below now carries the accurate, environment-aware
+    // statement instead.
+    var cfgHomolog = CFG_PROVIDER.isHomologationMode();
+    var homologBanner = cfgHomolog
+      ? '<p class="note gbWarn gbHomologBanner">🧪 MODO DE HOMOLOGAÇÃO — alterações realizadas nesta tela são simuladas e não modificam os dados reais.</p>'
+      : '';
     var html = '<h2>Configurações</h2>' +
-      '<p class="note">Parâmetros de comissão do portal. Ao salvar, o valor passa a valer imediatamente para todos os cálculos que o utilizam — não há ambiente de homologação para esta tela.</p>';
+      '<p class="note">Parâmetros de comissão do portal. Ao salvar, o valor passa a valer imediatamente para todos os cálculos que o utilizam.</p>' +
+      homologBanner;
     if (cfgState.error) {
       html += errorStateHtml(cfgState.error.state, cfgState.error.message) +
         '<button type="button" id="cfgRetryBtn" class="modBtnGhost">Tentar novamente</button>';
@@ -2621,10 +2632,17 @@
   function cfgCancelConfirm() { cfgState.modal = null; clearNxModal(); renderPanel(); }
 
   function cfgConfirmBodyHtml(m) {
+    // PM-WRITE-SAFETY-2 -- the prior unconditional "não há modo de
+    // simulação para esta tela" claim is now only true in production;
+    // the warning text below is environment-aware instead of leaving a
+    // now-contradictory statement in place.
+    var warnText = CFG_PROVIDER.isHomologationMode()
+      ? '⚠️ Este parâmetro influencia diretamente o cálculo de comissão em produção. Nesta tela, neste ambiente (homologação/local), a alteração será apenas simulada — nenhum dado real é gravado.'
+      : '⚠️ Este parâmetro influencia diretamente o cálculo de comissão. A alteração é gravada imediatamente e afeta todos os usuários.';
     return '<div class="gbRow"><span>Parâmetro</span><b>' + esc(m.setting.label) + '</b></div>' +
       '<div class="gbRow"><span>Valor atual</span><b>' + esc(CFG_VM.fmtNumber(m.setting.value)) + ' ' + esc(m.setting.unit) + '</b></div>' +
       '<div class="gbRow"><span>Novo valor</span><b class="gbStatusOk">' + esc(CFG_VM.fmtNumber(m.newValue)) + ' ' + esc(m.setting.unit) + '</b></div>' +
-      '<p class="note gbWarn">⚠️ Este parâmetro influencia diretamente o cálculo de comissão. A alteração é gravada imediatamente e afeta todos os usuários — não há modo de simulação para esta tela.</p>' +
+      '<p class="note gbWarn">' + esc(warnText) + '</p>' +
       '<p id="cfgConfirmMsg" class="maSubtle gbErrText" role="status"></p>' +
       '<div class="adminModalActions">' +
       '<button type="button" class="modBtnGhost" id="cfgConfirmCancelBtn">Cancelar</button>' +
@@ -2632,8 +2650,15 @@
       '</div>';
   }
   function cfgSuccessBodyHtml(m) {
+    // PM-WRITE-SAFETY-2 -- explicit simulated-vs-real success notice,
+    // same "SIMULAÇÃO CONCLUÍDA" semantic already used by Gestão dos
+    // Simuladores/Bases' own success modals.
+    var simNote = m.simulated
+      ? '<p class="gbSimNote"><b>🧪 SIMULAÇÃO CONCLUÍDA — nenhuma alteração real foi realizada.</b></p>'
+      : '';
     return '<div class="gbRow"><span>Parâmetro</span><b>' + esc(m.setting.label) + '</b></div>' +
       '<div class="gbRow"><span>Novo valor</span><b>' + esc(CFG_VM.fmtNumber(m.newValue)) + ' ' + esc(m.setting.unit) + '</b></div>' +
+      simNote +
       '<div class="adminModalActions"><button type="button" class="modBtn" id="cfgSuccessCloseBtn">Fechar</button></div>';
   }
   function cfgErrorBodyHtml(m) {
@@ -2649,9 +2674,9 @@
     var btn = document.getElementById('cfgConfirmSaveBtn');
     if (btn) btn.disabled = true;
     CFG_PROVIDER.updateConfig(m.setting.key, m.newValue, m.setting.description).then(
-      function () {
+      function (result) {
         inFlight.cfgSave = false;
-        cfgState.modal = { kind: 'success', setting: m.setting, newValue: m.newValue };
+        cfgState.modal = { kind: 'success', setting: m.setting, newValue: m.newValue, simulated: !!(result && result.simulated) };
         renderCfgModalRoot();
       },
       function (err) {
@@ -2762,9 +2787,21 @@
       '</div></div>';
   }
 
+  // PM-WRITE-SAFETY-2 -- same isHomologationMode()-at-render-time idiom
+  // already established by gbHomolog()/gsHomolog() above.
+  function prHomolog() { return PR_PROVIDER.isHomologationMode(); }
+
   function renderPeriodosSection() {
+    // PM-WRITE-SAFETY-2 -- the prior unconditional "Não há ambiente de
+    // homologação para esta tela: cada ação é gravada imediatamente."
+    // claim is now only true in production; removed in favor of the
+    // environment-aware banner below.
+    var homologBanner = prHomolog()
+      ? '<p class="note gbWarn gbHomologBanner">🧪 MODO DE HOMOLOGAÇÃO — alterações realizadas nesta tela são simuladas e não modificam os dados reais.</p>'
+      : '';
     var html = '<h2>Períodos de Comissão</h2>' +
-      '<p class="note">Cadastre os períodos oficiais. O período controla somente as datas inicial e final usadas como filtro — os cálculos continuam usando as mesmas funções já homologadas. Não há ambiente de homologação para esta tela: cada ação é gravada imediatamente.</p>';
+      '<p class="note">Cadastre os períodos oficiais. O período controla somente as datas inicial e final usadas como filtro — os cálculos continuam usando as mesmas funções já homologadas.</p>' +
+      homologBanner;
     if (prState.error) {
       html += errorStateHtml(prState.error.state, prState.error.message) +
         '<button type="button" id="prRetryBtn" class="modBtnGhost">Tentar novamente</button>';
@@ -2785,7 +2822,7 @@
     if (!prState.modal) { if (currentSection === 'periodosComissao') clearNxModal(); return; }
     var m = prState.modal;
     if (m.kind === 'confirm') renderNxModal('Confirmar arquivamento', prConfirmBodyHtml(m), prCancelConfirm);
-    else if (m.kind === 'success') renderNxModal('✅ Período atualizado', prSuccessBodyHtml(m), prCloseModalAndRefresh);
+    else if (m.kind === 'success') renderNxModal((prHomolog() ? '🧪 ' : '✅ ') + 'Período atualizado', prSuccessBodyHtml(m), prCloseModalAndRefresh);
     else if (m.kind === 'error') renderNxModal('Erro', prErrorBodyHtml(m), prCloseModal);
     wirePrModalInteraction();
   }
@@ -2804,7 +2841,10 @@
       '</div>';
   }
   function prSuccessBodyHtml(m) {
-    return '<p>' + esc(m.message || 'Ação concluída com sucesso.') + '</p>' +
+    var simNote = prHomolog()
+      ? '<p class="gbSimNote"><b>🧪 SIMULAÇÃO CONCLUÍDA — nenhuma alteração real foi realizada.</b></p>'
+      : '';
+    return simNote + '<p>' + esc(m.message || 'Ação concluída com sucesso.') + '</p>' +
       '<div class="adminModalActions"><button type="button" class="modBtn" id="prSuccessCloseBtn">Fechar</button></div>';
   }
   function prErrorBodyHtml(m) {
@@ -3065,9 +3105,20 @@
       '</div></div>';
   }
 
+  // PM-WRITE-SAFETY-2 -- same isHomologationMode()-at-render-time idiom
+  // already established by gbHomolog()/gsHomolog() above.
+  function absHomolog() { return ABS_PROVIDER.isHomologationMode(); }
+
   function renderFeriasAusenciasSection() {
+    // PM-WRITE-SAFETY-2 -- the prior unconditional "Não há ambiente de
+    // homologação para esta tela..." claim is now only true in
+    // production; removed in favor of the environment-aware banner.
+    var homologBanner = absHomolog()
+      ? '<p class="note gbWarn gbHomologBanner">🧪 MODO DE HOMOLOGAÇÃO — alterações realizadas nesta tela são simuladas e não modificam os dados reais.</p>'
+      : '';
     var html = '<h2>Férias/Ausências</h2>' +
-      '<p class="note">Registre ausências de analistas e o substituto responsável pela cobertura. Não há ambiente de homologação para esta tela: cada ação é gravada imediatamente.</p>';
+      '<p class="note">Registre ausências de analistas e o substituto responsável pela cobertura.</p>' +
+      homologBanner;
     if (absState.error) {
       html += errorStateHtml(absState.error.state, absState.error.message) +
         '<button type="button" id="absRetryBtn" class="modBtnGhost">Tentar novamente</button>';
@@ -3088,7 +3139,7 @@
     if (!absState.modal) { if (currentSection === 'feriasAusencias') clearNxModal(); return; }
     var m = absState.modal;
     if (m.kind === 'confirm') renderNxModal('Confirmar arquivamento', absConfirmBodyHtml(m), absCancelConfirm);
-    else if (m.kind === 'success') renderNxModal('✅ Ausência atualizada', absSuccessBodyHtml(m), absCloseModalAndRefresh);
+    else if (m.kind === 'success') renderNxModal((absHomolog() ? '🧪 ' : '✅ ') + 'Ausência atualizada', absSuccessBodyHtml(m), absCloseModalAndRefresh);
     else if (m.kind === 'error') renderNxModal('Erro', absErrorBodyHtml(m), absCloseModal);
     wireAbsModalInteraction();
   }
@@ -3107,7 +3158,10 @@
       '</div>';
   }
   function absSuccessBodyHtml(m) {
-    return '<p>' + esc(m.message || 'Ação concluída com sucesso.') + '</p>' +
+    var simNote = absHomolog()
+      ? '<p class="gbSimNote"><b>🧪 SIMULAÇÃO CONCLUÍDA — nenhuma alteração real foi realizada.</b></p>'
+      : '';
+    return simNote + '<p>' + esc(m.message || 'Ação concluída com sucesso.') + '</p>' +
       '<div class="adminModalActions"><button type="button" class="modBtn" id="absSuccessCloseBtn">Fechar</button></div>';
   }
   function absErrorBodyHtml(m) {
@@ -3376,9 +3430,20 @@
       '</div></div>';
   }
 
+  // PM-WRITE-SAFETY-2 -- same isHomologationMode()-at-render-time idiom
+  // already established by gbHomolog()/gsHomolog() above.
+  function scHomolog() { return SC_PROVIDER.isHomologationMode(); }
+
   function renderMudancaLojaSection() {
+    // PM-WRITE-SAFETY-2 -- the prior unconditional "Não há ambiente de
+    // homologação para esta tela..." claim is now only true in
+    // production; removed in favor of the environment-aware banner.
+    var homologBanner = scHomolog()
+      ? '<p class="note gbWarn gbHomologBanner">🧪 MODO DE HOMOLOGAÇÃO — alterações realizadas nesta tela são simuladas e não modificam os dados reais.</p>'
+      : '';
     var html = '<h2>Mudança de Loja - Vendedores</h2>' +
-      '<p class="note">Registre transferências de loja de vendedores. Não há loja/enum pré-cadastrado: as sugestões abaixo vêm apenas de registros já existentes. Não há ambiente de homologação para esta tela: cada ação é gravada imediatamente.</p>';
+      '<p class="note">Registre transferências de loja de vendedores. Não há loja/enum pré-cadastrado: as sugestões abaixo vêm apenas de registros já existentes.</p>' +
+      homologBanner;
     if (scState.error) {
       html += errorStateHtml(scState.error.state, scState.error.message) +
         '<button type="button" id="scRetryBtn" class="modBtnGhost">Tentar novamente</button>';
@@ -3400,7 +3465,7 @@
     var m = scState.modal;
     if (m.kind === 'confirm') renderNxModal('Confirmar arquivamento', scConfirmBodyHtml(m), scCancelConfirm);
     else if (m.kind === 'editDepartments') renderNxModal('Editar departamentos', scEditDeptBodyHtml(m), scCloseModal);
-    else if (m.kind === 'success') renderNxModal('✅ Mudança de loja atualizada', scSuccessBodyHtml(m), scCloseModalAndRefresh);
+    else if (m.kind === 'success') renderNxModal((scHomolog() ? '🧪 ' : '✅ ') + 'Mudança de loja atualizada', scSuccessBodyHtml(m), scCloseModalAndRefresh);
     else if (m.kind === 'error') renderNxModal('Erro', scErrorBodyHtml(m), scCloseModal);
     wireScModalInteraction();
   }
@@ -3433,7 +3498,10 @@
       '</div>';
   }
   function scSuccessBodyHtml(m) {
-    return '<p>' + esc(m.message || 'Ação concluída com sucesso.') + '</p>' +
+    var simNote = scHomolog()
+      ? '<p class="gbSimNote"><b>🧪 SIMULAÇÃO CONCLUÍDA — nenhuma alteração real foi realizada.</b></p>'
+      : '';
+    return simNote + '<p>' + esc(m.message || 'Ação concluída com sucesso.') + '</p>' +
       '<div class="adminModalActions"><button type="button" class="modBtn" id="scSuccessCloseBtn">Fechar</button></div>';
   }
   function scErrorBodyHtml(m) {

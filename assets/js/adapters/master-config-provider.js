@@ -20,17 +20,49 @@
    human-readable before/after row into `public.auditoria` on every
    successful save.
 
-   NO HOMOLOGATION-MODE GATE EXISTS FOR THIS CAPABILITY (PM-5E Gate 39
-   finding, confirmed by direct code reading of the live RPC and of
-   every V1 call site -- unlike Gestão de Bases/Simuladores, there is no
-   hostname allowlist, no dry-run concept, no write-simulation anywhere
-   in this contract). A save through this provider on ANY host,
-   including localhost, is a REAL write against the real backend. This
-   file does not fabricate a safety net V1 itself does not have --
-   automated tests must mock this provider's transport at the network
-   layer (never calling the real RPC), exactly as done here. */
+   HOMOLOGATION MODE (PM-WRITE-SAFETY-2, was: PM-5E Gate 39's "NO
+   HOMOLOGATION-MODE GATE EXISTS FOR THIS CAPABILITY" finding): that
+   finding was real and confirmed live -- unlike Gestão de Bases/
+   Simuladores, this capability never had a hostname allowlist, a
+   dry-run concept, or a write-simulation of any kind, so a save on ANY
+   host, including localhost, was a REAL write. Closed the same way
+   GS/GB's own write-safety gate already works: reads the single
+   existing environment authority environment-guard.js publishes
+   (window.NX_ENVIRONMENT.name) -- never a second, independent hostname
+   list -- and simulates the one real write RPC
+   (master_update_portal_config) UNLESS that name is exactly
+   'AUTHORIZED_PRODUCTION'. There is no dry-run concept for this RPC
+   (confirmed live, unchanged) -- every call to the write RPC name
+   outside production is simulated, no p_dry_run distinction to make.
+   The read RPC (operational_portal_config) is a different name and is
+   therefore never touched by this gate, in every environment. Evaluated
+   fresh on every call (never cached at module-load time) for the same
+   DOMContentLoaded-timing reason already documented in
+   master-gestao-simuladores-provider.js. RPC names, payload shape, and
+   the server RPC itself are all unchanged by this wave. */
 (function () {
   'use strict';
+
+  // PM-WRITE-SAFETY-2 -- single source of truth, same pattern as
+  // GS/GB's own gsIsProductionEnvironment()/gbIsProductionEnvironment().
+  function cfgIsProductionEnvironment() {
+    return !!(window.NX_ENVIRONMENT && window.NX_ENVIRONMENT.name === 'AUTHORIZED_PRODUCTION');
+  }
+  var CFG_WRITE_RPC_NAMES = { master_update_portal_config: true };
+  function cfgIsBlockedWrite(name) {
+    return !!CFG_WRITE_RPC_NAMES[name];
+  }
+  // Minimum same-contract response: the one real call site
+  // (cfgConfirmSaveHandler in shell-admin.js) reads nothing from the
+  // resolved value at all -- it already has `setting`/`newValue`
+  // client-side before the call -- so no field is fabricated here
+  // beyond the required `simulated` marker.
+  function cfgSimulateWrite(name, params) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[Configurações] MODO HOMOLOGAÇÃO — escrita bloqueada: ' + name, params);
+    }
+    return { ok: true, simulated: true };
+  }
 
   function classifyError(code, httpStatus) {
     if (code === '42501') return 'AUTH_DENIED';
@@ -41,6 +73,9 @@
   var DEFAULT_TIMEOUT_MS = 15000;
 
   function callRpc(fnName, params, signal) {
+    if (!cfgIsProductionEnvironment() && cfgIsBlockedWrite(fnName)) {
+      return Promise.resolve(cfgSimulateWrite(fnName, params));
+    }
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
     if (!cfg.supabaseUrl || !cfg.supabasePublishableKey) {
       return Promise.reject({ state: 'RPC_ERROR', message: 'Configuração real ausente neste ambiente.' });
@@ -110,6 +145,7 @@
 
   window.NX_MASTER_CONFIG_PROVIDER = {
     readConfig: readConfig,
-    updateConfig: updateConfig
+    updateConfig: updateConfig,
+    isHomologationMode: function () { return !cfgIsProductionEnvironment(); }
   };
 })();

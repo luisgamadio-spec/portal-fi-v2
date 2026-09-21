@@ -44,12 +44,53 @@
    are accepted; anything else raises 22023. This is not a free-text
    field despite the underlying column being plain `text`.
 
-   NO HOMOLOGATION-MODE GATE EXISTS FOR THIS CAPABILITY (independently
-   confirmed live this phase for STORE_CHANGE specifically) -- every
-   write here is REAL on any host, including localhost. Automated
-   tests must mock this provider's transport at the network layer. */
+   HOMOLOGATION MODE (PM-WRITE-SAFETY-2, was: "NO HOMOLOGATION-MODE GATE
+   EXISTS FOR THIS CAPABILITY", independently confirmed live for
+   STORE_CHANGE specifically): closed the same way GS/GB's own
+   write-safety gate already works -- reads the single existing
+   environment authority environment-guard.js publishes
+   (window.NX_ENVIRONMENT.name) -- never a second, independent hostname
+   list -- and simulates every call to the write RPC
+   (master_admin_manage, shared by CREATE/SET_DEPARTMENTS/SET_ACTIVE/
+   ARCHIVE) UNLESS that name is exactly 'AUTHORIZED_PRODUCTION'. No
+   p_dry_run concept exists for this RPC -- the gate gates on RPC name
+   alone. The read RPC (master_admin_reference_data) is a different
+   name and is therefore never touched, in every environment. The real
+   forward-only chain validation (Postgres '23P01') is entirely
+   server-side and untouched by this gate -- a simulated write never
+   reaches that check, exactly as it never reaches any other part of
+   the real RPC body. Evaluated fresh on every call (never cached at
+   module-load time), same DOMContentLoaded-timing reason already
+   documented in master-gestao-simuladores-provider.js. RPC names,
+   payload shape, and the server RPC itself are all unchanged by this
+   wave. */
 (function () {
   'use strict';
+
+  // PM-WRITE-SAFETY-2 -- single source of truth, same pattern as
+  // GS/GB's own gsIsProductionEnvironment()/gbIsProductionEnvironment().
+  function scIsProductionEnvironment() {
+    return !!(window.NX_ENVIRONMENT && window.NX_ENVIRONMENT.name === 'AUTHORIZED_PRODUCTION');
+  }
+  var SC_WRITE_RPC_NAMES = { master_admin_manage: true };
+  function scIsBlockedWrite(name) {
+    return !!SC_WRITE_RPC_NAMES[name];
+  }
+  // Minimum same-contract response: every real call site
+  // (shell-admin.js's own scRunAction/direct .then handlers) reads
+  // only a success/failure outcome from the resolved promise -- a
+  // zero-arg success callback, confirmed by direct read -- so nothing
+  // beyond the required `simulated` marker is fabricated. Every success
+  // path closes back through scCloseModalAndRefresh, which forces a
+  // real re-read (master_admin_reference_data) before showing the list
+  // again -- the displayed data always comes from the server, never
+  // from this simulated value (Section 12/client-state-safety).
+  function scSimulateWrite(name, params) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[Mudança de Loja] MODO HOMOLOGAÇÃO — escrita bloqueada: ' + name, params);
+    }
+    return { ok: true, simulated: true };
+  }
 
   function classifyError(code, httpStatus) {
     if (code === '42501') return 'AUTH_DENIED';
@@ -61,6 +102,9 @@
   var DEFAULT_TIMEOUT_MS = 15000;
 
   function callRpc(fnName, params, signal) {
+    if (!scIsProductionEnvironment() && scIsBlockedWrite(fnName)) {
+      return Promise.resolve(scSimulateWrite(fnName, params));
+    }
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
     if (!cfg.supabaseUrl || !cfg.supabasePublishableKey) {
       return Promise.reject({ state: 'RPC_ERROR', message: 'Configuração real ausente neste ambiente.' });
@@ -156,6 +200,7 @@
     createStoreChange: createStoreChange,
     setDepartments: setDepartments,
     setActive: setActive,
-    archiveStoreChange: archiveStoreChange
+    archiveStoreChange: archiveStoreChange,
+    isHomologationMode: function () { return !scIsProductionEnvironment(); }
   };
 })();

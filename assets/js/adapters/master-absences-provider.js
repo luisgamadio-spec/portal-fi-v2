@@ -37,13 +37,49 @@
    never calls that RPC and never will; the financial-effect warning
    surfaced by the view-model/UI is informational only.
 
-   NO HOMOLOGATION-MODE GATE EXISTS FOR THIS CAPABILITY (same PM-5E
-   Gate 39 finding, independently re-confirmed live this phase for
-   ABSENCE specifically, not inferred) -- every write here is REAL on
-   any host, including localhost. Automated tests must mock this
-   provider's transport at the network layer. */
+   HOMOLOGATION MODE (PM-WRITE-SAFETY-2, was: "NO HOMOLOGATION-MODE GATE
+   EXISTS FOR THIS CAPABILITY", same PM-5E Gate 39 finding, independently
+   re-confirmed live for ABSENCE specifically): closed the same way
+   GS/GB's own write-safety gate already works -- reads the single
+   existing environment authority environment-guard.js publishes
+   (window.NX_ENVIRONMENT.name) -- never a second, independent hostname
+   list -- and simulates every call to the write RPC
+   (master_admin_manage, shared by CREATE/SET_ACTIVE/ARCHIVE) UNLESS
+   that name is exactly 'AUTHORIZED_PRODUCTION'. No p_dry_run concept
+   exists for this RPC -- the gate gates on RPC name alone. The read RPC
+   (master_admin_reference_data) is a different name and is therefore
+   never touched, in every environment. Evaluated fresh on every call
+   (never cached at module-load time), same DOMContentLoaded-timing
+   reason already documented in
+   master-gestao-simuladores-provider.js. RPC names, payload shape, and
+   the server RPC itself are all unchanged by this wave. */
 (function () {
   'use strict';
+
+  // PM-WRITE-SAFETY-2 -- single source of truth, same pattern as
+  // GS/GB's own gsIsProductionEnvironment()/gbIsProductionEnvironment().
+  function absIsProductionEnvironment() {
+    return !!(window.NX_ENVIRONMENT && window.NX_ENVIRONMENT.name === 'AUTHORIZED_PRODUCTION');
+  }
+  var ABS_WRITE_RPC_NAMES = { master_admin_manage: true };
+  function absIsBlockedWrite(name) {
+    return !!ABS_WRITE_RPC_NAMES[name];
+  }
+  // Minimum same-contract response: every real call site
+  // (shell-admin.js's own absRunAction/direct .then handlers) reads
+  // only a success/failure outcome from the resolved promise -- a
+  // zero-arg success callback, confirmed by direct read -- so nothing
+  // beyond the required `simulated` marker is fabricated. Every success
+  // path closes back through absCloseModalAndRefresh, which forces a
+  // real re-read (master_admin_reference_data) before showing the list
+  // again -- the displayed data always comes from the server, never
+  // from this simulated value (Section 12/client-state-safety).
+  function absSimulateWrite(name, params) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[Férias/Ausências] MODO HOMOLOGAÇÃO — escrita bloqueada: ' + name, params);
+    }
+    return { ok: true, simulated: true };
+  }
 
   function classifyError(code, httpStatus) {
     if (code === '42501') return 'AUTH_DENIED';
@@ -54,6 +90,9 @@
   var DEFAULT_TIMEOUT_MS = 15000;
 
   function callRpc(fnName, params, signal) {
+    if (!absIsProductionEnvironment() && absIsBlockedWrite(fnName)) {
+      return Promise.resolve(absSimulateWrite(fnName, params));
+    }
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
     if (!cfg.supabaseUrl || !cfg.supabasePublishableKey) {
       return Promise.reject({ state: 'RPC_ERROR', message: 'Configuração real ausente neste ambiente.' });
@@ -151,6 +190,7 @@
     listAbsences: listAbsences,
     createAbsence: createAbsence,
     setActive: setActive,
-    archiveAbsence: archiveAbsence
+    archiveAbsence: archiveAbsence,
+    isHomologationMode: function () { return !absIsProductionEnvironment(); }
   };
 })();

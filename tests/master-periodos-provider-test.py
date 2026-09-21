@@ -23,7 +23,14 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-BASE = "http://127.0.0.1:8080/portal-next-v2/tests/_master-users-harness.html"
+# V2-INT-01 -- pre-existing staleness fix (same class of bug already
+# fixed in several sibling test files this session): BASE was still
+# hardcoded to the OLD parent-dir-rooted topology (confirmed via direct
+# curl: the old path 404s, this one 200s); this worktree is served
+# root-at-worktree. Discovered only because this wave's own new tests
+# needed to actually run to be verified -- unrelated to and pre-dating
+# PM-WRITE-SAFETY-2 itself.
+BASE = "http://127.0.0.1:8080/tests/_master-users-harness.html"
 SEC_URL = "https://mock.invalid/rest/v1/rpc/master_admin_security_data"
 CONV_URL = "https://mock.invalid/rest/v1/rpc/master_listar_convites"
 PR_READ_URL = "https://mock.invalid/rest/v1/rpc/master_admin_reference_data"
@@ -46,16 +53,25 @@ def check(label, cond):
     results.append((label, bool(cond)))
 
 
-def auth_mock_script(token="mock-access-token-abc"):
+# PM-WRITE-SAFETY-2 -- env_name defaults to AUTHORIZED_PRODUCTION so
+# every PRE-EXISTING call site (new_page(browser), no args) keeps
+# exercising exactly the real-write behavior it was already written and
+# validated against -- this harness never loads environment-guard.js at
+# all, so window.NX_ENVIRONMENT would otherwise stay undefined and the
+# new write-safety gate would default to non-production (simulated) for
+# every existing test. New tests below pass a different env_name
+# explicitly to exercise the other 3 states.
+def auth_mock_script(token="mock-access-token-abc", env_name="AUTHORIZED_PRODUCTION"):
     return """
 window.NX_INTELLIGENCE_CONFIG = { mode: 'fixture', supabaseUrl: 'https://mock.invalid', supabasePublishableKey: 'mock-anon-key', textEndpoint: null };
 window.NX_AUTH = { isAuthConfigured: true, getAccessToken: function () { return Promise.resolve(%s); } };
-""" % (("'" + token + "'") if token else "null")
+window.NX_ENVIRONMENT = { name: %s, hostname: 'pm-write-safety-test', allowed: true };
+""" % (("'" + token + "'") if token else "null", _json.dumps(env_name))
 
 
-def new_page(browser, token="mock-access-token-abc"):
+def new_page(browser, token="mock-access-token-abc", env_name="AUTHORIZED_PRODUCTION"):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
-    page.add_init_script(auth_mock_script(token))
+    page.add_init_script(auth_mock_script(token, env_name))
     return page
 
 
@@ -253,9 +269,69 @@ def main():
         check("20: an expired/missing session shows a real error state, not a false-success empty list", page.query_selector(".modErrorState") is not None)
         page.close()
 
+        # ---------- 22-25: PM-WRITE-SAFETY-2 -- environment-authority write safety, all 4 write actions ----------
+        # Network/provider-boundary proof (not isHomologationMode() alone)
+        # for every one of the 4 real write actions this capability
+        # exposes -- CREATE/SET_CURRENT/SET_ACTIVE/ARCHIVE all funnel
+        # through the same master_admin_manage RPC name, so one spied
+        # route per environment covers all 4 in a single page load. The
+        # non-production route body is a recognizable poison value.
+        pr_actions = [
+            ("createPeriod", "() => window.NX_MASTER_PERIODOS_PROVIDER.createPeriod('Teste Env', '2031-01-01', '2031-01-31', false)"),
+            ("setCurrent", "() => window.NX_MASTER_PERIODOS_PROVIDER.setCurrent('aaaaaaaa-0000-4000-8000-000000000001')"),
+            ("setActive", "() => window.NX_MASTER_PERIODOS_PROVIDER.setActive('aaaaaaaa-0000-4000-8000-000000000001', false)"),
+            ("archivePeriod", "() => window.NX_MASTER_PERIODOS_PROVIDER.archivePeriod('aaaaaaaa-0000-4000-8000-000000000001')"),
+        ]
+        env_cases = [
+            ("LOCAL_DEV", False),
+            ("AUTHORIZED_HOMOLOGATION", False),
+            ("UNKNOWN_HOST", False),
+            ("AUTHORIZED_PRODUCTION", True),
+        ]
+        n = 22
+        for env_name, expect_real_network in env_cases:
+            for action_name, action_js in pr_actions:
+                page = new_page(browser, env_name=env_name)
+                install_tripwire(page)
+                page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+                page.route(CONV_URL + "*", json_route(200, []))
+                page.route(PR_READ_URL + "*", json_route(200, {"periods": [PERIOD_CURRENT], "absences": [], "store_changes": []}))
+                env_calls = []
+                poison = {"status": "SHOULD-NEVER-BE-CALLED"}
+                page.route(PR_WRITE_URL + "*", counting_route(env_calls, 200,
+                    (lambda p: {"status": "OK", "id": "new-id"}) if expect_real_network else (lambda p: poison)))
+                mount(page)
+                goto_periodos(page)
+                outcome = page.evaluate("(" + action_js + ")().then(r => ({ok: true, result: r})).catch(e => ({ok: false, error: String(e && e.message || e)}))")
+                if expect_real_network:
+                    check(f"{n}: {env_name}/{action_name} -> real master_admin_manage call reaches the network (NOT frontend-simulated)", len(env_calls) == 1)
+                    check(f"{n}b: {env_name}/{action_name} -> response is the real (non-simulated) server response shape", isinstance(outcome, dict) and outcome.get("ok") and outcome["result"].get("simulated") is not True)
+                else:
+                    check(f"{n}: {env_name}/{action_name} -> real master_admin_manage call never reaches the network (frontend-simulated), zero calls to the poisoned route", len(env_calls) == 0)
+                    check(f"{n}b: {env_name}/{action_name} -> resolves with simulated:true, never the poison value the route would have returned if touched",
+                          isinstance(outcome, dict) and outcome.get("ok") and outcome["result"].get("simulated") is True and outcome["result"].get("status") != "SHOULD-NEVER-BE-CALLED")
+                check(f"{n}c: {env_name}/{action_name} -> isHomologationMode() reports {not expect_real_network}",
+                      page.evaluate("window.NX_MASTER_PERIODOS_PROVIDER.isHomologationMode()") == (not expect_real_network))
+                page.close()
+                n += 1
+
+        # ---------- read preservation across all 4 environments ----------
+        for env_name in ["LOCAL_DEV", "AUTHORIZED_HOMOLOGATION", "AUTHORIZED_PRODUCTION", "UNKNOWN_HOST"]:
+            page = new_page(browser, env_name=env_name)
+            install_tripwire(page)
+            page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+            page.route(CONV_URL + "*", json_route(200, []))
+            read_calls = []
+            page.route(PR_READ_URL + "*", counting_route(read_calls, 200, lambda p: {"periods": [PERIOD_CURRENT], "absences": [], "store_changes": []}))
+            mount(page)
+            goto_periodos(page)
+            check(f"{n}: {env_name} -> the real read RPC (master_admin_reference_data) still reaches the network normally", len(read_calls) == 1)
+            page.close()
+            n += 1
+
         browser.close()
 
-    check("21: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
+    check(f"{n}: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
     if real_network_hits:
         print("[TRIPWIRE] real network hit(s) detected:", real_network_hits)
 

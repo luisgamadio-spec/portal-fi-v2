@@ -27,7 +27,14 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-BASE = "http://127.0.0.1:8080/portal-next-v2/tests/_master-users-harness.html"
+# V2-INT-01 -- pre-existing staleness fix (same class of bug already
+# fixed in several sibling test files this session): BASE was still
+# hardcoded to the OLD parent-dir-rooted topology (confirmed via direct
+# curl: the old path 404s, this one 200s); this worktree is served
+# root-at-worktree. Discovered only because this wave's own new tests
+# needed to actually run to be verified -- unrelated to and pre-dating
+# PM-WRITE-SAFETY-2 itself.
+BASE = "http://127.0.0.1:8080/tests/_master-users-harness.html"
 SEC_URL = "https://mock.invalid/rest/v1/rpc/master_admin_security_data"
 CONV_URL = "https://mock.invalid/rest/v1/rpc/master_listar_convites"
 CFG_READ_URL = "https://mock.invalid/rest/v1/rpc/operational_portal_config"
@@ -40,16 +47,26 @@ def check(label, cond):
     results.append((label, bool(cond)))
 
 
-def auth_mock_script(token="mock-access-token-abc"):
+# PM-WRITE-SAFETY-2 -- env_name defaults to AUTHORIZED_PRODUCTION so
+# every PRE-EXISTING call site (new_page(browser), no args) keeps
+# exercising exactly the real-write behavior it was already written and
+# validated against -- this harness never loads environment-guard.js at
+# all (confirmed: zero reference to it in _master-users-harness.html),
+# so window.NX_ENVIRONMENT would otherwise stay undefined and the new
+# write-safety gate would default to non-production (simulated) for
+# every existing test, silently invalidating them. New tests below pass
+# a different env_name explicitly to exercise the other 3 states.
+def auth_mock_script(token="mock-access-token-abc", env_name="AUTHORIZED_PRODUCTION"):
     return """
 window.NX_INTELLIGENCE_CONFIG = { mode: 'fixture', supabaseUrl: 'https://mock.invalid', supabasePublishableKey: 'mock-anon-key', textEndpoint: null };
 window.NX_AUTH = { isAuthConfigured: true, getAccessToken: function () { return Promise.resolve(%s); } };
-""" % (("'" + token + "'") if token else "null")
+window.NX_ENVIRONMENT = { name: %s, hostname: 'pm-write-safety-test', allowed: true };
+""" % (("'" + token + "'") if token else "null", _json.dumps(env_name))
 
 
-def new_page(browser, token="mock-access-token-abc"):
+def new_page(browser, token="mock-access-token-abc", env_name="AUTHORIZED_PRODUCTION"):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
-    page.add_init_script(auth_mock_script(token))
+    page.add_init_script(auth_mock_script(token, env_name))
     return page
 
 
@@ -148,8 +165,15 @@ def main():
         confirm_text = page.inner_text("#nxModalRoot")
         check("7: confirmation shows an explicit BEFORE value (40)", "40" in confirm_text)
         check("7b: confirmation shows an explicit AFTER value (45)", "45" in confirm_text)
-        check("7c: confirmation explicitly warns there is no simulation mode for this screen (Gate 39 -- real write, must not be hidden from the Human)",
-              "não há" in confirm_text.lower() or "nao ha" in confirm_text.lower() or "simula" in confirm_text.lower())
+        # PM-WRITE-SAFETY-2 -- the prior unconditional "não há simulação"
+        # claim is now only true in production; this test runs under the
+        # default AUTHORIZED_PRODUCTION environment (new_page's own
+        # default), so the accurate production-mode warning ("gravada
+        # imediatamente... afeta todos os usuários") is what must appear
+        # here -- corrected to match the intentionally-updated copy
+        # (Section 17), not weakened.
+        check("7c: confirmation explicitly warns the write is real and immediate in production (Gate 39 -- must not be hidden from the Human)",
+              "gravada imediatamente" in confirm_text.lower())
         check("8: still zero write calls before explicit confirmation", len(write_calls) == 0)
         page.click("#cfgConfirmSaveBtn")
         page.wait_for_selector("#cfgSuccessCloseBtn", timeout=5000)
@@ -250,9 +274,75 @@ def main():
         check("16: an expired/missing session on read shows a real error state, not a false-success empty grid", page.query_selector(".modErrorState") is not None)
         page.close()
 
+        # ---------- 18-21: PM-WRITE-SAFETY-2 -- environment-authority write safety ----------
+        # Network/provider-boundary proof, not a bare isHomologationMode()
+        # check: spies the mocked HTTP route for the real write RPC via
+        # counting_route (the same mechanism the production-path checks
+        # 9/9b above already trust) and asserts the exact invocation
+        # count per environment -- len(calls)==0 is itself the
+        # anti-false-green proof that the gate runs before any fetch,
+        # not merely that a call happens to not occur for some other
+        # incidental reason. The route's own fulfilled body for the
+        # non-production cases is a recognizable poison value
+        # ("SHOULD-NEVER-BE-CALLED") -- an extra, independent signal:
+        # if the gate ever regressed, the resolved promise would carry
+        # this exact string, which the assertions below also check for.
+        env_cases = [
+            ("LOCAL_DEV", False),
+            ("AUTHORIZED_HOMOLOGATION", False),
+            ("UNKNOWN_HOST", False),
+            ("AUTHORIZED_PRODUCTION", True),
+        ]
+        for idx, (env_name, expect_real_network) in enumerate(env_cases):
+            page = new_page(browser, env_name=env_name)
+            install_tripwire(page)
+            page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+            page.route(CONV_URL + "*", json_route(200, []))
+            page.route(CFG_READ_URL + "*", json_route(200, {"rows": [{"chave": "share_minimo", "valor": "40"}]}))
+            env_calls = []
+            poison = {"status": "SHOULD-NEVER-BE-CALLED"}
+            page.route(CFG_WRITE_URL + "*", counting_route(env_calls, 200,
+                (lambda p: {"status": "OK", "chave": p["p_key"], "valor": p["p_value"]}) if expect_real_network else (lambda p: poison)))
+            mount(page)
+            goto_config(page)
+            outcome = page.evaluate("""
+              () => window.NX_MASTER_CONFIG_PROVIDER
+                .updateConfig('share_minimo', 45, 'test')
+                .then(r => ({ ok: true, result: r }))
+                .catch(e => ({ ok: false, error: String(e && e.message || e) }))
+            """)
+            n = 18 + idx
+            if expect_real_network:
+                check(f"{n}: {env_name} -> real write RPC reaches the network (NOT frontend-simulated)", len(env_calls) == 1)
+                check(f"{n}b: {env_name} -> outgoing payload is byte-parity with the pre-existing production contract (only p_key/p_value/p_description, exact values)",
+                      len(env_calls) == 1 and env_calls[0] == {"p_key": "share_minimo", "p_value": 45, "p_description": "test"})
+                check(f"{n}c: {env_name} -> response is the real (non-simulated) server response shape", isinstance(outcome, dict) and outcome.get("ok") and outcome["result"].get("simulated") is not True)
+            else:
+                check(f"{n}: {env_name} -> real write RPC never reaches the network (frontend-simulated), zero calls to the poisoned route", len(env_calls) == 0)
+                check(f"{n}b: {env_name} -> updateConfig() resolves with simulated:true, never the poison value the route would have returned if touched",
+                      isinstance(outcome, dict) and outcome.get("ok") and outcome["result"].get("simulated") is True and outcome["result"].get("status") != "SHOULD-NEVER-BE-CALLED")
+            check(f"{n}d: {env_name} -> isHomologationMode() reports {not expect_real_network} (single source of truth, same expression callRpc reads)",
+                  page.evaluate("window.NX_MASTER_CONFIG_PROVIDER.isHomologationMode()") == (not expect_real_network))
+            page.close()
+
+        # ---------- 22-25: read preservation across all 4 environments ----------
+        # The write gate must never swallow the read RPC -- proven for
+        # every environment, including UNKNOWN_HOST.
+        for idx, env_name in enumerate(["LOCAL_DEV", "AUTHORIZED_HOMOLOGATION", "AUTHORIZED_PRODUCTION", "UNKNOWN_HOST"]):
+            page = new_page(browser, env_name=env_name)
+            install_tripwire(page)
+            page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+            page.route(CONV_URL + "*", json_route(200, []))
+            read_calls = []
+            page.route(CFG_READ_URL + "*", counting_route(read_calls, 200, lambda p: {"rows": [{"chave": "share_minimo", "valor": "40"}]}))
+            mount(page)
+            goto_config(page)
+            check(f"{26 + idx}: {env_name} -> the real read RPC (operational_portal_config) still reaches the network normally", len(read_calls) == 1)
+            page.close()
+
         browser.close()
 
-    check("17: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
+    check("30: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
     if real_network_hits:
         print("[TRIPWIRE] real network hit(s) detected:", real_network_hits)
 

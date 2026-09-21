@@ -24,7 +24,14 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-BASE = "http://127.0.0.1:8080/portal-next-v2/tests/_master-users-harness.html"
+# V2-INT-01 -- pre-existing staleness fix (same class of bug already
+# fixed in several sibling test files this session): BASE was still
+# hardcoded to the OLD parent-dir-rooted topology (confirmed via direct
+# curl: the old path 404s, this one 200s); this worktree is served
+# root-at-worktree. Discovered only because this wave's own new tests
+# needed to actually run to be verified -- unrelated to and pre-dating
+# PM-WRITE-SAFETY-2 itself.
+BASE = "http://127.0.0.1:8080/tests/_master-users-harness.html"
 SEC_URL = "https://mock.invalid/rest/v1/rpc/master_admin_security_data"
 CONV_URL = "https://mock.invalid/rest/v1/rpc/master_listar_convites"
 READ_URL = "https://mock.invalid/rest/v1/rpc/master_admin_reference_data"
@@ -56,16 +63,25 @@ def check(label, cond):
     results.append((label, bool(cond)))
 
 
-def auth_mock_script(token="mock-access-token-abc"):
+# PM-WRITE-SAFETY-2 -- env_name defaults to AUTHORIZED_PRODUCTION so
+# every PRE-EXISTING call site (new_page(browser), no args) keeps
+# exercising exactly the real-write behavior it was already written and
+# validated against -- this harness never loads environment-guard.js at
+# all, so window.NX_ENVIRONMENT would otherwise stay undefined and the
+# new write-safety gate would default to non-production (simulated) for
+# every existing test. New tests below pass a different env_name
+# explicitly to exercise the other 3 states.
+def auth_mock_script(token="mock-access-token-abc", env_name="AUTHORIZED_PRODUCTION"):
     return """
 window.NX_INTELLIGENCE_CONFIG = { mode: 'fixture', supabaseUrl: 'https://mock.invalid', supabasePublishableKey: 'mock-anon-key', textEndpoint: null };
 window.NX_AUTH = { isAuthConfigured: true, getAccessToken: function () { return Promise.resolve(%s); } };
-""" % (("'" + token + "'") if token else "null")
+window.NX_ENVIRONMENT = { name: %s, hostname: 'pm-write-safety-test', allowed: true };
+""" % (("'" + token + "'") if token else "null", _json.dumps(env_name))
 
 
-def new_page(browser, token="mock-access-token-abc"):
+def new_page(browser, token="mock-access-token-abc", env_name="AUTHORIZED_PRODUCTION"):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
-    page.add_init_script(auth_mock_script(token))
+    page.add_init_script(auth_mock_script(token, env_name))
     return page
 
 
@@ -324,6 +340,64 @@ def main():
         page.wait_for_timeout(200)
         check("21 (CONFLICT classification, Gate 13-19): a real 23P01 chain-conflict error surfaces inline, never a false success", "conflita" in page.inner_text('#nxModalRoot'))
         page.close()
+
+        # ---------- PM-WRITE-SAFETY-2 -- environment-authority write safety, all 4 write actions ----------
+        # Network/provider-boundary proof for every real write action
+        # this capability exposes -- CREATE/SET_DEPARTMENTS/SET_ACTIVE/
+        # ARCHIVE all funnel through the same master_admin_manage RPC
+        # name. The real server-side chain validation (23P01) is
+        # entirely untouched by this gate -- a simulated call never
+        # reaches the mocked route at all, so it can never trigger that
+        # error either.
+        sc_actions = [
+            ("createStoreChange", "() => window.NX_MASTER_STORE_CHANGE_PROVIDER.createStoreChange({cpfVendedor:'11122233344', loginVendedor:'vend.um', nomeVendedor:'Vendedor Um', lojaOrigem:'LOJA CENTRO', lojaDestino:'LOJA NORTE', dataInicioOrigem:'2031-01-01', dataFimOrigem:'2031-01-31', dataInicioDestino:'2031-02-01', observacao:'', departamentoOrigem:'NOVOS', departamentoDestino:'NOVOS'})"),
+            ("setDepartments", "() => window.NX_MASTER_STORE_CHANGE_PROVIDER.setDepartments('cccccccc-1000-4000-8000-000000000001', 'NOVOS', 'SEMINOVOS')"),
+            ("setActive", "() => window.NX_MASTER_STORE_CHANGE_PROVIDER.setActive('cccccccc-1000-4000-8000-000000000001', false)"),
+            ("archiveStoreChange", "() => window.NX_MASTER_STORE_CHANGE_PROVIDER.archiveStoreChange('cccccccc-1000-4000-8000-000000000001')"),
+        ]
+        env_cases = [
+            ("LOCAL_DEV", False),
+            ("AUTHORIZED_HOMOLOGATION", False),
+            ("UNKNOWN_HOST", False),
+            ("AUTHORIZED_PRODUCTION", True),
+        ]
+        for env_name, expect_real_network in env_cases:
+            for action_name, action_js in sc_actions:
+                page = new_page(browser, env_name=env_name)
+                install_tripwire(page)
+                page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+                page.route(CONV_URL + "*", json_route(200, []))
+                page.route(READ_URL + "*", json_route(200, {"periods": [], "absences": [], "store_changes": [SC_RECORD]}))
+                env_calls = []
+                poison = {"status": "SHOULD-NEVER-BE-CALLED"}
+                page.route(WRITE_URL + "*", counting_route(env_calls, 200,
+                    (lambda p: {"id": "new-id"}) if expect_real_network else (lambda p: poison)))
+                mount(page)
+                goto_sc(page)
+                outcome = page.evaluate("(" + action_js + ")().then(r => ({ok: true, result: r})).catch(e => ({ok: false, error: String(e && e.message || e)}))")
+                if expect_real_network:
+                    check(f"PM2-{env_name}/{action_name}: real master_admin_manage call reaches the network (NOT frontend-simulated)", len(env_calls) == 1)
+                    check(f"PM2-{env_name}/{action_name}b: response is the real (non-simulated) server response shape", isinstance(outcome, dict) and outcome.get("ok") and outcome["result"].get("simulated") is not True)
+                else:
+                    check(f"PM2-{env_name}/{action_name}: real master_admin_manage call never reaches the network (frontend-simulated), zero calls to the poisoned route", len(env_calls) == 0)
+                    check(f"PM2-{env_name}/{action_name}b: resolves with simulated:true, never the poison value the route would have returned if touched",
+                          isinstance(outcome, dict) and outcome.get("ok") and outcome["result"].get("simulated") is True and outcome["result"].get("status") != "SHOULD-NEVER-BE-CALLED")
+                check(f"PM2-{env_name}/{action_name}c: isHomologationMode() reports {not expect_real_network}",
+                      page.evaluate("window.NX_MASTER_STORE_CHANGE_PROVIDER.isHomologationMode()") == (not expect_real_network))
+                page.close()
+
+        # ---------- read preservation across all 4 environments ----------
+        for env_name in ["LOCAL_DEV", "AUTHORIZED_HOMOLOGATION", "AUTHORIZED_PRODUCTION", "UNKNOWN_HOST"]:
+            page = new_page(browser, env_name=env_name)
+            install_tripwire(page)
+            page.route(SEC_URL + "*", json_route(200, {"users": [], "configurations": [], "audit": []}))
+            page.route(CONV_URL + "*", json_route(200, []))
+            read_calls = []
+            page.route(READ_URL + "*", counting_route(read_calls, 200, lambda p: {"periods": [], "absences": [], "store_changes": [SC_RECORD]}))
+            mount(page)
+            goto_sc(page)
+            check(f"PM2-READ-{env_name}: the real read RPC (master_admin_reference_data) still reaches the network normally", len(read_calls) == 1)
+            page.close()
 
         check("22: no native window.confirm/alert/prompt dialog ever fired across the whole suite (shared modal only)", len(dialogs_fired) == 0)
         check("23: network tripwire -- zero requests reached a real Supabase project or Cloudflare Turnstile across the whole suite", len(real_network_hits) == 0)
