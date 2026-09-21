@@ -818,6 +818,28 @@
   // the commercial capability, not just gestão.
   var suggestionRotation = 0;
 
+  // IA-MEGAUAT-WAVED2 -- request-abandonment tracking, deliberately
+  // separate from S.getGeneration() (that counter is SESSIONSEC1's own
+  // identity-change signal, bumped only on login/logout -- see
+  // intelligence-state.js's own header comment; conflating the two
+  // would make an identity transition and a "Nova conversa" click
+  // indistinguishable to anything else listening for one). sendEpoch is
+  // bumped only when a genuinely in-flight send is abandoned via "Nova
+  // conversa" during SENDING/THINKING (Wave D.1's second proven
+  // deadlock cause: that action used to simply refuse to run in that
+  // exact state). Every async continuation of a send captures the
+  // epoch value active when it started and re-checks it before ever
+  // touching state/UI -- see isSendCurrent()/applyResultIfCurrent()
+  // below. activeAbortController tracks the one real-text request's
+  // controller (if any) so "Nova conversa" can cancel the actual
+  // in-flight fetch, not just ignore its eventual result.
+  var sendEpoch = 0;
+  var activeAbortController = null;
+
+  function isSendCurrent(gen, localEpoch) {
+    return S.getGeneration() === gen && localEpoch === sendEpoch;
+  }
+
   function pickSuggestions() {
     var n = SUGGESTION_CATEGORIES.length;
     var order = [];
@@ -1009,8 +1031,18 @@
       else if (status === 401) S.setTextState(S.TEXT_STATES.SESSION_EXPIRED);
       else if (status === 403) S.setTextState(S.TEXT_STATES.FORBIDDEN);
       else S.setTextState(S.TEXT_STATES.ERROR);
+      // Lock/unlock decision made BEFORE rendering, on purpose (Wave
+      // D.1's own finding: this ordering is already safe -- a render
+      // exception below cannot affect composer state). The try/catch is
+      // still worthwhile defensive containment, consistent with the
+      // success branch below, so a malformed error-bubble render can
+      // never throw out of this function uncaught.
       applyPersistentState(S.getTextState());
-      renderConversation();
+      try {
+        renderConversation();
+      } catch (e) {
+        console.error('[intelligence-panel] renderConversation failed (error branch)', e);
+      }
       logDevTiming(result._devTiming, Date.now());
       return;
     }
@@ -1020,10 +1052,48 @@
     // COMPLETE is a momentary signal (Section 13), not a resting
     // composer-disabled state -- settle to OPEN_IDLE right after.
     S.setTextState(S.TEXT_STATES.COMPLETE);
-    renderConversation();
-    logDevTiming(result._devTiming, Date.now());
-    S.setTextState(S.TEXT_STATES.OPEN_IDLE);
-    applyPersistentState(S.TEXT_STATES.OPEN_IDLE);
+    // IA-MEGAUAT-WAVED2 (Wave D.1 proof #2 -- render exception can
+    // bypass unlock): block-shape validation is shallow for most block
+    // types (see the adapter's own validateBlock), so a real backend
+    // response can carry a recognized-but-malformed block that throws
+    // inside renderConversation(). The two statements that actually
+    // restore the composer used to sit AFTER this call, unguarded --
+    // this `finally` makes them unconditional. They are deliberately
+    // the FIRST thing in `finally` (not logDevTiming below them) so
+    // that even a failure in the diagnostic log can never re-strand the
+    // composer either.
+    try {
+      renderConversation();
+    } catch (e) {
+      console.error('[intelligence-panel] renderConversation failed (success branch) -- recovering', e);
+      try {
+        // Drop the just-pushed turn that caused the throw and replace
+        // it with a plain, blocks-free fallback message -- guaranteed
+        // renderable, since every plain-text/no-blocks message already
+        // renders successfully elsewhere in this file. popLastMessage
+        // (not spliceFromLastUser, which deliberately no-ops when the
+        // broken message is the conversation's very first turn -- the
+        // exact scenario that first surfaced this) always removes it.
+        S.popLastMessage();
+        S.pushMessage({
+          role: 'assistant',
+          content: 'Recebi uma resposta, mas não consegui exibi-la corretamente. Tente novamente.',
+          blocks: null,
+          isError: true
+        });
+        renderConversation();
+      } catch (e2) {
+        console.error('[intelligence-panel] recovery render also failed', e2);
+      }
+    } finally {
+      S.setTextState(S.TEXT_STATES.OPEN_IDLE);
+      applyPersistentState(S.TEXT_STATES.OPEN_IDLE);
+      try {
+        logDevTiming(result._devTiming, Date.now());
+      } catch (e3) {
+        console.error('[intelligence-panel] logDevTiming failed', e3);
+      }
+    }
   }
 
   // SESSIONSEC1 -- Section 14 race protection. `gen` is the identity
@@ -1033,18 +1103,22 @@
   // was in flight (e.g. USER A sent, then logged out, then USER B
   // logged in, all before USER A's response arrived) -- the result is
   // silently dropped, never rendered and never allowed to influence
-  // this (now different-owner) conversation. Every async path that can
-  // outlive an identity change must go through this, not call
-  // applyResult directly.
-  function applyResultIfCurrent(gen, result) {
-    if (S.getGeneration() !== gen) return;
+  // this (now different-owner) conversation. IA-MEGAUAT-WAVED2 adds the
+  // exact same treatment for `localEpoch`: a send deliberately abandoned
+  // via "Nova conversa" (sendEpoch bumped, see onNovaConversa below)
+  // must be dropped the same way -- never rendered, never allowed to
+  // touch the new conversation. Every async path that can outlive
+  // either an identity change or a Nova-conversa abandonment must go
+  // through this, not call applyResult directly.
+  function applyResultIfCurrent(gen, localEpoch, result) {
+    if (!isSendCurrent(gen, localEpoch)) return;
     applyResult(result);
   }
 
-  function handleSendFixture(text, priorTurns, gen) {
+  function handleSendFixture(text, priorTurns, gen, localEpoch) {
     A.createRequest(text, priorTurns); // models the contract shape even though nothing is sent (Gate 15/32, matching the routed page)
     setTimeout(function () {
-      if (S.getGeneration() !== gen) return;
+      if (!isSendCurrent(gen, localEpoch)) return;
       var scenario = A.resolveFixtureScenario(text);
       if (!scenario) {
         S.pushMessage({ role: 'assistant', isError: false, blocks: null, content: 'Não tenho um cenário de teste para essa pergunta neste protótipo local — isso não indica uma falha do contrato, apenas que este fixture não cobre esta frase.' });
@@ -1053,8 +1127,8 @@
         renderConversation();
         return;
       }
-      if (scenario.error) { applyResultIfCurrent(gen, { error: scenario.error }); return; }
-      applyResultIfCurrent(gen, { response: A.normalizeResponse(scenario.response) });
+      if (scenario.error) { applyResultIfCurrent(gen, localEpoch, { error: scenario.error }); return; }
+      applyResultIfCurrent(gen, localEpoch, { response: A.normalizeResponse(scenario.response) });
     }, FIXTURE_LATENCY_MS);
   }
 
@@ -1087,9 +1161,9 @@
     });
   }
 
-  function handleSendRealText(text, priorTurns, uiSubmitAt, gen) {
+  function handleSendRealText(text, priorTurns, uiSubmitAt, gen, localEpoch) {
     if (!window.NX_AUTH || typeof window.NX_AUTH.getAccessToken !== 'function') {
-      applyResultIfCurrent(gen, { error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
+      applyResultIfCurrent(gen, localEpoch, { error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
       return;
     }
     // IA-3H.1C.3 -- sanitized turn sequence number (a plain count of the
@@ -1098,7 +1172,7 @@
     // readable directly off the existing [bai-timing] log line.
     var turnIndex = priorTurns.filter(function (m) { return m.role === 'user'; }).length + 1;
     isTextSurfaceEnabled().then(function (enabled) {
-      if (S.getGeneration() !== gen) return;
+      if (!isSendCurrent(gen, localEpoch)) return;
       if (!enabled) {
         // Same error shape/status the server itself would return for
         // this exact condition (errorMessageForStatus(503) in the
@@ -1106,7 +1180,7 @@
         // (TEXT_STATES.DISABLED, composer disabled, no retry loop)
         // applies unchanged. No network request was made: sendRealText
         // is never called on this path.
-        applyResultIfCurrent(gen, { error: { status: 503, message: 'Brabus Intelligence está temporariamente indisponível.' } });
+        applyResultIfCurrent(gen, localEpoch, { error: { status: 503, message: 'Brabus Intelligence está temporariamente indisponível.' } });
         return;
       }
       // IA-3G.5A -- getAccessToken() calls the real Supabase SDK's own
@@ -1119,13 +1193,23 @@
       var t_getToken = Date.now();
       window.NX_AUTH.getAccessToken().then(function (token) {
         var getTokenMs = Date.now() - t_getToken;
-        if (S.getGeneration() !== gen) return;
-        if (!token) { applyResultIfCurrent(gen, { error: { status: 401, message: 'Sessão expirada — entre novamente.' } }); return; }
-        return A.sendRealText(text, priorTurns, token, { uiSubmitAt: uiSubmitAt, getTokenMs: getTokenMs, turnIndex: turnIndex }).then(function (result) {
-          applyResultIfCurrent(gen, result);
+        if (!isSendCurrent(gen, localEpoch)) return;
+        if (!token) { applyResultIfCurrent(gen, localEpoch, { error: { status: 401, message: 'Sessão expirada — entre novamente.' } }); return; }
+        // IA-MEGAUAT-WAVED2 -- this controller is BOTH the adapter's own
+        // bounded-timeout mechanism (Fix 1) AND the one thing
+        // onNovaConversa() can call .abort() on to actually cancel the
+        // underlying fetch, not merely ignore its eventual result (Fix
+        // 3). Tracked at module scope only while THIS exact send is the
+        // current one -- cleared the moment it settles or is abandoned,
+        // so "Nova conversa" can never abort a later, unrelated send.
+        var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        activeAbortController = controller;
+        return A.sendRealText(text, priorTurns, token, { uiSubmitAt: uiSubmitAt, getTokenMs: getTokenMs, turnIndex: turnIndex }, undefined, controller).then(function (result) {
+          if (activeAbortController === controller) activeAbortController = null;
+          applyResultIfCurrent(gen, localEpoch, result);
         });
       }).catch(function () {
-        applyResultIfCurrent(gen, { error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
+        applyResultIfCurrent(gen, localEpoch, { error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
       });
     });
   }
@@ -1144,6 +1228,11 @@
     // call) so a result that comes back after the authenticated
     // identity has since changed is recognized and dropped.
     var gen = S.getGeneration();
+    // IA-MEGAUAT-WAVED2 -- same threading, for the sendEpoch counter
+    // (see its own declaration above): a result that comes back after
+    // THIS send was abandoned via "Nova conversa" is recognized and
+    // dropped the same way.
+    var localEpoch = sendEpoch;
     S.pushMessage({ role: 'user', content: text, blocks: null, isError: false });
     S.setTextState(S.TEXT_STATES.SENDING);
     applyPersistentState(S.TEXT_STATES.SENDING);
@@ -1158,13 +1247,28 @@
     // new rendering path introduced here.
     if (P.isHomologMisconfigured && P.isHomologMisconfigured()) {
       applyResult({ error: { status: 0, message: 'Brabus Intelligence indisponível — configuração de homologação ausente.' } });
-    } else if (P.isRealTextMode()) handleSendRealText(text, priorTurns, uiSubmitAt, gen);
-    else handleSendFixture(text, priorTurns, gen);
+    } else if (P.isRealTextMode()) handleSendRealText(text, priorTurns, uiSubmitAt, gen, localEpoch);
+    else handleSendFixture(text, priorTurns, gen, localEpoch);
   }
 
+  // IA-MEGAUAT-WAVED2 -- Wave D.1's second proven composer deadlock:
+  // this function used to refuse to run at all while SENDING/THINKING,
+  // which meant a hung/never-resolving request left the user with
+  // ZERO manual recovery (only a full page refresh). It now always
+  // runs. A genuinely in-flight real-text request is explicitly
+  // aborted (its underlying fetch is cancelled, not just ignored) and
+  // sendEpoch is bumped BEFORE the abort, so even in an environment
+  // where .abort() does not immediately reject the fetch promise, the
+  // eventual settlement is still recognized as stale by
+  // applyResultIfCurrent's own isSendCurrent() check and silently
+  // dropped -- it can never render into, or re-lock, the new
+  // conversation this action is about to start.
   function onNovaConversa() {
-    var st = S.getTextState();
-    if (st === S.TEXT_STATES.SENDING || st === S.TEXT_STATES.THINKING) return;
+    sendEpoch++;
+    if (activeAbortController) {
+      try { activeAbortController.abort(); } catch (e) { /* already settled, or abort unsupported -- safe to ignore */ }
+      activeAbortController = null;
+    }
     S.resetConversation();
     S.setTextState(S.TEXT_STATES.OPEN_IDLE);
     applyPersistentState(S.TEXT_STATES.OPEN_IDLE);

@@ -186,6 +186,20 @@
       if (lastUserIdx > 0) conversation = conversation.slice(lastUserIdx);
     },
 
+    // IA-MEGAUAT-WAVED2 -- removes exactly the last message,
+    // unconditionally. Deliberately NOT the same thing as
+    // spliceFromLastUser above: that method only prunes back to a
+    // PRIOR user turn and no-ops when the conversation's very first
+    // message is itself the last one (correct for scenario_reset,
+    // which must never empty a conversation down to nothing) -- wrong
+    // for this method's one caller (intelligence-panel.js's applyResult
+    // render-exception recovery), which needs to drop a single broken
+    // assistant turn it just pushed, regardless of position, so a safe
+    // fallback message can take its place and actually render.
+    popLastMessage: function () {
+      if (conversation.length > 0) conversation = conversation.slice(0, -1);
+    },
+
     onChange: function (fn) { listeners.push(fn); },
     getSnapshot: snapshot,
 

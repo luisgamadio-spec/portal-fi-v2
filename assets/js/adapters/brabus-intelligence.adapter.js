@@ -614,6 +614,26 @@
     return ERROR_MESSAGE_BY_STATUS[status] || 'Não foi possível concluir a análise agora. Tente novamente.';
   }
 
+  // IA-MEGAUAT-WAVED2 -- Wave D.1 proved sendRealText's fetch() had NO
+  // client-side bound at all: a never-settling request left the panel's
+  // composer permanently disabled (onNovaConversa() itself refused to
+  // act while SENDING/THINKING -- see intelligence-panel.js). Real,
+  // legitimate backend latency for this endpoint is confirmed up to
+  // ~120s (Human UAT), so this is deliberately conservative -- well
+  // above every observed legitimate duration, never 15s/30s/55s/60s
+  // (those would clip real, successful answers). A named constant, not
+  // a magic number, and exported below so callers/tests reference the
+  // real value instead of re-guessing it.
+  var AI_TEXT_CLIENT_TIMEOUT_MS = 180000;
+
+  // IA-MEGAUAT-WAVED2 -- distinct message from every existing entry in
+  // ERROR_MESSAGE_BY_STATUS above: a timeout is not "unavailable" (503)
+  // or any other server-classified condition, it is this CLIENT giving
+  // up on waiting -- telling the user to simply try again is honest and
+  // actionable, unlike reusing the "temporariamente indisponível" copy
+  // Wave D.1 explicitly said not to show unless actually appropriate.
+  var CLIENT_TIMEOUT_MESSAGE = 'A resposta demorou mais do que o esperado. Tente novamente.';
+
   // IA-3G.5A -- pre-Edge latency forensics. `clientTiming` is an
   // OPTIONAL object the caller may pass ({ uiSubmitAt, getTokenMs } --
   // both plain numbers, never content) purely to enrich the diagnostic
@@ -640,7 +660,17 @@
   // the ONLY two call sites in this codebase are this file's own two
   // callers, both under source control, neither reading this string
   // from any user input.
-  function sendRealText(message, conversation, accessToken, clientTiming, surface) {
+  // IA-MEGAUAT-WAVED2 -- `externalController` is an OPTIONAL 6th arg,
+  // additive-only (every existing 5-arg-or-fewer call site -- every
+  // test, the routed page if it ever calls this -- is unaffected and
+  // gets sendRealText's own internal AbortController instead). Its one
+  // purpose: let a caller (intelligence-panel.js's "Nova conversa"
+  // handler) hold a reference to the SAME controller this function uses
+  // for its fetch, so it can call .abort() on a genuinely abandoned
+  // request from outside -- without that, Wave D.1's proven deadlock
+  // (no way to escape a hung THINKING state) would only ever be half
+  // fixed (bounded by time, never by explicit user action).
+  function sendRealText(message, conversation, accessToken, clientTiming, surface, externalController) {
     var cfg = window.NX_INTELLIGENCE_CONFIG || {};
     if (!cfg.textEndpoint || !cfg.supabasePublishableKey) {
       return Promise.resolve({ error: { status: 0, message: 'Configuração de Intelligence ausente — modo real_text não está configurado neste ambiente.' } });
@@ -658,11 +688,30 @@
       'x-nx-correlation-id': correlationId
     };
     if (surface) reqHeaders['x-nx-intelligence-surface'] = surface;
-    return fetch(cfg.textEndpoint, {
+
+    // IA-MEGAUAT-WAVED2 -- native AbortController, never an
+    // uncontrolled Promise.race that would leave the underlying fetch
+    // running in the background after "timing out" client-side (Wave
+    // D.2's own explicit instruction). Feature-detected, not assumed --
+    // every browser this app already targets supports it, but a missing
+    // AbortController degrades to "no timeout" rather than a throw.
+    var controller = externalController || (typeof AbortController !== 'undefined' ? new AbortController() : null);
+    var timedOut = false;
+    var timer = controller ? setTimeout(function () {
+      timedOut = true;
+      controller.abort();
+    }, AI_TEXT_CLIENT_TIMEOUT_MS) : null;
+    function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
+
+    var fetchOpts = {
       method: 'POST',
       headers: reqHeaders,
       body: JSON.stringify(body)
-    }).then(function (resp) {
+    };
+    if (controller) fetchOpts.signal = controller.signal;
+
+    return fetch(cfg.textEndpoint, fetchOpts).then(function (resp) {
+      clearTimer();
       // LATENCY-1 -- captured the instant fetch()'s own promise resolves
       // (response headers available, body not yet read/parsed) --
       // previously this exact moment was never timestamped, so
@@ -682,7 +731,21 @@
         }
         return { response: normalizeResponse(payload), _devTiming: devTiming };
       });
-    }).catch(function () {
+    }).catch(function (err) {
+      clearTimer();
+      // IA-MEGAUAT-WAVED2 -- distinguish "we gave up waiting" from every
+      // other network failure. An abort triggered by something OTHER
+      // than this function's own timer (e.g. the panel's "Nova
+      // conversa" cancelling an abandoned request) still lands here
+      // with the same generic { status: 0 } shape as any other aborted/
+      // rejected fetch -- that is intentional and safe: the panel side
+      // already discards a result from a request it deliberately
+      // abandoned (its own send-epoch check, never this function's
+      // concern), so which exact message this branch returns in that
+      // specific case is immaterial -- it is never shown to the user.
+      if (timedOut) {
+        return { error: { status: 0, code: 'timeout', message: CLIENT_TIMEOUT_MESSAGE } };
+      }
       return { error: { status: 0, message: errorMessageForStatus(0) } };
     });
   }
@@ -803,6 +866,8 @@
     SCENARIOS: SCENARIOS,
     resolveFixtureScenario: resolveFixtureScenario,
     loadFixtureScenario: loadFixtureScenario,
-    sendRealText: sendRealText
+    sendRealText: sendRealText,
+    // IA-MEGAUAT-WAVED2
+    AI_TEXT_CLIENT_TIMEOUT_MS: AI_TEXT_CLIENT_TIMEOUT_MS
   };
 })();
