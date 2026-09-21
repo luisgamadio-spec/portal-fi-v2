@@ -1004,7 +1004,19 @@ function modeloPadrao(raw){
     if(s.includes("TARMAC")) return "ECLIPSE CROSS TARMAC";
     if(s.includes("BLACK")) return "ECLIPSE CROSS HPE-S BLACK";
     if(s.includes("HPE-S") || s.includes("HPE S")){
-      if(s.includes("4X4") || s.includes("S-AWC") || s.includes("SAWC") || s.includes("AWD")) return "ECLIPSE CROSS HPE-S 4X4";
+      // WAVE-C4B: this golden reference is defined (see file header) as
+      // an extraction of origin/main:modules/analise-geral-grupo-secure-
+      // original-layout.html. That source was fixed in Wave C.4B (bare
+      // "AWC" now resolves to the 4X4 class -- see MEGA_UAT_C4A_ACTIVE_
+      // NORMALIZATION_CONFLICT), checked against `original` (pre-cleanup)
+      // because the cleanup regex's generic `C\b` term eats the trailing
+      // "C" off AWC/S-AWC/SAWC, so none of the three ever matched
+      // against `s` -- a deeper pre-existing bug than the plain omission
+      // C.4A first reported. This is a manual, identical-diff mirror of
+      // that same fix, not a re-run of extract_dashbi_reference.py --
+      // flagged for a real regeneration in a later wave if strict
+      // extraction-process fidelity is required.
+      if(original.includes("4X4") || original.includes("S-AWC") || original.includes("SAWC") || original.includes("AWD") || original.includes("AWC")) return "ECLIPSE CROSS HPE-S 4X4";
       if(s.includes("4X2") || s.includes("2WD")) return "ECLIPSE CROSS HPE-S 4X2";
       return "ECLIPSE CROSS HPE-S 4X2";
     }

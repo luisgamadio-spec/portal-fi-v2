@@ -405,7 +405,18 @@
     if(s.includes("TARMAC")) return "ECLIPSE CROSS TARMAC";
     if(s.includes("BLACK")) return "ECLIPSE CROSS HPE-S BLACK";
     if(s.includes("HPE-S") || s.includes("HPE S")){
-      if(s.includes("4X4") || s.includes("S-AWC") || s.includes("SAWC") || s.includes("AWD")) return "ECLIPSE CROSS HPE-S 4X4";
+      // WAVE-C4B: "AWC" isolado (sem hífen) é rota real confirmada em
+      // portal_finance_operations/portal_sales (Wave C.4A) e antes caía
+      // no default 4X2 -- nunca coberto por S-AWC/SAWC/AWD. Autoridade
+      // de negócio: AWC = 4x4, nunca 4x2. Checado contra `original`
+      // (pré-limpeza), não `s`: a própria regex de limpeza acima (o
+      // termo genérico `C\b`) come o "C" final de "AWC"/"S-AWC"/"SAWC",
+      // reduzindo-os a "AW"/"S-AW"/"SAW" -- por isso nenhum desses três
+      // jamais batia contra `s` (bug pré-existente mais profundo do que
+      // o omission original relatado em C.4A). Mirror byte-identical do
+      // fix em modules/analise-geral-grupo-secure-original-layout.html
+      // (portal-financiamento-brabus-secure-orch1).
+      if(original.includes("4X4") || original.includes("S-AWC") || original.includes("SAWC") || original.includes("AWD") || original.includes("AWC")) return "ECLIPSE CROSS HPE-S 4X4";
       if(s.includes("4X2") || s.includes("2WD")) return "ECLIPSE CROSS HPE-S 4X2";
       return "ECLIPSE CROSS HPE-S 4X2";
     }
