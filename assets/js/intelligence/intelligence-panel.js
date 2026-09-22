@@ -1149,15 +1149,36 @@
   // portal-ai-homolog's surface-aware intelligenceEnabled derivation),
   // and it has zero effect on intelligence-voice.js's bridge, which
   // never calls this function.
+  // IA-R2C.1 -- R2-FINDING-04 (P1 go-live blocker): a merely
+  // INDETERMINATE failure to check this flag (NX_MASTER_CONFIG_PROVIDER
+  // not yet ready, getAccessToken() hiccup, a transient RPC rejection)
+  // used to resolve the exact same boolean `false` as a CONFIRMED
+  // ia_texto_habilitada='false' row -- both then hit
+  // handleSendRealText()'s `if (!enabled)` branch, which unconditionally
+  // routes to status:503 -> TEXT_STATES.DISABLED, the deliberately
+  // sticky, non-auto-recovering lock (correct ONLY for a real,
+  // confirmed kill-switch -- see intelligence-recovery-hardening-
+  // test.py's own TEST 3, unchanged by this fix). Human UAT proved this
+  // exact collapse: a transient check failure mid-conversation locked
+  // the composer with zero network dispatch and no recovery short of
+  // "Nova conversa", defeating a same-conversation multi-turn flow.
+  // Now resolves { enabled, confirmed } instead of a bare boolean --
+  // `confirmed` is true only when readConfig() actually returned a
+  // row-shaped answer; a rejection (any cause) resolves
+  // { enabled: false, confirmed: false }, letting the caller route an
+  // indeterminate check to the SAME already-existing, already-tested
+  // recoverable-error path used elsewhere in this file (status: 0,
+  // TEXT_STATES.ERROR, composer stays usable) instead of inventing a
+  // new state or touching the confirmed-disabled path at all.
   function isTextSurfaceEnabled() {
     if (!window.NX_MASTER_CONFIG_PROVIDER || typeof window.NX_MASTER_CONFIG_PROVIDER.readConfig !== 'function') {
-      return Promise.resolve(false);
+      return Promise.resolve({ enabled: false, confirmed: false });
     }
     return window.NX_MASTER_CONFIG_PROVIDER.readConfig().then(function (rows) {
       var row = Array.isArray(rows) ? rows.filter(function (r) { return r && r.chave === 'ia_texto_habilitada'; })[0] : null;
-      return !!row && String(row.valor || '').trim().toLowerCase() === 'true';
+      return { enabled: !!row && String(row.valor || '').trim().toLowerCase() === 'true', confirmed: true };
     }, function () {
-      return false;
+      return { enabled: false, confirmed: false };
     });
   }
 
@@ -1171,16 +1192,28 @@
     // carried through to _devTiming so a multi-turn latency pattern is
     // readable directly off the existing [bai-timing] log line.
     var turnIndex = priorTurns.filter(function (m) { return m.role === 'user'; }).length + 1;
-    isTextSurfaceEnabled().then(function (enabled) {
+    isTextSurfaceEnabled().then(function (gate) {
       if (!isSendCurrent(gen, localEpoch)) return;
-      if (!enabled) {
-        // Same error shape/status the server itself would return for
-        // this exact condition (errorMessageForStatus(503) in the
-        // adapter) -- applyResult()'s own existing 503 handling
-        // (TEXT_STATES.DISABLED, composer disabled, no retry loop)
-        // applies unchanged. No network request was made: sendRealText
-        // is never called on this path.
-        applyResultIfCurrent(gen, localEpoch, { error: { status: 503, message: 'Brabus Intelligence está temporariamente indisponível.' } });
+      if (!gate.enabled) {
+        if (gate.confirmed) {
+          // Same error shape/status the server itself would return for
+          // this exact condition (errorMessageForStatus(503) in the
+          // adapter) -- applyResult()'s own existing 503 handling
+          // (TEXT_STATES.DISABLED, composer disabled, no retry loop)
+          // applies unchanged. No network request was made: sendRealText
+          // is never called on this path.
+          applyResultIfCurrent(gen, localEpoch, { error: { status: 503, message: 'Brabus Intelligence está temporariamente indisponível.' } });
+        } else {
+          // IA-R2C.1 -- an INDETERMINATE check (readConfig() rejected --
+          // no confirmed answer either way) is never treated as a
+          // confirmed kill-switch. Routes to the SAME already-existing,
+          // already-tested recoverable-error shape used elsewhere in
+          // this file for a transient failure (status 0 ->
+          // TEXT_STATES.ERROR, composer stays usable, no Nova conversa
+          // required) -- no new state, no new message, no touch to the
+          // confirmed-disabled branch above.
+          applyResultIfCurrent(gen, localEpoch, { error: { status: 0, message: 'Não foi possível concluir a análise agora. Tente novamente.' } });
+        }
         return;
       }
       // IA-3G.5A -- getAccessToken() calls the real Supabase SDK's own
