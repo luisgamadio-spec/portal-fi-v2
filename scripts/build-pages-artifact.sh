@@ -27,6 +27,12 @@ mkdir -p "$OUT"
 cp index.html "$OUT/index.html"
 touch "$OUT/.nojekyll"
 
+# --- First-access cutover compatibility (CUTOVER-2) -- exact,
+# byte-identical port of V1 production's concluir-acesso.html (see its
+# own inline script comment for the token/redemption design). Explicitly
+# scoped to this one file only, not a broadened root-HTML allowlist. ---
+cp concluir-acesso.html "$OUT/concluir-acesso.html"
+
 # --- Static assets (recursive) -- includes the GL-1B vendored design-
 # system assets under assets/css/vendor/ and assets/js/vendor/.
 #
