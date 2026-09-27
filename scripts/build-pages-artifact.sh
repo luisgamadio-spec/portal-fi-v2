@@ -33,6 +33,13 @@ touch "$OUT/.nojekyll"
 # scoped to this one file only, not a broadened root-HTML allowlist. ---
 cp concluir-acesso.html "$OUT/concluir-acesso.html"
 
+# --- First-access email-confirmation step (AUTH-ACCESS-06) -- the real
+# activation-link landing page (assets/js -> confirm-access-activation
+# Edge Function -> hands off a continuation token to index.html's own
+# #continuar= step). V2-GOLIVE-02 P0-1: this file was missing from the
+# allowlist, so every real activation e-mail link 404'd in production. ---
+cp verificar-acesso.html "$OUT/verificar-acesso.html"
+
 # --- Static assets (recursive) -- includes the GL-1B vendored design-
 # system assets under assets/css/vendor/ and assets/js/vendor/.
 #
@@ -45,10 +52,22 @@ cp concluir-acesso.html "$OUT/concluir-acesso.html"
 # but physically present). Relying on "CI wouldn't have it" is not
 # enough for a script whose whole point is local/CI parity -- so this
 # copy step excludes the pattern explicitly, defense in depth, rather
-# than assuming. ---
+# than assuming.
+#
+# V2-SECURITY-02 (SEC-08): broadened the same defense-in-depth logic to
+# .env/.env.* and *.tmp -- this loop reads the real working tree, not
+# just committed state, so an untracked local file of any of these
+# shapes sitting inside assets/ would otherwise still get published
+# even though .gitignore keeps it out of the repository. Nothing
+# currently committed matches any of these patterns (confirmed before
+# this change); *.example.js is unaffected and stays included. ---
 if [ -d assets ]; then
   mkdir -p "$OUT/assets"
-  ( cd assets && find . -type f ! -name '*.local.js' -print0 ) | \
+  ( cd assets && find . -type f \
+      ! -name '*.local.js' \
+      ! -name '.env' ! -name '.env.*' \
+      ! -name '*.tmp' \
+      -print0 ) | \
     while IFS= read -r -d '' f; do
       mkdir -p "$OUT/assets/$(dirname "$f")"
       cp "assets/$f" "$OUT/assets/$f"

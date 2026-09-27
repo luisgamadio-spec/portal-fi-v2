@@ -46,6 +46,17 @@
     });
   }
 
+  // V2-SECURITY-02 (SEC-01): never interpolate a raw err.message into
+  // the DOM -- same discipline score.js's STATE_COPY/errorStateHtml
+  // already applies (classify, show a fixed generic copy, never the
+  // provider's own text), just without this file's ad-hoc handlers
+  // needing a full state-classification system to get there. A raw
+  // Postgres/PostgREST error can carry table/column/constraint names
+  // or query fragments; none of that is safe to show a Master admin.
+  function safeErrorMessage() {
+    return 'Não foi possível concluir a operação agora. Tente novamente.';
+  }
+
   // ---------- module state ----------
   var currentSection = 'usuarios'; // only implemented section this Phase
   var currentView = 'list'; // 'list' | 'detail' | 'create'
@@ -325,6 +336,16 @@
     CONFLICT: { title: 'Não foi possível concluir', body: 'Esta ação não pode ser concluída no estado atual do cadastro.' }
   };
   function errorStateHtml(state, message) {
+    // V2-SECURITY-02 (SEC-06): this is the single shared error-render
+    // chokepoint for every section of Painel Master (Usuários, Acessos,
+    // Pendências, Gestão de Bases/Simuladores, Configurações, Períodos,
+    // Ausências, Mudança de Loja, ...) -- the natural place to delegate
+    // a genuinely classified SESSION_EXPIRED to Auth Foundation's
+    // established handling instead of only showing a local message,
+    // without touching every section's own catch block individually.
+    if (state === 'SESSION_EXPIRED' && window.NX_AUTH_CORE && typeof window.NX_AUTH_CORE.reportSessionExpired === 'function') {
+      window.NX_AUTH_CORE.reportSessionExpired();
+    }
     var copy = STATE_COPY[state] || STATE_COPY.RPC_ERROR;
     return '<div class="modErrorState"><div class="modStateTitle">' + esc(copy.title) + '</div>' + esc(copy.body) + '</div>';
   }
@@ -2006,7 +2027,7 @@
       function (err) {
         inFlight.gbImport = false;
         var msg = document.getElementById('gbDiagMsg');
-        if (msg) msg.textContent = 'Erro ao confirmar: ' + String((err && err.message) || err);
+        if (msg) msg.textContent = 'Erro ao confirmar: ' + safeErrorMessage();
         if (btn) btn.disabled = false;
       }
     );
@@ -2525,7 +2546,7 @@
       function (err) {
         inFlight.gsImport = false;
         var msg = document.getElementById('gsDiagMsg');
-        if (msg) msg.textContent = 'Erro ao confirmar: ' + String((err && err.message) || err);
+        if (msg) msg.textContent = 'Erro ao confirmar: ' + safeErrorMessage();
         if (btn) btn.disabled = false;
       }
     );
@@ -2682,7 +2703,21 @@
       function (err) {
         inFlight.cfgSave = false;
         var msg = document.getElementById('cfgConfirmMsg');
-        if (msg) msg.textContent = 'Erro ao salvar: ' + String((err && err.message) || err);
+        // FECHAMENTO INTEGRADO -- P2: esta era a ÚNICA chamada deste
+        // arquivo que descartava err.state e caía num texto genérico
+        // fixo (safeErrorMessage(), idêntico ao próprio corpo de
+        // STATE_COPY.RPC_ERROR) -- as outras 4 chamadas equivalentes
+        // (linhas ~1710/5701/5763/5764) já classificam corretamente via
+        // STATE_COPY[err.state]. AUTH_DENIED aqui é tratado à parte
+        // (em vez do corpo genérico "Sua conta não tem acesso a esta
+        // área.") porque esta ação específica É, comprovadamente
+        // (Gate 26 forensics), restrita ao perfil Master -- nunca o
+        // texto/código cru do Postgres (42501), só a explicação segura
+        // do motivo.
+        var body = (err && err.state === 'AUTH_DENIED')
+          ? 'Apenas o perfil Master pode alterar esta configuração.'
+          : (STATE_COPY[err && err.state] || STATE_COPY.RPC_ERROR).body;
+        if (msg) msg.textContent = 'Erro ao salvar: ' + body;
         if (btn) btn.disabled = false;
       }
     );
@@ -2867,7 +2902,7 @@
       },
       function (err) {
         inFlight.prAction = false;
-        prState.modal = { kind: 'error', message: String((err && err.message) || err) };
+        prState.modal = { kind: 'error', message: safeErrorMessage() };
         renderPrModalRoot();
       }
     );
@@ -2889,7 +2924,7 @@
       function (err) {
         inFlight.prAction = false;
         var msg = document.getElementById('prConfirmMsg');
-        if (msg) msg.textContent = 'Erro ao arquivar: ' + String((err && err.message) || err);
+        if (msg) msg.textContent = 'Erro ao arquivar: ' + safeErrorMessage();
         if (btn) btn.disabled = false;
       }
     );
@@ -2922,7 +2957,7 @@
       },
       function (err) {
         inFlight.prAction = false;
-        f.error = String((err && err.message) || err);
+        f.error = safeErrorMessage();
         if (btn) btn.disabled = false;
         renderPanel();
       }
@@ -3184,7 +3219,7 @@
       },
       function (err) {
         inFlight.absAction = false;
-        absState.modal = { kind: 'error', message: String((err && err.message) || err) };
+        absState.modal = { kind: 'error', message: safeErrorMessage() };
         renderAbsModalRoot();
       }
     );
@@ -3206,7 +3241,7 @@
       function (err) {
         inFlight.absAction = false;
         var msg = document.getElementById('absConfirmMsg');
-        if (msg) msg.textContent = 'Erro ao arquivar: ' + String((err && err.message) || err);
+        if (msg) msg.textContent = 'Erro ao arquivar: ' + safeErrorMessage();
         if (btn) btn.disabled = false;
       }
     );
@@ -3256,7 +3291,7 @@
       },
       function (err) {
         inFlight.absAction = false;
-        f.error = String((err && err.message) || err);
+        f.error = safeErrorMessage();
         if (btn) btn.disabled = false;
         renderPanel();
       }
@@ -3524,7 +3559,7 @@
       },
       function (err) {
         inFlight.scAction = false;
-        scState.modal = { kind: 'error', message: String((err && err.message) || err) };
+        scState.modal = { kind: 'error', message: safeErrorMessage() };
         renderScModalRoot();
       }
     );
@@ -3546,7 +3581,19 @@
       function (err) {
         inFlight.scAction = false;
         var msg = document.getElementById('scConfirmMsg');
-        if (msg) msg.textContent = 'Erro ao arquivar: ' + String((err && err.message) || err);
+        // FECHAMENTO INTEGRADO -- P2: mesmo defeito e mesma correção de
+        // cfgConfirmSaveHandler acima (err.state descartado, texto
+        // genérico fixo). CONFLICT aqui é tratado à parte (em vez do
+        // corpo genérico "Esta ação não pode ser concluída...") porque
+        // a causa real (23P01, validação de cadeia de alocação
+        // forward-only -- ver comentário no provider) é uma
+        // inconsistência de dados específica e diagnosticável, não uma
+        // falha genérica -- nunca o código/texto cru do Postgres, só a
+        // explicação segura do motivo.
+        var body = (err && err.state === 'CONFLICT')
+          ? 'Esta arquivação conflita com outra mudança de alocação já registrada para o mesmo período.'
+          : (STATE_COPY[err && err.state] || STATE_COPY.RPC_ERROR).body;
+        if (msg) msg.textContent = 'Erro ao arquivar: ' + body;
         if (btn) btn.disabled = false;
       }
     );
@@ -3570,7 +3617,7 @@
       function (err) {
         inFlight.scAction = false;
         var msg = document.getElementById('scEditDeptMsg');
-        if (msg) msg.textContent = 'Erro ao salvar: ' + String((err && err.message) || err);
+        if (msg) msg.textContent = 'Erro ao salvar: ' + safeErrorMessage();
         if (btn) btn.disabled = false;
       }
     );
@@ -3611,7 +3658,7 @@
       },
       function (err) {
         inFlight.scAction = false;
-        f.error = String((err && err.message) || err);
+        f.error = safeErrorMessage();
         if (btn) btn.disabled = false;
         renderPanel();
       }

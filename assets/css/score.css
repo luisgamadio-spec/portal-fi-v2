@@ -98,6 +98,13 @@
   white-space: normal;
   overflow-wrap: break-word;
 }
+/* RESTAURAÇÃO DE FILTROS -- item 3: cabeçalho e célula de colunas
+   numéricas (Financ.) devem compartilhar o mesmo eixo de alinhamento.
+   .modNumCol sozinho (0,1,0) perde para a regra acima (0,1,2) -- esta
+   é a correção real (mesmo padding/eixo que a célula, sem
+   margin/transform mascarando o desalinhamento), não um ajuste
+   posicional avulso. */
+.scTable thead th.modNumCol { text-align: right; }
 .scTable td {
   padding: var(--space-3);
   border-bottom: 1px solid var(--color-hairline);
@@ -185,6 +192,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
+  flex-wrap: wrap;
 }
 .scDetailHead h2 { font-family: var(--font-ui); font-weight: 400; font-size: 18px; margin: 0; }
 .scDetailTotal { font-family: var(--font-mono); font-size: 13px; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
@@ -205,6 +213,114 @@
   font-size: 11px; padding: 4px var(--space-2); border-radius: var(--radius-sm); cursor: pointer;
 }
 .scCloseDetail:focus-visible, .scCloseDetail:hover { outline: var(--focus-ring); outline-offset: 2px; color: var(--color-accent-primary); }
+
+/* RESTAURAÇÃO DE FILTROS -- item 2 (nota de ajuste de escopo). */
+.scFilterAdjustedNote { display: inline-block; font-size: 11px; color: var(--color-warning); margin-top: 2px; }
+
+/* ---------- item 4: "Ver vendas detalhadas" ---------- */
+.scSalesDetailToggle {
+  background: none; border: 1px solid var(--color-hairline-strong);
+  color: var(--color-accent-primary); font-family: var(--font-mono);
+  font-size: 11px; padding: 4px var(--space-2); border-radius: var(--radius-sm); cursor: pointer;
+}
+.scSalesDetailToggle:hover, .scSalesDetailToggle:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+.scSalesDetail { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px dashed var(--color-hairline-strong); }
+.scSalesDetailHead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); flex-wrap: wrap; }
+.scSalesDetailHead h3 { font-family: var(--font-ui); font-weight: 400; font-size: 14px; margin: 0; }
+.scSalesDetailCount { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted); }
+.scSalesList { display: flex; flex-direction: column; gap: var(--space-2); }
+/* REFINAMENTO VISUAL -- item 2: o cabeçalho (.scSalesListHead) reaproveita
+   a MESMA .scSalesOpToggle (mesmo grid), então esta é a ÚNICA definição
+   de colunas -- nunca pode divergir entre cabeçalho e linhas. */
+.scSalesOpToggle {
+  /* item 2: colunas em fr puro (nunca auto) -- cada linha é seu
+     próprio grid independente (não uma <table> compartilhada), então
+     uma coluna "auto" dimensiona por CONTEÚDO e diverge entre o
+     cabeçalho (texto longo em maiúsculas) e cada linha (valores mais
+     curtos), quebrando o alinhamento que este item exige. Frações
+     puras garantem a MESMA largura em todo grid independente, sempre. */
+  display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-4); align-items: center;
+  width: 100%; text-align: left; background: var(--color-surface-2); border: none;
+  padding: var(--space-2) var(--space-3); font-family: var(--font-mono); font-size: 12px;
+  color: var(--color-text-primary); cursor: pointer; box-sizing: border-box;
+}
+/* Grid items have an implicit min-width:auto (= their min-content) by
+   default -- a <button> (rows) and a <div> (.scSalesListHead) resolve
+   that differently, and the header's longer uppercase labels have a
+   wider min-content than a row's shorter values, so without this the
+   header's own track sizing can overflow past the shared 2fr/1fr/1fr
+   tracks and stop matching the rows' actual rendered width (the exact
+   misalignment item 2 forbids). min-width:0 lets every column honor
+   the SAME fr proportions regardless of its own content length. */
+.scSalesOpToggle > * { min-width: 0; }
+.scSalesListHead {
+  background: none; cursor: default; color: var(--color-text-muted);
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+  padding: 2px var(--space-3) 4px; margin-bottom: 2px;
+  /* item 2: mesma borda (1px) das linhas de dados, só transparente --
+     sem isso o header ficaria 2px mais largo que .scSalesOpRow (que
+     tem border:1px solid real), um desalinhamento sub-pixel real
+     ainda que visualmente quase imperceptível. */
+  border: 1px solid transparent;
+}
+.scSalesOpRow { border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); overflow: hidden; }
+.scSalesOpToggle:hover, .scSalesOpToggle:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
+.scSalesOpRowExpanded .scSalesOpToggle { background: var(--color-surface-1); }
+.scSalesOpDateModel { display: flex; flex-direction: column; gap: 1px; text-align: left; }
+.scSalesOpDate { color: var(--color-text-muted); }
+.scSalesOpModel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-primary); }
+.scSalesOpValue { text-align: right; font-variant-numeric: tabular-nums; }
+/* item 1: identificação textual explícita, nunca só cor; verde
+   discreto (tokens --color-success/-soft) para FINANCIADO, cinza
+   neutro (sem tokens de erro/vermelho) para NÃO FINANCIADO -- só o
+   badge/valor é colorido, nunca a linha (.scSalesOpRow) inteira. */
+.scSalesOpFin { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; text-align: right; font-variant-numeric: tabular-nums; }
+.scSalesOpFinBadge {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em;
+  padding: 1px 6px; border-radius: var(--radius-sm); font-family: var(--font-ui); font-weight: 600;
+}
+.scSalesOpFinYes .scSalesOpFinBadge { color: var(--color-success); background: var(--color-success-soft); }
+.scSalesOpFinYes .scSalesOpFinValue { color: var(--color-text-primary); font-weight: 600; }
+.scSalesOpFinNo .scSalesOpFinBadge { color: var(--color-text-muted); background: var(--color-surface-1); border: 1px solid var(--color-hairline-strong); }
+.scSalesOpFinNo .scSalesOpFinValue { color: var(--color-text-muted); font-size: 11px; }
+.scSalesOpExpanded {
+  padding: var(--space-3); border-top: 1px solid var(--color-hairline);
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2) var(--space-4); font-size: 12px;
+}
+.scSalesOpExpanded > div { display: flex; justify-content: space-between; gap: var(--space-2); }
+.scSalesOpExpanded > div span:first-child { color: var(--color-text-muted); }
+.scSalesOpExpanded > div span:last-child { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+/* IMPLEMENTAR ENTRADA ESTIMADA -- ocupa as 2 colunas (rótulo/valor +
+   texto auxiliar discreto abaixo), por isso sobrescreve o
+   display:flex genérico acima (que colocaria as duas linhas lado a
+   lado em vez de empilhadas). */
+.scSalesOpEntradaRow { display: block; grid-column: 1 / -1; }
+.scSalesOpEntradaMain { display: flex; justify-content: space-between; gap: var(--space-2); }
+.scSalesOpEntradaMain span:first-child { color: var(--color-text-muted); }
+.scSalesOpEntradaMain span:last-child { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.scSalesOpEntradaNote { margin-top: 2px; }
+/* item 3 (sinalização discreta de inconsistência) -- âmbar/warning,
+   nunca vermelho de erro (mesma semântica já usada por
+   .scFilterAdjustedNote: algo pede atenção, não uma falha). */
+.scSalesOpEntradaInconsistente .scSalesOpEntradaMain span:last-child { color: var(--color-warning); }
+.scSalesOpEntradaInconsistente .scSalesOpEntradaNote { color: var(--color-warning); font-style: normal; }
+/* REFINAMENTO VISUAL -- item 2 (mobile): rótulo próprio junto de cada
+   valor, já que sem o cabeçalho de tabela (desktop) um número isolado
+   não diz se é venda ou financiamento. Oculto no desktop (o cabeçalho
+   .scSalesListHead já cobre esse papel lá). */
+.scSalesOpMobileLabel { display: none; }
+@media (max-width: 640px) {
+  .scSalesOpToggle, .scSalesListHead { grid-template-columns: 1fr; gap: 2px; }
+  .scSalesListHead { display: none; }
+  .scSalesOpDateModel, .scSalesOpFin { align-items: flex-start; text-align: left; }
+  .scSalesOpValue { text-align: left; }
+  .scSalesOpMobileLabel {
+    display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--color-text-muted); font-family: var(--font-ui);
+  }
+  .scSalesOpFinLabel { margin-top: 4px; }
+  .scSalesOpExpanded { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 768px) {
   .scTable .scNameCell { max-width: 140px; }
@@ -266,3 +382,99 @@
 .scMobileScoreValue { flex-shrink: 0; }
 .scMobileField { margin-top: var(--space-3); }
 .scMobileValue { font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+/* ---------- SCORE-SIM-03 -- Inteligência de Utilização ----------
+   Observational-only section, additive below the existing ranking/
+   detail regions. Reuses .modTableWrap/.modTable/.modNumCol/
+   .modEmptyState/.modErrorState/.modInfoState (module-system.css) --
+   no new table/empty/error visual language invented. No color-coded
+   quadrant badges, no gauges, no score-like meter -- text only, same
+   score.md discipline already governing the rest of this file. */
+.sciSection {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-hairline);
+}
+.sciSectionTitle {
+  font-family: var(--font-ui);
+  font-weight: 300;
+  font-size: clamp(18px, 2.2vw, 22px);
+  letter-spacing: -.01em;
+  margin: 0 0 var(--space-1);
+}
+.sciSectionSubtitle {
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  margin: 0 0 var(--space-5);
+  max-width: 62ch;
+}
+.sciBlock { margin-bottom: var(--space-5); }
+.sciBlock:last-child { margin-bottom: 0; }
+.sciBlockTitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  margin: 0 0 var(--space-2);
+}
+.sciBlockNote {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin: 0 0 var(--space-3);
+}
+.sciMuted { color: var(--color-text-muted); font-size: 11.5px; }
+
+/* SCORE-SIM-04 -- coverage info (section 12): always visible body text,
+   never a tooltip/title attribute. .sciCoverageWarning reuses the same
+   warning token .modInfoState-adjacent surfaces already use elsewhere
+   in this design system, not a new color invented for this Wave. */
+.sciCoverageInfo {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+}
+.sciCoverageLine { margin: 0 0 4px; font-size: 12px; color: var(--color-text-secondary); }
+.sciCoverageLine:last-child { margin-bottom: 0; }
+.sciCoverageWarning { margin: var(--space-2) 0 0; font-size: 12px; color: var(--color-warning); }
+
+/* SCORE-SIM-17 -- "Utilização dos Simuladores" criterion, UNIFIED into
+   the same table/detail as the commercial criteria (human rejected a
+   separate parallel section in SCORE-SIM-16A). Reuses every existing
+   token below (--color-*, --space-*, --font-mono) -- no new color
+   invented for this Wave, same discipline as .sciCoverageWarning
+   above. */
+.scExpCol { white-space: nowrap; }
+.scExpHeaderBadge {
+  display: block; font-size: 9px; font-weight: 700; letter-spacing: .06em;
+  color: var(--color-warning); text-transform: uppercase; margin-top: 2px;
+}
+.scExpPending { color: var(--color-text-muted); font-style: italic; font-size: 12px; }
+/* SCORE-SIM-22 -- LOCAL_REAL_MODE loading/error sub-states, additive to
+   the existing .scExpPending token/style, no new color invented
+   (--color-warning already used above for .scExpHeaderBadge). */
+.scExpError { color: var(--color-warning); font-style: normal; }
+@media (prefers-reduced-motion: no-preference) {
+  .scExpLoading { animation: scExpLoadingPulse 1.4s ease-in-out infinite; }
+  @keyframes scExpLoadingPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+}
+.scExpSub { font-size: 11px; color: var(--color-text-muted); margin-left: 2px; }
+.scExpCriterion { border-top: 1px dashed var(--color-hairline-strong); padding-top: var(--space-3); margin-top: var(--space-2); }
+.scExpComposition {
+  margin-top: var(--space-4); padding: var(--space-3); border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm); background: var(--color-surface-2);
+}
+.scExpCompositionTitle {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--color-warning); font-weight: 700; margin: 0 0 var(--space-2);
+}
+.scExpCompositionRow {
+  display: flex; justify-content: space-between; gap: var(--space-3);
+  font-size: 12.5px; color: var(--color-text-secondary); padding: 3px 0;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+.scExpCompositionTotal { border-top: 1px solid var(--color-hairline); margin-top: 4px; padding-top: 6px; font-weight: 700; color: var(--color-text-primary); }

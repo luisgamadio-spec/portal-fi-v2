@@ -147,6 +147,23 @@ if(location.hostname==='127.0.0.1'||location.hostname==='localhost'){
 <script src="assets/js/adapters/score.adapter.js"></script>
 <script src="assets/js/adapters/score-real-provider.js"></script>
 <script src="assets/js/adapters/score-real-view-model.js"></script>
+<!-- SCORE HOMOLOGADO (HUMAN_APPROVED) -- integração final do critério
+     "Utilização + Conversão" (RPC governada score_utilization_
+     conversion_scope_data, EXECUTE só para authenticated, escopo
+     resolvido 100% server-side via operational_current_scope()) e da
+     composição experimental 900+100. score-intelligence-view-model.js
+     permanece só como lógica pura de identidade/cobertura reaproveitada
+     internamente -- a seção visual "Inteligência de Utilização" foi
+     removida por decisão de UAT. Os 3 arquivos *-experimental.js abaixo
+     dão suporte ao modo de demonstração (fixture) apenas -- nunca usados
+     por sessão real autenticada. -->
+<script src="assets/js/adapters/score-intelligence-view-model.js"></script>
+<script src="assets/js/adapters/score-calculation-proof-experimental.js"></script>
+<script src="assets/js/adapters/score-telemetry-integration-experimental.js"></script>
+<script src="assets/js/adapters/score-utilization-scoring-experimental.js"></script>
+<script src="assets/js/adapters/score-utilization-view-model.js"></script>
+<script src="assets/js/adapters/score-utilization-conversion-view-model.js"></script>
+<script src="assets/js/adapters/score-utilization-governed-provider.js"></script>
 <script src="assets/js/score.js"></script>
 <script src="assets/js/adapters/coparticipado.adapter.js"></script>
 <script src="assets/js/adapters/coparticipado-real-provider.js"></script>
